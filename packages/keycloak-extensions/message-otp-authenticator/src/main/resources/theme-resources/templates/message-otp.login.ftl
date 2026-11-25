@@ -22,6 +22,9 @@ SPDX-License-Identifier: AGPL-3.0-only
                 <span role="status">${msg("messageOtp.delivery.unknown")}</span>
             <#elseif channel?? && (deliveryState!'') == 'FAILED'>
                 <span role="alert">${msg("messageOtp.delivery.failed", msg("messageChannel." + channel))}</span>
+            <#elseif (deliveryState!'') == 'FAILED'>
+                <#-- A step that names no channel (email, SMS or both) says the failure too. -->
+                <span role="alert">${msg("messageOtp.delivery.failedCode")}</span>
             <#elseif channel?? && channel == 'MESSENGER'>
                 ${msg("messageOtp.auth.title")}
             <#elseif channel??>
@@ -347,6 +350,9 @@ SPDX-License-Identifier: AGPL-3.0-only
                         ${msg("messageOtp.otl.instructionBoth")}
                     </#if>
                 </p>
+            <#elseif (codeDisclosure!'') != 'NEUTRAL' && (deliveryState!'') == 'FAILED'>
+                <#-- Nothing was sent: no "enter the code we sent", but what to do next. -->
+                ${msg("messageOtp.delivery.retry")}
             <#else>
                 <#if courier??>
                     <#if courier = "SMS">

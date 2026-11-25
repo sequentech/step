@@ -436,8 +436,48 @@ export const FailedDelivery: Story = {
         await expect(canvas.getByRole("alert")).toHaveTextContent(
             "We could not send the code to your WhatsApp."
         )
+        // Nothing was sent: the page says what to do next, not where to find the code.
+        await expect(
+            canvas.getByText(/problem on our side, not with your details/)
+        ).toBeVisible()
+        await expect(canvas.queryByText(/Open WhatsApp/)).not.toBeInTheDocument()
         await expect(canvas.getByRole("button", {name: /Resend code/})).toBeVisible()
         await expectOneChannel(canvas)
+    },
+}
+
+/**
+ * A step that names no channel (email, SMS or both), such as the code that ends an enrollment:
+ * a code that could not be sent says so, never "We sent a code", and offers the resend.
+ */
+export const FailedDeliveryWithoutAChannel: Story = {
+    args: {
+        kcContext: {
+            courier: MessageCourier.Email,
+            deliveryState: DeliveryState.Failed,
+            codeJustSent: false,
+            resendTimerStarted: true,
+        },
+    },
+    beforeEach: () => {
+        localStorage.removeItem("resendOtpEndTime")
+        return () => localStorage.removeItem("resendOtpEndTime")
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await canvas.findByRole("heading", {level: 1})
+        await expect(canvas.getByRole("alert")).toHaveTextContent("We could not send your code.")
+        await expect(
+            canvas.getByText(
+                "This is a problem on our side, not with your details. You do not need to start again: send the code again when the button is ready."
+            )
+        ).toBeVisible()
+        await expect(canvas.queryByText(/We sent a code/)).not.toBeInTheDocument()
+        await expect(canvas.queryByText(/Enter the code we sent/)).not.toBeInTheDocument()
+        await expect(
+            canvas.getByRole("button", {name: /Resend code in \d+ seconds/})
+        ).toBeDisabled()
+        await expect(canvas.getByRole("group", {name: "Verification code"})).toBeVisible()
     },
 }
 

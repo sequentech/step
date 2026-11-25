@@ -49,6 +49,7 @@ public class MessageOTPAuthenticator
 
   public static final String MESSENGER_NOT_CONFIRMED = "Messenger link not confirmed";
   public static final String NO_CHANNEL = "No channel to send the code";
+  public static final String CODE_NOT_SENT = "Code not sent";
   public static final String INTERNAL_ERROR = "InternalError";
   private static final String CODE_SEND_FAILED = "Code send failed";
 
@@ -722,21 +723,25 @@ public class MessageOTPAuthenticator
           codeForm(context, form, configMap, messageCourier, deferredUser, codeJustSent, send));
     } catch (Exception error) {
       log.error("Error resending OTP");
-      if (neutral && !deferredUser) {
-        // A failed provider call must not reveal that the identifier has an account.
-        authSession.removeAuthNote(Utils.CODE);
-        Utils.clearMessengerLink(authSession);
+      // A code that could not be sent leaves the step open: no live code, the resend timer of a
+      // send, and the code page saying so. What the voter did in earlier steps stays in the
+      // session, and the resend sends a new code.
+      authSession.removeAuthNote(Utils.CODE);
+      Utils.clearMessengerLink(authSession);
+      authSession.setAuthNote(
+          MessagingAttributes.NOTE_DELIVERY_STATE, MessageAttemptState.FAILED.name());
+      if (authSession.getAuthNote(Utils.CODE_TTL) == null) {
+        long lifetime = Long.parseLong(configMap.get(Utils.CODE_TTL)) * 1000L;
         authSession.setAuthNote(
-            MessagingAttributes.NOTE_DELIVERY_STATE, MessageAttemptState.FAILED.name());
-        if (authSession.getAuthNote(Utils.CODE_TTL) == null) {
-          long lifetime = Long.parseLong(configMap.get(Utils.CODE_TTL)) * 1000L;
-          authSession.setAuthNote(
-              Utils.CODE_TTL, Long.toString(System.currentTimeMillis() + lifetime));
-        }
-        String reason =
-            MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason().equals(error.getMessage())
-                ? MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason()
-                : CODE_SEND_FAILED;
+            Utils.CODE_TTL, Long.toString(System.currentTimeMillis() + lifetime));
+      }
+      String reason =
+          MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason().equals(error.getMessage())
+              ? MessageReason.SMS_PROVIDER_SENDS_ONLY_CODES.reason()
+              : CODE_SEND_FAILED;
+      if (neutral && !deferredUser) {
+        // A failed provider call must not reveal that the identifier has an account: the page
+        // reads as it does after a send.
         context.getEvent().detail("reason", reason).error(NO_CHANNEL);
         context.challenge(
             codeForm(
@@ -749,12 +754,16 @@ public class MessageOTPAuthenticator
                 send(request)));
         return;
       }
-      context.failureChallenge(
-          AuthenticationFlowError.INTERNAL_ERROR,
-          context
-              .form()
-              .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
-              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+      context.getEvent().detail("reason", reason).error(CODE_NOT_SENT);
+      context.challenge(
+          codeForm(
+              context,
+              context.form(),
+              configMap,
+              messageCourier,
+              deferredUser,
+              false,
+              send(request)));
     }
   }
 
@@ -896,6 +905,9 @@ public class MessageOTPAuthenticator
         .setAttribute("codeRequests", codeProgress.map(CodeProgress::requests).orElse(null));
     if (messageCourier == Utils.MessageCourier.CHOSEN) {
       setChannelAttributes(context, form, authSession);
+    } else if (Utils.sendFailed(authSession)) {
+      // A step that names no channel says a failed send too, never "We sent a code".
+      form.setAttribute("deliveryState", MessageAttemptState.FAILED.name());
     }
     return form.createForm(TPL_CODE);
   }

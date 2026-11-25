@@ -212,8 +212,67 @@ class MessageOTPAuthenticationFlowTest {
       authenticator.authenticate(context);
       assertFalse(logs.text().contains("synthetic-provider-secret"));
     }
-    verify(context).failureChallenge(AuthenticationFlowError.INTERNAL_ERROR, response);
+    verify(context, never())
+        .failureChallenge(eq(AuthenticationFlowError.INTERNAL_ERROR), any(Response.class));
     verify(context, never()).success();
+  }
+
+  /**
+   * A code that cannot be sent keeps the step open: the code page says so and offers the resend,
+   * and nothing the voter did before is lost to an error page.
+   */
+  @Test
+  void aCodeThatCannotBeSentKeepsTheStepOpenWithAFailureNotice() throws Exception {
+    notes.remove(Utils.CODE);
+    notes.remove(Utils.CODE_TTL);
+    when(sms.send(eq(PHONE), anyString(), anyList(), eq(realm), eq(user), eq(session)))
+        .thenThrow(new java.io.IOException("provider down"));
+
+    authenticator.authenticate(context);
+
+    verify(context, never())
+        .failureChallenge(eq(AuthenticationFlowError.INTERNAL_ERROR), any(Response.class));
+    verify(form, never()).createErrorPage(any());
+    verify(context).challenge(response);
+    verify(form).createForm("message-otp.login.ftl");
+    verify(form).setAttribute("deliveryState", "FAILED");
+    verify(form).setAttribute("codeJustSent", false);
+    verify(form).setAttribute("resendTimerStarted", true);
+    verify(form, never()).setError(eq(Utils.ERROR_MESSAGE_NOT_SENT), any());
+    verify(event).error(MessageOTPAuthenticator.CODE_NOT_SENT);
+    verify(context, never()).success();
+    assertNull(notes.get(Utils.CODE));
+    assertEquals("FAILED", notes.get(MessagingAttributes.NOTE_DELIVERY_STATE));
+    assertNotNull(notes.get(Utils.CODE_TTL));
+  }
+
+  /** The failed send started the resend timer; once it has run, the resend sends a new code. */
+  @Test
+  void theResendAfterAFailedSendSendsANewCode() throws Exception {
+    notes.remove(Utils.CODE);
+    notes.remove(Utils.CODE_TTL);
+    when(sms.send(eq(PHONE), anyString(), anyList(), eq(realm), eq(user), eq(session)))
+        .thenThrow(new java.io.IOException("provider down"))
+        .thenReturn("delivered");
+    authenticator.authenticate(context);
+    assertNull(notes.get(Utils.CODE));
+
+    // Reloading the page does not send again by itself.
+    authenticator.authenticate(context);
+    assertNull(notes.get(Utils.CODE));
+    verify(sms, times(1)).send(eq(PHONE), anyString(), anyList(), eq(realm), eq(user), eq(session));
+
+    long lifetime = Long.parseLong(configMap.get(Utils.CODE_TTL)) * 1000L;
+    long timer = Long.parseLong(configMap.get(Utils.RESEND_ACTIVATION_TIMER)) * 1000L;
+    notes.put(Utils.CODE_TTL, Long.toString(System.currentTimeMillis() + lifetime - timer - 1000L));
+    clearInvocations(form, context);
+    parameters.putSingle("resend", "true");
+    authenticator.action(context);
+
+    assertNotNull(notes.get(Utils.CODE));
+    assertEquals("ACCEPTED", notes.get(MessagingAttributes.NOTE_DELIVERY_STATE));
+    verify(form, never()).setAttribute("deliveryState", "FAILED");
+    verify(form, never()).createErrorPage(any());
   }
 
   @Test
