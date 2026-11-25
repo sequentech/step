@@ -1,3 +1,5 @@
+-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+--
 -- SPDX-License-Identifier: AGPL-3.0-only
 SELECT pg_advisory_xact_lock(hashtextextended('operational-signing-policy:deployment',0));
 DO $$

@@ -1,3 +1,5 @@
+-- SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+--
 -- SPDX-License-Identifier: AGPL-3.0-only
 -- Optional direct DEMO action evidence. No certificate, CRL, document
 -- signature, installation, device credential or product policy is created.
@@ -68,10 +70,11 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER STRICT SET search_path=pg_c
    WHERE (i.installation,i.tenant,i.event,i.post,i.publication)=(p_install,p_tenant,p_event,p_post,p_pub)
      AND i.profile='softhsm-test' AND i.singleton AND a.singleton
      AND NOT EXISTS(SELECT FROM sequent_backend.operational_signing_required_tenant t WHERE t.tenant_id=p_tenant)
-     AND p.is_generated AND p.deleted_at IS NULL AND isfinite(p.published_at) AND p.published_at<=statement_timestamp()
+     -- The stock successor publication soft-deletes the previous snapshot and styles.
+     AND p.is_generated AND isfinite(p.published_at) AND p.published_at<=statement_timestamp()
      AND EXISTS (SELECT FROM sequent_backend.ballot_style b
         WHERE (b.tenant_id,b.election_event_id,b.election_id,b.ballot_publication_id)=
-              (i.tenant,i.event,i.post,i.publication) AND b.deleted_at IS NULL)
+              (i.tenant,i.event,i.post,i.publication))
  );
 $$;
 
@@ -86,6 +89,7 @@ BEGIN
      pg_try_advisory_xact_lock(hashtextextended('signing-event:'||anchor.tenant::text||':'||anchor.event::text,0))
  THEN RAISE EXCEPTION 'direct action policy or event is busy' USING ERRCODE='55P03'; END IF;
  IF NEW.enabled_at < statement_timestamp() OR NEW.enabled_at > clock_timestamp()
+    OR NOT felix3_initialize_direct.scope_enabled(anchor.installation,anchor.tenant,anchor.event,anchor.post,anchor.publication)
     OR NOT felix3_initialize_direct.action_scope_enabled(anchor.installation,anchor.tenant,anchor.event,anchor.post,anchor.publication)
     OR EXISTS (
        SELECT FROM sequent_backend.signing_request r
@@ -148,12 +152,59 @@ RETURNS timestamptz LANGUAGE sql VOLATILE STRICT SET search_path=pg_catalog,pg_t
        AND EXISTS (
            SELECT FROM sequent_backend.ballot_publication p
            WHERE (p.tenant_id,p.election_event_id)=(p_tenant,p_event)
-             AND p.id<>p_pub AND p.id::text=r.subject->>'publication_id'
+             AND p.id<>p_pub AND r.subject=jsonb_build_object('publication_id',p.id)
              AND p.is_generated AND p.deleted_at IS NULL
              AND isfinite(p.published_at) AND p.published_at<=statement_timestamp()
              AND EXISTS (SELECT FROM sequent_backend.ballot_style b
                  WHERE (b.tenant_id,b.election_event_id,b.election_id,b.ballot_publication_id)=
                        (p_tenant,p_event,p_post,p.id) AND b.deleted_at IS NULL)
+             AND p.published_at >= i.enabled_at
+             AND p.id = (SELECT x.id FROM sequent_backend.ballot_publication x
+                 WHERE (x.tenant_id,x.election_event_id)=(p_tenant,p_event)
+                   AND (x.election_id=p_post OR p_post=ANY(x.election_ids))
+                   AND x.deleted_at IS NULL AND x.published_at IS NOT NULL
+                 ORDER BY x.published_at DESC,x.id LIMIT 1)
+             AND EXISTS (
+                 SELECT FROM sequent_backend.signing_request cfg
+                 WHERE (cfg.tenant_id,cfg.election_event_id,cfg.action,cfg.status)=
+                       (p_tenant,p_event,'approve-configuration','executed')
+                   AND (cfg.election_id IS NULL OR cfg.election_id=p_post)
+                   AND cfg.area_id IS NULL AND cfg.trustee_id IS NULL
+                   AND cfg.required>0 AND cfg.created_at>=i.enabled_at
+                   AND cfg.completed_at>=cfg.created_at AND cfg.executed_at>=cfg.completed_at
+                   AND cfg.executed_at>=p.published_at AND cfg.executed_at<=statement_timestamp()
+                   AND cfg.subject->>'ballot_publication_id'=p.id::text
+                   AND cfg.execution_result->>'ballot_publication_id'=p.id::text
+                   AND jsonb_typeof(cfg.subject->'digest')='string'
+                   AND cfg.execution_result->'digest'=cfg.subject->'digest'
+                   AND cfg.subject=cfg.canonical_payload::jsonb->'subject'
+                   AND cfg.canonical_payload::jsonb->>'action'='approve-configuration'
+                   AND cfg.canonical_payload::jsonb->>'tenant_id'=p_tenant::text
+                   AND cfg.canonical_payload::jsonb->>'election_event_id'=p_event::text
+                   AND cfg.canonical_payload::jsonb->>'request_id'=cfg.id::text
+                   AND encode(sha256(convert_to(cfg.canonical_payload,'UTF8')),'hex')=cfg.payload_sha256
+                   AND NOT EXISTS (SELECT FROM sequent_backend.signing_approval a
+                       WHERE (a.tenant_id,a.election_event_id,a.request_id)=(p_tenant,p_event,cfg.id)
+                         AND (a.action_direct_proof IS NULL OR a.initialize_direct_proof IS NOT NULL))
+                   AND EXISTS (
+                       SELECT FROM sequent_backend.signing_approval a
+                       JOIN felix3_initialize_direct.action_reservation v ON
+                            (v.tenant,v.event,v.request,v.actor::text)=
+                            (a.tenant_id,a.election_event_id,a.request_id,a.user_id)
+                       JOIN felix3_initialize_direct.per_actor_key k ON
+                            (k.installation,k.actor)=(v.installation,v.actor)
+                       WHERE (a.tenant_id,a.election_event_id,a.request_id)=(p_tenant,p_event,cfg.id)
+                         AND (v.installation,v.post,v.publication,v.action)=
+                             (p_install,p_post,p_pub,'approve-configuration')
+                         AND v.nonce::text=a.action_direct_proof->>'nonce'
+                         AND v.used_at IS NOT NULL AND v.used_at<=cfg.completed_at
+                         AND a.spki_sha256=encode(k.spki_sha256,'hex') AND k.revoked_at IS NULL
+                         AND a.action_direct_proof->>'payload_sha256'=cfg.payload_sha256
+                         AND encode(v.payload_sha256,'hex')=cfg.payload_sha256
+                       HAVING count(DISTINCT a.user_id)>=cfg.required
+                          AND count(DISTINCT k.spki_sha256)>=cfg.required
+                   )
+             )
        )
    ))
    AND r.payload_sha256=encode(p_sha,'hex') AND sha256(convert_to(r.canonical_payload,'UTF8'))=p_sha
