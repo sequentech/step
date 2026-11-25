@@ -905,6 +905,17 @@ const galegoTranslation: TranslationType = {
                 statementTimestampTo: "Marca de tempo da declaración ata",
                 timeZone: "Fuso horario",
             },
+            signingActivity: {
+                filter: "Actividade de sinaturas",
+                help: "Introduce un tipo de rexistro ou escolle un evento de sinatura.",
+                created: "Solicitude creada",
+                approved: "Aprobación rexistrada",
+                quorum: "Alcanzouse o limiar de aprobacións",
+                actionResult: "Acción finalizada ou errada",
+                cancelled: "Solicitude cancelada",
+                expired: "Solicitude caducada",
+                refused: "Sinatura rexeitada",
+            },
             scheduledOutcome: {
                 outcome: {
                     "waiting-for-initialization": "Agardando pola inicialización",

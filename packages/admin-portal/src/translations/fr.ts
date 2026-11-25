@@ -913,6 +913,17 @@ const frenchTranslation: TranslationType = {
                 statementTimestampTo: "Horodatage de la déclaration au",
                 timeZone: "Fuseau horaire",
             },
+            signingActivity: {
+                filter: "Activité de signature",
+                help: "Saisissez un type d’entrée ou choisissez un événement de signature.",
+                created: "Demande créée",
+                approved: "Approbation enregistrée",
+                quorum: "Seuil d’approbations atteint",
+                actionResult: "Action terminée ou échouée",
+                cancelled: "Demande annulée",
+                expired: "Demande expirée",
+                refused: "Signature refusée",
+            },
             scheduledOutcome: {
                 outcome: {
                     "waiting-for-initialization": "En attente d’initialisation",

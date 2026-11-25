@@ -26,6 +26,7 @@ interface Scenario {
         | "listed"
         | "none"
         | "configuration-import"
+        | "approval-activity"
         | "privacy"
         | "long-descriptions"
         | "historical-requester"
@@ -133,6 +134,16 @@ const logs = [
         description: "Keys generated",
     }),
 ]
+
+const signingActivity = [
+    ["SigningRequestCreated", "Started request Q-010"],
+    ["SigningRequestSigned", "Approval recorded for Q-010"],
+    ["SigningRequestCompleted", "Quorum reached for Q-010"],
+    ["SigningActionExecuted", "Ran Close Voting for Q-010"],
+    ["SigningRequestCancelled", "Cancelled request Q-011"],
+].map(([kind, description], index) =>
+    logRow(index + 20, kind, null, {event_type: "SYSTEM", log_type: "INFO", description})
+)
 
 const historicalRequester = logRow(
     6,
@@ -288,6 +299,7 @@ const meta = {
                 "listed",
                 "none",
                 "configuration-import",
+                "approval-activity",
                 "privacy",
                 "long-descriptions",
                 "historical-requester",
@@ -295,21 +307,17 @@ const meta = {
         },
     },
     beforeEach: async ({args}) => {
+        const rowsForScenario = {
+            "approval-activity": signingActivity,
+            "historical-requester": [historicalRequester],
+            "long-descriptions": descriptionLogs,
+            privacy: privacyLogs,
+            "configuration-import": [CONFIGURATION_IMPORT],
+            listed: logs,
+            none: [],
+        } satisfies Record<Scenario["logs"], unknown[]>
         data = resourceBoundary(
-            {
-                electoral_log:
-                    args.logs === "historical-requester"
-                        ? [historicalRequester]
-                        : args.logs === "long-descriptions"
-                          ? descriptionLogs
-                          : args.logs === "privacy"
-                            ? privacyLogs
-                            : args.logs === "configuration-import"
-                              ? [CONFIGURATION_IMPORT]
-                              : args.logs === "listed"
-                                ? logs
-                                : [],
-            },
+            {electoral_log: rowsForScenario[args.logs]},
             {reads: args.reads}
         )
         graphql = graphqlBoundary(
@@ -437,6 +445,32 @@ export const Populated: Story = {
             }),
         ])
         await waitFor(() => expect(graphql.calls).toEqual(ledgerReads))
+    },
+}
+
+export const SigningActivity: Story = {
+    ...atViewport(1440),
+    args: {logs: "approval-activity"},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(await canvas.findByText("Started request Q-010")).toBeVisible()
+        await expect(canvas.getByText("Approval recorded for Q-010")).toBeVisible()
+        await expect(canvas.getByText("Ran Close Voting for Q-010")).toBeVisible()
+        await expect(canvas.getByText("Cancelled request Q-011")).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Signing activity"}))
+        const input = await canvas.findByLabelText("Statement kind")
+        const choices = document.getElementById(input.getAttribute("list") ?? "")
+        expect(choices?.querySelector('option[value="SigningRequestCompleted"]')).toHaveAttribute(
+            "label",
+            "Approval threshold reached"
+        )
+        await userEvent.type(input, "SigningActionExecuted")
+        await waitFor(() =>
+            expect(data.calls.at(-1)?.args).toMatchObject([
+                "electoral_log",
+                {filter: {election_event_id: EVENT_ID, statement_kind: "SigningActionExecuted"}},
+            ])
+        )
     },
 }
 

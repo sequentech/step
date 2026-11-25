@@ -530,10 +530,6 @@ impl VerifiedDirectProof {
     pub(super) fn scope(&self) -> &DirectScope {
         &self.scope
     }
-    pub(super) fn nonce(&self) -> Uuid {
-        self.nonce
-    }
-
     pub(super) async fn consume_and_insert(
         &self,
         tx: &Transaction<'_>,

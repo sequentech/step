@@ -914,6 +914,17 @@ const dutchTranslation: TranslationType = {
                 statementTimestampTo: "Tijdstempel van de verklaring tot",
                 timeZone: "Tijdzone",
             },
+            signingActivity: {
+                filter: "Ondertekenactiviteit",
+                help: "Voer een soort logvermelding in of kies een ondertekeningsgebeurtenis.",
+                created: "Verzoek aangemaakt",
+                approved: "Goedkeuring vastgelegd",
+                quorum: "Goedkeuringsdrempel bereikt",
+                actionResult: "Actie afgerond of mislukt",
+                cancelled: "Verzoek geannuleerd",
+                expired: "Verzoek verlopen",
+                refused: "Handtekening geweigerd",
+            },
             scheduledOutcome: {
                 outcome: {
                     "waiting-for-initialization": "Wacht op initialisatie",
