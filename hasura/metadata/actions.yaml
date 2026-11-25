@@ -1342,6 +1342,21 @@ actions:
       permissions:
           - role: tally-results-read
       comment: A tally session's bulletin boards and the manager messages their public verification is anchored to
+    - name: get_tally_public_verification_transcript
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/tally-public-verification-transcript
+          forward_client_headers: true
+          timeout: 600
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tally-results-read
+      comment: One tally board's public transcript, read from the board service by Harvest
     - name: export_tasks_execution
       definition:
           kind: synchronous
@@ -3433,6 +3448,7 @@ custom_types:
         - name: TrusteeBoardsOutput
         - name: TallyVerificationBoard
         - name: TallyVerificationBoardsOutput
+        - name: TallyVerificationTranscript
         - name: TrusteeReportOutput
         - name: MonitoringSnapshot
         - name: MonitoringDashboardSummary

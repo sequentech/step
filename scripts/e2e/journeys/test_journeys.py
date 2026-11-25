@@ -165,6 +165,28 @@ class BackendJourneys(unittest.TestCase):
             self.assertEqual(result.status, 200, result.text)
             result = result.json()
             self.assertEqual(result["report"]["status"], "verified", result["report"])
+            # The admin portal verifies the messages Harvest reads for it: the
+            # same ones the observer read from the board itself.
+            served = api.query(
+                """query ($event: String!, $session: String!, $board: String!) {
+                  get_tally_public_verification_transcript(
+                    election_event_id: $event, tally_session_id: $session,
+                    tally_board: $board
+                  ) { dkg_messages tally_messages }
+                }""",
+                {
+                    "event": event_id,
+                    "session": child["tally_session_id"],
+                    "board": child["name"],
+                },
+            )["get_tally_public_verification_transcript"]
+            self.assertEqual(
+                served,
+                {
+                    "dkg_messages": result["transcript"]["dkg_messages"],
+                    "tally_messages": result["transcript"]["tally_messages"],
+                },
+            )
             self.assertEqual(
                 result["report"]["ballot_count"], len(result["report"]["plaintexts"])
             )

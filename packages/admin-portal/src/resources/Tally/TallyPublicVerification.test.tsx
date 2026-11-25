@@ -7,6 +7,7 @@ import {TallyPublicVerification} from "./TallyPublicVerification"
 import {loadBrowserTrustee, type PublicVerificationReport} from "@/services/BrowserTrustee"
 import type {TallyVerificationBoard, TallyVerifier} from "@/services/TallyPublicVerification"
 import {GET_TALLY_PUBLIC_VERIFICATION_BOARDS} from "@/queries/GetTallyPublicVerificationBoards"
+import {GET_TALLY_PUBLIC_VERIFICATION_TRANSCRIPT} from "@/queries/GetTallyPublicVerificationTranscript"
 
 const mockQuery = jest.fn()
 jest.mock("@apollo/client", () => ({
@@ -16,11 +17,6 @@ jest.mock("@apollo/client", () => ({
 jest.mock("react-i18next", () => ({
     useTranslation: () => ({
         t: (key: string, options?: object) => (options ? `${key} ${JSON.stringify(options)}` : key),
-    }),
-}))
-jest.mock("@/providers/SettingsContextProvider", () => ({
-    SettingsContext: require("react").createContext({
-        globalSettings: {WBRAID_BOARD_URL: "https://board.example/b4/"},
     }),
 }))
 // The English name, as the interface language picks it.
@@ -75,6 +71,20 @@ const boards = (list: TallyVerificationBoard[]) => ({
     data: {get_tally_public_verification_boards: {boards: list}},
 })
 
+/** The messages the platform reads for a tally board. */
+const transcript = (tallyBoard: string) => ({
+    data: {
+        get_tally_public_verification_transcript: {
+            dkg_messages: ["ZGtn"],
+            tally_messages: [tallyBoard],
+        },
+    },
+})
+
+// Each query is answered by its own function, which a test may replace.
+let answerBoards: () => Promise<unknown>
+let answerTranscript: (tallyBoard: string) => Promise<unknown>
+
 const verifyButton = () => screen.getByRole("button", {name: `${KEY}.verify`})
 
 function renderWidget(finished = true) {
@@ -93,9 +103,7 @@ beforeEach(() => {
         configurationHash: jest.fn((_configuration: string) => "configuration-hash"),
         ballotsHash: jest.fn((_ballots: string) => "ballots-hash"),
         tallyIdentifier: jest.fn((_configuration: string, _ballots: string) => "42"),
-        fetchTranscript: jest.fn(async (_url: string, _dkg: string, _tally?: string) =>
-            JSON.stringify({version: 1})
-        ),
+        fetchTranscript: jest.fn(),
         verifyTranscript: jest.fn((_evidence: string, _anchors: string) =>
             JSON.stringify(report("verified"))
         ),
@@ -103,6 +111,13 @@ beforeEach(() => {
     jest.mocked(loadBrowserTrustee).mockResolvedValue({
         WasmVerifier: verifier,
     } as unknown as Awaited<ReturnType<typeof loadBrowserTrustee>>)
+    answerBoards = async () => boards([named])
+    answerTranscript = async (tallyBoard) => transcript(tallyBoard)
+    mockQuery.mockImplementation((options: {query: unknown; variables: {tallyBoard: string}}) =>
+        options.query === GET_TALLY_PUBLIC_VERIFICATION_TRANSCRIPT
+            ? answerTranscript(options.variables.tallyBoard)
+            : answerBoards()
+    )
 })
 
 it("cannot verify a tally that has not finished", () => {
@@ -113,9 +128,12 @@ it("cannot verify a tally that has not finished", () => {
 
 it("verifies every batch with the tally-results role and lists the checks when all pass", async () => {
     let answer: (value: unknown) => void = () => undefined
-    mockQuery.mockReturnValue(new Promise((resolve) => (answer = resolve)))
-    let transcript: (value: string) => void = () => undefined
-    verifier.fetchTranscript.mockReturnValueOnce(new Promise((resolve) => (transcript = resolve)))
+    answerBoards = () => new Promise((resolve) => (answer = resolve))
+    let release: () => void = () => undefined
+    answerTranscript = (tallyBoard) =>
+        tallyBoard === named.tally_board
+            ? new Promise((resolve) => (release = () => resolve(transcript(tallyBoard))))
+            : Promise.resolve(transcript(tallyBoard))
     renderWidget()
 
     fireEvent.click(verifyButton())
@@ -134,12 +152,14 @@ it("verifies every batch with the tally-results role and lists the checks when a
             `${KEY}.progress {"current":1,"total":2}`
         )
     )
-    expect(verifier.fetchTranscript).toHaveBeenCalledWith(
-        "https://board.example/b4",
-        named.dkg_board,
-        named.tally_board
-    )
-    transcript(JSON.stringify({version: 1}))
+    // The platform reads the board, uncached; the browser reads no board itself.
+    expect(mockQuery).toHaveBeenCalledWith({
+        query: GET_TALLY_PUBLIC_VERIFICATION_TRANSCRIPT,
+        variables: {electionEventId: EVENT, tallySessionId: SESSION, tallyBoard: named.tally_board},
+        fetchPolicy: "no-cache",
+        context: {headers: {"x-hasura-role": "tally-results-read"}},
+    })
+    release()
 
     expect(await screen.findByText(`${KEY}.summary.verified {"count":2,"total":2}`)).toBeTruthy()
     for (const check of ["ballots", "mixing", "decryption"])
@@ -153,14 +173,22 @@ it("verifies every batch with the tally-results role and lists the checks when a
     expect(within(rows[1]).getByText(`${KEY}.status.verified`)).toBeTruthy()
     expect(screen.getByRole("button", {name: `${KEY}.verifyAgain`})).toBeTruthy()
     expect(screen.queryByRole("status")).toBeNull()
+    expect(JSON.parse(verifier.verifyTranscript.mock.calls[0][0])).toEqual({
+        version: 1,
+        dkg_messages: ["ZGtn"],
+        tally_messages: [named.tally_board],
+    })
+    expect(verifier.fetchTranscript).not.toHaveBeenCalled()
 })
 
 it("reports each failed proof or unreadable batch, and the batches still verified", async () => {
-    mockQuery.mockResolvedValue(boards([named, unnamed, {...named, tally_board: "third"}]))
+    answerBoards = async () => boards([named, unnamed, {...named, tally_board: "third"}])
+    answerTranscript = async (tallyBoard) => {
+        if (tallyBoard === unnamed.tally_board)
+            throw new Error("the board service could not be read")
+        return transcript(tallyBoard)
+    }
     verifier.verifyTranscript.mockReturnValueOnce(JSON.stringify(report("invalid")))
-    verifier.fetchTranscript
-        .mockResolvedValueOnce("{}")
-        .mockRejectedValueOnce(new Error("the board is unreachable"))
     renderWidget()
 
     fireEvent.click(verifyButton())
@@ -176,13 +204,13 @@ it("reports each failed proof or unreadable batch, and the batches still verifie
     )
     expect(cells).toEqual([
         ["7", `${KEY}.status.invalid`, "invalid detail"],
-        ["", `${KEY}.status.error`, "the board is unreachable"],
+        ["", `${KEY}.status.error`, "the board service could not be read"],
         ["7", `${KEY}.status.verified`, "verified detail"],
     ])
 })
 
 it("says when a tally has no boards to verify", async () => {
-    mockQuery.mockResolvedValue(boards([]))
+    answerBoards = async () => boards([])
     renderWidget()
     fireEvent.click(verifyButton())
     expect(await screen.findByText(`${KEY}.empty`)).toBeTruthy()
@@ -190,13 +218,15 @@ it("says when a tally has no boards to verify", async () => {
 })
 
 it("says why the verification could not run", async () => {
-    mockQuery.mockRejectedValueOnce(new Error("network down"))
+    answerBoards = async () => {
+        throw new Error("network down")
+    }
     renderWidget()
     fireEvent.click(verifyButton())
     expect(await screen.findByText(`${KEY}.failed {"message":"network down"}`)).toBeTruthy()
 
     // The browser cannot load the verifier, e.g. without cross-origin isolation.
-    mockQuery.mockResolvedValue(boards([named]))
+    answerBoards = async () => boards([named])
     jest.mocked(loadBrowserTrustee).mockRejectedValueOnce("not isolated")
     fireEvent.click(verifyButton())
     expect(await screen.findByText(`${KEY}.failed {"message":"not isolated"}`)).toBeTruthy()
@@ -212,7 +242,6 @@ it("downloads the run's evidence", async () => {
     ) {
         saved.push(`${this.download} ${this.href}`)
     })
-    mockQuery.mockResolvedValue(boards([named]))
     renderWidget()
     fireEvent.click(verifyButton())
 

@@ -1,12 +1,15 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! The boards a tally session's public verification reads, from the request
-//! to the rows of the migrated test database.
+//! The boards a tally session's public verification reads, and each board's
+//! transcript, from the request to the rows of the migrated test database
+//! and a local stand-in for b4 and its storage.
 
+use crate::route_services::http::{Exchange, HttpServer};
 use crate::route_services::rows::{self, Event};
 use crate::route_services::{json, post, text, Services};
 use crate::test_claims::Claims;
+use base64::{engine::general_purpose::STANDARD, Engine};
 use deadpool_postgres::Pool;
 use rocket::http::{ContentType, Status};
 use sequent_core::types::permissions::Permissions;
@@ -14,6 +17,7 @@ use serde_json::{json, Value};
 use uuid::Uuid;
 
 const PATH: &str = "/tally-public-verification-boards";
+const TRANSCRIPT: &str = "/tally-public-verification-transcript";
 const UNREADABLE: &str = "the tally session's boards could not be read";
 
 fn admin(tenant_id: &str, permissions: &[Permissions]) -> Claims {
@@ -185,4 +189,173 @@ async fn malformed_ids_are_refused_and_failures_are_not_detailed() {
             .await,
         (Status::InternalServerError, UNREADABLE.to_string())
     );
+}
+
+fn transcript_body(event: &Event, session: &str, tally_board: &str) -> Value {
+    json!({
+        "election_event_id": event.election_event_id,
+        "tally_session_id": session,
+        "tally_board": tally_board,
+    })
+}
+
+/// A message b4 keeps inline, as its message list serves it.
+fn inline(id: &str, bytes: &[u8]) -> Value {
+    json!({
+        "id": id,
+        "content_type": {"message": STANDARD.encode(bytes)},
+        "version": "2",
+        "download_url": null,
+    })
+}
+
+/// A message whose body is in storage, at `download_url`.
+fn stored(id: &str, download_url: &str) -> Value {
+    json!({
+        "id": id,
+        "content_type": {"key": format!("messages/{id}")},
+        "version": "2",
+        "download_url": download_url,
+    })
+}
+
+fn messages(path: &str, messages: Vec<Value>) -> Exchange {
+    Exchange::json("GET", path, 200, json!({ "messages": messages }))
+}
+
+#[rocket::async_test]
+async fn a_reader_gets_a_boards_transcript_read_from_b4_and_its_storage() {
+    let storage = HttpServer::start(vec![Exchange::json(
+        "GET",
+        "/wbraid-messages/mix",
+        200,
+        Value::Null,
+    )
+    .body("mixed ballots")]);
+    let services = Services::on_test_database().await;
+    let event = rows::event(&services.hasura).await;
+    let (session, dkg, tally) =
+        session_with_boards(&services.hasura, &event).await;
+    let b4 = HttpServer::start(vec![
+        messages(
+            &format!("/boards/{dkg}/messages"),
+            vec![inline("c", b"configuration")],
+        ),
+        messages(
+            &format!("/boards/{tally}/messages"),
+            vec![
+                inline("b", b"ballots"),
+                stored("m", &format!("{}/wbraid-messages/mix", storage.url)),
+            ],
+        ),
+    ]);
+    let services = services.with_b4_url(&b4.url);
+    let client = services.client().await;
+    let caller = reader(&event.tenant_id);
+
+    let (status, transcript) = json(
+        post(
+            &client,
+            TRANSCRIPT,
+            &caller,
+            &transcript_body(&event, &session, &tally),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok);
+    assert_eq!(
+        transcript,
+        json!({
+            "dkg_messages": [STANDARD.encode("configuration")],
+            "tally_messages": [
+                STANDARD.encode("ballots"),
+                STANDARD.encode("mixed ballots"),
+            ],
+        })
+    );
+
+    // A board of another tally session is not read.
+    let other = format!("tally_{}_0", Uuid::new_v4().simple());
+    assert_eq!(
+        text(
+            post(
+                &client,
+                TRANSCRIPT,
+                &caller,
+                &transcript_body(&event, &session, &other),
+            )
+            .await
+        )
+        .await,
+        (
+            Status::NotFound,
+            "not a tally board of this tally session".to_string()
+        )
+    );
+    assert_eq!(b4.finish().len(), 2);
+    assert_eq!(storage.finish().len(), 1);
+}
+
+#[rocket::async_test]
+async fn a_board_service_that_is_unset_or_fails_is_a_bad_gateway() {
+    let services = Services::on_test_database().await;
+    let event = rows::event(&services.hasura).await;
+    let (session, _, tally) =
+        session_with_boards(&services.hasura, &event).await;
+    let caller = reader(&event.tenant_id);
+    let request = transcript_body(&event, &session, &tally);
+
+    // WBRAID_B4_URL is unset.
+    let unset = services.client().await;
+    assert_eq!(
+        text(post(&unset, TRANSCRIPT, &caller, &request).await).await,
+        (
+            Status::BadGateway,
+            "the board service is not configured".to_string()
+        )
+    );
+
+    // b4 answers nothing it was asked for.
+    let b4 = HttpServer::start(vec![]);
+    let failing = services.with_b4_url(&b4.url).client().await;
+    assert_eq!(
+        text(post(&failing, TRANSCRIPT, &caller, &request).await).await,
+        (
+            Status::BadGateway,
+            "the board service could not be read".to_string()
+        )
+    );
+    assert_eq!(b4.finish().len(), 1);
+}
+
+#[rocket::async_test]
+async fn a_stored_board_name_that_does_not_parse_is_an_internal_error() {
+    let b4 = HttpServer::start(vec![]);
+    let services = Services::on_test_database().await.with_b4_url(&b4.url);
+    let event = rows::event(&services.hasura).await;
+    let (session, dkg, tally) =
+        session_with_boards(&services.hasura, &event).await;
+    rows::execute(
+        &services.hasura,
+        "UPDATE sequent_backend.protocol_board SET name = 'not-a-board'
+         WHERE name = $1",
+        &[&dkg],
+    )
+    .await;
+    let client = services.client().await;
+    assert_eq!(
+        text(
+            post(
+                &client,
+                TRANSCRIPT,
+                &reader(&event.tenant_id),
+                &transcript_body(&event, &session, &tally),
+            )
+            .await
+        )
+        .await,
+        (Status::InternalServerError, UNREADABLE.to_string())
+    );
+    assert!(b4.finish().is_empty());
 }

@@ -3200,7 +3200,7 @@ const catalanTranslation: TranslationType = {
                 summary: {
                     verified: "Tots els lots verificats: {{count}} de {{total}}.",
                     invalid: "Lots que no han superat la verificació: {{count}} de {{total}}.",
-                    error: "Lots que no s'han pogut verificar: {{count}} de {{total}}. Aquest navegador no ha pogut llegir els seus taulers ni l'emmagatzematge que en guarda els missatges.",
+                    error: "Lots que no s'han pogut verificar: {{count}} de {{total}}. La plataforma no ha pogut llegir els seus taulers del servei de taulers.",
                     incomplete:
                         "Lots incomplets: {{count}} de {{total}}. Hi falten publicacions necessàries, per tant no estan verificats.",
                 },

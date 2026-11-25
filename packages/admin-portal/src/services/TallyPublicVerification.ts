@@ -25,6 +25,26 @@ export interface TallyVerificationBoard {
 
 export type TallyVerifier = TrusteeModule["WasmVerifier"]
 
+/** A board's public transcript, as `get_tally_public_verification_transcript` reads it. */
+export interface BoardMessages {
+    dkg_messages: string[]
+    tally_messages: string[]
+}
+
+/**
+ * Reads a tally board's messages. The platform reads them from the board
+ * service, so the browser needs to reach neither the board nor its storage.
+ */
+export type TranscriptLoader = (board: TallyVerificationBoard) => Promise<BoardMessages>
+
+/** The transcript `verifyTranscript` and `trustee verify --transcript` read. */
+export const transcriptOf = (messages: BoardMessages): string =>
+    JSON.stringify({
+        version: 1,
+        dkg_messages: messages.dkg_messages,
+        tally_messages: messages.tally_messages,
+    })
+
 /** One board's verification: its report, or why there is none. */
 export type BatchVerification =
     | {
@@ -49,10 +69,6 @@ export function overallStatus(batches: BatchVerification[]): BatchStatus {
     )
 }
 
-/** The board service's address: the configured one, or the portal's own `/b4`. */
-export const boardUrl = (configured: string | undefined, origin: string): string =>
-    new URL(configured || "/b4", origin).href.replace(/\/+$/, "")
-
 /** Anchors derived from the platform's records of a board, never from the board itself. */
 export const anchorsOf = (
     verifier: TallyVerifier,
@@ -65,8 +81,8 @@ export const anchorsOf = (
 })
 
 /**
- * An error's first line. The WASM verifier reports a browser error as
- * `JsValue(<error>\n<its stack>)`, so a failed request keeps just `<error>`.
+ * An error's first line. The WASM verifier reports an error as
+ * `JsValue(<error>\n<its stack>)`, which keeps just `<error>`.
  */
 function message(error: unknown): string {
     const text = error instanceof Error ? error.message : String(error)
@@ -76,12 +92,12 @@ function message(error: unknown): string {
 
 async function verifyBoard(
     verifier: TallyVerifier,
-    url: string,
+    load: TranscriptLoader,
     board: TallyVerificationBoard
 ): Promise<BatchVerification> {
     try {
         const anchors = anchorsOf(verifier, board)
-        const transcript = await verifier.fetchTranscript(url, board.dkg_board, board.tally_board)
+        const transcript = transcriptOf(await load(board))
         const report: PublicVerificationReport = JSON.parse(
             verifier.verifyTranscript(transcript, JSON.stringify(anchors))
         )
@@ -94,13 +110,13 @@ async function verifyBoard(
 /** Verify the boards one after another; a board that fails does not stop the rest. */
 export async function verifyTallyBoards(
     verifier: TallyVerifier,
-    url: string,
+    load: TranscriptLoader,
     boards: TallyVerificationBoard[],
     onProgress: (done: number) => void
 ): Promise<BatchVerification[]> {
     const batches: BatchVerification[] = []
     for (const board of boards) {
-        batches.push(await verifyBoard(verifier, url, board))
+        batches.push(await verifyBoard(verifier, load, board))
         onProgress(batches.length)
     }
     return batches

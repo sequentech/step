@@ -68,19 +68,36 @@ const DETAIL: Record<PublicVerificationReport["status"], string> = {
     invalid: "invalid shuffle proof",
 }
 
+const outcomeOf = (outcomes: Record<string, Outcome>, tally: string): Outcome =>
+    outcomes[tally] ?? {status: "verified"}
+
+/**
+ * The platform's answer for one board: its messages, which name the board for
+ * the story verifier, a GraphQL error, or none yet.
+ */
+function transcriptAnswer(outcomes: Record<string, Outcome>, tally: string) {
+    const result = outcomeOf(outcomes, tally)
+    if ("error" in result) return {errors: [new GraphQLError(result.error)]}
+    if ("pending" in result) return new Promise<never>(() => undefined)
+    return {
+        data: {
+            get_tally_public_verification_transcript: {
+                dkg_messages: [btoa("configuration")],
+                tally_messages: [tally],
+            },
+        },
+    }
+}
+
 /** The WASM verifier's contract, answering each board's outcome. */
 function storyVerifier(outcomes: Record<string, Outcome>): TallyVerifier {
-    const outcome = (tally: string): Outcome => outcomes[tally] ?? {status: "verified"}
+    const outcome = (tally: string) => outcomeOf(outcomes, tally)
     return {
         configurationHash: (message) => `configuration(${message})`,
         ballotsHash: (message) => `ballots(${message})`,
         tallyIdentifier: () => "42",
-        fetchTranscript: async (_url, dkg, tally = "") => {
-            const result = outcome(tally)
-            if ("error" in result) throw result.error
-            if ("pending" in result) return new Promise<string>(() => undefined)
-            return JSON.stringify({version: 1, dkg_messages: [dkg], tally_messages: [tally]})
-        },
+        // The platform reads the boards: the browser never fetches one.
+        fetchTranscript: () => Promise.reject(new Error("the browser read a board")),
         verifyTranscript: (transcript, anchors) => {
             const tally: string = JSON.parse(transcript).tally_messages[0]
             const {status} = outcome(tally) as {status: PublicVerificationReport["status"]}
@@ -133,6 +150,8 @@ const meta = {
                                   get_tally_public_verification_boards: {boards: args.boards},
                               },
                           },
+                GetTallyPublicVerificationTranscript: ({variables}) =>
+                    transcriptAnswer(args.outcomes, String(variables.tallyBoard)),
             },
             {schema: true}
         )
@@ -183,13 +202,24 @@ export const AllBatchesVerified: Story = {
                 DETAIL.verified,
             ],
         ])
-        // The anchors' records are read with the tally results permission.
+        // The anchors' records and each board's messages are read through the
+        // platform with the tally results permission.
+        const role = {"x-hasura-role": "tally-results-read"}
         expect(boundary.calls).toEqual([
             {
                 name: "GetTallyPublicVerificationBoards",
                 variables: {electionEventId: EVENT_ID, tallySessionId: SESSION},
-                headers: {"x-hasura-role": "tally-results-read"},
+                headers: role,
             },
+            ...[NORTH, SOUTH].map((board) => ({
+                name: "GetTallyPublicVerificationTranscript",
+                variables: {
+                    electionEventId: EVENT_ID,
+                    tallySessionId: SESSION,
+                    tallyBoard: board.tally_board,
+                },
+                headers: role,
+            })),
         ])
         expect(boundary.unexpected).toEqual([])
     },

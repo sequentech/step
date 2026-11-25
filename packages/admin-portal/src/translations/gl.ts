@@ -3181,7 +3181,7 @@ const galegoTranslation: TranslationType = {
                 summary: {
                     verified: "Todos os lotes verificados: {{count}} de {{total}}.",
                     invalid: "Lotes que non superaron a verificación: {{count}} de {{total}}.",
-                    error: "Lotes que non se puideron verificar: {{count}} de {{total}}. Este navegador non puido ler os seus taboleiros nin o almacenamento que garda as súas mensaxes.",
+                    error: "Lotes que non se puideron verificar: {{count}} de {{total}}. A plataforma non puido ler os seus taboleiros do servizo de taboleiros.",
                     incomplete:
                         "Lotes incompletos: {{count}} de {{total}}. Faltan publicacións necesarias, polo que non están verificados.",
                 },

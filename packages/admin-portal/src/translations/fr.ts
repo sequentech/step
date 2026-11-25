@@ -3215,7 +3215,7 @@ const frenchTranslation: TranslationType = {
                 summary: {
                     verified: "Tous les lots vérifiés : {{count}} sur {{total}}.",
                     invalid: "Lots dont la vérification a échoué : {{count}} sur {{total}}.",
-                    error: "Lots qui n'ont pas pu être vérifiés : {{count}} sur {{total}}. Ce navigateur n'a pas pu lire leurs tableaux ni le stockage qui conserve leurs messages.",
+                    error: "Lots qui n'ont pas pu être vérifiés : {{count}} sur {{total}}. La plateforme n'a pas pu lire leurs tableaux auprès du service des tableaux.",
                     incomplete:
                         "Lots incomplets : {{count}} sur {{total}}. Des publications requises manquent, ils ne sont donc pas vérifiés.",
                 },

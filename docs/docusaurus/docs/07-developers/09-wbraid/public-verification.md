@@ -112,16 +112,20 @@ board names, the batch with the election, contest and area that own it, and the
 platform's stored `protocol_board.manager_message` of both boards in padded
 base64: the DKG board's `Configuration` and the tally board's `Ballots`. The page
 derives `configuration_hash`, `tally_id` and `ballots_hash` from those messages
-with `configurationHash`, `tallyIdentifier` and `ballotsHash`, fetches each
-transcript from `WBRAID_BOARD_URL` (the portal's `/b4` by default) and calls
-`verifyTranscript`. It checks no ballot inclusion.
+with `configurationHash`, `tallyIdentifier` and `ballotsHash`. It checks no
+ballot inclusion.
 
-The board answers with presigned storage URLs, and the browser downloads each
-message body from them, so the page must reach that storage too. A batch whose
-board or storage cannot be read shows **Not verified** with the browser's error,
-for example `TypeError: Failed to fetch`. In the devcontainer the storage is
-LocalStack at `http://localhost.localstack.cloud:4566`, which reaches the
-developer's machine through the forwarded port 4566 (**Wbraid storage**).
+Each batch's transcript comes from the Hasura action
+`get_tally_public_verification_transcript` (Harvest
+`POST /tally-public-verification-transcript`, `tally-results-read`, a 600 second
+action timeout). Harvest checks that the board belongs to the caller's tally
+session, reads the DKG and tally boards from `WBRAID_B4_URL` and their storage
+as `BoardHandle::export_messages` does for event exports, and returns every
+message in padded base64. The page passes `{version: 1, dkg_messages,
+tally_messages}` to `verifyTranscript`. The browser never reads the board
+service or its storage, so neither `WBRAID_BOARD_URL`, cross-origin access to the
+board and its storage, nor a forwarded storage port in the devcontainer affects
+the verification.
 
 The anchors are the platform's records, so the page is a self-check of the
 platform against its boards, not an independent audit. **Download evidence**

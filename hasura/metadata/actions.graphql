@@ -58,6 +58,19 @@ type TallyVerificationBoardsOutput {
     boards: [TallyVerificationBoard!]!
 }
 
+type Query {
+    get_tally_public_verification_transcript(
+        election_event_id: String!
+        tally_session_id: String!
+        tally_board: String!
+    ): TallyVerificationTranscript!
+}
+
+type TallyVerificationTranscript {
+    dkg_messages: [String!]!
+    tally_messages: [String!]!
+}
+
 type TrusteeReportOutput {
     accepted: Boolean!
 }

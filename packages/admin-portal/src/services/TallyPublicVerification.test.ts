@@ -4,11 +4,12 @@ import type {PublicVerificationReport} from "./BrowserTrustee"
 import {
     anchorsOf,
     batchStatus,
-    boardUrl,
     evidenceOf,
     overallStatus,
+    transcriptOf,
     verifyTallyBoards,
     type BatchVerification,
+    type BoardMessages,
     type TallyVerificationBoard,
     type TallyVerifier,
 } from "./TallyPublicVerification"
@@ -53,9 +54,7 @@ function fakeVerifier(): jest.Mocked<TallyVerifier> {
         tallyIdentifier: jest.fn(
             (configuration: string, ballots: string) => `id(${configuration},${ballots})`
         ),
-        fetchTranscript: jest.fn(async (_url: string, dkg: string, tally?: string) =>
-            JSON.stringify({version: 1, dkg_messages: [dkg], tally_messages: [tally]})
-        ),
+        fetchTranscript: jest.fn(),
         verifyTranscript: jest.fn((_evidence: string, _anchors: string) =>
             JSON.stringify(report("verified"))
         ),
@@ -80,14 +79,20 @@ describe("statuses", () => {
     })
 })
 
-describe("boardUrl", () => {
-    it("is the portal's own /b4 unless one is configured, always absolute and without a trailing slash", () => {
-        expect(boardUrl(undefined, "https://admin.example")).toBe("https://admin.example/b4")
-        expect(boardUrl("", "https://admin.example")).toBe("https://admin.example/b4")
-        expect(boardUrl("/board/", "https://admin.example")).toBe("https://admin.example/board")
-        expect(boardUrl("https://board.example/b4/", "https://admin.example")).toBe(
-            "https://board.example/b4"
-        )
+/** The platform's messages of a board: its DKG board's, then its own. */
+const loader = () =>
+    jest.fn(
+        async (board: TallyVerificationBoard): Promise<BoardMessages> => ({
+            dkg_messages: [board.dkg_board],
+            tally_messages: [board.tally_board],
+        })
+    )
+
+describe("transcriptOf", () => {
+    it("is the public transcript version 1 that verifyTranscript and trustee verify read", () => {
+        expect(
+            JSON.parse(transcriptOf({dkg_messages: ["ZGtn"], tally_messages: ["dGFsbHk="]}))
+        ).toEqual({version: 1, dkg_messages: ["ZGtn"], tally_messages: ["dGFsbHk="]})
     })
 })
 
@@ -105,18 +110,15 @@ describe("anchorsOf", () => {
 describe("verifyTallyBoards", () => {
     it("verifies each board in order against its own anchors and reports progress", async () => {
         const verifier = fakeVerifier()
+        const load = loader()
         const progress: number[] = []
-        const batches = await verifyTallyBoards(
-            verifier,
-            "https://admin.example/b4",
-            [board(0), board(1)],
-            (done) => progress.push(done)
+        const batches = await verifyTallyBoards(verifier, load, [board(0), board(1)], (done) =>
+            progress.push(done)
         )
         expect(progress).toEqual([1, 2])
-        expect(verifier.fetchTranscript.mock.calls).toEqual([
-            ["https://admin.example/b4", board(0).dkg_board, board(0).tally_board],
-            ["https://admin.example/b4", board(1).dkg_board, board(1).tally_board],
-        ])
+        expect(load.mock.calls).toEqual([[board(0)], [board(1)]])
+        // The browser never reads a board itself.
+        expect(verifier.fetchTranscript).not.toHaveBeenCalled()
         const [transcript, anchors] = verifier.verifyTranscript.mock.calls[1]
         expect(JSON.parse(transcript).tally_messages).toEqual([board(1).tally_board])
         expect(JSON.parse(anchors).tally_id).toBe("id(Y29uZmlndXJhdGlvbg==,YmFsbG90cw1=)")
@@ -126,7 +128,8 @@ describe("verifyTallyBoards", () => {
 
     it("keeps going after a board that cannot be read or whose messages are refused", async () => {
         const verifier = fakeVerifier()
-        verifier.fetchTranscript.mockRejectedValueOnce(new Error("board unreachable"))
+        const load = loader()
+        load.mockRejectedValueOnce(new Error("board unreachable"))
         // The WASM verifier throws strings.
         verifier.configurationHash.mockImplementation((message: string) => {
             if (message === "bad") throw "invalid configuration"
@@ -134,7 +137,7 @@ describe("verifyTallyBoards", () => {
         })
         const batches = await verifyTallyBoards(
             verifier,
-            "https://admin.example/b4",
+            load,
             [board(0), {...board(1), configuration_message: "bad"}, board(2)],
             () => undefined
         )
@@ -145,22 +148,27 @@ describe("verifyTallyBoards", () => {
 
     it("reports only the first line of an error, without the WASM wrapper", async () => {
         const verifier = fakeVerifier()
-        verifier.fetchTranscript
-            // A browser request failure, as the WASM verifier rethrows it.
-            .mockRejectedValueOnce(
-                "JsValue(TypeError: Failed to fetch\nTypeError: Failed to fetch\n    at __wbg_fetch (index.js:814:30))"
-            )
-            .mockRejectedValueOnce("JsValue(board refused)")
+        verifier.verifyTranscript
+            // An error the WASM verifier rethrows with its stack.
+            .mockImplementationOnce(() => {
+                throw "JsValue(RuntimeError: unreachable\nRuntimeError: unreachable\n    at protocol_board.wasm (index_bg.wasm:1:2))"
+            })
+            .mockImplementationOnce(() => {
+                throw "JsValue(transcript refused)"
+            })
+        const load = loader()
+        load.mockResolvedValueOnce({dkg_messages: [], tally_messages: []})
+            .mockResolvedValueOnce({dkg_messages: [], tally_messages: []})
             .mockRejectedValueOnce(new Error("first line\nsecond line"))
         const batches = await verifyTallyBoards(
             verifier,
-            "https://admin.example/b4",
+            load,
             [board(0), board(1), board(2)],
             () => undefined
         )
         expect(batches.map((batch) => ("error" in batch ? batch.error : null))).toEqual([
-            "TypeError: Failed to fetch",
-            "board refused",
+            "RuntimeError: unreachable",
+            "transcript refused",
             "first line",
         ])
     })

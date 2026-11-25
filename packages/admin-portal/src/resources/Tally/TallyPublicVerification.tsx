@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {useContext, useState} from "react"
+import React, {useState} from "react"
 import {useApolloClient} from "@apollo/client"
 import {useTranslation} from "react-i18next"
 import {
@@ -23,7 +23,6 @@ import {
     Typography,
 } from "@mui/material"
 import CheckCircleIcon from "@mui/icons-material/CheckCircle"
-import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {IPermissions} from "@/types/keycloak"
 import {loadBrowserTrustee} from "@/services/BrowserTrustee"
 import {usePresentationName} from "@/hooks/usePresentationName"
@@ -32,8 +31,11 @@ import {
     type GetTallyPublicVerificationBoardsQuery,
 } from "@/queries/GetTallyPublicVerificationBoards"
 import {
+    GET_TALLY_PUBLIC_VERIFICATION_TRANSCRIPT,
+    type GetTallyPublicVerificationTranscriptQuery,
+} from "@/queries/GetTallyPublicVerificationTranscript"
+import {
     batchStatus,
-    boardUrl,
     evidenceOf,
     overallStatus,
     verifyTallyBoards,
@@ -41,6 +43,7 @@ import {
     type BatchVerification,
     type TallyVerificationBoard,
     type TallyVerifier,
+    type TranscriptLoader,
 } from "@/services/TallyPublicVerification"
 
 /** The production verifier, from the browser trustees' WASM bundle. */
@@ -84,7 +87,9 @@ export interface TallyPublicVerificationProps {
 
 /**
  * Verifies every bulletin board batch of a tally session in the browser: the
- * ballots' zero-knowledge proofs, every shuffle and every decryption.
+ * ballots' zero-knowledge proofs, every shuffle and every decryption. The
+ * platform reads each board for it, so the browser only needs the GraphQL API
+ * it already uses, never the board service or its storage.
  */
 export const TallyPublicVerification: React.FC<TallyPublicVerificationProps> = ({
     electionEventId,
@@ -94,8 +99,19 @@ export const TallyPublicVerification: React.FC<TallyPublicVerificationProps> = (
 }) => {
     const {t} = useTranslation()
     const client = useApolloClient()
-    const {globalSettings} = useContext(SettingsContext)
     const [state, setState] = useState<State>({kind: "idle"})
+    const role = {headers: {"x-hasura-role": IPermissions.TALLY_RESULTS_READ}}
+
+    // A transcript can be large and is read once: kept out of Apollo's cache.
+    const load: TranscriptLoader = async (board) => {
+        const {data} = await client.query<GetTallyPublicVerificationTranscriptQuery>({
+            query: GET_TALLY_PUBLIC_VERIFICATION_TRANSCRIPT,
+            variables: {electionEventId, tallySessionId, tallyBoard: board.tally_board},
+            fetchPolicy: "no-cache",
+            context: role,
+        })
+        return data.get_tally_public_verification_transcript
+    }
 
     const verify = async () => {
         setState({kind: "running", done: 0, total: null})
@@ -104,7 +120,7 @@ export const TallyPublicVerification: React.FC<TallyPublicVerificationProps> = (
                 query: GET_TALLY_PUBLIC_VERIFICATION_BOARDS,
                 variables: {electionEventId, tallySessionId},
                 fetchPolicy: "network-only",
-                context: {headers: {"x-hasura-role": IPermissions.TALLY_RESULTS_READ}},
+                context: role,
             })
             const boards = data.get_tally_public_verification_boards.boards
             if (!boards.length) {
@@ -114,11 +130,8 @@ export const TallyPublicVerification: React.FC<TallyPublicVerificationProps> = (
             const wasm = await verifier()
             const total = boards.length
             setState({kind: "running", done: 0, total})
-            const batches = await verifyTallyBoards(
-                wasm,
-                boardUrl(globalSettings.WBRAID_BOARD_URL, window.location.origin),
-                boards,
-                (done) => setState({kind: "running", done, total})
+            const batches = await verifyTallyBoards(wasm, load, boards, (done) =>
+                setState({kind: "running", done, total})
             )
             setState({kind: "done", batches})
         } catch (error) {

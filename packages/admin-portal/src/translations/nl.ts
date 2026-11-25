@@ -3193,7 +3193,7 @@ const dutchTranslation: TranslationType = {
                     verified: "Alle batches geverifieerd: {{count}} van {{total}}.",
                     invalid:
                         "Batches die de verificatie niet doorstonden: {{count}} van {{total}}.",
-                    error: "Batches die niet konden worden geverifieerd: {{count}} van {{total}}. Deze browser kon hun prikborden of de opslag met hun berichten niet lezen.",
+                    error: "Batches die niet konden worden geverifieerd: {{count}} van {{total}}. Het platform kon hun prikborden niet lezen bij de prikborddienst.",
                     incomplete:
                         "Onvolledige batches: {{count}} van {{total}}. Vereiste publicaties ontbreken, dus ze zijn niet geverifieerd.",
                 },
