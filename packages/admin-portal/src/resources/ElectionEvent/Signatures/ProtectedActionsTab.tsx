@@ -23,12 +23,7 @@ import {
 import EditIcon from "@mui/icons-material/Edit"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import {visuallyHidden} from "@mui/utils"
-import {
-    SigningAction,
-    SigningActionGroup,
-    SigningRequirement,
-    type ISigningRule,
-} from "@/lib/signing/types"
+import {SigningAction, SigningRequirement, type ISigningRule} from "@/lib/signing/types"
 import {
     actionGroups,
     afterLockdown,
@@ -187,15 +182,7 @@ export const ProtectedActionsTab: React.FC<ISignaturesSubTabProps> = ({
                                     return (
                                         <TableRow key={action} data-action={action}>
                                             <TableCell sx={{...cell, fontWeight: off ? 400 : 600}}>
-                                                <span>{label}</span>
-                                                {group === SigningActionGroup.Enrollment && (
-                                                    <Typography
-                                                        variant="body2"
-                                                        color="text.secondary"
-                                                    >
-                                                        {t(`signing.actions.${action}.description`)}
-                                                    </Typography>
-                                                )}
+                                                {label}
                                             </TableCell>
                                             <TableCell sx={cell}>
                                                 {t(`signing.actions.${action}.appliesTo`)}
