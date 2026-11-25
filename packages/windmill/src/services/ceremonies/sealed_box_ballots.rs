@@ -319,7 +319,7 @@ async fn open_counted(
     .await
     {
         Ok(opened) => Ok(Ok(keys.into_iter().zip(opened).collect())),
-        Err(OpenError::Ballot(reason)) => Ok(Err(Rejection(reason))),
+        Err(OpenError::Ballots(failures)) => Ok(Err(Rejection(failures.to_string()))),
         Err(OpenError::Unavailable(error)) => Err(error.context(format!(
             "The sealed ballots of {}, {} can't be opened",
             ballot_box.election_name, ballot_box.area_name

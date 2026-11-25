@@ -20,12 +20,14 @@
 //! - With the flag set, a missing key, a key that doesn't match its pin, a
 //!   missing opener or a plaintext row is refused, never read as legacy.
 //! - Every opened ballot must hash to the Ballot ID its row and envelope
-//!   carry; the associated data binds each envelope to its row's tenant,
-//!   event, election, area, Ballot ID and inner format.
+//!   carry and to the envelope's cast-vote hash; the associated data binds
+//!   each envelope to its row's tenant, event, election, area, Ballot ID and
+//!   inner format. A refusal names every ballot that failed (up to
+//!   [`MAX_REPORTED_FAILURES`]).
 
 pub mod format;
 
-use crate::services::ballot_box_seal::seal::computed_ballot_id;
+use crate::services::ballot_box_seal::seal::computed_hashes;
 use crate::services::electoral_log_board::{get_board_identity, BoardIdentity};
 use anyhow::{anyhow, ensure, Context, Result};
 use dashmap::DashMap;
@@ -51,6 +53,8 @@ use voting_crypto::RecordDeserialize;
 
 /// Most ballots one call of the opener carries.
 pub const MAX_OPEN_BATCH: usize = 64;
+/// Most failing Ballot IDs a refusal lists; it counts the rest.
+pub const MAX_REPORTED_FAILURES: usize = 20;
 /// Most `CastVoteSealKeyPublished` entries a pin check reads.
 const PIN_READ_LIMIT: i64 = 16;
 
@@ -276,6 +280,11 @@ pub fn seal_ballot(
         key.key_id == event_key_id(row.tenant_id, row.election_event_id)?,
         "The key is not the election event's"
     );
+    let hashes = computed_hashes(content, inner_format)?;
+    ensure!(
+        hashes.ballot_id == ballot_id && hashes.cast_vote_hash.as_slice() == cast_vote_hash,
+        "The ballot does not match the Ballot ID and cast-vote hash it is sealed with"
+    );
     let aad = associated_data(&SealScope {
         tenant_id: row.tenant_id,
         election_event_id: row.election_event_id,
@@ -314,22 +323,74 @@ pub struct SealedRow {
     pub content: String,
 }
 
+/// The stored ballots that didn't open, aren't sealed as their rows say, or
+/// don't hash to their Ballot ID and cast-vote hash: changed or moved. The
+/// first [`MAX_REPORTED_FAILURES`] are listed with their reason.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct OpenFailures {
+    listed: Vec<(String, String)>,
+    count: usize,
+}
+
+impl OpenFailures {
+    pub fn push(&mut self, ballot_id: &str, reason: String) {
+        if self.listed.len() < MAX_REPORTED_FAILURES {
+            self.listed.push((ballot_id.to_string(), reason));
+        }
+        self.count += 1;
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.count == 0
+    }
+
+    /// How many ballots failed, listed or not.
+    pub fn count(&self) -> usize {
+        self.count
+    }
+
+    /// The listed ballots' Ballot IDs.
+    pub fn ballot_ids(&self) -> impl Iterator<Item = &str> {
+        self.listed.iter().map(|(ballot_id, _)| ballot_id.as_str())
+    }
+}
+
+impl std::fmt::Display for OpenFailures {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} sealed ballot(s) don't open or don't match their hashes: ",
+            self.count
+        )?;
+        for (index, (ballot_id, reason)) in self.listed.iter().enumerate() {
+            if index > 0 {
+                f.write_str("; ")?;
+            }
+            write!(f, "{ballot_id} ({reason})")?;
+        }
+        let unlisted = self.count - self.listed.len();
+        if unlisted > 0 {
+            write!(f, "; and {unlisted} more")?;
+        }
+        Ok(())
+    }
+}
+
 /// Why sealed rows were not opened.
 #[derive(Debug)]
 pub enum OpenError {
     /// No opener is installed, or it failed for the whole batch: nothing is
     /// known about the ballots, and the same call may succeed later.
     Unavailable(anyhow::Error),
-    /// A stored ballot doesn't open, isn't sealed as its row says, or doesn't
-    /// hash to its Ballot ID: it was changed or moved.
-    Ballot(String),
+    /// Every row was tried; these ballots failed.
+    Ballots(OpenFailures),
 }
 
 impl std::fmt::Display for OpenError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             OpenError::Unavailable(error) => write!(f, "{error:#}"),
-            OpenError::Ballot(reason) => f.write_str(reason),
+            OpenError::Ballots(failures) => failures.fmt(f),
         }
     }
 }
@@ -337,8 +398,8 @@ impl std::fmt::Display for OpenError {
 impl std::error::Error for OpenError {}
 
 /// Opens sealed rows of an event through the installed opener, in batches,
-/// and checks each opened ballot against its Ballot ID. Returns the voter
-/// ballots in the rows' order.
+/// and checks each opened ballot against its hashes. Returns the voter
+/// ballots in the rows' order, or every ballot that failed.
 pub async fn open_rows(
     tenant_id: &str,
     election_event_id: &str,
@@ -359,8 +420,7 @@ fn open_item(
     let envelope = SealedBallot::from_row(&row.content, &row.format, &row.ballot_id)?;
     ensure!(
         envelope.key_id == key.key_id && envelope.key_version == key.key_version,
-        "The sealed ballot {} is sealed to another key",
-        row.ballot_id
+        "sealed to another key"
     );
     let aad = associated_data(&SealScope {
         tenant_id,
@@ -374,24 +434,116 @@ fn open_item(
     Ok((envelope, OpenItem { sealed, aad }))
 }
 
-/// The voter ballot an opened row holds, once it hashes to its Ballot ID.
+/// The voter ballot an opened row holds, once it hashes to its row's Ballot
+/// ID and its envelope's cast-vote hash.
 fn opened_ballot(
     row: &SealedRow,
     envelope: &SealedBallot,
     result: std::result::Result<Vec<u8>, String>,
 ) -> Result<String> {
-    let bytes = result
-        .map_err(|error| anyhow!("The sealed ballot {} does not open: {error}", row.ballot_id))?;
-    let inner = String::from_utf8(bytes)
-        .map_err(|_| anyhow!("The sealed ballot {} is not text", row.ballot_id))?;
-    let computed = computed_ballot_id(&inner, &envelope.inner_format)
-        .with_context(|| format!("The sealed ballot {} can't be read", row.ballot_id))?;
+    let bytes = result.map_err(|error| anyhow!("does not open: {error}"))?;
+    let inner = String::from_utf8(bytes).map_err(|_| anyhow!("is not text"))?;
+    let hashes = computed_hashes(&inner, &envelope.inner_format).context("can't be read")?;
     ensure!(
-        computed == row.ballot_id,
-        "The sealed ballot {} does not match its Ballot ID (it hashes to {computed})",
-        row.ballot_id
+        hashes.ballot_id == row.ballot_id,
+        "does not match its Ballot ID (it hashes to {})",
+        hashes.ballot_id
+    );
+    ensure!(
+        hex::encode(hashes.cast_vote_hash) == envelope.cast_vote_hash,
+        "does not match its cast-vote hash"
     );
     Ok(inner)
+}
+
+/// What opening a row gave: its voter ballot, or why it failed.
+pub type RowOutcome = std::result::Result<String, String>;
+
+/// Opens each row through the installed opener: one outcome per row, in
+/// order. `Err` is [`OpenError::Unavailable`] only.
+pub async fn open_each(
+    tenant_id: &str,
+    election_event_id: &str,
+    key: &SealKey,
+    rows: &[SealedRow],
+) -> std::result::Result<Vec<RowOutcome>, OpenError> {
+    let opener = installed().map_err(OpenError::Unavailable)?;
+    open_each_with(opener.as_ref(), tenant_id, election_event_id, key, rows)
+        .await
+        .map_err(OpenError::Unavailable)
+}
+
+/// [`open_each`] with a given opener. A row whose envelope doesn't fit it
+/// fails without reaching the opener; the error is the opener's failure.
+pub async fn open_each_with(
+    opener: &dyn CastVoteOpener,
+    tenant_id: &str,
+    election_event_id: &str,
+    key: &SealKey,
+    rows: &[SealedRow],
+) -> Result<Vec<RowOutcome>> {
+    let mut outcomes = Vec::with_capacity(rows.len());
+    for chunk in rows.chunks(MAX_OPEN_BATCH) {
+        let mut envelopes = Vec::with_capacity(chunk.len());
+        let mut items = Vec::with_capacity(chunk.len());
+        for row in chunk {
+            match open_item(tenant_id, election_event_id, key, row) {
+                Ok((envelope, item)) => {
+                    envelopes.push(Ok(envelope));
+                    items.push(item);
+                }
+                Err(error) => envelopes.push(Err(format!("{error:#}"))),
+            }
+        }
+        let sent = items.len();
+        let mut results = if sent == 0 {
+            Vec::new()
+        } else {
+            opener
+                .open_batch(&key.key_id, key.key_version, items)
+                .await
+                .context("The cast vote opener failed")?
+        }
+        .into_iter();
+        ensure!(
+            results.len() == sent,
+            "The cast vote opener returned {} results for {sent} ballots",
+            results.len()
+        );
+        for (row, envelope) in chunk.iter().zip(envelopes) {
+            outcomes.push(match envelope {
+                Err(reason) => Err(reason),
+                Ok(envelope) => {
+                    let result = results
+                        .next()
+                        .ok_or_else(|| anyhow!("The cast vote opener returned too few results"))?;
+                    opened_ballot(row, &envelope, result).map_err(|error| format!("{error:#}"))
+                }
+            });
+        }
+    }
+    Ok(outcomes)
+}
+
+/// The voter ballots of `rows` from their outcomes, or every row that
+/// failed.
+pub fn opened_or_failures(
+    rows: &[SealedRow],
+    outcomes: Vec<RowOutcome>,
+) -> std::result::Result<Vec<String>, OpenFailures> {
+    let mut failures = OpenFailures::default();
+    let mut opened = Vec::with_capacity(outcomes.len());
+    for (row, outcome) in rows.iter().zip(outcomes) {
+        match outcome {
+            Ok(ballot) => opened.push(ballot),
+            Err(reason) => failures.push(&row.ballot_id, reason),
+        }
+    }
+    if failures.is_empty() {
+        Ok(opened)
+    } else {
+        Err(failures)
+    }
 }
 
 /// [`open_rows`] with a given opener.
@@ -402,33 +554,10 @@ pub async fn open_rows_with(
     key: &SealKey,
     rows: &[SealedRow],
 ) -> std::result::Result<Vec<String>, OpenError> {
-    let ballot = |error: anyhow::Error| OpenError::Ballot(format!("{error:#}"));
-    let mut opened = Vec::with_capacity(rows.len());
-    for chunk in rows.chunks(MAX_OPEN_BATCH) {
-        let (envelopes, items): (Vec<_>, Vec<_>) = chunk
-            .iter()
-            .map(|row| open_item(tenant_id, election_event_id, key, row))
-            .collect::<Result<Vec<_>>>()
-            .map_err(ballot)?
-            .into_iter()
-            .unzip();
-        let results = opener
-            .open_batch(&key.key_id, key.key_version, items)
-            .await
-            .context("The cast vote opener failed")
-            .map_err(OpenError::Unavailable)?;
-        if results.len() != chunk.len() {
-            return Err(OpenError::Unavailable(anyhow!(
-                "The cast vote opener returned {} results for {} ballots",
-                results.len(),
-                chunk.len()
-            )));
-        }
-        for ((row, envelope), result) in chunk.iter().zip(&envelopes).zip(results) {
-            opened.push(opened_ballot(row, envelope, result).map_err(ballot)?);
-        }
-    }
-    Ok(opened)
+    let outcomes = open_each_with(opener, tenant_id, election_event_id, key, rows)
+        .await
+        .map_err(OpenError::Unavailable)?;
+    opened_or_failures(rows, outcomes).map_err(OpenError::Ballots)
 }
 
 /// Refuses rows whose format doesn't fit the event: a plaintext row in a

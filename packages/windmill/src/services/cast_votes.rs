@@ -144,14 +144,16 @@ struct SealedInput {
 /// The tally input of a sealed event's area, as the CSV rows `(voter_id,
 /// content, voting_channel)` the unsealed input has, `content` being the
 /// voter's opened ballot. Opened in batches as the rows stream; a plaintext
-/// row, or a ballot that doesn't open or match its Ballot ID, refuses the
-/// whole extraction.
+/// row, or a ballot that doesn't open or match its hashes, refuses the whole
+/// extraction once every row was tried, naming each ballot that failed.
 async fn write_opened_ballots(
     store: &PostgresStore,
     area: &SealedArea<'_>,
     output_file: &PathBuf,
 ) -> Result<()> {
-    use crate::services::cast_vote_seal::{check_row_format, Sealing, MAX_OPEN_BATCH};
+    use crate::services::cast_vote_seal::{
+        check_row_format, OpenFailures, Sealing, MAX_OPEN_BATCH,
+    };
     let sealing = Sealing::Required(Some(area.key.clone()));
     let query =
         tally_ballots_with_ids_query(area.election_event_id, area.election_id, area.area_id)?;
@@ -166,6 +168,7 @@ async fn write_opened_ballots(
         .with_context(|| format!("Error creating {output_file:?}"))?;
     let mut writer = BufWriter::new(file);
     let mut batch = Vec::with_capacity(MAX_OPEN_BATCH);
+    let mut failures = OpenFailures::default();
     let mut written = 0usize;
     while let Some(row) = rows.try_next().await? {
         let input = SealedInput {
@@ -179,28 +182,41 @@ async fn write_opened_ballots(
                 format: row.try_get(4)?,
             },
         };
-        check_row_format(&sealing, &input.row.format, &input.row.ballot_id)?;
+        if let Err(error) = check_row_format(&sealing, &input.row.format, &input.row.ballot_id) {
+            failures.push(&input.row.ballot_id, format!("{error:#}"));
+            continue;
+        }
         batch.push(input);
         if batch.len() == MAX_OPEN_BATCH {
-            written += write_opened_batch(&mut writer, area, &batch).await?;
+            written += write_opened_batch(&mut writer, area, &batch, &mut failures).await?;
             batch.clear();
         }
     }
     if !batch.is_empty() {
-        written += write_opened_batch(&mut writer, area, &batch).await?;
+        written += write_opened_batch(&mut writer, area, &batch, &mut failures).await?;
+    }
+    if !failures.is_empty() {
+        return Err(anyhow!(
+            "Refusing to extract ballots for election {} area {}: {failures}",
+            area.election_id,
+            area.area_id
+        ));
     }
     writer.flush().await?;
     info!("opened and wrote {written} sealed ballots");
     Ok(())
 }
 
+/// Opens a batch and writes its ballots while no ballot of the area has
+/// failed; records the batch's failures. Returns how many it wrote.
 async fn write_opened_batch(
     writer: &mut BufWriter<File>,
     area: &SealedArea<'_>,
     batch: &[SealedInput],
+    failures: &mut crate::services::cast_vote_seal::OpenFailures,
 ) -> Result<usize> {
     let rows: Vec<_> = batch.iter().map(|input| input.row.clone()).collect();
-    let opened = crate::services::cast_vote_seal::open_rows(
+    let outcomes = crate::services::cast_vote_seal::open_each(
         area.tenant_id,
         area.election_event_id,
         area.key,
@@ -217,14 +233,22 @@ async fn write_opened_batch(
     let mut csv = csv::WriterBuilder::new()
         .has_headers(false)
         .from_writer(Vec::new());
-    for (input, content) in batch.iter().zip(&opened) {
-        csv.write_record([&input.voter_id, content, &input.voting_channel])?;
+    let mut opened = 0usize;
+    for (input, outcome) in batch.iter().zip(outcomes) {
+        match outcome {
+            Ok(content) if failures.is_empty() => {
+                csv.write_record([&input.voter_id, &content, &input.voting_channel])?;
+                opened += 1;
+            }
+            Ok(_) => {}
+            Err(reason) => failures.push(&input.row.ballot_id, reason),
+        }
     }
     let bytes = csv
         .into_inner()
         .map_err(|error| anyhow!("Error writing the opened ballots: {error}"))?;
     writer.write_all(&bytes).await?;
-    Ok(opened.len())
+    Ok(opened)
 }
 
 async fn write_copy_out(

@@ -97,7 +97,7 @@ async fn a_moved_swapped_or_rekeyed_envelope_is_refused() {
     forged.content = relabelled.to_content().unwrap();
     let error = open(vec![forged]).await.unwrap_err();
     assert!(
-        matches!(&error, OpenError::Ballot(reason) if reason.contains("does not open")),
+        matches!(&error, OpenError::Ballots(failures) if failures.to_string().contains("does not open")),
         "{error}"
     );
     // A plaintext format, or another inner format.
@@ -128,7 +128,107 @@ async fn a_moved_swapped_or_rekeyed_envelope_is_refused() {
         "x"
     )
     .is_err());
+    // The event's key, but hashes that aren't the ballot's.
+    let (content, ballot_id, mut hash) = ballot("carol");
+    hash[63] ^= 1;
+    assert!(seal_ballot(
+        &key,
+        row_scope(),
+        "hashable-ballot",
+        &ballot_id,
+        &hash,
+        &content
+    )
+    .is_err());
+    assert!(seal_ballot(
+        &key,
+        row_scope(),
+        "hashable-ballot",
+        &row.ballot_id,
+        &ballot("carol").2,
+        &content
+    )
+    .is_err());
     assert!(open(vec![row]).await.is_ok());
+}
+
+/// The cast-vote hash travels in clear, outside the associated data: an
+/// envelope that opens must still carry its ballot's cast-vote hash.
+#[tokio::test]
+async fn an_opened_ballot_must_match_its_cast_vote_hash() {
+    let (opener, point) = SoftwareOpener::generate();
+    let key = event_key(point);
+    let (mut row, _) = sealed_row(&key, "alice");
+    let mut envelope: SealedBallot = serde_json::from_str(&row.content).unwrap();
+    let tail = if envelope.cast_vote_hash.ends_with('0') {
+        "1"
+    } else {
+        "0"
+    };
+    envelope.cast_vote_hash.replace_range(127.., tail);
+    envelope.check().unwrap();
+    row.content = envelope.to_content().unwrap();
+    let error = open_rows_with(&opener, TENANT, EVENT, &key, &[row])
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(&error, OpenError::Ballots(failures) if failures.to_string().contains("does not match its cast-vote hash")),
+        "{error}"
+    );
+}
+
+/// Every row is tried, and the refusal names each ballot that failed.
+#[tokio::test]
+async fn a_refusal_names_every_failing_ballot() {
+    let (opener, point) = SoftwareOpener::generate();
+    let key = event_key(point);
+    let mut rows: Vec<SealedRow> = (0..MAX_OPEN_BATCH + 6)
+        .map(|index| sealed_row(&key, &format!("seed-{index}")).0)
+        .collect();
+    let bad = [1, MAX_OPEN_BATCH + 1, MAX_OPEN_BATCH + 5];
+    for index in bad {
+        rows[index].area_id = ELECTION.into();
+    }
+    // An envelope that isn't one never reaches the opener.
+    rows[2].content = "{}".into();
+    let error = open_rows_with(&opener, TENANT, EVENT, &key, &rows)
+        .await
+        .unwrap_err();
+    let OpenError::Ballots(failures) = error else {
+        panic!("{error}");
+    };
+    assert_eq!(failures.count(), 4);
+    let mut expected: Vec<&str> = bad
+        .iter()
+        .map(|&index| rows[index].ballot_id.as_str())
+        .collect();
+    expected.insert(1, rows[2].ballot_id.as_str());
+    assert_eq!(failures.ballot_ids().collect::<Vec<_>>(), expected);
+    assert_eq!(opener.calls.load(Ordering::SeqCst), 2);
+    let report = failures.to_string();
+    assert!(report.starts_with("4 sealed ballot(s)"), "{report}");
+    assert!(expected.iter().all(|ballot_id| report.contains(ballot_id)));
+    // The outcomes keep the rows' order.
+    let outcomes = open_each_with(&opener, TENANT, EVENT, &key, &rows)
+        .await
+        .unwrap();
+    assert_eq!(outcomes.len(), rows.len());
+    assert!(outcomes[0].is_ok() && outcomes[1].is_err() && outcomes[2].is_err());
+}
+
+#[test]
+fn a_refusal_lists_a_bounded_number_of_ballots() {
+    let mut failures = OpenFailures::default();
+    assert!(failures.is_empty());
+    for index in 0..MAX_REPORTED_FAILURES + 5 {
+        failures.push(&format!("ballot-{index}"), "does not open".into());
+    }
+    assert_eq!(failures.count(), MAX_REPORTED_FAILURES + 5);
+    assert_eq!(failures.ballot_ids().count(), MAX_REPORTED_FAILURES);
+    let report = failures.to_string();
+    assert!(report.ends_with("; and 5 more"), "{report}");
+    assert!(report.contains("ballot-0 (does not open)"));
+    assert!(!report.contains(&format!("ballot-{MAX_REPORTED_FAILURES} ")));
 }
 
 /// A device that opens to other bytes: the opened ballot must still hash
@@ -164,7 +264,7 @@ async fn an_opened_ballot_must_hash_to_its_ballot_id() {
         .await
         .unwrap_err();
     assert!(
-        matches!(&error, OpenError::Ballot(reason) if reason.contains("does not match its Ballot ID")),
+        matches!(&error, OpenError::Ballots(failures) if failures.to_string().contains("does not match its Ballot ID")),
         "{error}"
     );
     // A lost answer is the opener's failure, not the ballot's.

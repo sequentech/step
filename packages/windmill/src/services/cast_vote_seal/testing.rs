@@ -103,10 +103,8 @@ pub(crate) fn ballot(seed: &str) -> (String, String, Vec<u8>) {
         voter_ballot_signature: None,
     })
     .unwrap();
-    let ballot_id = computed_ballot_id(&content, "hashable-ballot").unwrap();
-    let mut cast_vote_hash = hex::decode(&ballot_id).unwrap();
-    cast_vote_hash.extend([7u8; 32]);
-    (content, ballot_id, cast_vote_hash)
+    let hashes = computed_hashes(&content, "hashable-ballot").unwrap();
+    (content, hashes.ballot_id, hashes.cast_vote_hash.to_vec())
 }
 
 /// The test binary's installed opener: every key [`event_key`] made.

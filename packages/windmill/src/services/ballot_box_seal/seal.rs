@@ -65,7 +65,7 @@ use electoral_log::LogEntry;
 use sequent_core::ballot::{
     ElectionStatus, HashableBallot, SignedHashableBallot, VotingStatus, VotingStatusChannel,
 };
-use sequent_core::encrypt::{hash_ballot, hash_multi_ballot};
+use sequent_core::encrypt::{hash_ballot_sha512, hash_multi_ballot_sha512, shorten_hash};
 use sequent_core::multi_ballot::{HashableMultiBallot, SignedHashableMultiBallot};
 use sequent_core::serialization::deserialize_with_path::{deserialize_str, deserialize_value};
 use sequent_core::types::hasura::core::{Election, ElectionEvent, VotingChannels};
@@ -503,7 +503,7 @@ async fn seal_prepared(client: &mut DbClient, prepared: Prepared) -> Result<Seal
         }
     }
     // A sealed event's ballots are opened through the HSM opener, each
-    // checked against its Ballot ID; the manifest records the stored sealed
+    // checked against its hashes; the manifest records the stored sealed
     // bytes' hash and that Ballot ID (format v3).
     let opened = open_box(
         &sealing,
@@ -962,7 +962,7 @@ pub async fn open_box(
         .map(Some)
         .map_err(|error| match error {
             OpenError::Unavailable(error) => EntriesError::Retry(format!("{error:#}")),
-            OpenError::Ballot(reason) => EntriesError::Incident(reason),
+            OpenError::Ballots(failures) => EntriesError::Incident(failures.to_string()),
         })
 }
 
@@ -1036,21 +1036,40 @@ fn entries_with(
 /// The Ballot ID of a stored ballot's content in `format`, as the cast
 /// computes it.
 pub fn computed_ballot_id(content: &str, format: &str) -> Result<String> {
+    Ok(computed_hashes(content, format)?.ballot_id)
+}
+
+/// The hashes of a ballot, as the cast computes them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BallotHashes {
+    /// Lowercase hex of the cast-vote hash's first 256 bits.
+    pub ballot_id: String,
+    /// The full SHA-512 the cast-vote record carries.
+    pub cast_vote_hash: voting_crypto::hash::Hash,
+}
+
+/// The Ballot ID and cast-vote hash of a stored ballot's content in
+/// `format`.
+pub fn computed_hashes(content: &str, format: &str) -> Result<BallotHashes> {
     let format =
         BallotFormat::from_str(format).map_err(|_| anyhow!("unknown ballot format {format:?}"))?;
-    Ok(match format {
+    let cast_vote_hash = match format {
         BallotFormat::HashableMultiBallot => {
             let signed: SignedHashableMultiBallot =
                 deserialize_str(content).map_err(|error| anyhow!("{error}"))?;
             let hashable: HashableMultiBallot = (&signed).try_into()?;
-            hash_multi_ballot(&hashable)?
+            hash_multi_ballot_sha512(&hashable)?
         }
         BallotFormat::HashableBallot => {
             let signed: SignedHashableBallot =
                 deserialize_str(content).map_err(|error| anyhow!("{error}"))?;
             let hashable: HashableBallot = (&signed).try_into()?;
-            hash_ballot(&hashable)?
+            hash_ballot_sha512(&hashable)?
         }
+    };
+    Ok(BallotHashes {
+        ballot_id: hex::encode(shorten_hash(&cast_vote_hash)),
+        cast_vote_hash,
     })
 }
 
@@ -1337,8 +1356,9 @@ mod tests {
         }
 
         fn sealed(&self, mut ballot: BoxBallot) -> BoxBallot {
-            let mut hash = hex::decode(&ballot.ballot_id).unwrap();
-            hash.extend([7u8; 32]);
+            let hash = computed_hashes(&ballot.content, SINGLE)
+                .unwrap()
+                .cast_vote_hash;
             let envelope = crate::services::cast_vote_seal::seal_ballot(
                 &self.key,
                 crate::services::cast_vote_seal::RowScope {
