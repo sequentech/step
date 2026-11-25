@@ -323,7 +323,15 @@ const tagalogTranslation: TranslationType = {
                 "candidate": {
                     "inline-photo": {
                         lead: "Hindi wastong larawan ng kandidato",
-                        text: "Hindi wastong larawan ng kandidato — Gumamit ng isang static na PNG bawat kandidato, maliban sa opsiyong isusulat ng botante. Suriin ang mga limitasyon ng file at workbook.",
+                        text: "Hindi wastong larawan ng kandidato — Gumamit ng isang static na PNG o JPEG bawat kandidato, maliban sa opsiyong isusulat ng botante. Suriin ang mga limitasyon ng file at workbook.",
+                    },
+                    "sql-photo": {
+                        lead: "Hindi wastong larawan sa SQL",
+                        text: "Hindi wastong larawan sa SQL — Ang PICTURE ay dapat na BLOB na may wastong PNG o JPEG na naka-save nang walang EXIF rotation at pasok sa mga limitasyon ng import.",
+                    },
+                    "photo-source-conflict": {
+                        lead: "Dalawang pinagmulan ng larawan",
+                        text: "Dalawang pinagmulan ng larawan — Ilagay ang larawan sa SQL PICTURE o sa Excel image_data_url, huwag sa pareho.",
                     },
                     "contest-missing": {
                         lead: "Nawawala ang contest ng kandidato",

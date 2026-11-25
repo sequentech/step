@@ -327,7 +327,15 @@ const frenchTranslation: TranslationType = {
                 "candidate": {
                     "inline-photo": {
                         lead: "Photo de candidature invalide",
-                        text: "Photo de candidature invalide — Utilisez un seul PNG statique par candidature, sauf pour les choix à inscrire. Vérifiez les limites du fichier et du classeur.",
+                        text: "Photo de candidature invalide — Utilisez un seul PNG ou JPEG statique par candidature, sauf pour les choix à inscrire. Vérifiez les limites du fichier et du classeur.",
+                    },
+                    "sql-photo": {
+                        lead: "Photo SQL non valide",
+                        text: "Photo SQL non valide — PICTURE doit être un BLOB contenant une image PNG ou JPEG valide, enregistrée sans rotation EXIF et respectant les limites d'importation.",
+                    },
+                    "photo-source-conflict": {
+                        lead: "Deux sources pour la photo",
+                        text: "Deux sources pour la photo — Conservez la photo dans PICTURE côté SQL ou dans image_data_url côté Excel, mais pas dans les deux.",
                     },
                     "contest-missing": {
                         lead: "Scrutin du candidat manquant",

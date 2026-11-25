@@ -321,7 +321,15 @@ const basqueTranslation: TranslationType = {
                 "candidate": {
                     "inline-photo": {
                         lead: "Hautagaiaren argazki baliogabea",
-                        text: "Hautagaiaren argazki baliogabea — Erabili PNG estatiko bakarra hautagai bakoitzerako, eskuz idazteko aukeretarako izan ezik. Egiaztatu fitxategiaren eta lan-liburuaren mugak.",
+                        text: "Hautagaiaren argazki baliogabea — Erabili PNG edo JPEG estatiko bakarra hautagai bakoitzerako, eskuz idazteko aukeretarako izan ezik. Egiaztatu fitxategiaren eta lan-liburuaren mugak.",
+                    },
+                    "sql-photo": {
+                        lead: "SQL argazki baliogabea",
+                        text: "SQL argazki baliogabea — PICTURE eremuak BLOB motakoa izan behar du eta PNG edo JPEG irudi baliozko bat eduki behar du, EXIF biraketarik gabe eta inportazio-mugen barruan.",
+                    },
+                    "photo-source-conflict": {
+                        lead: "Argazkiaren bi iturri",
+                        text: "Argazkiaren bi iturri — Gorde argazkia SQLko PICTURE eremuan edo Exceleko image_data_url zutabean, baina ez bietan.",
                     },
                     "contest-missing": {
                         lead: "Hautagaiaren bozketa falta da",

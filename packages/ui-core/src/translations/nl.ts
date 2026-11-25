@@ -322,7 +322,15 @@ const dutchTranslation: TranslationType = {
                 "candidate": {
                     "inline-photo": {
                         lead: "Ongeldige kandidatenfoto",
-                        text: "Ongeldige kandidatenfoto — Gebruik één statische PNG per kandidaat, behalve bij een invulkeuze. Controleer de limieten van het bestand en de werkmap.",
+                        text: "Ongeldige kandidatenfoto — Gebruik één statische PNG of JPEG per kandidaat, behalve bij een invulkeuze. Controleer de limieten van het bestand en de werkmap.",
+                    },
+                    "sql-photo": {
+                        lead: "Ongeldige SQL-foto",
+                        text: "Ongeldige SQL-foto — PICTURE moet een BLOB zijn met een geldige PNG of JPEG die zonder EXIF-rotatie is opgeslagen en aan de importlimieten voldoet.",
+                    },
+                    "photo-source-conflict": {
+                        lead: "Twee bronnen voor de kandidatenfoto",
+                        text: "Twee bronnen voor de kandidatenfoto — Bewaar de foto in SQL PICTURE of Excel image_data_url, niet in beide.",
                     },
                     "contest-missing": {
                         lead: "Stemming van de kandidaat ontbreekt",

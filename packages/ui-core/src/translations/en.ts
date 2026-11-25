@@ -324,7 +324,15 @@ const englishTranslation = {
                 "candidate": {
                     "inline-photo": {
                         lead: "Invalid candidate photo",
-                        text: "Invalid candidate photo — Use one static PNG per candidate, except for write-ins. Check the file and workbook limits.",
+                        text: "Invalid candidate photo — Use one static PNG or JPEG per candidate, except for write-ins. Check the file and workbook limits.",
+                    },
+                    "sql-photo": {
+                        lead: "Invalid SQL photo",
+                        text: "Invalid SQL photo — PICTURE must be a BLOB with a valid PNG or JPEG, saved without EXIF rotation and within the import limits.",
+                    },
+                    "photo-source-conflict": {
+                        lead: "Two candidate photo sources",
+                        text: "Two candidate photo sources — Keep the photo in SQL PICTURE or Excel image_data_url, not both.",
                     },
                     "contest-missing": {
                         lead: "Candidate's contest missing",

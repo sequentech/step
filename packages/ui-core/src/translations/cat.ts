@@ -322,7 +322,15 @@ const catalanTranslation: TranslationType = {
                 "candidate": {
                     "inline-photo": {
                         lead: "Foto de candidat no vàlida",
-                        text: "Foto de candidat no vàlida — Fes servir un sol PNG estàtic per candidatura, excepte a les opcions de vot per escrit. Comprova els límits del fitxer i del llibre.",
+                        text: "Foto de candidat no vàlida — Fes servir un sol PNG o JPEG estàtic per candidatura, excepte a les opcions de vot per escrit. Comprova els límits del fitxer i del llibre.",
+                    },
+                    "sql-photo": {
+                        lead: "Foto SQL no vàlida",
+                        text: "Foto SQL no vàlida — PICTURE ha de ser un BLOB amb una imatge PNG o JPEG vàlida, desada sense rotació EXIF i dins dels límits d'importació.",
+                    },
+                    "photo-source-conflict": {
+                        lead: "Dues fonts per a la foto",
+                        text: "Dues fonts per a la foto — Deixa la foto a PICTURE de l'SQL o a image_data_url de l'Excel, però no a tots dos llocs.",
                     },
                     "contest-missing": {
                         lead: "Falta la votació de la candidatura",

@@ -324,7 +324,15 @@ const spanishTranslation: TranslationType = {
                 "candidate": {
                     "inline-photo": {
                         lead: "Foto de candidato no válida",
-                        text: "Foto de candidato no válida — Usa un único PNG estático por candidatura, salvo en las opciones de voto por escrito. Comprueba los límites del archivo y del libro.",
+                        text: "Foto de candidato no válida — Usa un único PNG o JPEG estático por candidatura, salvo en las opciones de voto por escrito. Comprueba los límites del archivo y del libro.",
+                    },
+                    "sql-photo": {
+                        lead: "Foto SQL no válida",
+                        text: "Foto SQL no válida — PICTURE debe ser un BLOB con una imagen PNG o JPEG válida, guardada sin rotación EXIF y dentro de los límites de importación.",
+                    },
+                    "photo-source-conflict": {
+                        lead: "Dos fuentes para la foto",
+                        text: "Dos fuentes para la foto — Deja la foto en PICTURE de SQL o en image_data_url de Excel, pero no en ambos.",
                     },
                     "contest-missing": {
                         lead: "Falta la pregunta de la candidatura",
