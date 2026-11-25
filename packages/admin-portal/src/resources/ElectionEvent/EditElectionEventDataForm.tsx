@@ -119,6 +119,7 @@ import {
 } from "@/components/election-event/PasswordPolicyAccordion"
 import {SettingsLanguageSelector} from "../../components/SettingsLanguageSelector"
 import {getNumberFormatPolicyChoices} from "@/services/numberFormatPolicy"
+import {withSubmittedPermissionLabel} from "./permissionLabel"
 import {
     CONFIGURE_RESULTS_WEBSITE_POLICY,
     ConfigureResultsWebsitePolicyData,
@@ -269,6 +270,11 @@ export const EditElectionEventDataForm: React.FC<{
         true,
         authContext.tenantId,
         IPermissions.KEYCLOAK_REALM_ATTRIBUTES_WRITE
+    )
+    const canEditPermissionLabel = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.PERMISSION_LABEL_WRITE
     )
     const canSave = canEdit || (canReadRealmAttributes && canEditRealmAttributes)
 
@@ -1138,7 +1144,7 @@ export const EditElectionEventDataForm: React.FC<{
         setActivateSave(false)
 
         return {
-            ...values,
+            ...withSubmittedPermissionLabel(values, canEditPermissionLabel),
             presentation: {
                 ...values.presentation,
                 // A disabled input isn't submitted, and the number format's is
@@ -1223,6 +1229,13 @@ export const EditElectionEventDataForm: React.FC<{
                             {renderTabs(parsedValue)}
                         </Tabs>
                         {renderTabContent(parsedValue)}
+                        {canEditPermissionLabel && (
+                            <TextInput
+                                disabled={!canEdit}
+                                source="permission_label"
+                                label={String(t("electionEventScreen.edit.permissionLabel"))}
+                            />
+                        )}
                     </AccordionDetails>
                 </Accordion>
 

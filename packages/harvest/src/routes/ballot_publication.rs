@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
@@ -102,6 +104,13 @@ async fn generate_ballot_publication_response(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
 
     let election_event = get_election_event_by_id(
         &hasura_transaction,
@@ -237,6 +246,21 @@ pub async fn publish_ballot(
                 ErrorCode::InternalServerError,
             )
         })?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await
+    .map_err(|(status, message)| {
+        let code = if status == Status::Forbidden {
+            ErrorCode::Unauthorized
+        } else {
+            ErrorCode::InternalServerError
+        };
+        ErrorResponse::new(status, &message, code)
+    })?;
     let task_execution = post_task_execution(
         &tenant_id,
         Some(&input.election_event_id),
@@ -401,6 +425,13 @@ pub async fn get_ballot_publication_changes(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
 
     let diff = get_ballot_publication_diff(
         &hasura_transaction,

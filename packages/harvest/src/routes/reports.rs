@@ -5,7 +5,9 @@ use windmill::services::ceremonies::result_readiness::{
     require_complete_result_document, ORIGIN, POLICY,
 };
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -84,6 +86,15 @@ pub async fn render_document_pdf(
 
     let election_event_id = input.election_event_id.clone();
     let document_id = input.document_id.clone();
+    if let Some(election_event_id) = &election_event_id {
+        authorize_election_event_permission_label(
+            &hasura_transaction,
+            &claims,
+            &claims.hasura_claims.tenant_id,
+            election_event_id,
+        )
+        .await?;
+    }
 
     let Some(found_document) = get_document(
         &hasura_transaction,
@@ -229,6 +240,16 @@ pub async fn generate_template(
                 format!("Error obtaining hasura transaction: {e:?}"),
             )
         })?;
+    let EGenerateTemplate::BallotImages {
+        election_event_id, ..
+    } = input.clone();
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &election_event_id,
+    )
+    .await?;
 
     let executer_name = claims
         .name
@@ -242,9 +263,6 @@ pub async fn generate_template(
 
     let document_id: String = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;
-    let EGenerateTemplate::BallotImages {
-        election_event_id, ..
-    } = input.clone();
 
     // Insert the task execution record
     let task_execution = post(
@@ -352,6 +370,13 @@ pub async fn generate_report(
         )
     })?
     .ok_or_else(|| (Status::NotFound, "Report not found".to_string()))?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &report.tenant_id,
+        &report.election_event_id,
+    )
+    .await?;
     let report_type =
         ReportType::from_str(&report.report_type).map_err(|error| {
             (Status::BadRequest, format!("Invalid report type: {error}"))
@@ -481,6 +506,13 @@ pub async fn encrypt_report_route(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
 
     get_report_key_pair(
         &hasura_transaction,

@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
@@ -85,6 +87,21 @@ pub async fn manage_election_dates(
                 ErrorCode::InternalServerError,
             )
         })?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    )
+    .await
+    .map_err(|(status, message)| {
+        let code = if status == Status::Forbidden {
+            ErrorCode::Unauthorized
+        } else {
+            ErrorCode::InternalServerError
+        };
+        ErrorResponse::new(status, &message, code)
+    })?;
 
     match input.election_id {
         Some(id) => {

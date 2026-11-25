@@ -2,19 +2,105 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use anyhow::Context;
+use deadpool_postgres::Transaction;
 use rocket::http::Status;
 use rocket::response::status::Unauthorized;
 use sequent_core::ballot::{VotingStatus, VotingStatusChannel};
-use sequent_core::services::jwt::JwtClaims;
+use sequent_core::services::jwt::{decode_permission_labels, JwtClaims};
 use sequent_core::types::permissions::{Permissions, VoterPermissions};
 use std::collections::HashSet;
 use std::env;
 use tracing::{error, info, instrument};
+use windmill::postgres::election_event::get_election_event_permission_label;
+use windmill::services::database::get_hasura_pool;
 use windmill::services::import::import_users::{
     GroupAssignmentPolicy, ImportUsersPrivileges, PermissionLabelPolicy,
 };
 
 pub use sequent_core::services::authorization::*;
+
+const ELECTION_EVENT_OUTSIDE_PERMISSION_LABELS: &str =
+    "Election event outside the user's permission labels";
+
+/// Whether the caller's permission labels allow an election event with this
+/// label, as Hasura applies `X-Hasura-Permission-Labels`: an event without a
+/// label is open to every admin user of the tenant, a labelled one only to
+/// admin users who hold its label.
+pub fn permission_labels_allow(
+    claims: &JwtClaims,
+    event_permission_label: Option<&str>,
+) -> bool {
+    event_permission_label.map_or(true, |label| {
+        decode_permission_labels(claims)
+            .iter()
+            .any(|held| held == label)
+    })
+}
+
+fn ensure_event_permitted(
+    claims: &JwtClaims,
+    event_permission_label: Option<&str>,
+) -> Result<(), (Status, String)> {
+    if permission_labels_allow(claims, event_permission_label) {
+        Ok(())
+    } else {
+        Err((
+            Status::Forbidden,
+            ELECTION_EVENT_OUTSIDE_PERMISSION_LABELS.to_string(),
+        ))
+    }
+}
+
+/// Refuses unless the caller's permission labels allow the election event,
+/// as Hasura applies them to the event and to every row that belongs to it.
+/// An event the tenant does not have has nothing to protect: the step that
+/// uses it reports it as missing.
+#[instrument(skip(hasura_transaction, claims))]
+pub async fn authorize_election_event_permission_label(
+    hasura_transaction: &Transaction<'_>,
+    claims: &JwtClaims,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<(), (Status, String)> {
+    let Some(permission_label) = get_election_event_permission_label(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await
+    .map_err(|error| (Status::InternalServerError, format!("{error:?}")))?
+    else {
+        return Ok(());
+    };
+    ensure_event_permitted(claims, permission_label.as_deref())
+}
+
+/// `authorize_election_event_permission_label` for a route that has no
+/// database transaction of its own at the point where it authorizes.
+#[instrument(skip(claims))]
+pub async fn authorize_election_event_access(
+    claims: &JwtClaims,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<(), (Status, String)> {
+    let internal = |error: String| (Status::InternalServerError, error);
+    let mut client = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|error| internal(format!("{error:?}")))?;
+    let transaction = client
+        .transaction()
+        .await
+        .map_err(|error| internal(format!("{error:?}")))?;
+    authorize_election_event_permission_label(
+        &transaction,
+        claims,
+        tenant_id,
+        election_event_id,
+    )
+    .await
+}
 
 /// What a user import started by `claims` may grant: assigning arbitrary
 /// groups needs the same permissions as the set-user-role route, and setting
@@ -173,5 +259,35 @@ pub(crate) mod test_claims {
             }
         }))
         .expect("test claims must deserialize")
+    }
+}
+
+#[cfg(test)]
+mod event_permission_label_tests {
+    use super::test_claims::{admin_claims, CALLER_TENANT_ID};
+    use super::*;
+
+    fn holding(permission_labels: Option<&str>) -> JwtClaims {
+        let mut claims = admin_claims(CALLER_TENANT_ID, &[]);
+        claims.hasura_claims.permission_labels =
+            permission_labels.map(str::to_string);
+        claims
+    }
+
+    #[test]
+    fn refuses_a_labelled_event_outside_the_permission_labels() {
+        let north = holding(Some(r#"{"north"}"#));
+        assert_eq!(ensure_event_permitted(&north, None), Ok(()));
+        assert_eq!(ensure_event_permitted(&north, Some("north")), Ok(()));
+        assert_eq!(ensure_event_permitted(&holding(None), None), Ok(()));
+        for caller in [north, holding(Some("{}")), holding(None)] {
+            assert_eq!(
+                ensure_event_permitted(&caller, Some("south")),
+                Err((
+                    Status::Forbidden,
+                    ELECTION_EVENT_OUTSIDE_PERMISSION_LABELS.to_string()
+                ))
+            );
+        }
     }
 }

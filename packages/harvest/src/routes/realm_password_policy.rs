@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -78,6 +80,20 @@ pub async fn get_realm_password_policy_route(
         &claims.hasura_claims.tenant_id,
         &body.election_event_id,
     )?;
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await
+    .map_err(|(status, message)| {
+        let code = if status == Status::Forbidden {
+            ErrorCode::Unauthorized
+        } else {
+            ErrorCode::InternalServerError
+        };
+        ErrorResponse::new(status, &message, code)
+    })?;
 
     let password_policy = get_realm_password_policy(
         &claims.hasura_claims.tenant_id,
@@ -123,6 +139,20 @@ pub async fn update_realm_password_policy_route(
         &claims.hasura_claims.tenant_id,
         &body.election_event_id,
     )?;
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await
+    .map_err(|(status, message)| {
+        let code = if status == Status::Forbidden {
+            ErrorCode::Unauthorized
+        } else {
+            ErrorCode::InternalServerError
+        };
+        ErrorResponse::new(status, &message, code)
+    })?;
 
     let password_policy = RealmPasswordPolicy {
         configured: true,

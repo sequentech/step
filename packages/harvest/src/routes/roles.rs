@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::{authorize, require_ordinary_permission};
+use crate::services::authorization::{
+    authorize, authorize_election_event_access, require_ordinary_permission,
+};
 
 use crate::types::optional::OptionalId;
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
@@ -139,6 +141,14 @@ pub async fn list_user_roles(
         Some(input.tenant_id.clone()),
         vec![required_perm, Permissions::ROLE_READ],
     )?;
+    if let Some(election_event_id) = &input.election_event_id {
+        authorize_election_event_access(
+            &claims,
+            &input.tenant_id,
+            election_event_id,
+        )
+        .await?;
+    }
     let realm = match input.election_event_id {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)

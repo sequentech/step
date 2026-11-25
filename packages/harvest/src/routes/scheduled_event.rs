@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+};
 
 use sequent_core::services::connection;
 use sequent_core::services::jwt::JwtClaims;
@@ -50,6 +52,19 @@ fn authorize_create_report(
     )
 }
 
+async fn event_permitted(
+    claims: &JwtClaims,
+    input: &CreateEventBody,
+) -> Result<(), (Status, String)> {
+    match input.election_event_id.as_deref() {
+        Some(event_id) => {
+            authorize_election_event_access(claims, &input.tenant_id, event_id)
+                .await
+        }
+        None => Ok(()),
+    }
+}
+
 #[instrument(skip(claims, body))]
 #[post("/scheduled-event", format = "json", data = "<body>")]
 pub async fn create_scheduled_event(
@@ -65,6 +80,7 @@ pub async fn create_scheduled_event(
                 Some(input.tenant_id.clone()),
                 vec![Permissions::NOTIFICATION_SEND],
             )?;
+            event_permitted(&claims, &input).await?;
             let payload: SendTemplateBody = serde_json::from_value(
                 input.event_payload.clone(),
             )
@@ -112,6 +128,7 @@ pub async fn create_scheduled_event(
         }
         EventProcessors::CREATE_REPORT => {
             authorize_create_report(&claims, &input)?;
+            event_permitted(&claims, &input).await?;
         }
         _ => {}
     };

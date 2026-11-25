@@ -2,7 +2,10 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+    authorize_election_event_permission_label,
+};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use crate::types::resources::{Aggregate, DataList, TotalAggregate};
 use anyhow::anyhow;
@@ -66,6 +69,13 @@ pub async fn check_private_key(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
 
     let is_valid = keys_ceremony::check_private_key(
         &hasura_transaction,
@@ -167,6 +177,21 @@ pub async fn get_private_key(
             );
             private_key_download_internal_error()
         })?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await
+    .map_err(|(status, message)| {
+        if status == Status::Forbidden {
+            ErrorResponse::new(status, &message, ErrorCode::Unauthorized)
+        } else {
+            error!("Failed to read the election event: {message}");
+            private_key_download_internal_error()
+        }
+    })?;
 
     let encrypted_private_key = keys_ceremony::get_private_key(
         &hasura_transaction,
@@ -248,6 +273,12 @@ pub async fn create_keys_ceremony(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::ADMIN_CEREMONY],
     )?;
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
     let input = body.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();
     let user_id = claims.hasura_claims.user_id;
@@ -368,6 +399,13 @@ pub async fn list_keys_ceremonies(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
 
     let elections = get_elections(
         &hasura_transaction,

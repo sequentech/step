@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use windmill::services::ceremonies::result_readiness::require_complete_result_document;
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use rocket::http::Status;
@@ -73,6 +75,15 @@ pub async fn fetch_document(
         )
     })?
     .ok_or_else(|| (Status::NotFound, "Document not found".to_string()))?;
+    if let Some(election_event_id) = document.election_event_id.as_deref() {
+        authorize_election_event_permission_label(
+            &hasura_transaction,
+            &claims,
+            &claims.hasura_claims.tenant_id,
+            election_event_id,
+        )
+        .await?;
+    }
     require_complete_result_document(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,

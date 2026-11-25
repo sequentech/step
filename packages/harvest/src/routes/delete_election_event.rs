@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -64,6 +66,20 @@ pub async fn delete_election_event_f(
         Some(tenant_id.clone()),
         vec![Permissions::ELECTION_EVENT_DELETE],
     ) {
+        let _ = update_fail(
+            &task_execution,
+            &format!("Failed to authorize executing the task: {error:?}"),
+        )
+        .await;
+        return Err(error);
+    };
+    if let Err(error) = authorize_election_event_access(
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await
+    {
         let _ = update_fail(
             &task_execution,
             &format!("Failed to authorize executing the task: {error:?}"),

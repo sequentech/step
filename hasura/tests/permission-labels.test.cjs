@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 const {test} = require("node:test")
 const assert = require("node:assert/strict")
-const {readFileSync} = require("node:fs")
+const {readFileSync, readdirSync} = require("node:fs")
 const {resolve} = require("node:path")
 const {isDeepStrictEqual} = require("node:util")
 const yaml = require("js-yaml")
+const {eventLabel, viaEvent} = require("./event-permission-label.cjs")
 
 const TABLES_DIR = resolve(__dirname, "../metadata/databases/backend-db/tables")
 const PERMISSION_LABELS = "X-Hasura-Permission-Labels"
@@ -146,7 +147,13 @@ for (const [table, {predicate, writePredicate, parent}] of Object.entries(
                 `${table} ${grant} does not check permission labels`
             )
         }
-        for (const name of [parent ?? []].flat()) {
+        for (const {grant, parts} of grants) {
+            assert.ok(
+                parts.some((part) => isDeepStrictEqual(part, viaEvent)),
+                `${table} ${grant} does not check the event's permission label`
+            )
+        }
+        for (const name of [parent ?? [], "election_event"].flat()) {
             const relationship = (metadata.object_relationships ?? []).find(
                 (candidate) => candidate.name === name
             )
@@ -159,6 +166,104 @@ for (const [table, {predicate, writePredicate, parent}] of Object.entries(
             })
             assert.deepEqual(column_mapping, parents[name])
         }
+    })
+}
+
+const EVENT_LABEL_WRITERS = new Set([
+    "admin-user",
+    "election-event-create",
+    "election-event-write",
+    "service-account",
+])
+
+test("election_event grants are limited to the tenant and the caller's permission labels", () => {
+    const metadata = loadTable("election_event")
+    const grants = labelledGrants(metadata)
+    assert.ok(grants.length > 0)
+    for (const {grant, parts} of grants) {
+        assert.ok(
+            parts.some((part) => isDeepStrictEqual(part, TENANT_SCOPE)),
+            `election_event ${grant} is not scoped to the tenant`
+        )
+        assert.ok(
+            parts.some((part) => isDeepStrictEqual(part, eventLabel)),
+            `election_event ${grant} does not check permission labels`
+        )
+    }
+})
+
+test("only event managers set an election event's permission label", () => {
+    const metadata = loadTable("election_event")
+    for (const kind of ["insert_permissions", "update_permissions"]) {
+        for (const {role, permission} of metadata[kind]) {
+            assert.equal(
+                permission.columns.includes("permission_label"),
+                EVENT_LABEL_WRITERS.has(role),
+                `${kind} ${role}`
+            )
+        }
+    }
+    for (const {role, permission} of metadata.select_permissions) {
+        assert.equal(
+            permission.columns.includes("permission_label"),
+            role !== "user",
+            `select_permissions ${role}`
+        )
+    }
+})
+
+const eventTables = readdirSync(TABLES_DIR)
+    .map((file) => /^sequent_backend_(.+)\.yaml$/.exec(file)?.[1])
+    .filter(
+        (table) =>
+            table &&
+            (loadTable(table).select_permissions ?? []).some(
+                ({permission}) =>
+                    Array.isArray(permission.columns) &&
+                    permission.columns.includes("election_event_id")
+            )
+    )
+
+test("every table of an election event is found", () => {
+    for (const table of [
+        ...Object.keys(scopedTables),
+        "area",
+        "document",
+        "support_material",
+        "scheduled_event",
+        "tasks_execution",
+        "event_execution",
+        "results_event",
+        "tally_sheet_import",
+        "tally_results_publication",
+        "election_result",
+        "certificate_authority",
+        "phone_blacklist",
+    ]) {
+        assert.ok(eventTables.includes(table), table)
+    }
+})
+
+for (const table of eventTables) {
+    test(`${table} grants are limited to the event's permission label`, () => {
+        const metadata = loadTable(table)
+        for (const {grant, parts} of labelledGrants(metadata)) {
+            assert.ok(
+                parts.some((part) => isDeepStrictEqual(part, viaEvent)),
+                `${table} ${grant} does not check the event's permission label`
+            )
+        }
+        const relationship = (metadata.object_relationships ?? []).find(
+            ({name}) => name === "election_event"
+        )
+        assert.ok(relationship, `${table} has no election_event relationship`)
+        const {remote_table, column_mapping} =
+            relationship.using.manual_configuration
+        assert.deepEqual(remote_table, {
+            name: "election_event",
+            schema: "sequent_backend",
+        })
+        assert.deepEqual(column_mapping, parents.election_event)
     })
 }
 

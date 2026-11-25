@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+};
 use anyhow::{anyhow, Context, Result};
 use rocket::http::Status;
 use rocket::serde::json::{self, Json};
@@ -69,6 +71,17 @@ pub async fn export_ballot_publication_route(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::PUBLISH_WRITE],
     ) {
+        update_fail(
+            &task_execution,
+            &format!("Failed to authorize executing the task: {:?}", error),
+        )
+        .await;
+        return Err(error);
+    };
+    if let Err(error) =
+        authorize_election_event_access(&claims, &tenant_id, &election_event_id)
+            .await
+    {
         update_fail(
             &task_execution,
             &format!("Failed to authorize executing the task: {:?}", error),

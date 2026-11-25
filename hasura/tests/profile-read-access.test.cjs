@@ -5,6 +5,7 @@ const assert = require("node:assert/strict")
 const {readFileSync} = require("node:fs")
 const {resolve} = require("node:path")
 const yaml = require("js-yaml")
+const {viaEvent} = require("./event-permission-label.cjs")
 
 const loadTable = (table) =>
     yaml.load(
@@ -85,6 +86,7 @@ test("publish-read reads the ballot generation tasks of its tenant only", () => 
                     ],
                 },
             },
+            viaEvent,
         ],
     })
 })
@@ -98,6 +100,7 @@ test("publish-results-read follows only its tenant's results publications", () =
         _and: [
             {tenant_id: {_eq: "X-Hasura-Tenant-Id"}},
             {type: {_eq: "PUBLISH_RESULTS_WEBSITE"}},
+            viaEvent,
         ],
     })
 })

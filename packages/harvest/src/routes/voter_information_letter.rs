@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::Context;
 use deadpool_postgres::Client as DbClient;
@@ -154,6 +156,20 @@ pub async fn generate_voter_information_letter(
         template_client.transaction().await.map_err(|_| {
             internal_error("Failed to read Voter Information Letter template")
         })?;
+    authorize_election_event_permission_label(
+        &template_transaction,
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await
+    .map_err(|(status, message)| {
+        if status == Status::Forbidden {
+            ErrorResponse::new(status, &message, ErrorCode::Unauthorized)
+        } else {
+            internal_error("Failed to read the election event")
+        }
+    })?;
     let declared_secret_names = get_declared_report_secret_attribute_names(
         &template_transaction,
         &tenant_id,

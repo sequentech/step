@@ -1,6 +1,17 @@
 table:
     name: tally_results_publication
     schema: sequent_backend
+object_relationships:
+    - name: election_event
+      using:
+          manual_configuration:
+              column_mapping:
+                  election_event_id: id
+                  tenant_id: tenant_id
+              insertion_order: null
+              remote_table:
+                  name: election_event
+                  schema: sequent_backend
 select_permissions:
     - comment: ""
       permission:
@@ -31,8 +42,18 @@ select_permissions:
               - created_at
               - updated_at
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -63,8 +84,18 @@ select_permissions:
               - created_at
               - updated_at
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: publish-results-read
     - comment: ""
       permission:
@@ -95,8 +126,18 @@ select_permissions:
               - created_at
               - updated_at
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: publish-results-write
     - comment: ""
       permission:

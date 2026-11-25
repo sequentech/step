@@ -465,6 +465,7 @@ const dutchTranslation: TranslationType = {
             },
             edit: {
                 general: "Algemeen",
+                permissionLabel: "Machtigingslabel",
                 dates: "Datums",
                 customUrls: "Aangepaste URL-prefix",
                 votingPeriod: "Stemperiode",

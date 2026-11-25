@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Client as DbClient;
@@ -116,6 +118,13 @@ async fn create_tally_ceremony_response(
                 format!("Error starting hasura transaction: {err}"),
             )
         })?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
 
     let tally_session_id = tally_ceremony::create_tally_ceremony(
         &hasura_transaction,
@@ -197,6 +206,13 @@ async fn update_tally_ceremony_response(
                 format!("Error starting hasura transaction: {err}"),
             )
         })?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
 
     let tally_session = get_tally_session_by_id(
         &hasura_transaction,
@@ -272,6 +288,13 @@ pub async fn recount_tally_session(
                 format!("Error starting hasura transaction: {err}"),
             )
         })?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
 
     let tally_session = get_tally_session_by_id(
         &hasura_transaction,
@@ -405,6 +428,13 @@ pub async fn restore_private_key(
                 format!("Error starting hasura transaction: {err}"),
             )
         })?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
 
     let outcome = tally_ceremony::set_private_key(
         &hasura_transaction,
@@ -488,6 +518,13 @@ pub async fn submit_tally_resolution(
                 format!("Error starting hasura transaction: {err}"),
             )
         })?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
 
     let resolved_count = tally_resolution::submit_tally_resolution(
         &hasura_transaction,

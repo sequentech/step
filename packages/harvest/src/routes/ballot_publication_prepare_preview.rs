@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+};
 use anyhow::Result;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -47,6 +49,12 @@ pub async fn prepare_ballot_publication_preview(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::DOCUMENT_UPLOAD],
     )?;
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
 
     let document_id = Uuid::new_v4().to_string();
     let ballot_publication_id = body.ballot_publication_id.clone();

@@ -1,12 +1,33 @@
 table:
     name: phone_blacklist
     schema: sequent_backend
+object_relationships:
+    - name: election_event
+      using:
+          manual_configuration:
+              column_mapping:
+                  election_event_id: id
+                  tenant_id: tenant_id
+              insertion_order: null
+              remote_table:
+                  name: election_event
+                  schema: sequent_backend
 insert_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           columns:
               - created_at
               - created_by
@@ -43,8 +64,18 @@ select_permissions:
               - tenant_id
               - updated_at
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: admin-user
     - comment: ""
@@ -54,8 +85,18 @@ select_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: phone-blacklist-update
     - comment: ""
@@ -65,8 +106,18 @@ select_permissions:
               - phone_e164
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: phone-blacklist-read
     - comment: ""
@@ -90,11 +141,31 @@ update_permissions:
               - reason
               - updated_at
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -102,11 +173,31 @@ update_permissions:
               - reason
               - updated_at
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: phone-blacklist-update
     - comment: ""
       permission:
@@ -120,8 +211,18 @@ delete_permissions:
     - comment: ""
       permission:
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:

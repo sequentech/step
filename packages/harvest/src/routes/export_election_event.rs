@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+};
 use anyhow::{anyhow, Context, Result};
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -48,6 +50,12 @@ pub async fn export_election_event_route(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::ELECTION_EVENT_READ],
     )?;
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
 
     let body = input.into_inner();
     let tenant_id = claims.hasura_claims.tenant_id.clone();

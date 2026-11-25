@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use anyhow::{Context, Result};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
@@ -107,6 +109,13 @@ pub async fn create_new_tally_sheet(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
 
     let contest_opt = get_contest_by_id(
         &hasura_transaction,
@@ -268,6 +277,13 @@ pub async fn review_tally_sheet(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
 
     let review_outcome = tally_sheet::review_tally_sheet_status(
         &hasura_transaction,
@@ -339,6 +355,13 @@ pub async fn preview_tally_sheet_import(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
     let (_document, source_bytes) = read_import_document(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
@@ -406,6 +429,13 @@ pub async fn create_tally_sheet_import(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
     let (document, source_bytes) = read_import_document(
         &hasura_transaction,
         &claims.hasura_claims.tenant_id,
@@ -486,6 +516,13 @@ pub async fn review_tally_sheet_import(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &election_event_id,
+    )
+    .await?;
 
     let import = review_tally_sheet_import_service(
         &hasura_transaction,
