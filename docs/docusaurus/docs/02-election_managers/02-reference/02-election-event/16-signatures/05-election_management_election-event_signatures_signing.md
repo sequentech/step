@@ -9,10 +9,23 @@ SPDX-License-Identifier: AGPL-3.0-only
 -->
 
 This page is for the people who sign protected actions: a Post's board members, officials
-who approve voters or configuration versions, and trustees. Every action is signed the
-same way, with the request panel and the signing dialog.
+who approve voters or configuration versions, and trustees. The Admin Portal opens a request panel and a signing dialog for the
+approval method configured for the request.
 
-## Before you start
+## Signing with the HSM
+
+Open the request and select **Approve**. Starting a protected action can open the
+dialog directly. You must be signed into the authorized account for that request.
+
+1. **Review** the action, scope and signing code. For a document, open it to
+   check the contents and digest. Select **Sign** to submit your approval.
+2. **Signed** shows the time recorded for your approval. Select **Done** to
+   return to the request panel, where you can see the quorum and action status.
+
+If the result is pending, select **Check status** to read the recorded outcome.
+If the request is still open and offers **Sign** again, you can retry.
+
+## Before signing with a certificate file
 
 You need:
 
@@ -70,7 +83,7 @@ The header count refreshes when entering or switching election events, opening t
 list, or changing a request opened from that list. It does not automatically track
 changes made by other users. Open the icon or refresh the page to update it.
 
-## The signing dialog
+## The certificate signing dialog
 
 **Sign** opens the dialog "Sign the *object*" with three steps.
 

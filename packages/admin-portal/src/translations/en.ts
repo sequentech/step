@@ -5426,6 +5426,11 @@ const englishTranslation = {
                 },
             },
             operational: {
+                signingAs: "Signing with your HSM key as {{name}}",
+                review: "Review",
+                rule_one: "Approval from {{count}} authorized signer is required.",
+                rule_other: "Approvals from {{count}} authorized signers are required.",
+                retryApproval: "Your approval could not be confirmed. You can try signing again.",
                 title: "Review approval",
                 setup: "Set up signing",
                 approve: "Approve",
@@ -5469,7 +5474,8 @@ const englishTranslation = {
             tab: {
                 title: "Signatures",
                 intro: "Protected actions run only after enough authorized people sign them with their digital certificates. Each signature is checked against the trusted issuers and recorded in the log.",
-                hsmIntro: "Authorized people approve protected actions. Each approval is recorded in the electoral log.",
+                hsmIntro:
+                    "Authorized people approve protected actions. Each approval is recorded in the electoral log.",
                 protectedActions: "Protected actions",
                 certificates: "Certificates",
                 requests: "Requests",

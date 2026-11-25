@@ -5307,6 +5307,11 @@ const spanishTranslation: TranslationType = {
                 },
             },
             operational: {
+                signingAs: "Firmas con tu clave del HSM como {{name}}",
+                review: "Revisar",
+                rule_one: "Se necesita la aprobación de {{count}} firmante autorizado.",
+                rule_other: "Se necesita la aprobación de {{count}} firmantes autorizados.",
+                retryApproval: "No se pudo confirmar tu aprobación. Puedes volver a firmar.",
                 title: "Revisar la aprobación",
                 setup: "Configurar la firma",
                 approve: "Aprobar",
@@ -5350,7 +5355,8 @@ const spanishTranslation: TranslationType = {
             tab: {
                 title: "Firmas",
                 intro: "Las acciones protegidas solo se ejecutan cuando suficientes personas autorizadas las firman con sus certificados digitales. Cada firma se comprueba con los emisores de confianza y queda registrada en el registro.",
-                hsmIntro: "Las personas autorizadas aprueban las acciones protegidas. Cada aprobación queda registrada en el registro electoral.",
+                hsmIntro:
+                    "Las personas autorizadas aprueban las acciones protegidas. Cada aprobación queda registrada en el registro electoral.",
                 protectedActions: "Acciones protegidas",
                 certificates: "Certificados",
                 requests: "Solicitudes",
@@ -5475,7 +5481,8 @@ const spanishTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Cada firma se realiza con el certificado digital del token de seguridad del firmante.",
-                hsmIntro: "Consulta quién puede aprobar cada acción y cuántas aprobaciones se requieren.",
+                hsmIntro:
+                    "Consulta quién puede aprobar cada acción y cuántas aprobaciones se requieren.",
                 columns: {
                     action: "Acción",
                     appliesTo: "Se aplica a",

@@ -5174,6 +5174,12 @@ const tagalogTranslation: TranslationType = {
                 },
             },
             operational: {
+                signingAs: "Pipirma ka gamit ang iyong HSM key bilang {{name}}",
+                review: "Suriin",
+                rule_one: "Kailangan ang pag-apruba ng {{count}} awtorisadong tagapirma.",
+                rule_other: "Kailangan ang pag-apruba ng {{count}} awtorisadong tagapirma.",
+                retryApproval:
+                    "Hindi makumpirma ang iyong pag-apruba. Maaari mong subukang pumirma muli.",
                 title: "Suriin ang pag-apruba",
                 setup: "I-set up ang pagpirma",
                 approve: "Aprubahan",
@@ -5218,7 +5224,8 @@ const tagalogTranslation: TranslationType = {
             tab: {
                 title: "Mga Pirma",
                 intro: "Tumatakbo lamang ang mga protektadong aksyon kapag sapat na awtorisadong tao ang pumirma sa mga ito gamit ang kanilang digital na sertipiko. Sinusuri ang bawat pirma laban sa mga pinagkakatiwalaang issuer at itinatala sa log.",
-                hsmIntro: "Ang mga awtorisadong tao ang nag-aapruba ng mga protektadong aksyon. Itinatala ang bawat pag-apruba sa talaan ng halalan.",
+                hsmIntro:
+                    "Ang mga awtorisadong tao ang nag-aapruba ng mga protektadong aksyon. Itinatala ang bawat pag-apruba sa talaan ng halalan.",
                 protectedActions: "Mga protektadong aksyon",
                 certificates: "Mga Sertipiko",
                 requests: "Mga Kahilingan",
@@ -5345,7 +5352,8 @@ const tagalogTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Ginagawa ang bawat pirma gamit ang digital na sertipiko sa security token ng pumipirma.",
-                hsmIntro: "Tingnan kung sino ang maaaring mag-apruba ng bawat aksyon at kung ilang pag-apruba ang kailangan.",
+                hsmIntro:
+                    "Tingnan kung sino ang maaaring mag-apruba ng bawat aksyon at kung ilang pag-apruba ang kailangan.",
                 columns: {
                     action: "Aksyon",
                     appliesTo: "Para sa",
