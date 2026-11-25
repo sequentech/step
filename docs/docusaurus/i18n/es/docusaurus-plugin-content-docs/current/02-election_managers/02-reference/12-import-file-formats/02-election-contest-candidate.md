@@ -120,41 +120,41 @@ La elección no tiene campo `name`. El nombre, el alias y la descripción de cad
 
 Todos los campos son opcionales. Un campo que falta recibe el valor por defecto.
 
-| Campo | Tipo | Valor por defecto | Valores permitidos y significado |
-| --- | --- | --- | --- |
-| `is_published` | Booleano | `false` | `true` si se publicó una papeleta de la elección. |
-| `voting_status` | Texto | `NOT_STARTED` | El estado del canal en línea: `NOT_STARTED`, `OPEN`, `PAUSED`, `CLOSED`. La importación lo restablece. |
-| `kiosk_voting_status` | Texto | `NOT_STARTED` | Los mismos valores, para el canal de kiosco. La importación lo restablece. |
-| `early_voting_status` | Texto | `NOT_STARTED` | Los mismos valores, para el canal de votación anticipada. |
-| `telephone_voting_status` | Texto | `NOT_STARTED` | Los mismos valores, para el canal telefónico. La importación lo restablece. |
-| `voting_period_dates` | Objeto | vacío | Las fechas del canal en línea. La importación lo restablece. |
-| `kiosk_voting_period_dates` | Objeto | vacío | Las fechas del canal de kiosco. La importación lo restablece. |
-| `early_voting_period_dates` | Objeto | vacío | Las fechas del canal de votación anticipada. |
-| `telephone_voting_period_dates` | Objeto | vacío | Las fechas del canal telefónico. La importación lo restablece. |
-| `init_report` | Texto | `allowed` | `allowed` o `disallowed`. Si es `disallowed`, no puede generar el informe de inicialización. |
-| `allow_tally` | Texto | `allowed` | `allowed`, `disallowed` o `requires-voting-period-end`. El ajuste **Permitir Recuento** de la elección. |
+| Campo | Tipo | Obligatorio | Valor por defecto | Valores permitidos y significado |
+| --- | --- | --- | --- | --- |
+| `is_published` | Booleano | No | `false` | `true` si se publicó una papeleta de la elección. |
+| `voting_status` | Texto | No | `NOT_STARTED` | El estado del canal en línea: `NOT_STARTED`, `OPEN`, `PAUSED`, `CLOSED`. La importación lo restablece. |
+| `kiosk_voting_status` | Texto | No | `NOT_STARTED` | Los mismos valores, para el canal de kiosco. La importación lo restablece. |
+| `early_voting_status` | Texto | No | `NOT_STARTED` | Los mismos valores, para el canal de votación anticipada. |
+| `telephone_voting_status` | Texto | No | `NOT_STARTED` | Los mismos valores, para el canal telefónico. La importación lo restablece. |
+| `voting_period_dates` | Objeto | No | vacío | Las fechas del canal en línea. La importación lo restablece. |
+| `kiosk_voting_period_dates` | Objeto | No | vacío | Las fechas del canal de kiosco. La importación lo restablece. |
+| `early_voting_period_dates` | Objeto | No | vacío | Las fechas del canal de votación anticipada. |
+| `telephone_voting_period_dates` | Objeto | No | vacío | Las fechas del canal telefónico. La importación lo restablece. |
+| `init_report` | Texto | No | `allowed` | `allowed` o `disallowed`. Si es `disallowed`, no puede generar el informe de inicialización. |
+| `allow_tally` | Texto | No | `allowed` | `allowed`, `disallowed` o `requires-voting-period-end`. El ajuste **Permitir Recuento** de la elección. |
 
 Cada objeto de fechas tiene estos campos, todos opcionales, como fecha y hora: `first_started_at`,
 `last_started_at`, `first_paused_at`, `last_paused_at`, `first_stopped_at`, `last_stopped_at`.
 
 ### Canales de votación {#voting-channels}
 
-| Campo | Tipo | Significado |
-| --- | --- | --- |
-| `online` | Booleano | Los votantes pueden votar en el portal de votación. |
-| `kiosk` | Booleano | Los votantes pueden votar en un kiosco. |
-| `telephone` | Booleano | Los votantes pueden votar por teléfono. |
-| `paper` | Booleano | Votación en papel. |
-| `early_voting` | Booleano | Los votantes en áreas con votación anticipada pueden votar antes de que se abra el canal en línea. |
+| Campo | Tipo | Obligatorio | Significado |
+| --- | --- | --- | --- |
+| `online` | Booleano | No | Los votantes pueden votar en el portal de votación. |
+| `kiosk` | Booleano | No | Los votantes pueden votar en un kiosco. |
+| `telephone` | Booleano | No | Los votantes pueden votar por teléfono. |
+| `paper` | Booleano | No | Votación en papel. |
+| `early_voting` | Booleano | No | Los votantes en áreas con votación anticipada pueden votar antes de que se abra el canal en línea. |
 
 ### Comprobantes {#receipts}
 
 Un objeto con las claves `EMAIL`, `SMS` y `DOCUMENT`. Cada valor es un objeto:
 
-| Campo | Tipo | Significado |
-| --- | --- | --- |
-| `allowed` | Booleano | El votante puede obtener el comprobante por este método. |
-| `template` | Texto o `null` | Interno. Mantenga el valor de la exportación. |
+| Campo | Tipo | Obligatorio | Significado |
+| --- | --- | --- | --- |
+| `allowed` | Booleano | No | El votante puede obtener el comprobante por este método. |
+| `template` | Texto o `null` | No | Interno. Mantenga el valor de la exportación. |
 
 ## Preguntas {#contests}
 
@@ -203,31 +203,31 @@ La importación acepta estos valores de `counting_algorithm`. Se aceptan mayúsc
 
 Todos los campos son opcionales.
 
-| Campo | Tipo | Valor por defecto | Valores permitidos y significado |
-| --- | --- | --- | --- |
-| `i18n` | Mapa i18n | ninguno | El texto de la pregunta en cada idioma. Claves: `name`, `alias`, `description`. Si `alias` tiene valor, el portal de votación lo muestra en lugar del nombre. |
-| `allow_writeins` | Booleano | `false` | `true`: el votante puede escribir un nombre en los candidatos por escritura de la pregunta. |
-| `base32_writeins` | Booleano | `true` | `true`: el texto de la escritura usa un conjunto reducido de caracteres (Base32). `false`: un conjunto más amplio de caracteres. |
-| `invalid_vote_policy` | Texto | `allowed` | Lo que hace el portal de votación con una papeleta no válida. Consulte [Políticas de la pregunta](#contest-policies). |
-| `under_vote_policy` | Texto | `allowed` | Lo que hace el portal de votación si el votante selecciona menos de `max_votes`. |
-| `blank_vote_policy` | Texto | `allowed` | Lo que hace el portal de votación con un voto en blanco. |
-| `over_vote_policy` | Texto | `allowed-with-msg-and-alert` | Lo que hace el portal de votación si el votante selecciona más de `max_votes`. El portal de administración escribe `allowed` para una pregunta nueva. |
-| `duplicated_rank_policy` | Texto | `allowed-warn-and-dialog` | Para preguntas preferenciales: lo que hace el portal de votación si el votante da dos veces el mismo orden. |
-| `preference_gaps_policy` | Texto | `allowed-warn-and-dialog` | Para preguntas preferenciales: lo que hace el portal de votación si hay un hueco en los órdenes. |
-| `pagination_policy` | Texto | `""` | Un nombre de página. El portal de votación muestra en la misma página las preguntas con el mismo valor, en el orden de la papeleta. Vacío: todas las preguntas sin valor comparten una página. |
-| `cumulative_number_of_checkboxes` | Entero | `1` | Para el algoritmo `cumulative`: el número de puntos que el votante puede dar a un candidato. |
-| `shuffle_categories` | Booleano | `false` | `true`: el portal de votación muestra las listas (tipos de candidato) en orden aleatorio. `false`: usa el `sort_order` de `types_presentation`. |
-| `shuffle_category_list` | Lista de texto | ninguno | Las listas (tipos de candidato) cuyos candidatos el portal de votación muestra en orden aleatorio. |
-| `show_points` | Booleano | `false` | `true`: el verificador de papeletas muestra en su pantalla de confirmación los puntos que el algoritmo de recuento da a cada selección. `false`: cada selección recibe 0 puntos, así que no se muestra ningún punto. |
-| `enable_checkable_lists` | Texto | ninguno (el portal de administración escribe `allow-selecting-candidates-and-lists`) | Lo que puede seleccionar el votante cuando la pregunta tiene listas: `allow-selecting-candidates-and-lists`, `allow-selecting-candidates`, `allow-selecting-lists`, `disabled`. |
-| `collapsible_lists` | Texto | ninguno (el portal de administración escribe `disabled`) | `disabled`, `enabled-expanded` (el votante puede cerrar una lista; las listas empiezan abiertas), `enabled-collapsed` (las listas empiezan cerradas). |
-| `candidates_order` | Texto | `alphabetical` | `alphabetical`, `random`, `custom`. Con `custom`, el orden es el `sort_order` de cada candidato. |
-| `candidates_selection_policy` | Texto | `cumulative` | `radio`: una nueva selección elimina la anterior. `cumulative`: las selecciones se suman. |
-| `candidates_icon_checkbox_policy` | Texto | `square-checkbox` | `square-checkbox` o `round-checkbox`. |
-| `max_selections_per_type` | Entero | ninguno | El número máximo de candidatos seleccionados del mismo `type`. |
-| `types_presentation` | Objeto | ninguno | La visualización de cada `type` de candidato. Consulte [Presentación de los tipos](#types-presentation). |
-| `sort_order` | Entero | ninguno | La posición de la pregunta cuando la elección usa el orden personalizado de preguntas `custom`. |
-| `columns` | Entero | `1` | El número de columnas de candidatos en la papeleta. |
+| Campo | Tipo | Obligatorio | Valor por defecto | Valores permitidos y significado |
+| --- | --- | --- | --- | --- |
+| `i18n` | Mapa i18n | No | ninguno | El texto de la pregunta en cada idioma. Claves: `name`, `alias`, `description`. Si `alias` tiene valor, el portal de votación lo muestra en lugar del nombre. |
+| `allow_writeins` | Booleano | No | `false` | `true`: el votante puede escribir un nombre en los candidatos por escritura de la pregunta. |
+| `base32_writeins` | Booleano | No | `true` | `true`: el texto de la escritura usa un conjunto reducido de caracteres (Base32). `false`: un conjunto más amplio de caracteres. |
+| `invalid_vote_policy` | Texto | No | `allowed` | Lo que hace el portal de votación con una papeleta no válida. Consulte [Políticas de la pregunta](#contest-policies). |
+| `under_vote_policy` | Texto | No | `allowed` | Lo que hace el portal de votación si el votante selecciona menos de `max_votes`. |
+| `blank_vote_policy` | Texto | No | `allowed` | Lo que hace el portal de votación con un voto en blanco. |
+| `over_vote_policy` | Texto | No | `allowed-with-msg-and-alert` | Lo que hace el portal de votación si el votante selecciona más de `max_votes`. El portal de administración escribe `allowed` para una pregunta nueva. |
+| `duplicated_rank_policy` | Texto | No | `allowed-warn-and-dialog` | Para preguntas preferenciales: lo que hace el portal de votación si el votante da dos veces el mismo orden. |
+| `preference_gaps_policy` | Texto | No | `allowed-warn-and-dialog` | Para preguntas preferenciales: lo que hace el portal de votación si hay un hueco en los órdenes. |
+| `pagination_policy` | Texto | No | `""` | Un nombre de página. El portal de votación muestra en la misma página las preguntas con el mismo valor, en el orden de la papeleta. Vacío: todas las preguntas sin valor comparten una página. |
+| `cumulative_number_of_checkboxes` | Entero | No | `1` | Para el algoritmo `cumulative`: el número de puntos que el votante puede dar a un candidato. |
+| `shuffle_categories` | Booleano | No | `false` | `true`: el portal de votación muestra las listas (tipos de candidato) en orden aleatorio. `false`: usa el `sort_order` de `types_presentation`. |
+| `shuffle_category_list` | Lista de texto | No | ninguno | Las listas (tipos de candidato) cuyos candidatos el portal de votación muestra en orden aleatorio. |
+| `show_points` | Booleano | No | `false` | `true`: el verificador de papeletas muestra en su pantalla de confirmación los puntos que el algoritmo de recuento da a cada selección. `false`: cada selección recibe 0 puntos, así que no se muestra ningún punto. |
+| `enable_checkable_lists` | Texto | No | ninguno (el portal de administración escribe `allow-selecting-candidates-and-lists`) | Lo que puede seleccionar el votante cuando la pregunta tiene listas: `allow-selecting-candidates-and-lists`, `allow-selecting-candidates`, `allow-selecting-lists`, `disabled`. |
+| `collapsible_lists` | Texto | No | ninguno (el portal de administración escribe `disabled`) | `disabled`, `enabled-expanded` (el votante puede cerrar una lista; las listas empiezan abiertas), `enabled-collapsed` (las listas empiezan cerradas). |
+| `candidates_order` | Texto | No | `alphabetical` | `alphabetical`, `random`, `custom`. Con `custom`, el orden es el `sort_order` de cada candidato. |
+| `candidates_selection_policy` | Texto | No | `cumulative` | `radio`: una nueva selección elimina la anterior. `cumulative`: las selecciones se suman. |
+| `candidates_icon_checkbox_policy` | Texto | No | `square-checkbox` | `square-checkbox` o `round-checkbox`. |
+| `max_selections_per_type` | Entero | No | ninguno | El número máximo de candidatos seleccionados del mismo `type`. |
+| `types_presentation` | Objeto | No | ninguno | La visualización de cada `type` de candidato. Consulte [Presentación de los tipos](#types-presentation). |
+| `sort_order` | Entero | No | ninguno | La posición de la pregunta cuando la elección usa el orden personalizado de preguntas `custom`. |
+| `columns` | Entero | No | `1` | El número de columnas de candidatos en la papeleta. |
 
 Los valores por defecto son los que usa el sistema cuando falta el campo. El portal de administración
 escribe la mayoría de estos campos cuando guarda una pregunta. Si la pregunta no tiene
@@ -235,14 +235,14 @@ escribe la mayoría de estos campos cuando guarda una pregunta. Si la pregunta n
 
 #### Políticas de la pregunta {#contest-policies}
 
-| Campo | Valores permitidos |
-| --- | --- |
-| `invalid_vote_policy` | `allowed`, `warn`, `warn-invalid-implicit-and-explicit`, `not-allowed`, `allowed-with-exclusive-explicit` |
-| `under_vote_policy` | `allowed`, `warn`, `warn-only-in-review`, `warn-and-alert` |
-| `blank_vote_policy` | `allowed`, `warn`, `warn-only-in-review`, `not-allowed` |
-| `over_vote_policy` | `allowed`, `allowed-with-msg`, `allowed-with-msg-and-alert`, `not-allowed-with-msg-and-alert`, `not-allowed-with-msg-and-disable` |
-| `duplicated_rank_policy` | `allowed-warn-and-dialog`, `not-allowed-warn-and-dialog` |
-| `preference_gaps_policy` | `allowed-warn-and-dialog`, `not-allowed-warn-and-dialog` |
+| Campo | Obligatorio | Valores permitidos |
+| --- | --- | --- |
+| `invalid_vote_policy` | No | `allowed`, `warn`, `warn-invalid-implicit-and-explicit`, `not-allowed`, `allowed-with-exclusive-explicit` |
+| `under_vote_policy` | No | `allowed`, `warn`, `warn-only-in-review`, `warn-and-alert` |
+| `blank_vote_policy` | No | `allowed`, `warn`, `warn-only-in-review`, `not-allowed` |
+| `over_vote_policy` | No | `allowed`, `allowed-with-msg`, `allowed-with-msg-and-alert`, `not-allowed-with-msg-and-alert`, `not-allowed-with-msg-and-disable` |
+| `duplicated_rank_policy` | No | `allowed-warn-and-dialog`, `not-allowed-warn-and-dialog` |
+| `preference_gaps_policy` | No | `allowed-warn-and-dialog`, `not-allowed-warn-and-dialog` |
 
 Con `allowed-with-exclusive-explicit`, la opción explícita no válida no se puede seleccionar junto
 con candidatos. Si una pregunta de la elección tiene `over_vote_policy` con `allowed`,
@@ -253,12 +253,12 @@ usa un diseño más grande que puede contener las selecciones adicionales.
 
 Un objeto. Cada clave es un `type` de candidato. Cada valor es un objeto:
 
-| Campo | Tipo | Significado |
-| --- | --- | --- |
-| `name` | Texto | El nombre del tipo. |
-| `name_i18n` | Objeto | El nombre en cada idioma: `{"en": "North"}`. |
-| `sort_order` | Entero | La posición del tipo. |
-| `subtypes_presentation` | Objeto | Cada clave es un `subtype` de candidato. Cada valor tiene `name`, `name_i18n` y `sort_order`. |
+| Campo | Tipo | Obligatorio | Significado |
+| --- | --- | --- | --- |
+| `name` | Texto | No | El nombre del tipo. |
+| `name_i18n` | Objeto | No | El nombre en cada idioma: `{"en": "North"}`. |
+| `sort_order` | Entero | No | La posición del tipo. |
+| `subtypes_presentation` | Objeto | No | Cada clave es un `subtype` de candidato. Cada valor tiene `name`, `name_i18n` y `sort_order`. |
 
 ## Candidatos {#candidates}
 
@@ -285,18 +285,18 @@ campos de escritura también son candidatos.
 
 Todos los campos son opcionales.
 
-| Campo | Tipo | Valor por defecto | Valores permitidos y significado |
-| --- | --- | --- | --- |
-| `i18n` | Mapa i18n | ninguno | El texto del candidato en cada idioma. Claves: `name`, `alias`, `description`. |
-| `is_explicit_invalid` | Booleano | `false` | `true`: esta opción hace que la papeleta sea no válida a propósito. |
-| `is_explicit_blank` | Booleano | `false` | `true`: esta opción es un voto en blanco. |
-| `is_disabled` | Booleano | `false` | `true`: el portal de votación no muestra el candidato, por ejemplo un candidato retirado. |
-| `is_category_list` | Booleano | `false` | `true`: este candidato es el encabezado de la lista con el mismo `type`. `enable_checkable_lists` de la pregunta indica si el votante puede seleccionar la lista completa. |
-| `invalid_vote_position` | Texto | ninguno | Para una opción explícita no válida: `top` o `bottom` de la pregunta. |
-| `is_write_in` | Booleano | `false` | `true`: es un campo de escritura. El votante escribe un nombre. |
-| `sort_order` | Entero | ninguno | La posición del candidato cuando la pregunta usa el orden personalizado `custom`. |
-| `urls` | Lista | ninguno | Enlaces del candidato. Consulte [URL del candidato](#candidate-urls). |
-| `subtype` | Texto | ninguno | El subtipo del candidato dentro de su `type`. |
+| Campo | Tipo | Obligatorio | Valor por defecto | Valores permitidos y significado |
+| --- | --- | --- | --- | --- |
+| `i18n` | Mapa i18n | No | ninguno | El texto del candidato en cada idioma. Claves: `name`, `alias`, `description`. |
+| `is_explicit_invalid` | Booleano | No | `false` | `true`: esta opción hace que la papeleta sea no válida a propósito. |
+| `is_explicit_blank` | Booleano | No | `false` | `true`: esta opción es un voto en blanco. |
+| `is_disabled` | Booleano | No | `false` | `true`: el portal de votación no muestra el candidato, por ejemplo un candidato retirado. |
+| `is_category_list` | Booleano | No | `false` | `true`: este candidato es el encabezado de la lista con el mismo `type`. `enable_checkable_lists` de la pregunta indica si el votante puede seleccionar la lista completa. |
+| `invalid_vote_position` | Texto | No | ninguno | Para una opción explícita no válida: `top` o `bottom` de la pregunta. |
+| `is_write_in` | Booleano | No | `false` | `true`: es un campo de escritura. El votante escribe un nombre. |
+| `sort_order` | Entero | No | ninguno | La posición del candidato cuando la pregunta usa el orden personalizado `custom`. |
+| `urls` | Lista | No | ninguno | Enlaces del candidato. Consulte [URL del candidato](#candidate-urls). |
+| `subtype` | Texto | No | ninguno | El subtipo del candidato dentro de su `type`. |
 
 #### URL del candidato {#candidate-urls}
 

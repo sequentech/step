@@ -53,27 +53,27 @@ La papeleta publicada contiene una copia de la presentación de la elección. De
 
 Todos los campos son opcionales. El valor predeterminado es el valor que usa el sistema cuando falta el campo.
 
-| Campo | Tipo | Predeterminado | Valores permitidos y significado |
-| --- | --- | --- | --- |
-| `i18n` | Objeto | ninguno | El texto de la elección en cada idioma. Consulte [i18n](#i18n). |
-| `language_conf` | Objeto | ninguno | Los idiomas de la elección. Consulte [Configuración del idioma](#language-configuration). La carga no lo cambia. |
-| `contests_order` | Texto | `alphabetical` | El orden de las preguntas en la papeleta. `alphabetical`: por alias, o por nombre si no hay alias. `random`: un orden distinto para cada votante. `custom`: por el `sort_order` de cada pregunta. |
-| `audit_button_cfg` | Texto | `show` | El botón **Auditar papeleta**. `show`: se muestra al votante. `not-show`: no se muestra. `show-in-help`: solo en la ayuda. |
-| `sort_order` | Entero | ninguno | La posición de la elección en la lista de elecciones, cuando el proceso electoral usa el orden `custom` de elecciones. |
-| `cast_vote_confirm` | Booleano | `false` | `true`: el votante debe confirmar en un cuadro de diálogo antes de emitir la papeleta. |
-| `cast_vote_gold_level` | Texto | `no-gold-level` | `gold-level`: el votante debe iniciar sesión de nuevo antes de emitir la papeleta. `no-gold-level`: no hay un nuevo inicio de sesión. |
-| `start_screen_title_policy` | Texto | `election` | El título y la descripción de la pantalla de inicio. `election`: los de la elección. `election-event`: los del proceso electoral. |
-| `grace_period_policy` | Texto | `no-grace-period` | `no-grace-period`: no se puede votar después del fin programado de la votación. `grace-period-without-alert`: un votante que inició sesión antes del fin programado puede emitir una papeleta durante `grace_period_secs` segundos después. Solo para el canal en línea, y no cuando la votación está pausada. |
-| `grace_period_secs` | Entero | `0` | La duración del período de gracia en segundos. No puede ser negativa. |
-| `voting_period_end` | Texto | `allowed` | `allowed`: puede cerrar el período de votación. `disallowed`: el sistema impide cerrarlo. |
-| `initialization_report_policy` | Texto | `not-required` | `required`: no puede abrir la votación antes de generar el informe de inicialización. `not-required`: sin condición. |
-| `security_confirmation_policy` | Texto | `none` | `mandatory`: el votante debe marcar una casilla con una declaración antes de que empiece la votación. El texto está en `i18n.<language>.security_confirmation_html`. `none`: sin casilla. |
-| `consolidated_report_policy` | Texto | `do-not-generate` | `generate`: el recuento genera resultados consolidados de todas las áreas. `do-not-generate`: sin resultados consolidados. |
-| `decline_to_vote_policy` | Texto | `disabled` | `enabled`: el votante puede abstenerse de votar en toda la elección. `disabled`: la opción no se muestra. Consulte [Abstención de voto](../07-decline-to-vote.md). |
-| `blank_ballots_policy` | Texto | `disabled` | `enabled`: una papeleta que está en blanco en todas las preguntas cuenta como papeleta en blanco de la elección. `disabled`: no se cuenta. Consulte [Papeletas en blanco](../09-blank-ballots.md). |
-| `voting_screen_back_policy` | Texto | `election-selection-screen` | Adónde va el botón **Atrás** de la pantalla de votación. `election-selection-screen`: la lista de elecciones. `start-screen`: la pantalla de inicio de la elección. |
-| `css` | Texto | ninguno | CSS personalizado para la elección en el sitio de resultados. El portal de votación usa el CSS del proceso electoral. |
-| `custom_filters` | Lista | ninguno | Los filtros personalizados que el portal de administración edita en **Configuración Avanzada**. La lista **Usuarios** lee los filtros del proceso electoral, así que estos filtros no cambian esa lista. |
+| Campo | Tipo | Obligatorio | Predeterminado | Valores permitidos y significado |
+| --- | --- | --- | --- | --- |
+| `i18n` | Objeto | Opcional | ninguno | El texto de la elección en cada idioma. Consulte [i18n](#i18n). |
+| `language_conf` | Objeto | Opcional | ninguno | Los idiomas de la elección. Consulte [Configuración del idioma](#language-configuration). La carga no lo cambia. |
+| `contests_order` | Texto | Opcional | `alphabetical` | El orden de las preguntas en la papeleta. `alphabetical`: por alias, o por nombre si no hay alias. `random`: un orden distinto para cada votante. `custom`: por el `sort_order` de cada pregunta. |
+| `audit_button_cfg` | Texto | Opcional | `show` | El botón **Auditar papeleta**. `show`: se muestra al votante. `not-show`: no se muestra. `show-in-help`: solo en la ayuda. |
+| `sort_order` | Entero | Opcional | ninguno | La posición de la elección en la lista de elecciones, cuando el proceso electoral usa el orden `custom` de elecciones. |
+| `cast_vote_confirm` | Booleano | Opcional | `false` | `true`: el votante debe confirmar en un cuadro de diálogo antes de emitir la papeleta. |
+| `cast_vote_gold_level` | Texto | Opcional | `no-gold-level` | `gold-level`: el votante debe iniciar sesión de nuevo antes de emitir la papeleta. `no-gold-level`: no hay un nuevo inicio de sesión. |
+| `start_screen_title_policy` | Texto | Opcional | `election` | El título y la descripción de la pantalla de inicio. `election`: los de la elección. `election-event`: los del proceso electoral. |
+| `grace_period_policy` | Texto | Opcional | `no-grace-period` | `no-grace-period`: no se puede votar después del fin programado de la votación. `grace-period-without-alert`: un votante que inició sesión antes del fin programado puede emitir una papeleta durante `grace_period_secs` segundos después. Solo para el canal en línea, y no cuando la votación está pausada. |
+| `grace_period_secs` | Entero | Opcional | `0` | La duración del período de gracia en segundos. No puede ser negativa. |
+| `voting_period_end` | Texto | Opcional | `allowed` | `allowed`: puede cerrar el período de votación. `disallowed`: el sistema impide cerrarlo. |
+| `initialization_report_policy` | Texto | Opcional | `not-required` | `required`: no puede abrir la votación antes de generar el informe de inicialización. `not-required`: sin condición. |
+| `security_confirmation_policy` | Texto | Opcional | `none` | `mandatory`: el votante debe marcar una casilla con una declaración antes de que empiece la votación. El texto está en `i18n.<language>.security_confirmation_html`. `none`: sin casilla. |
+| `consolidated_report_policy` | Texto | Opcional | `do-not-generate` | `generate`: el recuento genera resultados consolidados de todas las áreas. `do-not-generate`: sin resultados consolidados. |
+| `decline_to_vote_policy` | Texto | Opcional | `disabled` | `enabled`: el votante puede abstenerse de votar en toda la elección. `disabled`: la opción no se muestra. Consulte [Abstención de voto](../07-decline-to-vote.md). |
+| `blank_ballots_policy` | Texto | Opcional | `disabled` | `enabled`: una papeleta que está en blanco en todas las preguntas cuenta como papeleta en blanco de la elección. `disabled`: no se cuenta. Consulte [Papeletas en blanco](../09-blank-ballots.md). |
+| `voting_screen_back_policy` | Texto | Opcional | `election-selection-screen` | Adónde va el botón **Atrás** de la pantalla de votación. `election-selection-screen`: la lista de elecciones. `start-screen`: la pantalla de inicio de la elección. |
+| `css` | Texto | Opcional | ninguno | CSS personalizado para la elección en el sitio de resultados. El portal de votación usa el CSS del proceso electoral. |
+| `custom_filters` | Lista | Opcional | ninguno | Los filtros personalizados que el portal de administración edita en **Configuración Avanzada**. La lista **Usuarios** lee los filtros del proceso electoral, así que estos filtros no cambian esa lista. |
 
 `decline_to_vote_policy` y `blank_ballots_policy` solo tienen efecto cuando el proceso electoral usa la política de cifrado **Varios concursos**.
 
@@ -81,32 +81,32 @@ Todos los campos son opcionales. El valor predeterminado es el valor que usa el 
 
 La presentación también puede contener estos campos. El sistema los lee sin error, pero en esta versión no los usa. No los añada.
 
-| Campo | Tipo | Valores permitidos |
-| --- | --- | --- |
-| `dates` | Objeto | `start_date` y `end_date`, como texto de fecha y hora. Configure las fechas de la votación con eventos programados. |
-| `is_grace_priod` | Booleano | `true`, `false`. Use `grace_period_policy`. |
-| `init_report` | Texto | `allowed`, `disallowed` |
-| `manual_start_voting_period` | Texto | `allowed`, `only-when-initialization-report-has-been-performed` |
-| `tally` | Texto | `always-allow`, `allow-when-voting-period-ends` |
+| Campo | Tipo | Obligatorio | Valores permitidos |
+| --- | --- | --- | --- |
+| `dates` | Objeto | Opcional | `start_date` y `end_date`, como texto de fecha y hora. Configure las fechas de la votación con eventos programados. |
+| `is_grace_priod` | Booleano | Opcional | `true`, `false`. Use `grace_period_policy`. |
+| `init_report` | Texto | Opcional | `allowed`, `disallowed` |
+| `manual_start_voting_period` | Texto | Opcional | `allowed`, `only-when-initialization-report-has-been-performed` |
+| `tally` | Texto | Opcional | `always-allow`, `allow-when-voting-period-ends` |
 
 ### i18n
 
 Un objeto. Cada clave es un código de idioma, por ejemplo `en` o `es`. Cada valor es un objeto con estos campos de texto:
 
-| Campo | Significado |
-| --- | --- |
-| `name` | El nombre de la elección. |
-| `alias` | Un nombre corto. Si está configurado, el portal de votación lo muestra en lugar del nombre. |
-| `description` | La descripción de la elección. |
-| `security_confirmation_html` | La declaración que el votante debe aceptar cuando `security_confirmation_policy` es `mandatory`. Se permite HTML. |
+| Campo | Obligatorio | Significado |
+| --- | --- | --- |
+| `name` | Opcional | El nombre de la elección. |
+| `alias` | Opcional | Un nombre corto. Si está configurado, el portal de votación lo muestra en lugar del nombre. |
+| `description` | Opcional | La descripción de la elección. |
+| `security_confirmation_html` | Opcional | La declaración que el votante debe aceptar cuando `security_confirmation_policy` es `mandatory`. Se permite HTML. |
 
 ### Configuración del idioma {#language-configuration}
 
-| Campo | Tipo | Significado |
-| --- | --- | --- |
-| `enabled_language_codes` | Lista de textos | Los idiomas de la elección, por ejemplo `["en", "es"]`. |
-| `default_language_code` | Texto | El idioma que se usa cuando el texto no está en el idioma del votante. Si no está configurado, se usa el idioma predeterminado del proceso electoral. |
-| `language_detection_policy` | Texto | `browser-detect` o `force-default`. No se usa a nivel de elección. El portal de votación lee este valor del proceso electoral. El portal de administración lo elimina de la elección cuando usted guarda la elección. |
+| Campo | Tipo | Obligatorio | Significado |
+| --- | --- | --- | --- |
+| `enabled_language_codes` | Lista de textos | Opcional | Los idiomas de la elección, por ejemplo `["en", "es"]`. |
+| `default_language_code` | Texto | Opcional | El idioma que se usa cuando el texto no está en el idioma del votante. Si no está configurado, se usa el idioma predeterminado del proceso electoral. |
+| `language_detection_policy` | Texto | Opcional | `browser-detect` o `force-default`. No se usa a nivel de elección. El portal de votación lee este valor del proceso electoral. El portal de administración lo elimina de la elección cuando usted guarda la elección. |
 
 La carga no cambia `language_conf`. Configure los idiomas en la sección **Idioma** de la pestaña **Datos**.
 

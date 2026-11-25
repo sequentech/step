@@ -66,16 +66,16 @@ Cuando crea una plantilla en el portal de administración, el portal escribe `EM
 
 `template` es un objeto JSON. Estas son las claves que escribe el portal de administración:
 
-| Clave | Tipo | Significado |
-| --- | --- | --- |
-| `alias` | Texto | El alias de la plantilla. Es el mismo que la columna `alias`. |
-| `name` | Texto | El nombre de la plantilla. |
-| `selected_methods` | Objeto | Tres claves, `EMAIL`, `SMS` y `DOCUMENT`. Cada valor es `true` o `false`. Indica qué partes tiene la plantilla. |
-| `email` | Objeto | La parte del correo electrónico. Tiene `subject`, `plaintext_body` y `html_body`. |
-| `sms` | Objeto | La parte del SMS. Tiene la clave `message`. |
-| `document` | Texto | La parte del documento: el texto del documento, como plantilla HTML. |
-| `pdf_options` | Objeto | La configuración PDF del documento, por ejemplo `landscape`, `print_background`, `scale`, `paper_width`, `paper_height`, `margin_top`, `margin_bottom`, `margin_left`, `margin_right`, `page_ranges`, `header_template`, `footer_template`. |
-| `report_options` | Objeto | Los límites del informe. Tiene `max_items_per_report` y `max_threads`. |
+| Clave | Tipo | Obligatoria | Significado |
+| --- | --- | --- | --- |
+| `alias` | Texto | Opcional | El alias de la plantilla. Es el mismo que la columna `alias`. |
+| `name` | Texto | Opcional | El nombre de la plantilla. |
+| `selected_methods` | Objeto | Opcional | Tres claves, `EMAIL`, `SMS` y `DOCUMENT`. Cada valor es `true` o `false`. Indica qué partes tiene la plantilla. |
+| `email` | Objeto | Opcional | La parte del correo electrónico. Tiene `subject`, `plaintext_body` y `html_body`. |
+| `sms` | Objeto | Opcional | La parte del SMS. Tiene la clave `message`. |
+| `document` | Texto | Opcional | La parte del documento: el texto del documento, como plantilla HTML. |
+| `pdf_options` | Objeto | Opcional | La configuración PDF del documento, por ejemplo `landscape`, `print_background`, `scale`, `paper_width`, `paper_height`, `margin_top`, `margin_bottom`, `margin_left`, `margin_right`, `page_ranges`, `header_template`, `footer_template`. |
+| `report_options` | Objeto | Opcional | Los límites del informe. Tiene `max_items_per_report` y `max_threads`. |
 
 Los textos del correo electrónico, del SMS y del documento pueden contener variables. La plataforma las sustituye cuando genera el mensaje o el documento.
 

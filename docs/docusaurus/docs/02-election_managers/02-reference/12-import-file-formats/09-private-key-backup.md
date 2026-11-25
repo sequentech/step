@@ -32,6 +32,7 @@ files, nobody can decrypt the votes. Do not share the file with other people.
 | `<election event name>` | The name of the election event, as the admin portal shows it. |
 | Type | Plain text, one line, no header. |
 | Content | The encrypted private key fragment of the trustee, written in Base64 (standard alphabet, no `=` padding). |
+| Required content | The whole text of the file, with no other character. The platform compares it with the key that it keeps. If it is not the same, the result is **Invalid**. |
 | One file for | One trustee and one keys ceremony. The file of another trustee does not work. |
 
 The platform encrypts the key fragment before it gives it to the trustee. The file is not the key in

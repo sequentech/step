@@ -60,18 +60,18 @@ Notas:
 
 La verificación guarda aquí sus datos de trabajo. Estas son las claves que puede encontrar:
 
-| Clave | Significado |
-| --- | --- |
-| `session_id`, `credentials` | Datos de la sesión del formulario. |
-| `search-attributes` | Los atributos que la plataforma usa para buscar un votante. Separados por comas. |
-| `unset-attributes` | Los atributos del votante que deben estar vacíos antes de que la plataforma acepte la solicitud. |
-| `update-attributes` | Los atributos del votante que se deben actualizar, separados por comas. Cuando un administrador confirma la solicitud, la plataforma copia estas claves de `applicant_data` al votante. `email`, `firstName` y `lastName` establecen los campos propios del votante. |
-| `fields_match` | Para cada campo buscado: `true` si la solicitud y el votante tienen el mismo valor. |
-| `mismatches` | El número de campos que no coinciden. |
-| `manual_verify_reason` | El motivo por el que un administrador debe revisar la solicitud. |
-| `rejection_reason` | `insufficient-information`, `no-matching-voter`, `voter-already-approved` u `other`. |
-| `rejection_message` | El texto del rechazo. Obligatorio para el motivo `other`. |
-| `verified_by` | El administrador que decidió. |
+| Clave | Obligatoria | Significado |
+| --- | --- | --- |
+| `session_id`, `credentials` | Opcional | Datos de la sesión del formulario. |
+| `search-attributes` | Opcional | Los atributos que la plataforma usa para buscar un votante. Separados por comas. |
+| `unset-attributes` | Opcional | Los atributos del votante que deben estar vacíos antes de que la plataforma acepte la solicitud. |
+| `update-attributes` | Opcional | Los atributos del votante que se deben actualizar, separados por comas. Cuando un administrador confirma la solicitud, la plataforma copia estas claves de `applicant_data` al votante. `email`, `firstName` y `lastName` establecen los campos propios del votante. |
+| `fields_match` | Opcional | Para cada campo buscado: `true` si la solicitud y el votante tienen el mismo valor. |
+| `mismatches` | Opcional | El número de campos que no coinciden. |
+| `manual_verify_reason` | Opcional | El motivo por el que un administrador debe revisar la solicitud. |
+| `rejection_reason` | Opcional | `insufficient-information`, `no-matching-voter`, `voter-already-approved` u `other`. |
+| `rejection_message` | Opcional | El texto del rechazo. Obligatorio para el motivo `other`. |
+| `verified_by` | Opcional | El administrador que decidió. |
 
 ## Reglas {#rules}
 

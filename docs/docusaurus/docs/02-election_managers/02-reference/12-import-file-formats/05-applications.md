@@ -77,18 +77,18 @@ the user profile.
 
 The verification keeps its working data here. Keys that you can find:
 
-| Key | Meaning |
-| --- | --- |
-| `session_id`, `credentials` | Data of the session of the form. |
-| `search-attributes` | The attributes that the platform uses to search for a voter. Comma separated. |
-| `unset-attributes` | The attributes of the voter that must be empty before the platform accepts the application. |
-| `update-attributes` | The attributes of the voter to update, separated by commas. When an administrator confirms the application, the platform copies these keys from `applicant_data` to the voter. `email`, `firstName` and `lastName` set the voter's own fields. |
-| `fields_match` | For each searched field: `true` if the application and the voter have the same value. |
-| `mismatches` | The number of fields that differ. |
-| `manual_verify_reason` | The reason why an administrator must check the application. |
-| `rejection_reason` | `insufficient-information`, `no-matching-voter`, `voter-already-approved` or `other`. |
-| `rejection_message` | The text of the rejection. Required for the reason `other`. |
-| `verified_by` | The administrator who decided. |
+| Key | Required | Meaning |
+| --- | --- | --- |
+| `session_id`, `credentials` | Optional | Data of the session of the form. |
+| `search-attributes` | Optional | The attributes that the platform uses to search for a voter. Comma separated. |
+| `unset-attributes` | Optional | The attributes of the voter that must be empty before the platform accepts the application. |
+| `update-attributes` | Optional | The attributes of the voter to update, separated by commas. When an administrator confirms the application, the platform copies these keys from `applicant_data` to the voter. `email`, `firstName` and `lastName` set the voter's own fields. |
+| `fields_match` | Optional | For each searched field: `true` if the application and the voter have the same value. |
+| `mismatches` | Optional | The number of fields that differ. |
+| `manual_verify_reason` | Optional | The reason why an administrator must check the application. |
+| `rejection_reason` | Optional | `insufficient-information`, `no-matching-voter`, `voter-already-approved` or `other`. |
+| `rejection_message` | Optional | The text of the rejection. Required for the reason `other`. |
+| `verified_by` | Optional | The administrator who decided. |
 
 ## Rules
 

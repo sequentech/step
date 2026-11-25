@@ -33,6 +33,7 @@ certificate authorities**.
 | --- | --- |
 | Type | Plain text, PEM format. |
 | Content | One or more certificate blocks. Other text is ignored. |
+| Required content | At least one complete block, with a begin line and an end line. If there is no block, the import is refused. |
 | Block start | The line `-----BEGIN CERTIFICATE-----`. Spaces before or after the line are ignored. |
 | Block end | The line `-----END CERTIFICATE-----`. Spaces before or after the line are ignored. |
 | Block body | The Base64 text of one X.509 certificate, as in a PEM file. |

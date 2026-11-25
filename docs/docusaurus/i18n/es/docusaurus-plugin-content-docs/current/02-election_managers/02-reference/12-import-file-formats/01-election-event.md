@@ -176,37 +176,37 @@ se detiene. La importación mantiene los campos que no conoce. Las etiquetas de 
 las etiquetas de la pestaña **Datos** del proceso electoral. Consulte
 [Datos del proceso electoral](../02-election-event/03-election_management_election-event_data.md).
 
-| Campo | Tipo | Predeterminado | Valores permitidos | Contenido |
-| --- | --- | --- | --- | --- |
-| `i18n` | objeto | — | `{ "<language>": { "<key>": text or null } }` | Los textos en cada idioma. Consulte [i18n](#presentationi18n). |
-| `language_conf` | objeto | — | Consulte [language_conf](#presentationlanguage_conf) | Los idiomas del proceso electoral. |
-| `materials` | objeto | — | `{ "policy": "off" \| "optional" \| "mandatory_for_voting" }` | La política de los materiales de apoyo. Predeterminado `off`. |
-| `logo_url` | texto | — | Una URL | **Logo URL**. |
-| `redirect_finish_url` | texto | — | Una URL | **URL de redirección al finalizar**: la página que abre el portal de votación cuando el votante termina. |
-| `kiosk_redirect_finish_url` | texto | — | Una URL | **URL de redirección al finalizar del quiosco**: lo mismo para la votación en quiosco. |
-| `css` | texto | — | CSS | **CSS personalizado** del portal de votación. |
-| `skip_election_list` | `true` o `false` | — | — | **Saltar pantalla para escoger elección**. |
-| `show_user_profile` | `true` o `false` | `true` | — | **Mostrar perfil de usuario**. |
-| `show_cast_vote_logs` | texto | `hide-logs-tab` | `show-logs-tab`, `hide-logs-tab` | **Mostrar logs de votación**. |
-| `elections_order` | texto | `alphabetical` | `alphabetical`, `random`, `custom` | El orden de las elecciones en el portal de votación. |
-| `voting_portal_countdown_policy` | objeto | — | Consulte [voting_portal_countdown_policy](#presentationvoting_portal_countdown_policy) | **Política de cuenta regresiva del portal de votación**. |
-| `voting_portal_datetime_format` | texto u objeto | `legacy-gb-24h` | `legacy-gb-24h`, `iso-local`, `us-12h`, `locale-medium`, `date-only`, o `{ "custom": "<pattern>" }` | **Formato de fecha y hora del portal de votación**. Un patrón personalizado usa los tokens `yyyy`, `MM`, `dd`, `HH`, `mm`, `ss`. |
-| `custom_urls` | objeto | — | `{ "login": URL, "enrollment": URL, "saml": URL }`, cada una opcional | Las URL personalizadas de las páginas de inicio de sesión, inscripción y SAML. |
-| `keys_ceremony_policy` | texto | `ELECTION_EVENT` | `ELECTION_EVENT`, `ELECTION` | Una clave electoral para el proceso electoral, o una para cada elección. |
-| `contest_encryption_policy` | texto | `single-contest` | `single-contest`, `multiple-contests` | **Política de cifrado de concurso**. |
-| `decoded_ballot_inclusion_policy` | texto | `not-included` | `included`, `not-included` | **Incluir papeletas decodificadas en la base de datos de resultados**. |
-| `locked_down` | texto | `not-locked-down` | `locked-down`, `not-locked-down` | **Estado de Confinamiento**. |
-| `publish_policy` | texto | `always` | `always`, `after-lockdown` | `after-lockdown`: solo puede publicar el proceso electoral después del confinamiento. |
-| `enrollment` | texto | `enabled` | `enabled`, `disabled` | **Inscripción** de votantes. |
-| `otp` | texto | `enabled` | `enabled`, `disabled` | **OTP** (código de un solo uso). |
-| `voter_signing_policy` | texto | `no-signature` | `no-signature`, `with-signature` | **Política de Firma de Votantes**. |
-| `voter_certificate_policy` | texto | `disabled` | `disabled`, `enabled` | **Voter Digital Certificate Policy**. |
-| `weighted_voting_policy` | texto | `disabled-weighted-voting` | `disabled-weighted-voting`, `areas-weighted-voting`, `voters-weighted-voting` | **Política de Votación Ponderada**. |
-| `delegated_voting_policy` | texto | `disabled` | `disabled`, `enabled` | **Política de Votación Delegada**. |
-| `ceremonies_policy` | texto | `manual-ceremonies` | `manual-ceremonies`, `automated-ceremonies` | **Política de ceremonias de llaves/recuento**. |
-| `automatic_recount_policy` | texto | `disabled` | `enabled`, `disabled` | **Recuento automático tras aprobar una importación**. |
-| `results_website` | texto (JSON) | — | Consulte [results_website](#presentationresults_website) | La política del sitio web de resultados. |
-| `custom_filters` | array | — | Consulte abajo | Los filtros personalizados de la lista de votantes del portal de administración. |
+| Campo | Tipo | Obligatorio | Predeterminado | Valores permitidos | Contenido |
+| --- | --- | --- | --- | --- | --- |
+| `i18n` | objeto | Opcional | — | `{ "<language>": { "<key>": text or null } }` | Los textos en cada idioma. Consulte [i18n](#presentationi18n). |
+| `language_conf` | objeto | Opcional | — | Consulte [language_conf](#presentationlanguage_conf) | Los idiomas del proceso electoral. |
+| `materials` | objeto | Opcional | — | `{ "policy": "off" \| "optional" \| "mandatory_for_voting" }` | La política de los materiales de apoyo. Predeterminado `off`. |
+| `logo_url` | texto | Opcional | — | Una URL | **Logo URL**. |
+| `redirect_finish_url` | texto | Opcional | — | Una URL | **URL de redirección al finalizar**: la página que abre el portal de votación cuando el votante termina. |
+| `kiosk_redirect_finish_url` | texto | Opcional | — | Una URL | **URL de redirección al finalizar del quiosco**: lo mismo para la votación en quiosco. |
+| `css` | texto | Opcional | — | CSS | **CSS personalizado** del portal de votación. |
+| `skip_election_list` | `true` o `false` | Opcional | — | — | **Saltar pantalla para escoger elección**. |
+| `show_user_profile` | `true` o `false` | Opcional | `true` | — | **Mostrar perfil de usuario**. |
+| `show_cast_vote_logs` | texto | Opcional | `hide-logs-tab` | `show-logs-tab`, `hide-logs-tab` | **Mostrar logs de votación**. |
+| `elections_order` | texto | Opcional | `alphabetical` | `alphabetical`, `random`, `custom` | El orden de las elecciones en el portal de votación. |
+| `voting_portal_countdown_policy` | objeto | Opcional | — | Consulte [voting_portal_countdown_policy](#presentationvoting_portal_countdown_policy) | **Política de cuenta regresiva del portal de votación**. |
+| `voting_portal_datetime_format` | texto u objeto | Opcional | `legacy-gb-24h` | `legacy-gb-24h`, `iso-local`, `us-12h`, `locale-medium`, `date-only`, o `{ "custom": "<pattern>" }` | **Formato de fecha y hora del portal de votación**. Un patrón personalizado usa los tokens `yyyy`, `MM`, `dd`, `HH`, `mm`, `ss`. |
+| `custom_urls` | objeto | Opcional | — | `{ "login": URL, "enrollment": URL, "saml": URL }`, cada una opcional | Las URL personalizadas de las páginas de inicio de sesión, inscripción y SAML. |
+| `keys_ceremony_policy` | texto | Opcional | `ELECTION_EVENT` | `ELECTION_EVENT`, `ELECTION` | Una clave electoral para el proceso electoral, o una para cada elección. |
+| `contest_encryption_policy` | texto | Opcional | `single-contest` | `single-contest`, `multiple-contests` | **Política de cifrado de concurso**. |
+| `decoded_ballot_inclusion_policy` | texto | Opcional | `not-included` | `included`, `not-included` | **Incluir papeletas decodificadas en la base de datos de resultados**. |
+| `locked_down` | texto | Opcional | `not-locked-down` | `locked-down`, `not-locked-down` | **Estado de Confinamiento**. |
+| `publish_policy` | texto | Opcional | `always` | `always`, `after-lockdown` | `after-lockdown`: solo puede publicar el proceso electoral después del confinamiento. |
+| `enrollment` | texto | Opcional | `enabled` | `enabled`, `disabled` | **Inscripción** de votantes. |
+| `otp` | texto | Opcional | `enabled` | `enabled`, `disabled` | **OTP** (código de un solo uso). |
+| `voter_signing_policy` | texto | Opcional | `no-signature` | `no-signature`, `with-signature` | **Política de Firma de Votantes**. |
+| `voter_certificate_policy` | texto | Opcional | `disabled` | `disabled`, `enabled` | **Voter Digital Certificate Policy**. |
+| `weighted_voting_policy` | texto | Opcional | `disabled-weighted-voting` | `disabled-weighted-voting`, `areas-weighted-voting`, `voters-weighted-voting` | **Política de Votación Ponderada**. |
+| `delegated_voting_policy` | texto | Opcional | `disabled` | `disabled`, `enabled` | **Política de Votación Delegada**. |
+| `ceremonies_policy` | texto | Opcional | `manual-ceremonies` | `manual-ceremonies`, `automated-ceremonies` | **Política de ceremonias de llaves/recuento**. |
+| `automatic_recount_policy` | texto | Opcional | `disabled` | `enabled`, `disabled` | **Recuento automático tras aprobar una importación**. |
+| `results_website` | texto (JSON) | Opcional | — | Consulte [results_website](#presentationresults_website) | La política del sitio web de resultados. |
+| `custom_filters` | array | Opcional | — | Consulte abajo | Los filtros personalizados de la lista de votantes del portal de administración. |
 
 Cada elemento de `custom_filters` tiene un `label` (`name` y un objeto `i18n` con un texto para cada
 idioma) y un `filter` (un objeto de condiciones, o `null`). El portal de administración escribe este
@@ -220,53 +220,53 @@ exportación.
 Un objeto con una clave para cada código de idioma, por ejemplo `en` o `es`. Cada idioma tiene un
 objeto de textos. El portal de administración escribe estas claves:
 
-| Clave | Contenido |
-| --- | --- |
-| `name` | El nombre del proceso electoral. |
-| `alias` | El alias del proceso electoral. |
-| `description` | La descripción en este idioma. |
-| `materialsTitle` | El título de los materiales de apoyo. |
-| `materialsSubtitle` | El subtítulo de los materiales de apoyo. |
+| Clave | Obligatorio | Contenido |
+| --- | --- | --- |
+| `name` | Opcional | El nombre del proceso electoral. |
+| `alias` | Opcional | El alias del proceso electoral. |
+| `description` | Opcional | La descripción en este idioma. |
+| `materialsTitle` | Opcional | El título de los materiales de apoyo. |
+| `materialsSubtitle` | Opcional | El subtítulo de los materiales de apoyo. |
 
 La pestaña **Localización** añade otras claves. Cada valor es un texto o `null`. Si un texto no está
 disponible en un idioma, el sistema usa el texto de `en`.
 
 #### presentation.language_conf
 
-| Campo | Tipo | Predeterminado | Valores permitidos | Contenido |
-| --- | --- | --- | --- | --- |
-| `enabled_language_codes` | array de texto | — | Códigos de idioma | Los idiomas que pueden seleccionar los votantes. |
-| `default_language_code` | texto | `en` | Un código de idioma | El idioma predeterminado. |
-| `language_detection_policy` | texto | `browser-detect` | `browser-detect`, `force-default` | **Política de detección de idioma**. Con `force-default`, la importación pone el idioma predeterminado del realm de inicio de sesión en `default_language_code`. |
+| Campo | Tipo | Obligatorio | Predeterminado | Valores permitidos | Contenido |
+| --- | --- | --- | --- | --- | --- |
+| `enabled_language_codes` | array de texto | Opcional | — | Códigos de idioma | Los idiomas que pueden seleccionar los votantes. |
+| `default_language_code` | texto | Opcional | `en` | Un código de idioma | El idioma predeterminado. |
+| `language_detection_policy` | texto | Opcional | `browser-detect` | `browser-detect`, `force-default` | **Política de detección de idioma**. Con `force-default`, la importación pone el idioma predeterminado del realm de inicio de sesión en `default_language_code`. |
 
 #### presentation.voting_portal_countdown_policy
 
-| Campo | Tipo | Valores permitidos | Contenido |
-| --- | --- | --- | --- |
-| `policy` | texto | `NO_COUNTDOWN`, `COUNTDOWN`, `COUNTDOWN_WITH_ALERT` | La cuenta regresiva antes de que expire la sesión de votación. |
-| `countdown_anticipation_secs` | número entero | 0 o más | El número de segundos antes de la expiración en que empieza la cuenta regresiva. |
-| `countdown_alert_anticipation_secs` | número entero | 0 o más | El número de segundos antes de la expiración en que aparece la alerta de cierre de sesión. |
+| Campo | Tipo | Obligatorio | Valores permitidos | Contenido |
+| --- | --- | --- | --- | --- |
+| `policy` | texto | Opcional | `NO_COUNTDOWN`, `COUNTDOWN`, `COUNTDOWN_WITH_ALERT` | La cuenta regresiva antes de que expire la sesión de votación. |
+| `countdown_anticipation_secs` | número entero | Opcional | 0 o más | El número de segundos antes de la expiración en que empieza la cuenta regresiva. |
+| `countdown_alert_anticipation_secs` | número entero | Opcional | 0 o más | El número de segundos antes de la expiración en que aparece la alerta de cierre de sesión. |
 
 #### presentation.results_website
 
 El valor es un objeto JSON escrito como texto. La importación también acepta el objeto en sí. Si el
 valor está presente, los tres campos son obligatorios.
 
-| Campo | Valores permitidos | Predeterminado | Contenido |
-| --- | --- | --- | --- |
-| `status` | `enabled`, `disabled` | `disabled` | Publicar los resultados en el sitio web de resultados. |
-| `access` | `public`, `authenticated` | `public` | Quién puede ver los resultados. |
-| `visibility_scope` | `full_event`, `area_based` | `full_event` | Todos los resultados, o solo los resultados del área del usuario. |
+| Campo | Obligatorio | Valores permitidos | Predeterminado | Contenido |
+| --- | --- | --- | --- | --- |
+| `status` | Obligatorio | `enabled`, `disabled` | `disabled` | Publicar los resultados en el sitio web de resultados. |
+| `access` | Obligatorio | `public`, `authenticated` | `public` | Quién puede ver los resultados. |
+| `visibility_scope` | Obligatorio | `full_event`, `area_based` | `full_event` | Todos los resultados, o solo los resultados del área del usuario. |
 
 #### election_event.voting_channels
 
-| Campo | Tipo | Contenido |
-| --- | --- | --- |
-| `online` | `true` o `false` | La votación en línea está activada. |
-| `kiosk` | `true` o `false` | La votación en quiosco está activada. |
-| `telephone` | `true` o `false` | La votación por teléfono está activada. |
-| `paper` | `true` o `false` | La votación en papel está activada. |
-| `early_voting` | `true` o `false` | La votación anticipada está activada. |
+| Campo | Tipo | Obligatorio | Contenido |
+| --- | --- | --- | --- |
+| `online` | `true` o `false` | Opcional | La votación en línea está activada. |
+| `kiosk` | `true` o `false` | Opcional | La votación en quiosco está activada. |
+| `telephone` | `true` o `false` | Opcional | La votación por teléfono está activada. |
+| `paper` | `true` o `false` | Opcional | La votación en papel está activada. |
+| `early_voting` | `true` o `false` | Opcional | La votación anticipada está activada. |
 
 Todos los campos son opcionales. Un proceso electoral nuevo tiene `online` en `true`.
 
@@ -275,17 +275,17 @@ Todos los campos son opcionales. Un proceso electoral nuevo tiene `online` en `t
 La importación sustituye este objeto por un estado nuevo. No se usan los valores del archivo. Cada
 campo es opcional.
 
-| Campo | Tipo | Valores permitidos | Contenido |
-| --- | --- | --- | --- |
-| `is_published` | `true` o `false` | — | El proceso electoral está publicado. Después de la importación: `false`. |
-| `voting_status` | texto | `NOT_STARTED`, `OPEN`, `PAUSED`, `CLOSED` | El estado de la votación en línea. Después de la importación: `NOT_STARTED`. |
-| `kiosk_voting_status` | texto | Igual | El estado de la votación en quiosco. |
-| `early_voting_status` | texto | Igual | El estado de la votación anticipada. |
-| `telephone_voting_status` | texto | Igual | El estado de la votación por teléfono. |
-| `voting_period_dates` | objeto | Consulte abajo | Las fechas del período de votación en línea. |
-| `kiosk_voting_period_dates` | objeto | Consulte abajo | Las fechas del período de votación en quiosco. |
-| `early_voting_period_dates` | objeto | Consulte abajo | Las fechas del período de votación anticipada. |
-| `telephone_voting_period_dates` | objeto | Consulte abajo | Las fechas del período de votación por teléfono. |
+| Campo | Tipo | Obligatorio | Valores permitidos | Contenido |
+| --- | --- | --- | --- | --- |
+| `is_published` | `true` o `false` | Opcional | — | El proceso electoral está publicado. Después de la importación: `false`. |
+| `voting_status` | texto | Opcional | `NOT_STARTED`, `OPEN`, `PAUSED`, `CLOSED` | El estado de la votación en línea. Después de la importación: `NOT_STARTED`. |
+| `kiosk_voting_status` | texto | Opcional | Igual | El estado de la votación en quiosco. |
+| `early_voting_status` | texto | Opcional | Igual | El estado de la votación anticipada. |
+| `telephone_voting_status` | texto | Opcional | Igual | El estado de la votación por teléfono. |
+| `voting_period_dates` | objeto | Opcional | Consulte abajo | Las fechas del período de votación en línea. |
+| `kiosk_voting_period_dates` | objeto | Opcional | Consulte abajo | Las fechas del período de votación en quiosco. |
+| `early_voting_period_dates` | objeto | Opcional | Consulte abajo | Las fechas del período de votación anticipada. |
+| `telephone_voting_period_dates` | objeto | Opcional | Consulte abajo | Las fechas del período de votación por teléfono. |
 
 Cada objeto `*_period_dates` tiene los campos opcionales `first_started_at`, `last_started_at`,
 `first_paused_at`, `last_paused_at`, `first_stopped_at` y `last_stopped_at`. Cada uno es una fecha y
@@ -293,10 +293,10 @@ hora en UTC, en formato ISO 8601.
 
 #### election_event.statistics
 
-| Campo | Tipo | Contenido |
-| --- | --- | --- |
-| `num_emails_sent` | número entero | El número de correos enviados. Después de la importación: 0. |
-| `num_sms_sent` | número entero | El número de SMS enviados. Después de la importación: 0. |
+| Campo | Tipo | Obligatorio | Contenido |
+| --- | --- | --- | --- |
+| `num_emails_sent` | número entero | Opcional | El número de correos enviados. Después de la importación: 0. |
+| `num_sms_sent` | número entero | Opcional | El número de SMS enviados. Después de la importación: 0. |
 
 #### election_event.labels y annotations {#election_eventlabels-and-annotations}
 
@@ -339,16 +339,16 @@ Un objeto para cada área.
 
 El objeto `presentation` del área:
 
-| Campo | Tipo | Predeterminado | Valores permitidos | Contenido |
-| --- | --- | --- | --- | --- |
-| `allow_early_voting` | texto | `no_early_voting` | `allow_early_voting`, `no_early_voting` | Los votantes de esta área pueden votar anticipadamente. |
+| Campo | Tipo | Obligatorio | Predeterminado | Valores permitidos | Contenido |
+| --- | --- | --- | --- | --- | --- |
+| `allow_early_voting` | texto | Opcional | `no_early_voting` | `allow_early_voting`, `no_early_voting` | Los votantes de esta área pueden votar anticipadamente. |
 
 El objeto `annotations` del área puede contener:
 
-| Campo | Tipo | Predeterminado | Valores permitidos | Contenido |
-| --- | --- | --- | --- | --- |
-| `weight` | número entero | 1 | 0 o más | El peso de los votos de esta área, cuando `weighted_voting_policy` es `areas-weighted-voting`. |
-| `tally_operation` | texto | — | `process-ballots-all`, `aggregate-results`, `skip-candidate-results` | Cómo trata el recuento a esta área. |
+| Campo | Tipo | Obligatorio | Predeterminado | Valores permitidos | Contenido |
+| --- | --- | --- | --- | --- | --- |
+| `weight` | número entero | Opcional | 1 | 0 o más | El peso de los votos de esta área, cuando `weighted_voting_policy` es `areas-weighted-voting`. |
+| `tally_operation` | texto | Opcional | — | `process-ballots-all`, `aggregate-results`, `skip-candidate-results` | Cómo trata el recuento a esta área. |
 
 ### area_contests
 
@@ -644,18 +644,18 @@ como JSON. Por ejemplo, un valor de texto se escribe con sus comillas: `"START_V
 `export_voters-<ID>.csv`. La importación lo lee como una importación de votantes del proceso electoral
 nuevo. Consulte [Votantes](03-voters.md).
 
-| Columna | Contenido |
-| --- | --- |
-| `id` | El ID del votante. La importación no lo usa. Cada votante recibe un ID nuevo. |
-| `email` | La dirección de correo electrónico, por ejemplo `voter001@example.com`. |
-| `email_verified` | `true` o `false`. |
-| `enabled` | `true` o `false`. |
-| `first_name` | El nombre. |
-| `last_name` | Los apellidos. |
-| `username` | El nombre de usuario. |
-| `area_name` | El nombre del área del votante, o `-` si el votante no tiene área. |
-| `<attribute>` | Una columna para cada campo del votante del realm de inicio de sesión. Los campos secretos del votante solo están presentes si selecciona **Cifrar con Contraseña** y tiene el permiso para leer los campos secretos del votante. |
-| `election__<election alias or name>` | Una columna para cada elección: la fecha y hora en que el votante votó por última vez, o vacía. La importación no usa estas columnas. |
+| Columna | Obligatorio | Contenido |
+| --- | --- | --- |
+| `id` | Opcional | El ID del votante. La importación no lo usa. Cada votante recibe un ID nuevo. |
+| `email` | Opcional | La dirección de correo electrónico, por ejemplo `voter001@example.com`. |
+| `email_verified` | Opcional | `true` o `false`. |
+| `enabled` | Opcional | `true` o `false`. |
+| `first_name` | Opcional | El nombre. |
+| `last_name` | Opcional | Los apellidos. |
+| `username` | Opcional | El nombre de usuario. |
+| `area_name` | Opcional | El nombre del área del votante, o `-` si el votante no tiene área. |
+| `<attribute>` | Opcional | Una columna para cada campo del votante del realm de inicio de sesión. Los campos secretos del votante solo están presentes si selecciona **Cifrar con Contraseña** y tiene el permiso para leer los campos secretos del votante. |
+| `election__<election alias or name>` | Opcional | Una columna para cada elección: la fecha y hora en que el votante votó por última vez, o vacía. La importación no usa estas columnas. |
 
 El archivo no contiene contraseñas.
 
@@ -663,16 +663,19 @@ El archivo no contiene contraseñas.
 
 `export_reports-<ID>.csv`. Una fila para cada informe.
 
-| Columna | Contenido |
-| --- | --- |
-| `ID` | El ID del informe. La importación no lo usa. Cada informe recibe un ID nuevo. |
-| `Election ID` | La elección del informe, o vacía para el proceso electoral. |
-| `Report Type` | El tipo de informe. Consulte [informes](#reports). |
-| `Template Alias` | El alias de la plantilla, o vacío. |
-| `Cron Config` | La programación del informe como JSON: `is_active` (`true` o `false`), `cron_expression` (texto), `email_recipients` (array de direcciones de correo electrónico), `executer_username` (texto), `last_document_produced` (texto). O `null`. |
-| `Encryption Policy` | `unencrypted` o `configured_password`. |
-| `Password` | La contraseña de un informe cifrado, como texto sin formato, o vacía. |
-| `Permission Labels` | Las etiquetas de permiso, separadas con `\|`, o vacías. |
+La importación lee las columnas por su posición. Mantenga todas las columnas en este orden. Una
+columna opcional puede estar vacía, pero debe estar.
+
+| Columna | Obligatorio | Contenido |
+| --- | --- | --- |
+| `ID` | Opcional | El ID del informe. La importación no lo usa. Cada informe recibe un ID nuevo. |
+| `Election ID` | Opcional | La elección del informe, o vacía para el proceso electoral. |
+| `Report Type` | Obligatorio | El tipo de informe. Consulte [informes](#reports). |
+| `Template Alias` | Opcional | El alias de la plantilla, o vacío. |
+| `Cron Config` | Opcional | La programación del informe como JSON: `is_active` (`true` o `false`), `cron_expression` (texto), `email_recipients` (array de direcciones de correo electrónico), `executer_username` (texto), `last_document_produced` (texto). O `null`. |
+| `Encryption Policy` | Obligatorio | `unencrypted` o `configured_password`. |
+| `Password` | Opcional | La contraseña de un informe cifrado, como texto sin formato, o vacía. |
+| `Permission Labels` | Opcional | Las etiquetas de permiso, separadas con `\|`, o vacías. |
 
 :::danger ADVERTENCIA: exportación del proceso electoral con informes
 Guarde una exportación con informes en un lugar protegido. El archivo de informes contiene las
@@ -699,10 +702,10 @@ La importación:
 
 `export_protocol_manager_keys-<ID>.csv`. Las claves secretas de los tablones.
 
-| Columna | Contenido |
-| --- | --- |
-| `election_id` | Vacía para el tablón del proceso electoral. Si no, el ID de la elección del tablón. |
-| `key` | La clave del gestor del protocolo del tablón. |
+| Columna | Obligatorio | Contenido |
+| --- | --- | --- |
+| `election_id` | Obligatorio | Vacía para el tablón del proceso electoral. Si no, el ID de la elección del tablón. |
+| `key` | Obligatorio | La clave del gestor del protocolo del tablón. |
 
 El archivo debe tener una fila para el proceso electoral y una fila para cada elección. Si falta una
 fila, la importación falla. Si este archivo está presente, la importación no crea claves nuevas del
@@ -717,51 +720,58 @@ electoral.
 
 `export_bulletin_boards-<ID>.csv`. Una fila para cada mensaje de los tablones.
 
-| Columna | Contenido |
-| --- | --- |
-| `election_id` | Vacía para el tablón del proceso electoral. Si no, el ID de la elección del tablón. |
-| `id` | El número del mensaje en el tablón. |
-| `created` | Cuándo se creó el mensaje (una marca de tiempo). |
-| `sender_pk` | La clave pública del remitente del mensaje. |
-| `statement_timestamp` | La marca de tiempo de la declaración del mensaje. |
-| `statement_kind` | El tipo de declaración. |
-| `batch` | El número de lote. |
-| `mix_number` | El número de mezcla. |
-| `message` | El mensaje, en Base64 sin relleno. |
-| `version` | La versión del formato del mensaje. |
+| Columna | Obligatorio | Contenido |
+| --- | --- | --- |
+| `election_id` | Obligatorio | Vacía para el tablón del proceso electoral. Si no, el ID de la elección del tablón. |
+| `id` | Obligatorio | El número del mensaje en el tablón. |
+| `created` | Obligatorio | Cuándo se creó el mensaje (una marca de tiempo). |
+| `sender_pk` | Obligatorio | La clave pública del remitente del mensaje. |
+| `statement_timestamp` | Obligatorio | La marca de tiempo de la declaración del mensaje. |
+| `statement_kind` | Obligatorio | El tipo de declaración. |
+| `batch` | Obligatorio | El número de lote. |
+| `mix_number` | Obligatorio | El número de mezcla. |
+| `message` | Obligatorio | El mensaje, en Base64 sin relleno. |
+| `version` | Obligatorio | La versión del formato del mensaje. |
 
 ### Archivos de datos del recuento {#tally-data-files}
 
 La carpeta `export_tally_data/` contiene diez archivos CSV. La importación lee
 `export_tally_session.csv` y `export_results_event.csv` antes que los otros archivos.
 
+La importación lee las columnas por su posición. Mantenga todas las columnas de un archivo en su orden. Una
+columna opcional puede estar vacía, pero debe estar.
+
 En la mayoría de los archivos hay estas columnas:
 
-| Columna | Contenido |
-| --- | --- |
-| `id` | El ID de la fila. La importación da un ID nuevo. |
-| `tenant_id`, `election_event_id` | El inquilino y el proceso electoral. La importación los reemplaza. |
-| `election_id`, `contest_id`, `area_id`, `candidate_id` | La elección, pregunta, área o candidato de la fila. La importación los reemplaza por los ID nuevos. |
-| `results_event_id` | Los resultados de la sesión de recuento. |
-| `created_at`, `last_updated_at` | Cuándo se creó la fila y cuándo cambió por última vez. |
-| `labels`, `annotations` | Datos libres clave-valor como JSON. |
-| `documents` | Los documentos de los resultados (por ejemplo PDF, HTML, JSON) como JSON. |
-| `name` | El nombre de los resultados o del área. |
+| Columna | Obligatorio | Contenido |
+| --- | --- | --- |
+| `id` | Obligatorio en `export_tally_session.csv` y `export_results_event.csv`. Opcional en los otros archivos. | El ID de la fila. La importación da un ID nuevo. |
+| `tenant_id`, `election_event_id` | Opcional | El inquilino y el proceso electoral. La importación los reemplaza. |
+| `election_id`, `contest_id`, `area_id`, `candidate_id` | Obligatorio, excepto `contest_id` en `export_tally_session_contest.csv` (puede ser `null`). | La elección, pregunta, área o candidato de la fila. La importación los reemplaza por los ID nuevos. |
+| `results_event_id` | Obligatorio, excepto en `export_tally_session_execution.csv` (puede ser `null`). | Los resultados de la sesión de recuento. |
+| `created_at`, `last_updated_at` | Opcional | Cuándo se creó la fila y cuándo cambió por última vez. |
+| `labels`, `annotations` | Opcional | Datos libres clave-valor como JSON. |
+| `documents` | Opcional | Los documentos de los resultados (por ejemplo PDF, HTML, JSON) como JSON. |
+| `name` | Opcional | El nombre de los resultados o del área. |
 
 Los archivos y sus otras columnas:
 
-| Archivo | Contenido | Otras columnas |
-| --- | --- | --- |
-| `export_tally_session.csv` | Las sesiones de recuento. | `election_ids`, `area_ids`, `is_execution_completed`, `keys_ceremony_id`, `execution_status`, `threshold`, `configuration`, `tally_type` (`ELECTORAL_RESULTS` o `INITIALIZATION_REPORT`), `permission_label` |
-| `export_tally_session_contest.csv` | Las preguntas y áreas de cada sesión de recuento. | `session_id`, `tally_session_id` |
-| `export_tally_session_execution.csv` | Los pasos de cada sesión de recuento. | `current_message_id`, `tally_session_id`, `session_ids`, `status` |
-| `export_results_event.csv` | Una fila para cada conjunto de resultados. | — |
-| `export_results_election.csv` | Los resultados de cada elección. | `elegible_census`, `total_voters`, `total_voters_percent` |
-| `export_results_election_area.csv` | Los resultados de cada elección en cada área. | — |
-| `export_results_contest.csv` | Los resultados de cada pregunta. | `elegible_census`, `total_votes`, `total_valid_votes`, `total_invalid_votes`, `explicit_invalid_votes`, `implicit_invalid_votes`, `total_blank_votes`, `explicit_blank_votes`, `implicit_blank_votes`, `total_auditable_votes`, la columna `_percent` de cada conteo, `voting_type`, `counting_algorithm` |
-| `export_results_area_contest.csv` | Los resultados de cada pregunta en cada área. | Los mismos conteos y columnas `_percent` que `export_results_contest.csv` |
-| `export_results_contest_candidate.csv` | Los resultados de cada candidato. | `cast_votes`, `cast_votes_percent`, `winning_position`, `points` |
-| `export_results_area_contest_candidate.csv` | Los resultados de cada candidato en cada área. | `cast_votes`, `cast_votes_percent`, `winning_position`, `points` |
+| Archivo | Contenido | Otras columnas obligatorias | Otras columnas opcionales |
+| --- | --- | --- | --- |
+| `export_tally_session.csv` | Las sesiones de recuento. | `election_ids`, `area_ids` (arrays JSON), `is_execution_completed` (`true` o `false`), `keys_ceremony_id`, `threshold` | `execution_status`, `configuration`, `tally_type` (`ELECTORAL_RESULTS` o `INITIALIZATION_REPORT`), `permission_label` |
+| `export_tally_session_contest.csv` | Las preguntas y áreas de cada sesión de recuento. | `session_id` (un número), `tally_session_id` | — |
+| `export_tally_session_execution.csv` | Los pasos de cada sesión de recuento. | `current_message_id` (un número), `tally_session_id` | `session_ids`, `status` |
+| `export_results_event.csv` | Una fila para cada conjunto de resultados. | — | — |
+| `export_results_election.csv` | Los resultados de cada elección. | — | `elegible_census`, `total_voters`, `total_voters_percent` |
+| `export_results_election_area.csv` | Los resultados de cada elección en cada área. | — | — |
+| `export_results_contest.csv` | Los resultados de cada pregunta. | — | `elegible_census`, `total_votes`, `total_valid_votes`, `total_invalid_votes`, `explicit_invalid_votes`, `implicit_invalid_votes`, `total_blank_votes`, `explicit_blank_votes`, `implicit_blank_votes`, `total_auditable_votes`, la columna `_percent` de cada conteo, `voting_type`, `counting_algorithm` |
+| `export_results_area_contest.csv` | Los resultados de cada pregunta en cada área. | — | Los mismos conteos y columnas `_percent` que `export_results_contest.csv` |
+| `export_results_contest_candidate.csv` | Los resultados de cada candidato. | — | `cast_votes`, `cast_votes_percent`, `winning_position`, `points` |
+| `export_results_area_contest_candidate.csv` | Los resultados de cada candidato en cada área. | — | `cast_votes`, `cast_votes_percent`, `winning_position`, `points` |
+
+Para dejar `name`, `execution_status`, `tally_type`, `session_ids`, `voting_type` o `counting_algorithm`
+sin valor, escriba `null`. La importación rechaza un valor vacío en estas columnas. Las otras
+columnas opcionales pueden estar vacías.
 
 Las columnas `_percent` son los mismos conteos expresados como porcentaje. `elegible_census` es el
 número de votantes que pueden votar.

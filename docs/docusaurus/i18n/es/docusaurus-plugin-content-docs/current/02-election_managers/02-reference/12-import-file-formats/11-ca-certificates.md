@@ -28,6 +28,7 @@ La importación se rechaza mientras la política esté **Deshabilitado**. El usu
 | --- | --- |
 | Tipo | Texto plano, formato PEM. |
 | Contenido | Uno o más bloques de certificado. El otro texto se ignora. |
+| Contenido obligatorio | Al menos un bloque completo, con una línea de inicio y una línea de fin. Si no hay ningún bloque, se rechaza la importación. |
 | Inicio de bloque | La línea `-----BEGIN CERTIFICATE-----`. Los espacios antes o después de la línea se ignoran. |
 | Fin de bloque | La línea `-----END CERTIFICATE-----`. Los espacios antes o después de la línea se ignoran. |
 | Cuerpo del bloque | El texto Base64 de un certificado X.509, como en un archivo PEM. |

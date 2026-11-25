@@ -27,6 +27,7 @@ Guarde al menos dos copias del archivo en dos lugares seguros diferentes. Si los
 | `<election event name>` | El nombre del proceso electoral, tal como lo muestra el portal de administración. |
 | Tipo | Texto plano, una línea, sin encabezado. |
 | Contenido | El fragmento de clave privada cifrado del fideicomisario, escrito en Base64 (alfabeto estándar, sin relleno `=`). |
+| Contenido obligatorio | Todo el texto del archivo, sin ningún otro carácter. La plataforma lo compara con la clave que guarda. Si no es igual, el resultado es **No válido**. |
 | Un archivo para | Un fideicomisario y una ceremonia de claves. El archivo de otro fideicomisario no funciona. |
 
 La plataforma cifra el fragmento de clave antes de entregárselo al fideicomisario. El archivo no es la clave en texto plano. Sin el archivo, la plataforma no puede descifrar los votos del proceso electoral.

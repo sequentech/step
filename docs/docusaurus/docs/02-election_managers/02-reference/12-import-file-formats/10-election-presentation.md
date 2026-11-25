@@ -67,27 +67,27 @@ presentation, publish the ballot again so that voters get the change.
 
 All fields are optional. The default is the value that the system uses when the field is missing.
 
-| Field | Type | Default | Allowed values and meaning |
-| --- | --- | --- | --- |
-| `i18n` | Object | none | The text of the election in each language. See [i18n](#i18n). |
-| `language_conf` | Object | none | The languages of the election. See [Language configuration](#language-configuration). The upload does not change it. |
-| `contests_order` | Text | `alphabetical` | The order of the contests on the ballot. `alphabetical`: by alias, or by name if there is no alias. `random`: a different order for each voter. `custom`: by the `sort_order` of each contest. |
-| `audit_button_cfg` | Text | `show` | The **Audit Ballot** button. `show`: shown to the voter. `not-show`: not shown. `show-in-help`: only in the help. |
-| `sort_order` | Integer | none | The position of the election in the list of elections, when the election event uses the `custom` election order. |
-| `cast_vote_confirm` | Boolean | `false` | `true`: the voter must confirm in a dialog before the ballot is cast. |
-| `cast_vote_gold_level` | Text | `no-gold-level` | `gold-level`: the voter must sign in again before the ballot is cast. `no-gold-level`: no new sign-in. |
-| `start_screen_title_policy` | Text | `election` | The title and the description on the start screen. `election`: those of the election. `election-event`: those of the election event. |
-| `grace_period_policy` | Text | `no-grace-period` | `no-grace-period`: no vote after the scheduled end of voting. `grace-period-without-alert`: a voter who signed in before the scheduled end can cast a ballot for `grace_period_secs` seconds after it. Only for the online channel, and not when voting is paused. |
-| `grace_period_secs` | Integer | `0` | The length of the grace period in seconds. Not negative. |
-| `voting_period_end` | Text | `allowed` | `allowed`: you can close the voting period. `disallowed`: the system refuses to close it. |
-| `initialization_report_policy` | Text | `not-required` | `required`: you cannot open voting before the initialization report is generated. `not-required`: no condition. |
-| `security_confirmation_policy` | Text | `none` | `mandatory`: the voter must select a check box with a declaration before voting starts. The text is in `i18n.<language>.security_confirmation_html`. `none`: no check box. |
-| `consolidated_report_policy` | Text | `do-not-generate` | `generate`: the tally makes consolidated results for all areas. `do-not-generate`: no consolidated results. |
-| `decline_to_vote_policy` | Text | `disabled` | `enabled`: the voter can decline to vote for the whole election. `disabled`: the option is not shown. See [Decline to Vote](../07-decline-to-vote.md). |
-| `blank_ballots_policy` | Text | `disabled` | `enabled`: a ballot that is blank in every contest counts as a blank ballot of the election. `disabled`: not counted. See [Blank Ballots](../09-blank-ballots.md). |
-| `voting_screen_back_policy` | Text | `election-selection-screen` | Where the **Back** button of the voting screen goes. `election-selection-screen`: the list of elections. `start-screen`: the start screen of the election. |
-| `css` | Text | none | Custom CSS for the election on the results website. The voting portal uses the CSS of the election event instead. |
-| `custom_filters` | List | none | The custom filters that the admin portal edits in **Advanced Configuration**. The **Users** list reads the filters of the election event, so these filters do not change that list. |
+| Field | Type | Required | Default | Allowed values and meaning |
+| --- | --- | --- | --- | --- |
+| `i18n` | Object | Optional | none | The text of the election in each language. See [i18n](#i18n). |
+| `language_conf` | Object | Optional | none | The languages of the election. See [Language configuration](#language-configuration). The upload does not change it. |
+| `contests_order` | Text | Optional | `alphabetical` | The order of the contests on the ballot. `alphabetical`: by alias, or by name if there is no alias. `random`: a different order for each voter. `custom`: by the `sort_order` of each contest. |
+| `audit_button_cfg` | Text | Optional | `show` | The **Audit Ballot** button. `show`: shown to the voter. `not-show`: not shown. `show-in-help`: only in the help. |
+| `sort_order` | Integer | Optional | none | The position of the election in the list of elections, when the election event uses the `custom` election order. |
+| `cast_vote_confirm` | Boolean | Optional | `false` | `true`: the voter must confirm in a dialog before the ballot is cast. |
+| `cast_vote_gold_level` | Text | Optional | `no-gold-level` | `gold-level`: the voter must sign in again before the ballot is cast. `no-gold-level`: no new sign-in. |
+| `start_screen_title_policy` | Text | Optional | `election` | The title and the description on the start screen. `election`: those of the election. `election-event`: those of the election event. |
+| `grace_period_policy` | Text | Optional | `no-grace-period` | `no-grace-period`: no vote after the scheduled end of voting. `grace-period-without-alert`: a voter who signed in before the scheduled end can cast a ballot for `grace_period_secs` seconds after it. Only for the online channel, and not when voting is paused. |
+| `grace_period_secs` | Integer | Optional | `0` | The length of the grace period in seconds. Not negative. |
+| `voting_period_end` | Text | Optional | `allowed` | `allowed`: you can close the voting period. `disallowed`: the system refuses to close it. |
+| `initialization_report_policy` | Text | Optional | `not-required` | `required`: you cannot open voting before the initialization report is generated. `not-required`: no condition. |
+| `security_confirmation_policy` | Text | Optional | `none` | `mandatory`: the voter must select a check box with a declaration before voting starts. The text is in `i18n.<language>.security_confirmation_html`. `none`: no check box. |
+| `consolidated_report_policy` | Text | Optional | `do-not-generate` | `generate`: the tally makes consolidated results for all areas. `do-not-generate`: no consolidated results. |
+| `decline_to_vote_policy` | Text | Optional | `disabled` | `enabled`: the voter can decline to vote for the whole election. `disabled`: the option is not shown. See [Decline to Vote](../07-decline-to-vote.md). |
+| `blank_ballots_policy` | Text | Optional | `disabled` | `enabled`: a ballot that is blank in every contest counts as a blank ballot of the election. `disabled`: not counted. See [Blank Ballots](../09-blank-ballots.md). |
+| `voting_screen_back_policy` | Text | Optional | `election-selection-screen` | Where the **Back** button of the voting screen goes. `election-selection-screen`: the list of elections. `start-screen`: the start screen of the election. |
+| `css` | Text | Optional | none | Custom CSS for the election on the results website. The voting portal uses the CSS of the election event instead. |
+| `custom_filters` | List | Optional | none | The custom filters that the admin portal edits in **Advanced Configuration**. The **Users** list reads the filters of the election event, so these filters do not change that list. |
 
 `decline_to_vote_policy` and `blank_ballots_policy` have an effect only when the election event uses
 the **Multiple Contests** encryption policy.
@@ -97,33 +97,33 @@ the **Multiple Contests** encryption policy.
 The presentation can also contain these fields. The system reads them without error, but in this
 version it does not use them. Do not add them.
 
-| Field | Type | Allowed values |
-| --- | --- | --- |
-| `dates` | Object | `start_date` and `end_date`, as date and time text. Set the dates of voting with scheduled events. |
-| `is_grace_priod` | Boolean | `true`, `false`. Use `grace_period_policy`. |
-| `init_report` | Text | `allowed`, `disallowed` |
-| `manual_start_voting_period` | Text | `allowed`, `only-when-initialization-report-has-been-performed` |
-| `tally` | Text | `always-allow`, `allow-when-voting-period-ends` |
+| Field | Type | Required | Allowed values |
+| --- | --- | --- | --- |
+| `dates` | Object | Optional | `start_date` and `end_date`, as date and time text. Set the dates of voting with scheduled events. |
+| `is_grace_priod` | Boolean | Optional | `true`, `false`. Use `grace_period_policy`. |
+| `init_report` | Text | Optional | `allowed`, `disallowed` |
+| `manual_start_voting_period` | Text | Optional | `allowed`, `only-when-initialization-report-has-been-performed` |
+| `tally` | Text | Optional | `always-allow`, `allow-when-voting-period-ends` |
 
 ### i18n
 
 An object. Each key is a language code, for example `en` or `es`. Each value is an object with
 these text fields:
 
-| Field | Meaning |
-| --- | --- |
-| `name` | The name of the election. |
-| `alias` | A short name. If it is set, the voting portal shows it in place of the name. |
-| `description` | The description of the election. |
-| `security_confirmation_html` | The declaration that the voter must accept when `security_confirmation_policy` is `mandatory`. HTML is permitted. |
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `name` | Optional | The name of the election. |
+| `alias` | Optional | A short name. If it is set, the voting portal shows it in place of the name. |
+| `description` | Optional | The description of the election. |
+| `security_confirmation_html` | Optional | The declaration that the voter must accept when `security_confirmation_policy` is `mandatory`. HTML is permitted. |
 
 ### Language configuration
 
-| Field | Type | Meaning |
-| --- | --- | --- |
-| `enabled_language_codes` | List of text | The languages of the election, for example `["en", "es"]`. |
-| `default_language_code` | Text | The language to use when the text is not in the language of the voter. If it is not set, the default language of the election event is used. |
-| `language_detection_policy` | Text | `browser-detect` or `force-default`. Not used at the election level. The voting portal reads this value from the election event. The admin portal removes it from the election when you save the election. |
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `enabled_language_codes` | List of text | Optional | The languages of the election, for example `["en", "es"]`. |
+| `default_language_code` | Text | Optional | The language to use when the text is not in the language of the voter. If it is not set, the default language of the election event is used. |
+| `language_detection_policy` | Text | Optional | `browser-detect` or `force-default`. Not used at the election level. The voting portal reads this value from the election event. The admin portal removes it from the election when you save the election. |
 
 The upload does not change `language_conf`. Set the languages in the **Language** section of the
 **Data** tab.

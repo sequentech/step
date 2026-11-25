@@ -53,26 +53,26 @@ Si `is_active` falta o no es `true` ni `false`, la restauración se detiene con 
 
 ### Claves de `voting_channels` {#keys-of-voting_channels}
 
-| Clave | Tipo | Significado |
-| --- | --- | --- |
-| `online` | `true` o `false` | Votación por internet. Si falta la clave, el portal de administración muestra `true`. |
-| `kiosk` | `true` o `false` | Votación en un quiosco. Si falta la clave, el portal de administración muestra `false`. |
-| `telephone` | `true` o `false` | Votación por teléfono. Si falta la clave, el portal de administración muestra `false`. |
+| Clave | Tipo | Obligatoria | Significado |
+| --- | --- | --- | --- |
+| `online` | `true` o `false` | Opcional | Votación por internet. Si falta la clave, el portal de administración muestra `true`. |
+| `kiosk` | `true` o `false` | Opcional | Votación en un quiosco. Si falta la clave, el portal de administración muestra `false`. |
+| `telephone` | `true` o `false` | Opcional | Votación por teléfono. Si falta la clave, el portal de administración muestra `false`. |
 
 ### Claves de `settings` {#keys-of-settings}
 
 Todas las claves son opcionales.
 
-| Clave | Tipo | Significado |
-| --- | --- | --- |
-| `language_conf` | Objeto | Los idiomas. Tiene `enabled_language_codes` (una lista de códigos, por ejemplo `["en","es"]`), `default_language_code` (por ejemplo `"en"`) y `language_detection_policy` (`browser-detect` o `force-default`). |
-| `voting_countries` | Lista de textos | Los países donde se bloquea la votación. Vea **Bloqueo de Países**. |
-| `enroll_countries` | Lista de textos | Los países donde se bloquea la inscripción. Vea **Bloqueo de Países**. |
-| `help_links` | Lista de objetos | Los enlaces de ayuda del portal de votación. Cada objeto tiene `url`, `title` y `i18n` opcional. |
-| `i18n` | Objeto | Los textos del inquilino para cada idioma. |
-| `sms`, `mail` | `true` o `false` | Los canales para los mensajes. |
-| `schedules`, `schedulesIds` | Lista | Los eventos programados del inquilino. |
-| `gapi_key`, `gapi_email` | Objeto, texto | Las credenciales de un servicio externo (Integraciones). |
+| Clave | Tipo | Obligatoria | Significado |
+| --- | --- | --- | --- |
+| `language_conf` | Objeto | Opcional | Los idiomas. Tiene `enabled_language_codes` (una lista de códigos, por ejemplo `["en","es"]`), `default_language_code` (por ejemplo `"en"`) y `language_detection_policy` (`browser-detect` o `force-default`). |
+| `voting_countries` | Lista de textos | Opcional | Los países donde se bloquea la votación. Vea **Bloqueo de Países**. |
+| `enroll_countries` | Lista de textos | Opcional | Los países donde se bloquea la inscripción. Vea **Bloqueo de Países**. |
+| `help_links` | Lista de objetos | Opcional | Los enlaces de ayuda del portal de votación. Cada objeto tiene `url`, `title` y `i18n` opcional. |
+| `i18n` | Objeto | Opcional | Los textos del inquilino para cada idioma. |
+| `sms`, `mail` | `true` o `false` | Opcional | Los canales para los mensajes. |
+| `schedules`, `schedulesIds` | Lista | Opcional | Los eventos programados del inquilino. |
+| `gapi_key`, `gapi_email` | Objeto, texto | Opcional | Las credenciales de un servicio externo (Integraciones). |
 
 ### Nota sobre la columna `test` {#note-on-the-column-test}
 
@@ -82,10 +82,10 @@ La restauración lee el valor de `test` en la posición 8, que es la columna `se
 
 El archivo es el JSON completo del realm de Keycloak del inquilino. La restauración lee solo dos partes:
 
-| Clave | Tipo | Significado |
-| --- | --- | --- |
-| `displayName` | Texto | El nombre para mostrar del realm. La restauración lo pone en el realm del inquilino. |
-| `localizationTexts` | Objeto | Los textos de las páginas de inicio de sesión para cada idioma. La restauración reemplaza los textos del realm. |
+| Clave | Tipo | Obligatoria | Significado |
+| --- | --- | --- | --- |
+| `displayName` | Texto | Opcional | El nombre para mostrar del realm. La restauración lo pone en el realm del inquilino. |
+| `localizationTexts` | Objeto | Opcional | Los textos de las páginas de inicio de sesión para cada idioma. La restauración reemplaza los textos del realm. |
 
 La restauración ignora todas las demás partes del JSON: usuarios, clientes, flujos, grupos, roles y la configuración del realm. Si falta una parte en el archivo, la restauración no la cambia.
 

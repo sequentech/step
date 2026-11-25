@@ -64,26 +64,26 @@ file. If a date cannot be read, the restore saves an empty date.
 
 ### Keys of `voting_channels`
 
-| Key | Type | Meaning |
-| --- | --- | --- |
-| `online` | `true` or `false` | Voting on the internet. If the key is missing, the admin portal shows `true`. |
-| `kiosk` | `true` or `false` | Voting in a kiosk. If the key is missing, the admin portal shows `false`. |
-| `telephone` | `true` or `false` | Voting by telephone. If the key is missing, the admin portal shows `false`. |
+| Key | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `online` | `true` or `false` | Optional | Voting on the internet. If the key is missing, the admin portal shows `true`. |
+| `kiosk` | `true` or `false` | Optional | Voting in a kiosk. If the key is missing, the admin portal shows `false`. |
+| `telephone` | `true` or `false` | Optional | Voting by telephone. If the key is missing, the admin portal shows `false`. |
 
 ### Keys of `settings`
 
 All keys are optional.
 
-| Key | Type | Meaning |
-| --- | --- | --- |
-| `language_conf` | Object | The languages. It has `enabled_language_codes` (a list of codes, for example `["en","es"]`), `default_language_code` (for example `"en"`) and `language_detection_policy` (`browser-detect` or `force-default`). |
-| `voting_countries` | List of text | The countries where voting is blocked. See **Country Blocking**. |
-| `enroll_countries` | List of text | The countries where enrollment is blocked. See **Country Blocking**. |
-| `help_links` | List of objects | The help links of the voting portal. Each object has `url`, `title` and optional `i18n`. |
-| `i18n` | Object | Texts of the tenant for each language. |
-| `sms`, `mail` | `true` or `false` | The channels for messages. |
-| `schedules`, `schedulesIds` | List | Scheduled events of the tenant. |
-| `gapi_key`, `gapi_email` | Object, text | The credentials of an external service (Integrations). |
+| Key | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `language_conf` | Object | Optional | The languages. It has `enabled_language_codes` (a list of codes, for example `["en","es"]`), `default_language_code` (for example `"en"`) and `language_detection_policy` (`browser-detect` or `force-default`). |
+| `voting_countries` | List of text | Optional | The countries where voting is blocked. See **Country Blocking**. |
+| `enroll_countries` | List of text | Optional | The countries where enrollment is blocked. See **Country Blocking**. |
+| `help_links` | List of objects | Optional | The help links of the voting portal. Each object has `url`, `title` and optional `i18n`. |
+| `i18n` | Object | Optional | Texts of the tenant for each language. |
+| `sms`, `mail` | `true` or `false` | Optional | The channels for messages. |
+| `schedules`, `schedulesIds` | List | Optional | Scheduled events of the tenant. |
+| `gapi_key`, `gapi_email` | Object, text | Optional | The credentials of an external service (Integrations). |
 
 
 ### Note on the column `test`
@@ -98,10 +98,10 @@ file is not wrong. The restore always clears the field `test`.
 
 The file is the full JSON of the Keycloak realm of the tenant. The restore reads only two parts of it:
 
-| Key | Type | Meaning |
-| --- | --- | --- |
-| `displayName` | Text | The display name of the realm. The restore sets it in the realm of the tenant. |
-| `localizationTexts` | Object | The texts of the login pages for each language. The restore replaces the texts of the realm. |
+| Key | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `displayName` | Text | Optional | The display name of the realm. The restore sets it in the realm of the tenant. |
+| `localizationTexts` | Object | Optional | The texts of the login pages for each language. The restore replaces the texts of the realm. |
 
 The restore ignores all other parts of the JSON: users, clients, flows, groups, roles and the
 settings of the realm. If a part is missing in the file, the restore does not change it.

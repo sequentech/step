@@ -119,41 +119,41 @@ The election has no `name` field. The name, the alias and the description in eac
 
 All fields are optional. A missing field gets the default value.
 
-| Field | Type | Default | Allowed values and meaning |
-| --- | --- | --- | --- |
-| `is_published` | Boolean | `false` | `true` if a ballot of the election was published. |
-| `voting_status` | Text | `NOT_STARTED` | The status of the online channel: `NOT_STARTED`, `OPEN`, `PAUSED`, `CLOSED`. The import resets it. |
-| `kiosk_voting_status` | Text | `NOT_STARTED` | The same values, for the kiosk channel. The import resets it. |
-| `early_voting_status` | Text | `NOT_STARTED` | The same values, for the early voting channel. |
-| `telephone_voting_status` | Text | `NOT_STARTED` | The same values, for the telephone channel. The import resets it. |
-| `voting_period_dates` | Object | empty | The dates of the online channel. The import resets it. |
-| `kiosk_voting_period_dates` | Object | empty | The dates of the kiosk channel. The import resets it. |
-| `early_voting_period_dates` | Object | empty | The dates of the early voting channel. |
-| `telephone_voting_period_dates` | Object | empty | The dates of the telephone channel. The import resets it. |
-| `init_report` | Text | `allowed` | `allowed` or `disallowed`. If `disallowed`, you cannot make the initialization report. |
-| `allow_tally` | Text | `allowed` | `allowed`, `disallowed` or `requires-voting-period-end`. The **Allow Tally** setting of the election. |
+| Field | Type | Required | Default | Allowed values and meaning |
+| --- | --- | --- | --- | --- |
+| `is_published` | Boolean | No | `false` | `true` if a ballot of the election was published. |
+| `voting_status` | Text | No | `NOT_STARTED` | The status of the online channel: `NOT_STARTED`, `OPEN`, `PAUSED`, `CLOSED`. The import resets it. |
+| `kiosk_voting_status` | Text | No | `NOT_STARTED` | The same values, for the kiosk channel. The import resets it. |
+| `early_voting_status` | Text | No | `NOT_STARTED` | The same values, for the early voting channel. |
+| `telephone_voting_status` | Text | No | `NOT_STARTED` | The same values, for the telephone channel. The import resets it. |
+| `voting_period_dates` | Object | No | empty | The dates of the online channel. The import resets it. |
+| `kiosk_voting_period_dates` | Object | No | empty | The dates of the kiosk channel. The import resets it. |
+| `early_voting_period_dates` | Object | No | empty | The dates of the early voting channel. |
+| `telephone_voting_period_dates` | Object | No | empty | The dates of the telephone channel. The import resets it. |
+| `init_report` | Text | No | `allowed` | `allowed` or `disallowed`. If `disallowed`, you cannot make the initialization report. |
+| `allow_tally` | Text | No | `allowed` | `allowed`, `disallowed` or `requires-voting-period-end`. The **Allow Tally** setting of the election. |
 
 Each dates object has these fields, all optional, as date and time: `first_started_at`,
 `last_started_at`, `first_paused_at`, `last_paused_at`, `first_stopped_at`, `last_stopped_at`.
 
 ### Voting channels
 
-| Field | Type | Meaning |
-| --- | --- | --- |
-| `online` | Boolean | Voters can vote in the voting portal. |
-| `kiosk` | Boolean | Voters can vote at a kiosk. |
-| `telephone` | Boolean | Voters can vote by telephone. |
-| `paper` | Boolean | Paper voting. |
-| `early_voting` | Boolean | Voters in areas with early voting can vote before the online channel opens. |
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `online` | Boolean | No | Voters can vote in the voting portal. |
+| `kiosk` | Boolean | No | Voters can vote at a kiosk. |
+| `telephone` | Boolean | No | Voters can vote by telephone. |
+| `paper` | Boolean | No | Paper voting. |
+| `early_voting` | Boolean | No | Voters in areas with early voting can vote before the online channel opens. |
 
 ### Receipts
 
 An object with the keys `EMAIL`, `SMS` and `DOCUMENT`. Each value is an object:
 
-| Field | Type | Meaning |
-| --- | --- | --- |
-| `allowed` | Boolean | The voter can get the receipt by this method. |
-| `template` | Text or `null` | Internal. Keep the value from the export. |
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `allowed` | Boolean | No | The voter can get the receipt by this method. |
+| `template` | Text or `null` | No | Internal. Keep the value from the export. |
 
 ## Contests
 
@@ -203,31 +203,31 @@ accepted.
 
 All fields are optional.
 
-| Field | Type | Default | Allowed values and meaning |
-| --- | --- | --- | --- |
-| `i18n` | i18n map | none | The text of the contest in each language. Keys: `name`, `alias`, `description`. If `alias` is set, the voting portal shows it in place of the name. |
-| `allow_writeins` | Boolean | `false` | `true`: the voter can type a name in the write-in candidates of the contest. |
-| `base32_writeins` | Boolean | `true` | `true`: write-in text uses a reduced character set (Base32). `false`: a larger character set. |
-| `invalid_vote_policy` | Text | `allowed` | What the voting portal does with an invalid ballot. See [Contest policies](#contest-policies). |
-| `under_vote_policy` | Text | `allowed` | What the voting portal does if the voter selects fewer than `max_votes`. |
-| `blank_vote_policy` | Text | `allowed` | What the voting portal does with a blank vote. |
-| `over_vote_policy` | Text | `allowed-with-msg-and-alert` | What the voting portal does if the voter selects more than `max_votes`. The admin portal writes `allowed` for a new contest. |
-| `duplicated_rank_policy` | Text | `allowed-warn-and-dialog` | For preferential contests: what the voting portal does if the voter gives the same rank twice. |
-| `preference_gaps_policy` | Text | `allowed-warn-and-dialog` | For preferential contests: what the voting portal does if there is a gap in the ranks. |
-| `pagination_policy` | Text | `""` | A page name. The voting portal shows the contests with the same value on the same page, in ballot order. Empty: all contests without a value share one page. |
-| `cumulative_number_of_checkboxes` | Integer | `1` | For the `cumulative` algorithm: the number of points that the voter can give to one candidate. |
-| `shuffle_categories` | Boolean | `false` | `true`: the voting portal shows the lists (candidate types) in a random order. `false`: it uses the `sort_order` in `types_presentation`. |
-| `shuffle_category_list` | List of text | none | The lists (candidate types) whose candidates the voting portal shows in a random order. |
-| `show_points` | Boolean | `false` | `true`: the Ballot Verifier shows the points that the counting algorithm gives to each selection on its confirmation screen. `false`: each selection gets 0 points, so no points are shown. |
-| `enable_checkable_lists` | Text | none (the admin portal writes `allow-selecting-candidates-and-lists`) | What the voter can select when the contest has lists: `allow-selecting-candidates-and-lists`, `allow-selecting-candidates`, `allow-selecting-lists`, `disabled`. |
-| `collapsible_lists` | Text | none (the admin portal writes `disabled`) | `disabled`, `enabled-expanded` (the voter can close a list; lists start open), `enabled-collapsed` (lists start closed). |
-| `candidates_order` | Text | `alphabetical` | `alphabetical`, `random`, `custom`. With `custom`, the order is the `sort_order` of each candidate. |
-| `candidates_selection_policy` | Text | `cumulative` | `radio`: a new selection removes the earlier selection. `cumulative`: selections add up. |
-| `candidates_icon_checkbox_policy` | Text | `square-checkbox` | `square-checkbox` or `round-checkbox`. |
-| `max_selections_per_type` | Integer | none | The maximum number of selected candidates of the same `type`. |
-| `types_presentation` | Object | none | The display of each candidate `type`. See [Types presentation](#types-presentation). |
-| `sort_order` | Integer | none | The position of the contest when the election uses the `custom` contest order. |
-| `columns` | Integer | `1` | The number of columns of candidates on the ballot. |
+| Field | Type | Required | Default | Allowed values and meaning |
+| --- | --- | --- | --- | --- |
+| `i18n` | i18n map | No | none | The text of the contest in each language. Keys: `name`, `alias`, `description`. If `alias` is set, the voting portal shows it in place of the name. |
+| `allow_writeins` | Boolean | No | `false` | `true`: the voter can type a name in the write-in candidates of the contest. |
+| `base32_writeins` | Boolean | No | `true` | `true`: write-in text uses a reduced character set (Base32). `false`: a larger character set. |
+| `invalid_vote_policy` | Text | No | `allowed` | What the voting portal does with an invalid ballot. See [Contest policies](#contest-policies). |
+| `under_vote_policy` | Text | No | `allowed` | What the voting portal does if the voter selects fewer than `max_votes`. |
+| `blank_vote_policy` | Text | No | `allowed` | What the voting portal does with a blank vote. |
+| `over_vote_policy` | Text | No | `allowed-with-msg-and-alert` | What the voting portal does if the voter selects more than `max_votes`. The admin portal writes `allowed` for a new contest. |
+| `duplicated_rank_policy` | Text | No | `allowed-warn-and-dialog` | For preferential contests: what the voting portal does if the voter gives the same rank twice. |
+| `preference_gaps_policy` | Text | No | `allowed-warn-and-dialog` | For preferential contests: what the voting portal does if there is a gap in the ranks. |
+| `pagination_policy` | Text | No | `""` | A page name. The voting portal shows the contests with the same value on the same page, in ballot order. Empty: all contests without a value share one page. |
+| `cumulative_number_of_checkboxes` | Integer | No | `1` | For the `cumulative` algorithm: the number of points that the voter can give to one candidate. |
+| `shuffle_categories` | Boolean | No | `false` | `true`: the voting portal shows the lists (candidate types) in a random order. `false`: it uses the `sort_order` in `types_presentation`. |
+| `shuffle_category_list` | List of text | No | none | The lists (candidate types) whose candidates the voting portal shows in a random order. |
+| `show_points` | Boolean | No | `false` | `true`: the Ballot Verifier shows the points that the counting algorithm gives to each selection on its confirmation screen. `false`: each selection gets 0 points, so no points are shown. |
+| `enable_checkable_lists` | Text | No | none (the admin portal writes `allow-selecting-candidates-and-lists`) | What the voter can select when the contest has lists: `allow-selecting-candidates-and-lists`, `allow-selecting-candidates`, `allow-selecting-lists`, `disabled`. |
+| `collapsible_lists` | Text | No | none (the admin portal writes `disabled`) | `disabled`, `enabled-expanded` (the voter can close a list; lists start open), `enabled-collapsed` (lists start closed). |
+| `candidates_order` | Text | No | `alphabetical` | `alphabetical`, `random`, `custom`. With `custom`, the order is the `sort_order` of each candidate. |
+| `candidates_selection_policy` | Text | No | `cumulative` | `radio`: a new selection removes the earlier selection. `cumulative`: selections add up. |
+| `candidates_icon_checkbox_policy` | Text | No | `square-checkbox` | `square-checkbox` or `round-checkbox`. |
+| `max_selections_per_type` | Integer | No | none | The maximum number of selected candidates of the same `type`. |
+| `types_presentation` | Object | No | none | The display of each candidate `type`. See [Types presentation](#types-presentation). |
+| `sort_order` | Integer | No | none | The position of the contest when the election uses the `custom` contest order. |
+| `columns` | Integer | No | `1` | The number of columns of candidates on the ballot. |
 
 The defaults are the values that the system uses when the field is missing. The admin portal
 writes most of these fields when you save a contest. If the contest has no `presentation` at all,
@@ -235,14 +235,14 @@ the system uses `allow_writeins: true` and `over_vote_policy: allowed`.
 
 #### Contest policies
 
-| Field | Allowed values |
-| --- | --- |
-| `invalid_vote_policy` | `allowed`, `warn`, `warn-invalid-implicit-and-explicit`, `not-allowed`, `allowed-with-exclusive-explicit` |
-| `under_vote_policy` | `allowed`, `warn`, `warn-only-in-review`, `warn-and-alert` |
-| `blank_vote_policy` | `allowed`, `warn`, `warn-only-in-review`, `not-allowed` |
-| `over_vote_policy` | `allowed`, `allowed-with-msg`, `allowed-with-msg-and-alert`, `not-allowed-with-msg-and-alert`, `not-allowed-with-msg-and-disable` |
-| `duplicated_rank_policy` | `allowed-warn-and-dialog`, `not-allowed-warn-and-dialog` |
-| `preference_gaps_policy` | `allowed-warn-and-dialog`, `not-allowed-warn-and-dialog` |
+| Field | Required | Allowed values |
+| --- | --- | --- |
+| `invalid_vote_policy` | No | `allowed`, `warn`, `warn-invalid-implicit-and-explicit`, `not-allowed`, `allowed-with-exclusive-explicit` |
+| `under_vote_policy` | No | `allowed`, `warn`, `warn-only-in-review`, `warn-and-alert` |
+| `blank_vote_policy` | No | `allowed`, `warn`, `warn-only-in-review`, `not-allowed` |
+| `over_vote_policy` | No | `allowed`, `allowed-with-msg`, `allowed-with-msg-and-alert`, `not-allowed-with-msg-and-alert`, `not-allowed-with-msg-and-disable` |
+| `duplicated_rank_policy` | No | `allowed-warn-and-dialog`, `not-allowed-warn-and-dialog` |
+| `preference_gaps_policy` | No | `allowed-warn-and-dialog`, `not-allowed-warn-and-dialog` |
 
 With `allowed-with-exclusive-explicit`, the explicit invalid option cannot be selected together
 with candidates. If one contest of the election has `over_vote_policy` set to `allowed`,
@@ -253,12 +253,12 @@ layout that can hold the extra selections.
 
 An object. Each key is a candidate `type`. Each value is an object:
 
-| Field | Type | Meaning |
-| --- | --- | --- |
-| `name` | Text | The name of the type. |
-| `name_i18n` | Object | The name in each language: `{"en": "North"}`. |
-| `sort_order` | Integer | The position of the type. |
-| `subtypes_presentation` | Object | Each key is a candidate `subtype`. Each value has `name`, `name_i18n` and `sort_order`. |
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `name` | Text | No | The name of the type. |
+| `name_i18n` | Object | No | The name in each language: `{"en": "North"}`. |
+| `sort_order` | Integer | No | The position of the type. |
+| `subtypes_presentation` | Object | No | Each key is a candidate `subtype`. Each value has `name`, `name_i18n` and `sort_order`. |
 
 ## Candidates
 
@@ -285,18 +285,18 @@ the write-in fields are also candidates.
 
 All fields are optional.
 
-| Field | Type | Default | Allowed values and meaning |
-| --- | --- | --- | --- |
-| `i18n` | i18n map | none | The text of the candidate in each language. Keys: `name`, `alias`, `description`. |
-| `is_explicit_invalid` | Boolean | `false` | `true`: this option makes the ballot invalid on purpose. |
-| `is_explicit_blank` | Boolean | `false` | `true`: this option is a blank vote. |
-| `is_disabled` | Boolean | `false` | `true`: the voting portal does not show the candidate, for example a withdrawn candidate. |
-| `is_category_list` | Boolean | `false` | `true`: this candidate is the header of the list with the same `type`. `enable_checkable_lists` of the contest sets if the voter can select the whole list. |
-| `invalid_vote_position` | Text | none | For an explicit invalid option: `top` or `bottom` of the contest. |
-| `is_write_in` | Boolean | `false` | `true`: this is a write-in field. The voter types a name. |
-| `sort_order` | Integer | none | The position of the candidate when the contest uses the `custom` candidate order. |
-| `urls` | List | none | Links of the candidate. See [Candidate URLs](#candidate-urls). |
-| `subtype` | Text | none | The subtype of the candidate inside its `type`. |
+| Field | Type | Required | Default | Allowed values and meaning |
+| --- | --- | --- | --- | --- |
+| `i18n` | i18n map | No | none | The text of the candidate in each language. Keys: `name`, `alias`, `description`. |
+| `is_explicit_invalid` | Boolean | No | `false` | `true`: this option makes the ballot invalid on purpose. |
+| `is_explicit_blank` | Boolean | No | `false` | `true`: this option is a blank vote. |
+| `is_disabled` | Boolean | No | `false` | `true`: the voting portal does not show the candidate, for example a withdrawn candidate. |
+| `is_category_list` | Boolean | No | `false` | `true`: this candidate is the header of the list with the same `type`. `enable_checkable_lists` of the contest sets if the voter can select the whole list. |
+| `invalid_vote_position` | Text | No | none | For an explicit invalid option: `top` or `bottom` of the contest. |
+| `is_write_in` | Boolean | No | `false` | `true`: this is a write-in field. The voter types a name. |
+| `sort_order` | Integer | No | none | The position of the candidate when the contest uses the `custom` candidate order. |
+| `urls` | List | No | none | Links of the candidate. See [Candidate URLs](#candidate-urls). |
+| `subtype` | Text | No | none | The subtype of the candidate inside its `type`. |
 
 #### Candidate URLs
 

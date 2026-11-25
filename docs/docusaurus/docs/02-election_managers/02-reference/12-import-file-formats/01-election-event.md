@@ -172,37 +172,37 @@ stops. The import keeps fields that it does not know. The labels in the last col
 in the **Data** tab of the election event. See
 [Election Event Data](../02-election-event/03-election_management_election-event_data.md).
 
-| Field | Type | Default | Allowed values | Content |
-| --- | --- | --- | --- | --- |
-| `i18n` | object | — | `{ "<language>": { "<key>": text or null } }` | The texts in each language. See [i18n](#presentationi18n). |
-| `language_conf` | object | — | See [language_conf](#presentationlanguage_conf) | The languages of the election event. |
-| `materials` | object | — | `{ "policy": "off" \| "optional" \| "mandatory_for_voting" }` | The support materials policy. Default `off`. |
-| `logo_url` | text | — | A URL | **Logo URL**. |
-| `redirect_finish_url` | text | — | A URL | **Redirect Finish URL**: the page that the voting portal opens when the voter finishes. |
-| `kiosk_redirect_finish_url` | text | — | A URL | **Kiosk Redirect Finish URL**: the same for kiosk voting. |
-| `css` | text | — | CSS | **Custom CSS** of the voting portal. |
-| `skip_election_list` | `true` or `false` | — | — | **Skip Election List Screen**. |
-| `show_user_profile` | `true` or `false` | `true` | — | **Show User Profile**. |
-| `show_cast_vote_logs` | text | `hide-logs-tab` | `show-logs-tab`, `hide-logs-tab` | **Show Cast Vote Logs Tab**. |
-| `elections_order` | text | `alphabetical` | `alphabetical`, `random`, `custom` | The order of the elections in the voting portal. |
-| `voting_portal_countdown_policy` | object | — | See [voting_portal_countdown_policy](#presentationvoting_portal_countdown_policy) | **Voting Portal Countdown policy**. |
-| `voting_portal_datetime_format` | text or object | `legacy-gb-24h` | `legacy-gb-24h`, `iso-local`, `us-12h`, `locale-medium`, `date-only`, or `{ "custom": "<pattern>" }` | **Voting Portal date & time format**. A custom pattern uses the tokens `yyyy`, `MM`, `dd`, `HH`, `mm`, `ss`. |
-| `custom_urls` | object | — | `{ "login": URL, "enrollment": URL, "saml": URL }`, each optional | Custom URLs for the login, enrollment and SAML pages. |
-| `keys_ceremony_policy` | text | `ELECTION_EVENT` | `ELECTION_EVENT`, `ELECTION` | One election key for the election event, or one for each election. |
-| `contest_encryption_policy` | text | `single-contest` | `single-contest`, `multiple-contests` | **Contest encryption policy**. |
-| `decoded_ballot_inclusion_policy` | text | `not-included` | `included`, `not-included` | **Include decoded ballots to results database**. |
-| `locked_down` | text | `not-locked-down` | `locked-down`, `not-locked-down` | **Lockdown Status**. |
-| `publish_policy` | text | `always` | `always`, `after-lockdown` | `after-lockdown`: you can publish the election event only after lockdown. |
-| `enrollment` | text | `enabled` | `enabled`, `disabled` | **Enrollment** of voters. |
-| `otp` | text | `enabled` | `enabled`, `disabled` | **OTP** (one-time code). |
-| `voter_signing_policy` | text | `no-signature` | `no-signature`, `with-signature` | **Voter Signing Policy**. |
-| `voter_certificate_policy` | text | `disabled` | `disabled`, `enabled` | **Voter Digital Certificate Policy**. |
-| `weighted_voting_policy` | text | `disabled-weighted-voting` | `disabled-weighted-voting`, `areas-weighted-voting`, `voters-weighted-voting` | **Weighted Voting Policy**. |
-| `delegated_voting_policy` | text | `disabled` | `disabled`, `enabled` | **Delegated Voting Policy**. |
-| `ceremonies_policy` | text | `manual-ceremonies` | `manual-ceremonies`, `automated-ceremonies` | **Keys/Tally Ceremonies Policy**. |
-| `automatic_recount_policy` | text | `disabled` | `enabled`, `disabled` | **Automatic Recount After Import Approval**. |
-| `results_website` | text (JSON) | — | See [results_website](#presentationresults_website) | The results website policy. |
-| `custom_filters` | array | — | See below | The custom filters of the voter list in the admin portal. |
+| Field | Type | Required | Default | Allowed values | Content |
+| --- | --- | --- | --- | --- | --- |
+| `i18n` | object | Optional | — | `{ "<language>": { "<key>": text or null } }` | The texts in each language. See [i18n](#presentationi18n). |
+| `language_conf` | object | Optional | — | See [language_conf](#presentationlanguage_conf) | The languages of the election event. |
+| `materials` | object | Optional | — | `{ "policy": "off" \| "optional" \| "mandatory_for_voting" }` | The support materials policy. Default `off`. |
+| `logo_url` | text | Optional | — | A URL | **Logo URL**. |
+| `redirect_finish_url` | text | Optional | — | A URL | **Redirect Finish URL**: the page that the voting portal opens when the voter finishes. |
+| `kiosk_redirect_finish_url` | text | Optional | — | A URL | **Kiosk Redirect Finish URL**: the same for kiosk voting. |
+| `css` | text | Optional | — | CSS | **Custom CSS** of the voting portal. |
+| `skip_election_list` | `true` or `false` | Optional | — | — | **Skip Election List Screen**. |
+| `show_user_profile` | `true` or `false` | Optional | `true` | — | **Show User Profile**. |
+| `show_cast_vote_logs` | text | Optional | `hide-logs-tab` | `show-logs-tab`, `hide-logs-tab` | **Show Cast Vote Logs Tab**. |
+| `elections_order` | text | Optional | `alphabetical` | `alphabetical`, `random`, `custom` | The order of the elections in the voting portal. |
+| `voting_portal_countdown_policy` | object | Optional | — | See [voting_portal_countdown_policy](#presentationvoting_portal_countdown_policy) | **Voting Portal Countdown policy**. |
+| `voting_portal_datetime_format` | text or object | Optional | `legacy-gb-24h` | `legacy-gb-24h`, `iso-local`, `us-12h`, `locale-medium`, `date-only`, or `{ "custom": "<pattern>" }` | **Voting Portal date & time format**. A custom pattern uses the tokens `yyyy`, `MM`, `dd`, `HH`, `mm`, `ss`. |
+| `custom_urls` | object | Optional | — | `{ "login": URL, "enrollment": URL, "saml": URL }`, each optional | Custom URLs for the login, enrollment and SAML pages. |
+| `keys_ceremony_policy` | text | Optional | `ELECTION_EVENT` | `ELECTION_EVENT`, `ELECTION` | One election key for the election event, or one for each election. |
+| `contest_encryption_policy` | text | Optional | `single-contest` | `single-contest`, `multiple-contests` | **Contest encryption policy**. |
+| `decoded_ballot_inclusion_policy` | text | Optional | `not-included` | `included`, `not-included` | **Include decoded ballots to results database**. |
+| `locked_down` | text | Optional | `not-locked-down` | `locked-down`, `not-locked-down` | **Lockdown Status**. |
+| `publish_policy` | text | Optional | `always` | `always`, `after-lockdown` | `after-lockdown`: you can publish the election event only after lockdown. |
+| `enrollment` | text | Optional | `enabled` | `enabled`, `disabled` | **Enrollment** of voters. |
+| `otp` | text | Optional | `enabled` | `enabled`, `disabled` | **OTP** (one-time code). |
+| `voter_signing_policy` | text | Optional | `no-signature` | `no-signature`, `with-signature` | **Voter Signing Policy**. |
+| `voter_certificate_policy` | text | Optional | `disabled` | `disabled`, `enabled` | **Voter Digital Certificate Policy**. |
+| `weighted_voting_policy` | text | Optional | `disabled-weighted-voting` | `disabled-weighted-voting`, `areas-weighted-voting`, `voters-weighted-voting` | **Weighted Voting Policy**. |
+| `delegated_voting_policy` | text | Optional | `disabled` | `disabled`, `enabled` | **Delegated Voting Policy**. |
+| `ceremonies_policy` | text | Optional | `manual-ceremonies` | `manual-ceremonies`, `automated-ceremonies` | **Keys/Tally Ceremonies Policy**. |
+| `automatic_recount_policy` | text | Optional | `disabled` | `enabled`, `disabled` | **Automatic Recount After Import Approval**. |
+| `results_website` | text (JSON) | Optional | — | See [results_website](#presentationresults_website) | The results website policy. |
+| `custom_filters` | array | Optional | — | See below | The custom filters of the voter list in the admin portal. |
 
 Each item of `custom_filters` has a `label` (`name` and an `i18n` object with one text for each
 language) and a `filter` (an object of conditions, or `null`). The admin portal writes this
@@ -216,53 +216,53 @@ export.
 An object with one key for each language code, for example `en` or `es`. Each language has an
 object of texts. The admin portal writes these keys:
 
-| Key | Content |
-| --- | --- |
-| `name` | The name of the election event. |
-| `alias` | The alias of the election event. |
-| `description` | The description in this language. |
-| `materialsTitle` | The title of the support materials. |
-| `materialsSubtitle` | The subtitle of the support materials. |
+| Key | Required | Content |
+| --- | --- | --- |
+| `name` | Optional | The name of the election event. |
+| `alias` | Optional | The alias of the election event. |
+| `description` | Optional | The description in this language. |
+| `materialsTitle` | Optional | The title of the support materials. |
+| `materialsSubtitle` | Optional | The subtitle of the support materials. |
 
 The **Localization** tab adds other keys. Each value is text or `null`. If a text is not
 available in a language, the system uses the text in `en`.
 
 #### presentation.language_conf
 
-| Field | Type | Default | Allowed values | Content |
-| --- | --- | --- | --- | --- |
-| `enabled_language_codes` | array of text | — | Language codes | The languages that voters can select. |
-| `default_language_code` | text | `en` | A language code | The default language. |
-| `language_detection_policy` | text | `browser-detect` | `browser-detect`, `force-default` | **Language Detection Policy**. With `force-default`, the import sets the default language of the login realm to `default_language_code`. |
+| Field | Type | Required | Default | Allowed values | Content |
+| --- | --- | --- | --- | --- | --- |
+| `enabled_language_codes` | array of text | Optional | — | Language codes | The languages that voters can select. |
+| `default_language_code` | text | Optional | `en` | A language code | The default language. |
+| `language_detection_policy` | text | Optional | `browser-detect` | `browser-detect`, `force-default` | **Language Detection Policy**. With `force-default`, the import sets the default language of the login realm to `default_language_code`. |
 
 #### presentation.voting_portal_countdown_policy
 
-| Field | Type | Allowed values | Content |
-| --- | --- | --- | --- |
-| `policy` | text | `NO_COUNTDOWN`, `COUNTDOWN`, `COUNTDOWN_WITH_ALERT` | The countdown before the voting session expires. |
-| `countdown_anticipation_secs` | whole number | 0 or more | The number of seconds before expiry when the countdown starts. |
-| `countdown_alert_anticipation_secs` | whole number | 0 or more | The number of seconds before expiry when the logout alert shows. |
+| Field | Type | Required | Allowed values | Content |
+| --- | --- | --- | --- | --- |
+| `policy` | text | Optional | `NO_COUNTDOWN`, `COUNTDOWN`, `COUNTDOWN_WITH_ALERT` | The countdown before the voting session expires. |
+| `countdown_anticipation_secs` | whole number | Optional | 0 or more | The number of seconds before expiry when the countdown starts. |
+| `countdown_alert_anticipation_secs` | whole number | Optional | 0 or more | The number of seconds before expiry when the logout alert shows. |
 
 #### presentation.results_website
 
 The value is a JSON object written as text. The import also accepts the object itself. If the
 value is present, all three fields are required.
 
-| Field | Allowed values | Default | Content |
-| --- | --- | --- | --- |
-| `status` | `enabled`, `disabled` | `disabled` | Publish results on the results website. |
-| `access` | `public`, `authenticated` | `public` | Who can see the results. |
-| `visibility_scope` | `full_event`, `area_based` | `full_event` | All results, or only the results of the area of the user. |
+| Field | Required | Allowed values | Default | Content |
+| --- | --- | --- | --- | --- |
+| `status` | Required | `enabled`, `disabled` | `disabled` | Publish results on the results website. |
+| `access` | Required | `public`, `authenticated` | `public` | Who can see the results. |
+| `visibility_scope` | Required | `full_event`, `area_based` | `full_event` | All results, or only the results of the area of the user. |
 
 #### election_event.voting_channels
 
-| Field | Type | Content |
-| --- | --- | --- |
-| `online` | `true` or `false` | Online voting is on. |
-| `kiosk` | `true` or `false` | Kiosk voting is on. |
-| `telephone` | `true` or `false` | Telephone voting is on. |
-| `paper` | `true` or `false` | Paper voting is on. |
-| `early_voting` | `true` or `false` | Early voting is on. |
+| Field | Type | Required | Content |
+| --- | --- | --- | --- |
+| `online` | `true` or `false` | Optional | Online voting is on. |
+| `kiosk` | `true` or `false` | Optional | Kiosk voting is on. |
+| `telephone` | `true` or `false` | Optional | Telephone voting is on. |
+| `paper` | `true` or `false` | Optional | Paper voting is on. |
+| `early_voting` | `true` or `false` | Optional | Early voting is on. |
 
 All fields are optional. A new election event has `online` set to `true`.
 
@@ -271,17 +271,17 @@ All fields are optional. A new election event has `online` set to `true`.
 The import replaces this object with a new status. The values in the file are not used. Each
 field is optional.
 
-| Field | Type | Allowed values | Content |
-| --- | --- | --- | --- |
-| `is_published` | `true` or `false` | — | The election event is published. After the import: `false`. |
-| `voting_status` | text | `NOT_STARTED`, `OPEN`, `PAUSED`, `CLOSED` | The status of online voting. After the import: `NOT_STARTED`. |
-| `kiosk_voting_status` | text | Same | The status of kiosk voting. |
-| `early_voting_status` | text | Same | The status of early voting. |
-| `telephone_voting_status` | text | Same | The status of telephone voting. |
-| `voting_period_dates` | object | See below | The dates of the online voting period. |
-| `kiosk_voting_period_dates` | object | See below | The dates of the kiosk voting period. |
-| `early_voting_period_dates` | object | See below | The dates of the early voting period. |
-| `telephone_voting_period_dates` | object | See below | The dates of the telephone voting period. |
+| Field | Type | Required | Allowed values | Content |
+| --- | --- | --- | --- | --- |
+| `is_published` | `true` or `false` | Optional | — | The election event is published. After the import: `false`. |
+| `voting_status` | text | Optional | `NOT_STARTED`, `OPEN`, `PAUSED`, `CLOSED` | The status of online voting. After the import: `NOT_STARTED`. |
+| `kiosk_voting_status` | text | Optional | Same | The status of kiosk voting. |
+| `early_voting_status` | text | Optional | Same | The status of early voting. |
+| `telephone_voting_status` | text | Optional | Same | The status of telephone voting. |
+| `voting_period_dates` | object | Optional | See below | The dates of the online voting period. |
+| `kiosk_voting_period_dates` | object | Optional | See below | The dates of the kiosk voting period. |
+| `early_voting_period_dates` | object | Optional | See below | The dates of the early voting period. |
+| `telephone_voting_period_dates` | object | Optional | See below | The dates of the telephone voting period. |
 
 Each `*_period_dates` object has the optional fields `first_started_at`, `last_started_at`,
 `first_paused_at`, `last_paused_at`, `first_stopped_at` and `last_stopped_at`. Each is a date and
@@ -289,10 +289,10 @@ time in UTC, in ISO 8601 format.
 
 #### election_event.statistics
 
-| Field | Type | Content |
-| --- | --- | --- |
-| `num_emails_sent` | whole number | The number of emails sent. After the import: 0. |
-| `num_sms_sent` | whole number | The number of SMS sent. After the import: 0. |
+| Field | Type | Required | Content |
+| --- | --- | --- | --- |
+| `num_emails_sent` | whole number | Optional | The number of emails sent. After the import: 0. |
+| `num_sms_sent` | whole number | Optional | The number of SMS sent. After the import: 0. |
 
 #### election_event.labels and annotations
 
@@ -335,16 +335,16 @@ One object for each area.
 
 The area `presentation` object:
 
-| Field | Type | Default | Allowed values | Content |
-| --- | --- | --- | --- | --- |
-| `allow_early_voting` | text | `no_early_voting` | `allow_early_voting`, `no_early_voting` | Voters of this area can vote early. |
+| Field | Type | Required | Default | Allowed values | Content |
+| --- | --- | --- | --- | --- | --- |
+| `allow_early_voting` | text | Optional | `no_early_voting` | `allow_early_voting`, `no_early_voting` | Voters of this area can vote early. |
 
 The area `annotations` object can contain:
 
-| Field | Type | Default | Allowed values | Content |
-| --- | --- | --- | --- | --- |
-| `weight` | whole number | 1 | 0 or more | The weight of the votes of this area, when `weighted_voting_policy` is `areas-weighted-voting`. |
-| `tally_operation` | text | — | `process-ballots-all`, `aggregate-results`, `skip-candidate-results` | How the tally treats this area. |
+| Field | Type | Required | Default | Allowed values | Content |
+| --- | --- | --- | --- | --- | --- |
+| `weight` | whole number | Optional | 1 | 0 or more | The weight of the votes of this area, when `weighted_voting_policy` is `areas-weighted-voting`. |
+| `tally_operation` | text | Optional | — | `process-ballots-all`, `aggregate-results`, `skip-candidate-results` | How the tally treats this area. |
 
 ### area_contests
 
@@ -640,18 +640,18 @@ example, a text value is written with its quotes: `"START_VOTING_PERIOD"`.
 `export_voters-<ID>.csv`. The import reads it as a voter import of the new election event. See
 [Voters](03-voters.md).
 
-| Column | Content |
-| --- | --- |
-| `id` | The ID of the voter. The import does not use it. Each voter gets a new ID. |
-| `email` | The email address, for example `voter001@example.com`. |
-| `email_verified` | `true` or `false`. |
-| `enabled` | `true` or `false`. |
-| `first_name` | The first name. |
-| `last_name` | The last name. |
-| `username` | The user name. |
-| `area_name` | The name of the area of the voter, or `-` if the voter has no area. |
-| `<attribute>` | One column for each voter field of the login realm. Secret voter fields are present only if you selected **Encrypt with Password** and you have the permission to read secret voter fields. |
-| `election__<election alias or name>` | One column for each election: the date and time when the voter last voted, or empty. The import does not use these columns. |
+| Column | Required | Content |
+| --- | --- | --- |
+| `id` | Optional | The ID of the voter. The import does not use it. Each voter gets a new ID. |
+| `email` | Optional | The email address, for example `voter001@example.com`. |
+| `email_verified` | Optional | `true` or `false`. |
+| `enabled` | Optional | `true` or `false`. |
+| `first_name` | Optional | The first name. |
+| `last_name` | Optional | The last name. |
+| `username` | Optional | The user name. |
+| `area_name` | Optional | The name of the area of the voter, or `-` if the voter has no area. |
+| `<attribute>` | Optional | One column for each voter field of the login realm. Secret voter fields are present only if you selected **Encrypt with Password** and you have the permission to read secret voter fields. |
+| `election__<election alias or name>` | Optional | One column for each election: the date and time when the voter last voted, or empty. The import does not use these columns. |
 
 The file contains no passwords.
 
@@ -659,16 +659,19 @@ The file contains no passwords.
 
 `export_reports-<ID>.csv`. One row for each report.
 
-| Column | Content |
-| --- | --- |
-| `ID` | The ID of the report. The import does not use it. Each report gets a new ID. |
-| `Election ID` | The election of the report, or empty for the election event. |
-| `Report Type` | The type of report. See [reports](#reports). |
-| `Template Alias` | The alias of the template, or empty. |
-| `Cron Config` | The schedule of the report as JSON: `is_active` (`true` or `false`), `cron_expression` (text), `email_recipients` (array of email addresses), `executer_username` (text), `last_document_produced` (text). Or `null`. |
-| `Encryption Policy` | `unencrypted` or `configured_password`. |
-| `Password` | The password of an encrypted report, as plain text, or empty. |
-| `Permission Labels` | The permission labels, separated with `\|`, or empty. |
+The import reads the columns by their position. Keep all the columns in this order. An optional
+column can be empty, but it must be there.
+
+| Column | Required | Content |
+| --- | --- | --- |
+| `ID` | Optional | The ID of the report. The import does not use it. Each report gets a new ID. |
+| `Election ID` | Optional | The election of the report, or empty for the election event. |
+| `Report Type` | Required | The type of report. See [reports](#reports). |
+| `Template Alias` | Optional | The alias of the template, or empty. |
+| `Cron Config` | Optional | The schedule of the report as JSON: `is_active` (`true` or `false`), `cron_expression` (text), `email_recipients` (array of email addresses), `executer_username` (text), `last_document_produced` (text). Or `null`. |
+| `Encryption Policy` | Required | `unencrypted` or `configured_password`. |
+| `Password` | Optional | The password of an encrypted report, as plain text, or empty. |
+| `Permission Labels` | Optional | The permission labels, separated with `\|`, or empty. |
 
 :::danger WARNING: election event export with reports
 Keep an export with reports in a protected location. The reports file contains the passwords of
@@ -696,10 +699,10 @@ The import:
 
 `export_protocol_manager_keys-<ID>.csv`. The secret keys of the bulletin boards.
 
-| Column | Content |
-| --- | --- |
-| `election_id` | Empty for the board of the election event. Otherwise the ID of the election of the board. |
-| `key` | The protocol manager key of the board. |
+| Column | Required | Content |
+| --- | --- | --- |
+| `election_id` | Required | Empty for the board of the election event. Otherwise the ID of the election of the board. |
+| `key` | Required | The protocol manager key of the board. |
 
 The file must have one row for the election event and one row for each election. If a row is
 missing, the import fails. If this file is present, the import does not make new protocol manager
@@ -714,51 +717,58 @@ event.
 
 `export_bulletin_boards-<ID>.csv`. One row for each message of the bulletin boards.
 
-| Column | Content |
-| --- | --- |
-| `election_id` | Empty for the board of the election event. Otherwise the ID of the election of the board. |
-| `id` | The number of the message in the board. |
-| `created` | When the message was made (a timestamp). |
-| `sender_pk` | The public key of the sender of the message. |
-| `statement_timestamp` | The timestamp of the statement in the message. |
-| `statement_kind` | The kind of statement. |
-| `batch` | The batch number. |
-| `mix_number` | The mix number. |
-| `message` | The message, in Base64 without padding. |
-| `version` | The version of the message format. |
+| Column | Required | Content |
+| --- | --- | --- |
+| `election_id` | Required | Empty for the board of the election event. Otherwise the ID of the election of the board. |
+| `id` | Required | The number of the message in the board. |
+| `created` | Required | When the message was made (a timestamp). |
+| `sender_pk` | Required | The public key of the sender of the message. |
+| `statement_timestamp` | Required | The timestamp of the statement in the message. |
+| `statement_kind` | Required | The kind of statement. |
+| `batch` | Required | The batch number. |
+| `mix_number` | Required | The mix number. |
+| `message` | Required | The message, in Base64 without padding. |
+| `version` | Required | The version of the message format. |
 
 ### Tally data files
 
 The folder `export_tally_data/` contains ten CSV files. The import reads
 `export_tally_session.csv` and `export_results_event.csv` before the other files.
 
+The import reads the columns by their position. Keep all the columns of a file in their order. An
+optional column can be empty, but it must be there.
+
 These columns are in most files:
 
-| Column | Content |
-| --- | --- |
-| `id` | The ID of the row. The import gives a new ID. |
-| `tenant_id`, `election_event_id` | The tenant and the election event. The import replaces them. |
-| `election_id`, `contest_id`, `area_id`, `candidate_id` | The election, contest, area or candidate of the row. The import replaces them with the new IDs. |
-| `results_event_id` | The results of the tally session. |
-| `created_at`, `last_updated_at` | When the row was made and last changed. |
-| `labels`, `annotations` | Free key-value data as JSON. |
-| `documents` | The documents of the results (for example PDF, HTML, JSON) as JSON. |
-| `name` | The name of the results or of the area. |
+| Column | Required | Content |
+| --- | --- | --- |
+| `id` | Required in `export_tally_session.csv` and `export_results_event.csv`. Optional in the other files. | The ID of the row. The import gives a new ID. |
+| `tenant_id`, `election_event_id` | Optional | The tenant and the election event. The import replaces them. |
+| `election_id`, `contest_id`, `area_id`, `candidate_id` | Required, except `contest_id` in `export_tally_session_contest.csv` (it can be `null`). | The election, contest, area or candidate of the row. The import replaces them with the new IDs. |
+| `results_event_id` | Required, except in `export_tally_session_execution.csv` (it can be `null`). | The results of the tally session. |
+| `created_at`, `last_updated_at` | Optional | When the row was made and last changed. |
+| `labels`, `annotations` | Optional | Free key-value data as JSON. |
+| `documents` | Optional | The documents of the results (for example PDF, HTML, JSON) as JSON. |
+| `name` | Optional | The name of the results or of the area. |
 
 The files and their other columns:
 
-| File | Content | Other columns |
-| --- | --- | --- |
-| `export_tally_session.csv` | The tally sessions. | `election_ids`, `area_ids`, `is_execution_completed`, `keys_ceremony_id`, `execution_status`, `threshold`, `configuration`, `tally_type` (`ELECTORAL_RESULTS` or `INITIALIZATION_REPORT`), `permission_label` |
-| `export_tally_session_contest.csv` | The contests and areas of each tally session. | `session_id`, `tally_session_id` |
-| `export_tally_session_execution.csv` | The steps of each tally session. | `current_message_id`, `tally_session_id`, `session_ids`, `status` |
-| `export_results_event.csv` | One row for each set of results. | — |
-| `export_results_election.csv` | The results of each election. | `elegible_census`, `total_voters`, `total_voters_percent` |
-| `export_results_election_area.csv` | The results of each election in each area. | — |
-| `export_results_contest.csv` | The results of each contest. | `elegible_census`, `total_votes`, `total_valid_votes`, `total_invalid_votes`, `explicit_invalid_votes`, `implicit_invalid_votes`, `total_blank_votes`, `explicit_blank_votes`, `implicit_blank_votes`, `total_auditable_votes`, the `_percent` column of each count, `voting_type`, `counting_algorithm` |
-| `export_results_area_contest.csv` | The results of each contest in each area. | The same counts and `_percent` columns as `export_results_contest.csv` |
-| `export_results_contest_candidate.csv` | The results of each candidate. | `cast_votes`, `cast_votes_percent`, `winning_position`, `points` |
-| `export_results_area_contest_candidate.csv` | The results of each candidate in each area. | `cast_votes`, `cast_votes_percent`, `winning_position`, `points` |
+| File | Content | Other required columns | Other optional columns |
+| --- | --- | --- | --- |
+| `export_tally_session.csv` | The tally sessions. | `election_ids`, `area_ids` (JSON arrays), `is_execution_completed` (`true` or `false`), `keys_ceremony_id`, `threshold` | `execution_status`, `configuration`, `tally_type` (`ELECTORAL_RESULTS` or `INITIALIZATION_REPORT`), `permission_label` |
+| `export_tally_session_contest.csv` | The contests and areas of each tally session. | `session_id` (a number), `tally_session_id` | — |
+| `export_tally_session_execution.csv` | The steps of each tally session. | `current_message_id` (a number), `tally_session_id` | `session_ids`, `status` |
+| `export_results_event.csv` | One row for each set of results. | — | — |
+| `export_results_election.csv` | The results of each election. | — | `elegible_census`, `total_voters`, `total_voters_percent` |
+| `export_results_election_area.csv` | The results of each election in each area. | — | — |
+| `export_results_contest.csv` | The results of each contest. | — | `elegible_census`, `total_votes`, `total_valid_votes`, `total_invalid_votes`, `explicit_invalid_votes`, `implicit_invalid_votes`, `total_blank_votes`, `explicit_blank_votes`, `implicit_blank_votes`, `total_auditable_votes`, the `_percent` column of each count, `voting_type`, `counting_algorithm` |
+| `export_results_area_contest.csv` | The results of each contest in each area. | — | The same counts and `_percent` columns as `export_results_contest.csv` |
+| `export_results_contest_candidate.csv` | The results of each candidate. | — | `cast_votes`, `cast_votes_percent`, `winning_position`, `points` |
+| `export_results_area_contest_candidate.csv` | The results of each candidate in each area. | — | `cast_votes`, `cast_votes_percent`, `winning_position`, `points` |
+
+To leave `name`, `execution_status`, `tally_type`, `session_ids`, `voting_type` or `counting_algorithm`
+without a value, write `null`. The import refuses an empty value in these columns. Other optional
+columns can be empty.
 
 The `_percent` columns are the same counts as a percentage. `elegible_census` is the number of
 voters who can vote.

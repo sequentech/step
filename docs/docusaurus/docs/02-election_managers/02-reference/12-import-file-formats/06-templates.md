@@ -75,16 +75,16 @@ also if you select other methods. The methods that you select are in the JSON of
 
 `template` is a JSON object. These are the keys that the admin portal writes:
 
-| Key | Type | Meaning |
-| --- | --- | --- |
-| `alias` | Text | The alias of the template. It is the same as the column `alias`. |
-| `name` | Text | The name of the template. |
-| `selected_methods` | Object | Three keys, `EMAIL`, `SMS` and `DOCUMENT`. Each value is `true` or `false`. It shows which parts the template has. |
-| `email` | Object | The email part. It has `subject`, `plaintext_body` and `html_body`. |
-| `sms` | Object | The SMS part. It has the key `message`. |
-| `document` | Text | The document part: the text of the document, as an HTML template. |
-| `pdf_options` | Object | The PDF settings of the document, for example `landscape`, `print_background`, `scale`, `paper_width`, `paper_height`, `margin_top`, `margin_bottom`, `margin_left`, `margin_right`, `page_ranges`, `header_template`, `footer_template`. |
-| `report_options` | Object | The report limits. It has `max_items_per_report` and `max_threads`. |
+| Key | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `alias` | Text | Optional | The alias of the template. It is the same as the column `alias`. |
+| `name` | Text | Optional | The name of the template. |
+| `selected_methods` | Object | Optional | Three keys, `EMAIL`, `SMS` and `DOCUMENT`. Each value is `true` or `false`. It shows which parts the template has. |
+| `email` | Object | Optional | The email part. It has `subject`, `plaintext_body` and `html_body`. |
+| `sms` | Object | Optional | The SMS part. It has the key `message`. |
+| `document` | Text | Optional | The document part: the text of the document, as an HTML template. |
+| `pdf_options` | Object | Optional | The PDF settings of the document, for example `landscape`, `print_background`, `scale`, `paper_width`, `paper_height`, `margin_top`, `margin_bottom`, `margin_left`, `margin_right`, `page_ranges`, `header_template`, `footer_template`. |
+| `report_options` | Object | Optional | The report limits. It has `max_items_per_report` and `max_threads`. |
 
 The texts of the email, the SMS and the document can contain variables. The platform replaces them
 when it makes the message or the document.
