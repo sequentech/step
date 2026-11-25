@@ -734,8 +734,19 @@ pub fn signed_pins(
     entries: &[electoral_log::ElectoralLogMessage],
     system_pk: &VerificationKey,
 ) -> Result<Vec<CastVoteSealKeyPin>> {
+    Ok(signed_pin_entries(entries, system_pk)?
+        .into_iter()
+        .map(|(pin, _)| pin)
+        .collect())
+}
+
+/// [`signed_pins`], each with the first entry that signs it.
+fn signed_pin_entries<'a>(
+    entries: &'a [electoral_log::ElectoralLogMessage],
+    system_pk: &VerificationKey,
+) -> Result<Vec<(CastVoteSealKeyPin, &'a electoral_log::ElectoralLogMessage)>> {
     let system_der = system_pk.to_der()?;
-    let mut pins: Vec<CastVoteSealKeyPin> = Vec::new();
+    let mut pins: Vec<(CastVoteSealKeyPin, &electoral_log::ElectoralLogMessage)> = Vec::new();
     for entry in entries {
         let Ok(message) = Message::record_deserialize(&entry.message) else {
             continue;
@@ -744,21 +755,33 @@ pub fn signed_pins(
             continue;
         }
         if let StatementBody::CastVoteSealKeyPublished(pin) = message.statement.body {
-            if !pins.contains(&pin) {
-                pins.push(pin);
+            if !pins.iter().any(|(pinned, _)| *pinned == pin) {
+                pins.push((pin, entry));
             }
         }
     }
     Ok(pins)
 }
 
-/// The event's board pin, if any: an error when two different keys are
+/// The board's one signed pin entry: an error when two different keys are
 /// pinned.
-pub async fn read_pin(
+fn single_pin_entry<'a>(
+    entries: &'a [electoral_log::ElectoralLogMessage],
+    system_pk: &VerificationKey,
+) -> Result<Option<(CastVoteSealKeyPin, &'a electoral_log::ElectoralLogMessage)>> {
+    let mut pins = signed_pin_entries(entries, system_pk)?;
+    ensure!(
+        pins.len() <= 1,
+        "The electoral log pins {} different cast vote keys: refused",
+        pins.len()
+    );
+    Ok(pins.pop())
+}
+
+async fn pin_entries(
     store: &electoral_log::adapters::postgres::PostgresStore,
     board: &str,
-    system_pk: &VerificationKey,
-) -> Result<Option<CastVoteSealKeyPin>> {
+) -> Result<Vec<electoral_log::ElectoralLogMessage>> {
     let query = LogQuery {
         filters: vec![Filter::Text(
             TextColumn::StatementKind,
@@ -768,17 +791,33 @@ pub async fn read_pin(
         limit: PIN_READ_LIMIT,
         ..LogQuery::default()
     };
-    let entries = store
+    store
         .query(board, &query)
         .await
-        .context("Error reading the cast vote key pin from the electoral log")?;
-    let mut pins = signed_pins(&entries, system_pk)?;
-    ensure!(
-        pins.len() <= 1,
-        "The electoral log pins {} different cast vote keys: refused",
-        pins.len()
-    );
-    Ok(pins.pop())
+        .context("Error reading the cast vote key pin from the electoral log")
+}
+
+/// The event's board pin, if any: an error when two different keys are
+/// pinned.
+pub async fn read_pin(
+    store: &electoral_log::adapters::postgres::PostgresStore,
+    board: &str,
+    system_pk: &VerificationKey,
+) -> Result<Option<CastVoteSealKeyPin>> {
+    let entries = pin_entries(store, board).await?;
+    Ok(single_pin_entry(&entries, system_pk)?.map(|(pin, _)| pin))
+}
+
+/// The bytes of the event's signed pin entry, as the log stores them (the
+/// whole canonical Borsh message), for a verifier that checks the entry
+/// itself; `None` when the board pins no key.
+pub async fn read_pin_entry(
+    store: &electoral_log::adapters::postgres::PostgresStore,
+    board: &str,
+    system_pk: &VerificationKey,
+) -> Result<Option<Vec<u8>>> {
+    let entries = pin_entries(store, board).await?;
+    Ok(single_pin_entry(&entries, system_pk)?.map(|(_, entry)| entry.message.clone()))
 }
 
 /// Whether the published key is the pinned one.

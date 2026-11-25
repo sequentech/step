@@ -557,3 +557,22 @@ fn a_sealed_ballots_refusal_is_found_under_context_and_joined() {
         "area 1: 1 sealed ballot(s) don't open; area 2: plaintext"
     );
 }
+
+/// A verifier gets the one entry pinning the event's key, as stored, signed
+/// by the system key; two different keys pinned is an error.
+#[test]
+fn the_pin_entry_is_the_signed_one_as_stored() {
+    let system = SigningKey::generate().unwrap();
+    let system_pk = VerificationKey::from_sk(&system).unwrap();
+    let key = event_key(vec![4; 65]);
+    let pinned = pin_entry(&key, &system, TENANT, EVENT);
+    let stranger = SigningKey::generate().unwrap();
+    let forged = pin_entry(&event_key(vec![5; 65]), &stranger, TENANT, EVENT);
+    let entries = [forged, pinned.clone(), pinned.clone()];
+    let (pin, entry) = single_pin_entry(&entries, &system_pk).unwrap().unwrap();
+    assert_eq!(pin, key.pin(TENANT, EVENT));
+    assert_eq!(entry.message, pinned.message);
+    assert!(single_pin_entry(&[], &system_pk).unwrap().is_none());
+    let other = pin_entry(&event_key(vec![6; 65]), &system, TENANT, EVENT);
+    assert!(single_pin_entry(&[pinned, other], &system_pk).is_err());
+}
