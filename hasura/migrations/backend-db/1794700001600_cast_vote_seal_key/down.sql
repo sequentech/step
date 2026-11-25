@@ -15,10 +15,15 @@ BEGIN
     END IF;
 END;
 $$;
+DROP TRIGGER cast_vote_seal_voting_status_lock ON sequent_backend.election;
+DROP TRIGGER cast_vote_seal_voting_status_lock ON sequent_backend.election_event;
+DROP FUNCTION sequent_backend.cast_vote_seal_voting_status_lock();
 DROP FUNCTION sequent_backend.cast_vote_seal_state(uuid, uuid);
 DROP FUNCTION sequent_backend.cast_vote_seal_publish(uuid, uuid, text, integer, bytea);
 DROP FUNCTION sequent_backend.cast_vote_seal_require(uuid, uuid);
+DROP FUNCTION sequent_backend.cast_vote_seal_lock(uuid, uuid);
 DROP FUNCTION sequent_backend.cast_vote_seal_voting_not_started(uuid, uuid);
+DROP FUNCTION sequent_backend.cast_vote_seal_voting_started(jsonb);
 DROP TABLE sequent_backend.cast_vote_seal_key;
 DROP TABLE sequent_backend.cast_vote_sealing_required;
 DROP FUNCTION sequent_backend.cast_vote_seal_guard();

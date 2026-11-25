@@ -12,8 +12,15 @@
 -- storing plaintext ballots exactly as before. Both tables are insert-only,
 -- one row per event, so neither the flag nor the key can be withdrawn or
 -- replaced. They are written only through the SECURITY DEFINER functions
--- below, which only the publisher's group role may call. Harvest and
--- Windmill read the state through cast_vote_seal_state.
+-- below, which only the publisher's group role may call. Every cast, legacy
+-- events included, reads the state through cast_vote_seal_state: the flag
+-- and the event's public key (also pinned in the electoral log) are public,
+-- so any login that can use the schema may call it.
+--
+-- Requiring sealing and the first opening of a voting channel of the event
+-- take the event's cast-vote-seal lock, so they serialize: either the flag
+-- commits before any channel opens, or the requirement sees the channel
+-- open and is refused. A cast reads the state after it saw voting open.
 --
 --   sequent_os_cast_vote_key_publisher  creates the event key in the HSM and
 --                                       publishes its public point
@@ -116,9 +123,21 @@ CREATE TRIGGER cast_vote_seal_key_guard_truncate
 BEFORE TRUNCATE ON sequent_backend.cast_vote_seal_key
 FOR EACH STATEMENT EXECUTE FUNCTION sequent_backend.cast_vote_seal_guard();
 
+-- Internal: whether a status has opened any voting channel. A status or
+-- channel that is missing counts as not started.
+CREATE FUNCTION sequent_backend.cast_vote_seal_voting_started(p_status jsonb)
+RETURNS boolean LANGUAGE sql IMMUTABLE SECURITY INVOKER
+SET search_path = pg_catalog, sequent_backend, pg_temp
+AS $$
+    SELECT EXISTS (
+        SELECT FROM unnest(ARRAY['voting_status', 'kiosk_voting_status',
+                                 'early_voting_status', 'telephone_voting_status']) AS c(channel)
+        WHERE coalesce(p_status ->> c.channel, 'NOT_STARTED') <> 'NOT_STARTED'
+    );
+$$;
+
 -- Internal: whether no election of the event, nor the event itself, has
--- opened any voting channel yet. A status that is missing counts as not
--- started.
+-- opened any voting channel yet.
 CREATE FUNCTION sequent_backend.cast_vote_seal_voting_not_started(p_tenant uuid, p_event uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY INVOKER
 SET search_path = pg_catalog, sequent_backend, pg_temp
@@ -131,14 +150,54 @@ AS $$
             SELECT v.status FROM sequent_backend.election_event AS v
             WHERE (v.tenant_id, v.id) = (p_tenant, p_event)
         ) AS s
-        CROSS JOIN unnest(ARRAY['voting_status', 'kiosk_voting_status',
-                                'early_voting_status', 'telephone_voting_status']) AS c(channel)
-        WHERE coalesce(s.status::jsonb ->> c.channel, 'NOT_STARTED') <> 'NOT_STARTED'
+        WHERE sequent_backend.cast_vote_seal_voting_started(s.status::jsonb)
     );
 $$;
 
+-- Internal: the event's cast-vote-seal lock, until the transaction ends.
+CREATE FUNCTION sequent_backend.cast_vote_seal_lock(p_tenant uuid, p_event uuid)
+RETURNS void LANGUAGE sql VOLATILE SECURITY INVOKER
+SET search_path = pg_catalog, sequent_backend, pg_temp
+AS $$
+    SELECT pg_advisory_xact_lock(hashtextextended(
+        'cast-vote-seal:' || p_tenant::text || ':' || p_event::text, 0));
+$$;
+
+-- The first opening of a voting channel of an election, or of the event,
+-- takes the event's lock: it waits for a requirement in flight, and one
+-- that starts after it waits for its commit and then sees the channel open.
+CREATE FUNCTION sequent_backend.cast_vote_seal_voting_status_lock()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = pg_catalog, sequent_backend, pg_temp
+AS $$
+DECLARE
+    v_event uuid;
+BEGIN
+    IF NOT sequent_backend.cast_vote_seal_voting_started(NEW.status::jsonb)
+       OR (TG_OP = 'UPDATE'
+           AND sequent_backend.cast_vote_seal_voting_started(OLD.status::jsonb)) THEN
+        RETURN NEW;
+    END IF;
+    IF TG_TABLE_NAME = 'election_event' THEN
+        v_event := NEW.id;
+    ELSE
+        v_event := NEW.election_event_id;
+    END IF;
+    PERFORM sequent_backend.cast_vote_seal_lock(NEW.tenant_id, v_event);
+    RETURN NEW;
+END;
+$$;
+CREATE TRIGGER cast_vote_seal_voting_status_lock
+BEFORE INSERT OR UPDATE OF status ON sequent_backend.election
+FOR EACH ROW EXECUTE FUNCTION sequent_backend.cast_vote_seal_voting_status_lock();
+CREATE TRIGGER cast_vote_seal_voting_status_lock
+BEFORE INSERT OR UPDATE OF status ON sequent_backend.election_event
+FOR EACH ROW EXECUTE FUNCTION sequent_backend.cast_vote_seal_voting_status_lock();
+
 -- Publisher: require sealing for an event before it opens voting. From then
--- on its casts are refused until its key is published. Idempotent.
+-- on its casts are refused until its key is published. Idempotent. Only in
+-- a READ COMMITTED transaction: the check after the lock must see what
+-- committed while it waited.
 CREATE FUNCTION sequent_backend.cast_vote_seal_require(p_tenant uuid, p_event uuid)
 RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, sequent_backend, pg_temp
@@ -149,8 +208,11 @@ BEGIN
                       WHERE (e.tenant_id, e.id) = (p_tenant, p_event)) THEN
         RETURN false;
     END IF;
-    PERFORM pg_advisory_xact_lock(hashtextextended(
-        'cast-vote-seal:' || p_tenant::text || ':' || p_event::text, 0));
+    IF current_setting('transaction_isolation') <> 'read committed' THEN
+        RAISE EXCEPTION 'cast vote sealing is required only in a READ COMMITTED transaction'
+            USING ERRCODE = 'invalid_transaction_state';
+    END IF;
+    PERFORM sequent_backend.cast_vote_seal_lock(p_tenant, p_event);
     IF EXISTS (SELECT FROM sequent_backend.cast_vote_sealing_required AS r
                WHERE (r.tenant_id, r.election_event_id) = (p_tenant, p_event)) THEN
         RETURN true;
@@ -216,7 +278,10 @@ REVOKE ALL ON TABLE sequent_backend.cast_vote_sealing_required,
     sequent_backend.cast_vote_seal_key FROM PUBLIC;
 REVOKE ALL ON FUNCTION
     sequent_backend.cast_vote_seal_guard(),
+    sequent_backend.cast_vote_seal_voting_started(jsonb),
     sequent_backend.cast_vote_seal_voting_not_started(uuid, uuid),
+    sequent_backend.cast_vote_seal_lock(uuid, uuid),
+    sequent_backend.cast_vote_seal_voting_status_lock(),
     sequent_backend.cast_vote_seal_require(uuid, uuid),
     sequent_backend.cast_vote_seal_publish(uuid, uuid, text, integer, bytea),
     sequent_backend.cast_vote_seal_state(uuid, uuid)
@@ -231,7 +296,13 @@ GRANT SELECT, INSERT ON TABLE sequent_backend.cast_vote_sealing_required,
 
 ALTER FUNCTION sequent_backend.cast_vote_seal_guard()
     OWNER TO sequent_os_ledger_api_owner;
+ALTER FUNCTION sequent_backend.cast_vote_seal_voting_started(jsonb)
+    OWNER TO sequent_os_ledger_api_owner;
 ALTER FUNCTION sequent_backend.cast_vote_seal_voting_not_started(uuid, uuid)
+    OWNER TO sequent_os_ledger_api_owner;
+ALTER FUNCTION sequent_backend.cast_vote_seal_lock(uuid, uuid)
+    OWNER TO sequent_os_ledger_api_owner;
+ALTER FUNCTION sequent_backend.cast_vote_seal_voting_status_lock()
     OWNER TO sequent_os_ledger_api_owner;
 ALTER FUNCTION sequent_backend.cast_vote_seal_require(uuid, uuid)
     OWNER TO sequent_os_ledger_api_owner;
@@ -244,8 +315,7 @@ GRANT EXECUTE ON FUNCTION
     sequent_backend.cast_vote_seal_require(uuid, uuid),
     sequent_backend.cast_vote_seal_publish(uuid, uuid, text, integer, bytea)
     TO sequent_os_cast_vote_key_publisher;
-GRANT EXECUTE ON FUNCTION sequent_backend.cast_vote_seal_state(uuid, uuid)
-    TO sequent_os_approve, sequent_os_cast_vote_key_publisher;
+GRANT EXECUTE ON FUNCTION sequent_backend.cast_vote_seal_state(uuid, uuid) TO PUBLIC;
 
 REVOKE CREATE ON SCHEMA sequent_backend
     FROM sequent_os_ledger_data_owner, sequent_os_ledger_api_owner;

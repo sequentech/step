@@ -5,6 +5,8 @@
 //! migrated Hasura database and each event's own electoral-log database,
 //! through the real receive, cast, sequencer and tally-dump services:
 //!
+//! - a database without the state function reads events as legacy;
+//! - requiring sealing and opening voting wait for each other;
 //! - the publish function's role checks and its refusals (another key, an
 //!   event that opened voting without requiring sealing);
 //! - a sealed event stores every copy sealed (received and cast), with the
@@ -178,11 +180,8 @@ impl Fixture {
         let mut db = pool.get().await?;
         let tx = db.transaction().await?;
         windmill::postgres::trusted_write(&tx).await?;
-        tx.execute(
-            "UPDATE sequent_backend.election SET status = $2 WHERE id = $1::text::uuid",
-            &[&election, &json!({"voting_status": "OPEN"})],
-        )
-        .await?;
+        tx.execute(OPEN_VOTING, &[&election, &json!({"voting_status": "OPEN"})])
+            .await?;
         tx.commit().await?;
         Ok(Self {
             tenant,
@@ -373,6 +372,40 @@ fn assert_sealed(row: &(String, String, String), inner: &InsertCastVoteInput, ke
     }
 }
 
+/// An event with one election whose voting has not started, in Hasura only.
+async fn unopened_event(pool: &Pool) -> Result<(String, String, String)> {
+    let tenant = Uuid::new_v4().to_string();
+    let event = Uuid::new_v4().to_string();
+    let election = Uuid::new_v4().to_string();
+    let mut db = pool.get().await?;
+    let tx = db.transaction().await?;
+    windmill::postgres::trusted_write(&tx).await?;
+    tx.execute(
+        "INSERT INTO sequent_backend.tenant(id,slug) VALUES($1::text::uuid,$1)",
+        &[&tenant],
+    )
+    .await?;
+    let channels = json!({"online": true, "telephone": false});
+    tx.execute("INSERT INTO sequent_backend.election_event(id,tenant_id,encryption_protocol,voting_channels) VALUES($1::text::uuid,$2::text::uuid,'RSA256',$3)", &[&event,&tenant,&channels]).await?;
+    tx.execute("INSERT INTO sequent_backend.election(id,tenant_id,election_event_id,voting_channels,num_allowed_revotes) VALUES($1::text::uuid,$2::text::uuid,$3::text::uuid,$4,0)", &[&election,&tenant,&event,&channels]).await?;
+    tx.commit().await?;
+    Ok((tenant, event, election))
+}
+
+const REQUIRE: &str =
+    "SELECT sequent_backend.cast_vote_seal_require($1::text::uuid,$2::text::uuid)";
+const OPEN_VOTING: &str =
+    "UPDATE sequent_backend.election SET status = $2 WHERE id = $1::text::uuid";
+
+fn assert_lock_timeout(result: Result<impl std::fmt::Debug, tokio_postgres::Error>) {
+    let error = result.unwrap_err();
+    assert_eq!(
+        error.code(),
+        Some(&tokio_postgres::error::SqlState::LOCK_NOT_AVAILABLE),
+        "{error:?}"
+    );
+}
+
 #[tokio::test]
 async fn sealed_cast_votes_end_to_end() -> Result<()> {
     std::env::set_var("MASTER_SECRET", "5a".repeat(32));
@@ -387,6 +420,83 @@ async fn sealed_cast_votes_end_to_end() -> Result<()> {
     std::env::set_var("HASURA_DB__DBNAME", database);
     let pool = get_hasura_pool().await.as_ref().clone();
     let openers = Arc::new(Openers::default());
+
+    // A database without the state function reads every event as legacy,
+    // and the caller's transaction stays usable. First, while no read has
+    // seen the function.
+    {
+        let (tenant, event, _) = unopened_event(&pool).await?;
+        let mut db = pool.get().await?;
+        let tx = db.transaction().await?;
+        tx.batch_execute("DROP FUNCTION sequent_backend.cast_vote_seal_state(uuid, uuid)")
+            .await?;
+        assert_eq!(
+            cast_vote_seal::sealing(&tx, &tenant, &event).await?,
+            cast_vote_seal::Sealing::Legacy
+        );
+        let usable: i32 = tx.query_one("SELECT 1", &[]).await?.get(0);
+        assert_eq!(usable, 1);
+        tx.rollback().await?;
+    }
+
+    // Requiring sealing and opening voting are serialized: neither commits
+    // past the other while it is in flight.
+    {
+        let opened = json!({"voting_status": "OPEN"});
+        let (tenant, event, election) = unopened_event(&pool).await?;
+        let mut opener_db = pool.get().await?;
+        let mut requirer_db = pool.get().await?;
+        let opening = opener_db.transaction().await?;
+        windmill::postgres::trusted_write(&opening).await?;
+        opening.execute(OPEN_VOTING, &[&election, &opened]).await?;
+        let requiring = requirer_db.transaction().await?;
+        requiring
+            .batch_execute("SET LOCAL lock_timeout = '200ms'")
+            .await?;
+        assert_lock_timeout(requiring.query_one(REQUIRE, &[&tenant, &event]).await);
+        requiring.rollback().await?;
+        opening.commit().await?;
+        let required: bool = requirer_db
+            .query_one(REQUIRE, &[&tenant, &event])
+            .await?
+            .get(0);
+        assert!(!required, "voting opened first");
+
+        let (tenant, event, election) = unopened_event(&pool).await?;
+        let requiring = requirer_db.transaction().await?;
+        let required: bool = requiring
+            .query_one(REQUIRE, &[&tenant, &event])
+            .await?
+            .get(0);
+        assert!(required);
+        let opening = opener_db.transaction().await?;
+        windmill::postgres::trusted_write(&opening).await?;
+        opening
+            .batch_execute("SET LOCAL lock_timeout = '200ms'")
+            .await?;
+        assert_lock_timeout(opening.execute(OPEN_VOTING, &[&election, &opened]).await);
+        opening.rollback().await?;
+        requiring.commit().await?;
+
+        // Requiring needs READ COMMITTED, where each statement sees what
+        // committed before its lock.
+        let (tenant, event, _) = unopened_event(&pool).await?;
+        let repeatable = requirer_db
+            .build_transaction()
+            .isolation_level(tokio_postgres::IsolationLevel::RepeatableRead)
+            .start()
+            .await?;
+        let refused = repeatable
+            .query_one(REQUIRE, &[&tenant, &event])
+            .await
+            .unwrap_err();
+        assert_eq!(
+            refused.code(),
+            Some(&tokio_postgres::error::SqlState::INVALID_TRANSACTION_STATE),
+            "{refused:?}"
+        );
+        repeatable.rollback().await?;
+    }
 
     // The publish function: only the publisher's role calls it.
     {

@@ -1129,6 +1129,18 @@ async fn accept_into_ballot_box(
         is_early_voting_area,
     )
     .await?;
+    // Read again now that voting was seen open: sealing can only have been
+    // required before voting opened, so a requirement that committed since
+    // the stored form was chosen is visible here.
+    let sealing = crate::services::cast_vote_seal::sealing(
+        &hasura_transaction,
+        ids.tenant_id,
+        ids.election_event_id,
+    )
+    .await
+    .map_err(|error| CastVoteError::BallotSealFailed(format!("{error:#}")))?;
+    crate::services::cast_vote_seal::check_row_format(&sealing, format, &input.ballot_id)
+        .map_err(|error| CastVoteError::BallotSealFailed(format!("{error:#}")))?;
     let allowed_votes = get_allowed_votes(
         &hasura_transaction,
         ids.tenant_id,

@@ -43,7 +43,9 @@ use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sha2::{Digest, Sha256};
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Arc, RwLock};
+use tokio_postgres::error::SqlState;
 use voting_crypto::signing::VerificationKey;
 use voting_crypto::RecordDeserialize;
 
@@ -168,23 +170,61 @@ impl Sealing {
     }
 }
 
-/// The event's sealing state, as published.
+/// Whether `cast_vote_seal_state` was seen in this database. It stays once
+/// it exists: its rollback is refused while any event requires sealing.
+static STATE_FUNCTION_SEEN: AtomicBool = AtomicBool::new(false);
+const STATE_SAVEPOINT: &str = "cast_vote_seal_state";
+const STATE_QUERY: &str =
+    "SELECT required, key_id, key_version, public_key_sec1, format, fingerprint \
+     FROM sequent_backend.cast_vote_seal_state($1, $2)";
+
+/// The event's sealing state, as published. A database whose migrations
+/// don't have `cast_vote_seal_state` yet has no event that requires sealing:
+/// every event is [`Sealing::Legacy`] there.
 pub async fn sealing(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<Sealing> {
-    let row = hasura_transaction
-        .query_one(
-            "SELECT required, key_id, key_version, public_key_sec1, format, fingerprint \
-             FROM sequent_backend.cast_vote_seal_state($1, $2)",
-            &[
-                &parse_uuid_v4(tenant_id)?,
-                &parse_uuid_v4(election_event_id)?,
-            ],
-        )
-        .await
-        .context("Error reading the event's cast vote sealing")?;
+    let tenant = parse_uuid_v4(tenant_id)?;
+    let event = parse_uuid_v4(election_event_id)?;
+    let parameters: [&(dyn tokio_postgres::types::ToSql + Sync); 2] = [&tenant, &event];
+    let row = if STATE_FUNCTION_SEEN.load(AtomicOrdering::Relaxed) {
+        hasura_transaction
+            .query_one(STATE_QUERY, &parameters)
+            .await
+            .context("Error reading the event's cast vote sealing")?
+    } else {
+        // Until it is seen, under a savepoint, so that its absence doesn't
+        // abort the caller's transaction.
+        hasura_transaction
+            .batch_execute(&format!("SAVEPOINT {STATE_SAVEPOINT}"))
+            .await
+            .context("Error reading the event's cast vote sealing")?;
+        match hasura_transaction.query_one(STATE_QUERY, &parameters).await {
+            Ok(row) => {
+                hasura_transaction
+                    .batch_execute(&format!("RELEASE SAVEPOINT {STATE_SAVEPOINT}"))
+                    .await
+                    .context("Error reading the event's cast vote sealing")?;
+                STATE_FUNCTION_SEEN.store(true, AtomicOrdering::Relaxed);
+                row
+            }
+            Err(error) if error.code() == Some(&SqlState::UNDEFINED_FUNCTION) => {
+                hasura_transaction
+                    .batch_execute(&format!(
+                        "ROLLBACK TO SAVEPOINT {STATE_SAVEPOINT}; RELEASE SAVEPOINT {STATE_SAVEPOINT}"
+                    ))
+                    .await
+                    .context("Error reading the event's cast vote sealing")?;
+                return Ok(Sealing::Legacy);
+            }
+            Err(error) => {
+                return Err(anyhow::Error::from(error)
+                    .context("Error reading the event's cast vote sealing"))
+            }
+        }
+    };
     let required: bool = row.try_get(0)?;
     if !required {
         return Ok(Sealing::Legacy);
