@@ -5084,6 +5084,24 @@ const galegoTranslation: TranslationType = {
                 '¿Está seguro de que quere eliminar o certificado "{{name}}" (pegada: {{fingerprint}})?',
         },
         signing: {
+            localSetup: {
+                continue: "Continuar co inicio de sesión",
+                register: "Rexistrar a miña chave de sinatura",
+                phase: {
+                    "setup-available":
+                        "Configura a túa chave de sinatura para este posto. Primeiro verifica o contrasinal e o código dun só uso.",
+                    "waiting-for-setup-gold":
+                        "Continúa o inicio de sesión para verificar a túa identidade nesta configuración.",
+                    "setup-confirmation-required":
+                        "Identidade verificada. Selecciona Rexistrar a miña chave de sinatura para crear a chave deste posto.",
+                    "setup-retry-available":
+                        "O dispositivo aínda non recolleu esta solicitude. Podes volver enviar a mesma solicitude.",
+                    "setup-pending":
+                        "A configuración está pendente. Necesitas unha chave de sinatura e un certificado de persoal rexistrado antes de aprobar.",
+                    "setup-recovery-required":
+                        "Un administrador debe revisar esta configuración. Non se rexistrou ningunha aprobación.",
+                },
+            },
             operational: englishTranslation.translations.signing.operational,
             terms: {
                 post: "Posto",

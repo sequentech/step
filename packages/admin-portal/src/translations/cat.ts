@@ -5110,6 +5110,24 @@ const catalanTranslation: TranslationType = {
                 'Esteu segurs que voleu eliminar el certificat "{{name}}" (empremta: {{fingerprint}})?',
         },
         signing: {
+            localSetup: {
+                continue: "Continua iniciant la sessió",
+                register: "Registra la meva clau de signatura",
+                phase: {
+                    "setup-available":
+                        "Configura la clau de signatura d’aquest lloc. Primer verifica la contrasenya i el codi d’un sol ús.",
+                    "waiting-for-setup-gold":
+                        "Continua iniciant la sessió per verificar la teva identitat en aquesta configuració.",
+                    "setup-confirmation-required":
+                        "Identitat verificada. Selecciona Registra la meva clau de signatura per crear la clau d’aquest lloc.",
+                    "setup-retry-available":
+                        "El dispositiu encara no ha recollit aquesta sol·licitud. Pots tornar a enviar la mateixa sol·licitud.",
+                    "setup-pending":
+                        "La configuració està pendent. Cal una clau de signatura i un certificat de personal registrat abans de poder aprovar.",
+                    "setup-recovery-required":
+                        "Un administrador ha de revisar aquesta configuració. No s’ha registrat cap aprovació.",
+                },
+            },
             operational: englishTranslation.translations.signing.operational,
             terms: {
                 post: "Lloc",

@@ -5266,6 +5266,24 @@ const spanishTranslation: TranslationType = {
                 '¿Está seguro de que desea eliminar el certificado "{{name}}" (huella: {{fingerprint}})?',
         },
         signing: {
+            localSetup: {
+                continue: "Continuar con el inicio de sesión",
+                register: "Registrar mi clave de firma",
+                phase: {
+                    "setup-available":
+                        "Configura tu clave de firma para este puesto. Primero verifica tu contraseña y el código de un solo uso.",
+                    "waiting-for-setup-gold":
+                        "Continúa el inicio de sesión para verificar tu identidad en esta configuración.",
+                    "setup-confirmation-required":
+                        "Identidad verificada. Selecciona Registrar mi clave de firma para crear la clave de este puesto.",
+                    "setup-retry-available":
+                        "El dispositivo aún no ha recogido esta solicitud. Puedes volver a enviar la misma solicitud.",
+                    "setup-pending":
+                        "La configuración está pendiente. Necesitas una clave de firma y un certificado de personal registrado antes de aprobar.",
+                    "setup-recovery-required":
+                        "Un administrador debe revisar esta configuración. No se ha registrado ninguna aprobación.",
+                },
+            },
             operational: {
                 title: "Revisar la aprobación",
                 setup: "Configurar la firma",

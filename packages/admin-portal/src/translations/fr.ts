@@ -5144,6 +5144,24 @@ const frenchTranslation: TranslationType = {
                 'Êtes-vous sûr de vouloir supprimer le certificat "{{name}}" (empreinte : {{fingerprint}}) ?',
         },
         signing: {
+            localSetup: {
+                continue: "Poursuivre la connexion",
+                register: "Enregistrer ma clé de signature",
+                phase: {
+                    "setup-available":
+                        "Configurez votre clé de signature pour ce poste. Vérifiez d’abord votre mot de passe et le code à usage unique.",
+                    "waiting-for-setup-gold":
+                        "Poursuivez la connexion pour vérifier votre identité avant la configuration.",
+                    "setup-confirmation-required":
+                        "Identité vérifiée. Sélectionnez Enregistrer ma clé de signature pour créer la clé de ce poste.",
+                    "setup-retry-available":
+                        "L’appareil n’a pas encore pris en charge cette demande. Vous pouvez renvoyer la même demande.",
+                    "setup-pending":
+                        "La configuration est en attente. Une clé de signature et un certificat de personnel enregistré sont requis avant toute approbation.",
+                    "setup-recovery-required":
+                        "Un administrateur doit vérifier cette configuration. Aucune approbation n’a été enregistrée.",
+                },
+            },
             operational: englishTranslation.translations.signing.operational,
             terms: {
                 post: "Poste",

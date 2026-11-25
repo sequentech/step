@@ -5385,6 +5385,24 @@ const englishTranslation = {
                 'Are you sure you want to delete the certificate "{{name}}" (fingerprint: {{fingerprint}})?',
         },
         signing: {
+            localSetup: {
+                continue: "Continue setup sign-in",
+                register: "Register my signing key",
+                phase: {
+                    "setup-available":
+                        "Set up your signing key for this Post. First verify your password and one-time code.",
+                    "waiting-for-setup-gold":
+                        "Continue signing in to verify your identity for this setup.",
+                    "setup-confirmation-required":
+                        "Identity verified. Select Register my signing key to create the key for this Post.",
+                    "setup-retry-available":
+                        "The device has not claimed this registration. You may send the same request again.",
+                    "setup-pending":
+                        "Setup is pending. A signing key and a registered staff certificate are required before you can approve.",
+                    "setup-recovery-required":
+                        "Setup needs an administrator’s review. No approval has been recorded.",
+                },
+            },
             operational: {
                 title: "Review approval",
                 setup: "Set up signing",

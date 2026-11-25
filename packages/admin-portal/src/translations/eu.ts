@@ -5084,6 +5084,24 @@ const basqueTranslation: TranslationType = {
                 'Ziur al zaude "{{name}}" ziurtagiria (hatz-marka: {{fingerprint}}) ezabatu nahi duzula?',
         },
         signing: {
+            localSetup: {
+                continue: "Jarraitu saioa hasten",
+                register: "Erregistratu nire sinadura-gakoa",
+                phase: {
+                    "setup-available":
+                        "Konfiguratu postu honetako sinadura-gakoa. Lehenik, egiaztatu pasahitza eta erabilera bakarreko kodea.",
+                    "waiting-for-setup-gold":
+                        "Jarraitu saioa hasten konfigurazio honetarako zure identitatea egiaztatzeko.",
+                    "setup-confirmation-required":
+                        "Identitatea egiaztatuta. Hautatu Erregistratu nire sinadura-gakoa postu honetako gakoa sortzeko.",
+                    "setup-retry-available":
+                        "Gailuak ez du oraindik eskaera hartu. Eskaera bera berriro bidal dezakezu.",
+                    "setup-pending":
+                        "Konfigurazioa zain dago. Onartu aurretik sinadura-gakoa eta erregistratutako langile-ziurtagiria behar dituzu.",
+                    "setup-recovery-required":
+                        "Administratzaile batek konfigurazioa berrikusi behar du. Ez da onarpenik erregistratu.",
+                },
+            },
             operational: englishTranslation.translations.signing.operational,
             terms: {
                 post: "Postu",

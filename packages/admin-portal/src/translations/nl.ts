@@ -5118,6 +5118,24 @@ const dutchTranslation: TranslationType = {
                 'Weet u zeker dat u het certificaat "{{name}}" (vingerafdruk: {{fingerprint}}) wilt verwijderen?',
         },
         signing: {
+            localSetup: {
+                continue: "Doorgaan met aanmelden",
+                register: "Mijn ondertekeningssleutel registreren",
+                phase: {
+                    "setup-available":
+                        "Stel uw ondertekeningssleutel voor deze post in. Verifieer eerst uw wachtwoord en eenmalige code.",
+                    "waiting-for-setup-gold":
+                        "Ga verder met aanmelden om uw identiteit voor deze instelling te verifiëren.",
+                    "setup-confirmation-required":
+                        "Identiteit geverifieerd. Kies Mijn ondertekeningssleutel registreren om de sleutel voor deze post aan te maken.",
+                    "setup-retry-available":
+                        "Het apparaat heeft dit verzoek nog niet opgehaald. U kunt hetzelfde verzoek opnieuw verzenden.",
+                    "setup-pending":
+                        "De instelling is nog niet voltooid. Voor goedkeuring zijn een ondertekeningssleutel en een geregistreerd personeelscertificaat vereist.",
+                    "setup-recovery-required":
+                        "Een beheerder moet deze instelling controleren. Er is geen goedkeuring vastgelegd.",
+                },
+            },
             operational: englishTranslation.translations.signing.operational,
             terms: {
                 post: "Post",

@@ -5133,6 +5133,24 @@ const tagalogTranslation: TranslationType = {
                 'Sigurado ka bang nais mong burahin ang sertipikong "{{name}}" (fingerprint: {{fingerprint}})?',
         },
         signing: {
+            localSetup: {
+                continue: "Magpatuloy sa pag-sign in",
+                register: "Irehistro ang aking susi sa pagpirma",
+                phase: {
+                    "setup-available":
+                        "I-set up ang iyong susi sa pagpirma para sa Post na ito. Kumpirmahin muna ang iyong password at isang beses na code.",
+                    "waiting-for-setup-gold":
+                        "Magpatuloy sa pag-sign in upang makumpirma ang iyong pagkakakilanlan para sa pag-set up na ito.",
+                    "setup-confirmation-required":
+                        "Nakumpirma na ang pagkakakilanlan. Piliin ang Irehistro ang aking susi sa pagpirma upang makagawa ng susi para sa Post na ito.",
+                    "setup-retry-available":
+                        "Hindi pa kinukuha ng device ang kahilingang ito. Maaari mong ipadala muli ang parehong kahilingan.",
+                    "setup-pending":
+                        "Nakabinbin pa ang pag-set up. Kailangan ang susi sa pagpirma at rehistradong sertipiko ng kawani bago ka makapag-apruba.",
+                    "setup-recovery-required":
+                        "Kailangang suriin ito ng administrator. Wala pang naitalang pag-apruba.",
+                },
+            },
             operational: {
                 title: "Suriin ang pag-apruba",
                 setup: "I-set up ang pagpirma",
