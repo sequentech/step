@@ -133,6 +133,19 @@ export const WaitingNoSignatures: Story = {
     },
 }
 
+export const WaitingDirectFooter: Story = {
+    args: {panel: {signingMode: "hsm-demo-direct-action"}},
+    play: async () => {
+        const view = await panel()
+        await expect(view.getByRole("button", {name: "Approve", exact: true})).toBeVisible()
+        expect(view.queryByText(/demo only: signatures use a software test token/i)).toBeNull()
+        const footer = within(view.getByTestId("signing-request-footer"))
+        await expect(footer.getByRole("button", {name: "Next member signs in"})).toBeVisible()
+        await expect(footer.getByRole("button", {name: "Cancel request"})).toBeVisible()
+        expect(footer.queryByRole("button", {name: "Approve", exact: true})).toBeNull()
+    },
+}
+
 /** Times follow the election event's zone: 11:30 UTC is 19:30 in Manila, on a 24-hour clock. */
 export const EventTimeZone: Story = {
     args: {viewer: JOSE, panel: {signed: [MARIA], timeZone: "Asia/Manila"}},
