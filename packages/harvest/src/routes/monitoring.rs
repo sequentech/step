@@ -13,7 +13,9 @@
 
 use crate::ports::monitoring_renderer::ColorScheme;
 use crate::ports::monitoring_snapshots::{ScopeRead, SnapshotHead};
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use crate::services::dependencies::HarvestServices;
 use crate::services::monitoring::{
     config_at_snapshot, dashboard_theme_id, dimension_label, draft_revision,
@@ -45,7 +47,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use strum::IntoEnumIterator;
 use tracing::instrument;
-use windmill::services::monitoring::config_store::LiveConfig;
+use windmill::services::monitoring::config_store::{EventRef, LiveConfig};
 
 pub(crate) fn authorize_monitoring(
     claims: &JwtClaims,
@@ -58,6 +60,37 @@ pub(crate) fn authorize_monitoring(
         permissions,
     )?;
     Ok(())
+}
+
+/// A refusal of the election event's permission label: other failures are
+/// internal.
+fn event_refusal((status, message): (Status, String)) -> MonitoringError {
+    if status == Status::Forbidden {
+        MonitoringError::from((status, message))
+    } else {
+        MonitoringError::internal(message)
+    }
+}
+
+/// Refuses an election event outside the caller's permission labels.
+pub(crate) async fn authorize_monitoring_event(
+    services: &HarvestServices,
+    claims: &JwtClaims,
+    event: EventRef,
+) -> MonitoringResult<()> {
+    let mut client = hasura_client(services).await?;
+    let transaction = client
+        .transaction()
+        .await
+        .map_err(MonitoringError::internal)?;
+    authorize_election_event_permission_label(
+        &transaction,
+        claims,
+        &event.tenant_id.to_string(),
+        &event.election_event_id.to_string(),
+    )
+    .await
+    .map_err(event_refusal)
 }
 
 /// The viewer, and the event's configuration, read in one transaction that
@@ -75,6 +108,14 @@ pub(crate) async fn viewer_and_config(
         .map_err(MonitoringError::internal)?;
     let viewer =
         viewer(&transaction, claims, election_event_id, election_id).await?;
+    authorize_election_event_permission_label(
+        &transaction,
+        claims,
+        &viewer.event.tenant_id.to_string(),
+        &viewer.event.election_event_id.to_string(),
+    )
+    .await
+    .map_err(event_refusal)?;
     let live = viewed_config(services, &transaction, viewer.event).await?;
     transaction
         .commit()

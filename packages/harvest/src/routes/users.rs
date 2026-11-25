@@ -10,12 +10,14 @@ use crate::adapters::user_tasks::{
 use crate::ports::database::DatabasePools;
 use crate::ports::identity::IdentityAdmin;
 use crate::services::access::{
-    create_user_permissions, delete_permission, edit_user_access,
-    read_permission, writes_secret_attributes, UserEdit, UserEditAccess,
-    UserScope,
+    create_permission, create_user_permissions, delete_permission,
+    edit_user_access, read_permission, writes_secret_attributes, UserEdit,
+    UserEditAccess, UserScope,
 };
 use crate::services::audit::{self, PasswordEdit};
-use crate::services::authorization::{authorize, permitted_event_election_ids};
+use crate::services::authorization::{
+    authorize, authorize_election_event_access, permitted_event_election_ids,
+};
 use crate::services::dependencies::HarvestServices;
 use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
@@ -94,6 +96,26 @@ pub struct DeleteUserBody {
     tenant_id: String,
     election_event_id: Option<String>,
     user_id: String,
+}
+
+/// The event's permission label must allow the caller, when the request
+/// names an event.
+async fn event_permitted(
+    claims: &jwt::JwtClaims,
+    tenant_id: &str,
+    election_event_id: Option<&str>,
+) -> Result<(), (Status, String)> {
+    match election_event_id {
+        Some(election_event_id) => {
+            authorize_election_event_access(
+                claims,
+                tenant_id,
+                election_event_id,
+            )
+            .await
+        }
+        None => Ok(()),
+    }
 }
 
 async fn ensure_election_event_not_locked(
@@ -368,6 +390,12 @@ pub async fn delete_user(
             input.election_event_id.as_deref(),
         ))],
     )?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .await?;
     if let Some(election_event_id) = input.election_event_id.as_deref() {
         ensure_election_event_not_locked(&input.tenant_id, election_event_id)
             .await?;
@@ -475,6 +503,12 @@ pub async fn delete_users(
             input.election_event_id.as_deref(),
         ))],
     )?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .await?;
 
     let select_all = input.select_all.unwrap_or(false);
     if !select_all && input.users_id.as_ref().map_or(true, |ids| ids.is_empty())
@@ -711,6 +745,12 @@ pub async fn count_users(
             input.election_event_id.as_deref(),
         ))],
     )?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .await?;
 
     let realm = match input.election_event_id {
         Some(ref election_event_id) => {
@@ -845,6 +885,12 @@ pub async fn get_users(
             input.election_event_id.as_deref(),
         ))],
     )?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .await?;
 
     let realm = match input.election_event_id {
         Some(ref election_event_id) => {
@@ -1134,6 +1180,20 @@ pub async fn create_user(
             };
             ErrorResponse::new(status, &message, code)
         })?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .await
+    .map_err(|(status, message)| {
+        let code = if status == Status::Forbidden {
+            ErrorCode::Unauthorized
+        } else {
+            ErrorCode::InternalServerError
+        };
+        ErrorResponse::new(status, &message, code)
+    })?;
     reject_tenant_id_attribute(&input.user).map_err(|message| {
         ErrorResponse::new(
             Status::BadRequest,
@@ -1676,6 +1736,12 @@ pub async fn edit_user(
     };
 
     authorize(&claims, true, Some(input.tenant_id.clone()), required_perms)?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .await?;
     let realm = match input.election_event_id.clone() {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, &election_event_id)
@@ -2128,6 +2194,12 @@ pub async fn get_user(
             input.election_event_id.as_deref(),
         ))],
     )?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .await?;
     let realm = match input.election_event_id.as_ref() {
         Some(election_event_id) => {
             get_event_realm(&input.tenant_id, election_event_id)
@@ -2189,6 +2261,12 @@ pub async fn reveal_voter_secret_attribute(
             Permissions::VOTER_SECRET_ATTRIBUTE_READ,
         ],
     )?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        Some(input.election_event_id.as_str()),
+    )
+    .await?;
     let secret_names = get_event_validated_secret_names(
         &input.tenant_id,
         &input.election_event_id,
@@ -2273,6 +2351,16 @@ pub async fn import_users_f(
                 "document_id": body.document_id,
             }),
         );
+    }
+    if let Some(election_event_id) = body.election_event_id.as_deref() {
+        authorize(
+            &claims,
+            true,
+            Some(body.tenant_id.clone()),
+            vec![create_permission(UserScope::of(Some(election_event_id)))],
+        )?;
+        event_permitted(&claims, &body.tenant_id, Some(election_event_id))
+            .await?;
     }
     crate::services::user_tasks::import_users_with(
         &WindmillUserTaskLedger,
@@ -2386,6 +2474,12 @@ pub async fn get_user_profile_attributes(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .await?;
 
     let realm = match input.election_event_id {
         Some(election_event_id) => {
@@ -2422,6 +2516,12 @@ pub async fn get_user_profile_configuration(
         Some(input.tenant_id.clone()),
         vec![required_perm],
     )?;
+    event_permitted(
+        &claims,
+        &input.tenant_id,
+        input.election_event_id.as_deref(),
+    )
+    .await?;
 
     let realm = match input.election_event_id {
         Some(election_event_id) => {

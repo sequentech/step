@@ -11,6 +11,16 @@ object_relationships:
               remote_table:
                   name: signing_request
                   schema: sequent_backend
+    - name: election_event
+      using:
+          manual_configuration:
+              column_mapping:
+                  election_event_id: id
+                  tenant_id: tenant_id
+              insertion_order: null
+              remote_table:
+                  name: election_event
+                  schema: sequent_backend
 select_permissions:
     - comment: ""
       permission:
@@ -32,6 +42,15 @@ select_permissions:
                             - action:
                                   _eq: approve-configuration
                             - _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
                                   - permission_label:
                                         _is_null: true
                                   - permission_label:
@@ -61,6 +80,15 @@ select_permissions:
                                         _is_null: true
                                   - permission_label:
                                         _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: sign-approve-voter
     - comment: ""
       permission:
@@ -82,6 +110,15 @@ select_permissions:
                             - action:
                                   _eq: close-voting
                             - _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
                                   - permission_label:
                                         _is_null: true
                                   - permission_label:
@@ -111,6 +148,15 @@ select_permissions:
                                         _is_null: true
                                   - permission_label:
                                         _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: sign-generate-election-returns
     - comment: ""
       permission:
@@ -132,6 +178,15 @@ select_permissions:
                             - action:
                                   _eq: generate-reports
                             - _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
                                   - permission_label:
                                         _is_null: true
                                   - permission_label:
@@ -161,6 +216,15 @@ select_permissions:
                                         _is_null: true
                                   - permission_label:
                                         _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: sign-initialize-voting
     - comment: ""
       permission:
@@ -186,6 +250,15 @@ select_permissions:
                                         _is_null: true
                                   - permission_label:
                                         _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: sign-open-voting
     - comment: ""
       permission:
@@ -207,6 +280,15 @@ select_permissions:
                             - action:
                                   _eq: transmit-results
                             - _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
                                   - permission_label:
                                         _is_null: true
                                   - permission_label:
@@ -247,4 +329,13 @@ select_permissions:
                                   _is_null: true
                             - permission_label:
                                   _in: X-Hasura-Permission-Labels
+                  - _or:
+                        - election_event_id:
+                              _is_null: true
+                        - election_event:
+                              _or:
+                                  - permission_label:
+                                        _is_null: true
+                                  - permission_label:
+                                        _in: X-Hasura-Permission-Labels
       role: signing-requests-read

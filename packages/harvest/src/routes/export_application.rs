@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::audit;
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+};
 use crate::services::dependencies::HarvestServices;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -69,6 +71,8 @@ pub async fn export_application_route(
         Some(body.tenant_id.clone()),
         vec![Permissions::APPLICATION_EXPORT],
     )?;
+    authorize_election_event_access(&claims, &tenant_id, &election_event_id)
+        .await?;
 
     let document_id = Uuid::new_v4().to_string();
     let celery_app = get_celery_app().await;

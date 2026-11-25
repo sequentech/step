@@ -4,7 +4,8 @@
 
 use crate::services::audit;
 use crate::services::authorization::{
-    authorize, authorize_election_permission_labels,
+    authorize, authorize_election_event_permission_label,
+    authorize_election_permission_labels,
 };
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::{anyhow, Result};
@@ -243,6 +244,20 @@ pub async fn apply_schedule_recompute(
     audit::act_for(&hasura_transaction, &claims)
         .await
         .map_err(audit::json_error)?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await
+    .map_err(|(status, message)| {
+        if status == Status::Forbidden {
+            ErrorResponse::new(status, &message, ErrorCode::Unauthorized)
+        } else {
+            internal(&message)
+        }
+    })?;
     let now = Utc::now();
     let refresh_enrollment = schedule_recompute::enrollment_changes_pending(
         &hasura_transaction,

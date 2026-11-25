@@ -1208,6 +1208,7 @@ pub async fn insert_election_event_db(
             "num_sms_sent": 0
         })),
         external_id: None,
+        permission_label: object.permission_label.clone(),
     };
 
     crate::services::vote_privacy::configure_new_event(&mut new_election_input)?;

@@ -1331,6 +1331,7 @@ const basqueTranslation: TranslationType = {
             },
             edit: {
                 general: "Orokorra",
+                permissionLabel: "Baimen Etiketa",
                 dates: "Datak",
                 customUrls: "URL Aurrizki Pertsonalizatuak",
                 votingPeriod: "Bozketa Aldia",

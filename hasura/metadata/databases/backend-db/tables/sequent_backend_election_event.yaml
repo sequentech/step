@@ -13,8 +13,14 @@ insert_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           columns:
               - annotations
               - audit_election_event_id
@@ -26,6 +32,7 @@ insert_permissions:
               - is_archived
               - is_audit
               - labels
+              - permission_label
               - presentation
               - public_key
               - statistics
@@ -38,8 +45,14 @@ insert_permissions:
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           columns:
               - is_archived
               - is_audit
@@ -59,12 +72,19 @@ insert_permissions:
               - audit_election_event_id
               - id
               - tenant_id
+              - permission_label
       role: election-event-create
     - comment: ""
       permission:
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           columns:
               - is_archived
               - is_audit
@@ -99,6 +119,7 @@ insert_permissions:
               - is_archived
               - is_audit
               - labels
+              - permission_label
               - presentation
               - public_key
               - statistics
@@ -122,6 +143,7 @@ select_permissions:
               - is_archived
               - is_audit
               - labels
+              - permission_label
               - presentation
               - public_key
               - statistics
@@ -131,8 +153,14 @@ select_permissions:
               - user_boards
               - voting_channels
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: admin-user
     - comment: ""
@@ -156,9 +184,16 @@ select_permissions:
               - audit_election_event_id
               - id
               - tenant_id
+              - permission_label
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: election-event-archive
     - comment: ""
@@ -182,9 +217,16 @@ select_permissions:
               - audit_election_event_id
               - id
               - tenant_id
+              - permission_label
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: election-event-create
     - comment: ""
@@ -208,9 +250,16 @@ select_permissions:
               - audit_election_event_id
               - id
               - tenant_id
+              - permission_label
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: election-event-delete
     - comment: ""
@@ -226,6 +275,7 @@ select_permissions:
               - is_archived
               - is_audit
               - labels
+              - permission_label
               - presentation
               - public_key
               - statistics
@@ -235,8 +285,14 @@ select_permissions:
               - user_boards
               - voting_channels
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: election-event-read
     - comment: ""
@@ -260,9 +316,16 @@ select_permissions:
               - audit_election_event_id
               - id
               - tenant_id
+              - permission_label
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: election-event-write
     - comment: ""
@@ -286,9 +349,16 @@ select_permissions:
               - audit_election_event_id
               - id
               - tenant_id
+              - permission_label
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: localization-create
     - comment: ""
@@ -312,9 +382,16 @@ select_permissions:
               - audit_election_event_id
               - id
               - tenant_id
+              - permission_label
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: localization-delete
     - comment: ""
@@ -338,9 +415,16 @@ select_permissions:
               - audit_election_event_id
               - id
               - tenant_id
+              - permission_label
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
       role: localization-read
     - comment: ""
       permission:
@@ -363,9 +447,16 @@ select_permissions:
               - audit_election_event_id
               - id
               - tenant_id
+              - permission_label
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: localization-write
     - comment: ""
@@ -381,6 +472,7 @@ select_permissions:
               - is_archived
               - is_audit
               - labels
+              - permission_label
               - presentation
               - public_key
               - statistics
@@ -390,8 +482,14 @@ select_permissions:
               - user_boards
               - voting_channels
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: publish-read
     - comment: ""
@@ -407,6 +505,7 @@ select_permissions:
               - is_archived
               - is_audit
               - labels
+              - permission_label
               - presentation
               - public_key
               - statistics
@@ -431,6 +530,7 @@ select_permissions:
               - is_archived
               - is_audit
               - labels
+              - permission_label
               - presentation
               - public_key
               - statistics
@@ -440,8 +540,14 @@ select_permissions:
               - user_boards
               - voting_channels
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           allow_aggregations: true
       role: trustee-ceremony
     - comment: ""
@@ -483,6 +589,7 @@ update_permissions:
               - is_archived
               - is_audit
               - labels
+              - permission_label
               - presentation
               - public_key
               - statistics
@@ -492,11 +599,23 @@ update_permissions:
               - user_boards
               - voting_channels
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
       role: admin-user
     - comment: ""
       permission:
@@ -505,11 +624,23 @@ update_permissions:
               - is_archived
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
       role: election-event-archive
     - comment: ""
       permission:
@@ -523,6 +654,7 @@ update_permissions:
               - is_archived
               - is_audit
               - labels
+              - permission_label
               - presentation
               - public_key
               - statistics
@@ -532,11 +664,23 @@ update_permissions:
               - user_boards
               - voting_channels
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
       role: election-event-write
     - comment: ""
       permission:
@@ -559,11 +703,23 @@ update_permissions:
               - id
               - tenant_id
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
           check:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
       role: localization-write
     - comment: ""
       permission:
@@ -578,6 +734,7 @@ update_permissions:
               - is_archived
               - is_audit
               - labels
+              - permission_label
               - presentation
               - public_key
               - statistics
@@ -593,12 +750,24 @@ delete_permissions:
     - comment: ""
       permission:
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
       role: election-event-delete
     - comment: ""
       permission:
           filter:
-              tenant_id:
-                  _eq: X-Hasura-Tenant-Id
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - _or:
+                        - permission_label:
+                              _is_null: true
+                        - permission_label:
+                              _in: X-Hasura-Permission-Labels
       role: localization-delete

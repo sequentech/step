@@ -1641,6 +1641,7 @@ const englishTranslation = {
             },
             edit: {
                 general: "General",
+                permissionLabel: "Permission Label",
                 dates: "Dates",
                 customUrls: "Custom URLs Prefix",
                 votingPeriod: "Voting Period",

@@ -158,6 +158,7 @@ import {ballotBoxSealPolicyLock, ESealPolicyLock} from "@/services/ElectionStatu
 import {effectiveSealRecordPolicy} from "@/services/ballotBoxSealPolicy"
 import {sealErrorText} from "@/services/ballotBoxSealErrors"
 import {policyOptions} from "@/services/policyOptions"
+import {withSubmittedPermissionLabel} from "./permissionLabel"
 import {timeZoneContextOf} from "@/components/timezones/useTimeZoneContext"
 import {
     CONFIGURE_RESULTS_WEBSITE_POLICY,
@@ -376,6 +377,11 @@ export const EditElectionEventDataForm: React.FC<{
         true,
         authContext.tenantId,
         IPermissions.KEYCLOAK_REALM_ATTRIBUTES_WRITE
+    )
+    const canEditPermissionLabel = authContext.isAuthorized(
+        true,
+        tenantId,
+        IPermissions.PERMISSION_LABEL_WRITE
     )
     const canSave = canEdit || (canReadRealmAttributes && canEditRealmAttributes)
 
@@ -1436,7 +1442,7 @@ export const EditElectionEventDataForm: React.FC<{
         setActivateSave(false)
 
         return {
-            ...values,
+            ...withSubmittedPermissionLabel(values, canEditPermissionLabel),
             presentation: {
                 ...values.presentation,
                 lifecycle_policies: savedPolicies(),
@@ -1523,6 +1529,13 @@ export const EditElectionEventDataForm: React.FC<{
                             {renderTabs(parsedValue)}
                         </Tabs>
                         {renderTabContent(parsedValue)}
+                        {canEditPermissionLabel && (
+                            <TextInput
+                                disabled={!canEdit}
+                                source="permission_label"
+                                label={String(t("electionEventScreen.edit.permissionLabel"))}
+                            />
+                        )}
                     </AccordionDetails>
                 </Accordion>
 

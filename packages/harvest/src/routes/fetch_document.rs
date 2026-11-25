@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::access::document_extra_permissions;
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use anyhow::{anyhow, Result};
@@ -123,6 +125,15 @@ async fn fetch_document_url(
     // document/task access must not turn them into an enumeration shortcut.
     if document.is_ballot_receipt() {
         return Err((Status::NotFound, DOCUMENT_NOT_FOUND.to_string()));
+    }
+    if let Some(election_event_id) = document.election_event_id.as_deref() {
+        authorize_election_event_permission_label(
+            &hasura_transaction,
+            &claims,
+            &claims.hasura_claims.tenant_id,
+            election_event_id,
+        )
+        .await?;
     }
     let legacy_voter_export = document.election_event_id.is_some()
         && document.name.as_deref().is_some_and(|name| {

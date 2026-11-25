@@ -8,7 +8,9 @@
 //! §5, the signing API contract).
 
 use crate::services::audit;
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use crate::services::dependencies::HarvestServices;
 use crate::services::signing_http::{
     authorize_403, caller_display_name, SigningError, SigningResult,
@@ -132,6 +134,13 @@ pub async fn import_signing_issuers(
     let mut client = hasura(services).await?;
     let transaction =
         client.transaction().await.map_err(SigningError::internal)?;
+    authorize_election_event_permission_label(
+        &transaction,
+        &claims,
+        &tenant_id.to_string(),
+        &input.election_event_id.to_string(),
+    )
+    .await?;
     audit::act_for(&transaction, &claims).await?;
     let import = import_staff_issuers(
         &transaction,
@@ -181,6 +190,13 @@ pub async fn remove_signing_issuer(
     let mut client = hasura(services).await?;
     let transaction =
         client.transaction().await.map_err(SigningError::internal)?;
+    authorize_election_event_permission_label(
+        &transaction,
+        &claims,
+        &tenant_id.to_string(),
+        &input.election_event_id.to_string(),
+    )
+    .await?;
     audit::act_for(&transaction, &claims).await?;
     let removed = remove_staff_issuer(
         &transaction,
@@ -244,6 +260,13 @@ pub async fn put_signing_checks(
     let mut client = hasura(services).await?;
     let transaction =
         client.transaction().await.map_err(SigningError::internal)?;
+    authorize_election_event_permission_label(
+        &transaction,
+        &claims,
+        &tenant_id.to_string(),
+        &input.election_event_id.to_string(),
+    )
+    .await?;
     audit::act_for(&transaction, &claims).await?;
     let row = update_signing_checks(
         &transaction,
@@ -339,6 +362,13 @@ pub async fn register_staff_certificate_route(
     let mut client = hasura(services).await?;
     let transaction =
         client.transaction().await.map_err(SigningError::internal)?;
+    authorize_election_event_permission_label(
+        &transaction,
+        &claims,
+        &tenant_id.to_string(),
+        &input.election_event_id.to_string(),
+    )
+    .await?;
     require_legacy_signing(&transaction, tenant_id)
         .await
         .map_err(|error| SigningError::forbidden(error.to_string()))?;
@@ -414,6 +444,13 @@ pub async fn revoke_staff_certificate_route(
     let mut client = hasura(services).await?;
     let transaction =
         client.transaction().await.map_err(SigningError::internal)?;
+    authorize_election_event_permission_label(
+        &transaction,
+        &claims,
+        &tenant_id.to_string(),
+        &input.election_event_id.to_string(),
+    )
+    .await?;
     audit::act_for(&transaction, &claims).await?;
     let outcome = revoke_registration(
         &transaction,

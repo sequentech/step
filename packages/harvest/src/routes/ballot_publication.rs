@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::audit;
 use crate::services::authorization::{
-    authorize, authorize_election_permission_labels,
+    authorize, authorize_election_event_permission_label,
+    authorize_election_permission_labels,
 };
 use crate::services::dependencies::HarvestServices;
 use crate::services::signing_gate::{caller, waiting, Guarded};
@@ -280,7 +281,15 @@ async fn authorize_publication_permission_labels(
             )
             .await
         }
-        None => Ok(()),
+        None => {
+            authorize_election_event_permission_label(
+                hasura_transaction,
+                claims,
+                &claims.hasura_claims.tenant_id,
+                election_event_id,
+            )
+            .await
+        }
     }
 }
 

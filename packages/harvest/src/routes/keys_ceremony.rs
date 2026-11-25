@@ -5,7 +5,8 @@
 use crate::services::access::authorize_any;
 use crate::services::audit;
 use crate::services::authorization::{
-    authorize, authorize_tally_session_permission_labels,
+    authorize, authorize_election_event_permission_label,
+    authorize_tally_session_permission_labels,
 };
 use crate::services::dependencies::HarvestServices;
 use crate::services::signing_gate::Guarded;
@@ -134,6 +135,13 @@ pub async fn confirm_key_custody(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     audit::act_for(&hasura_transaction, &claims).await?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
 
     let outcome = take_custody_proof_step(
         &hasura_transaction,
@@ -229,6 +237,13 @@ pub async fn custody_proof_signature_status(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
     let status =
         windmill::services::signing::custody_proofs::custody_proof_signature_status(
             &hasura_transaction,
@@ -459,6 +474,13 @@ pub async fn create_keys_ceremony(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     audit::act_for(&hasura_transaction, &claims).await?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
 
     let valid_permissions_label = validate_permission_labels(
         &hasura_transaction,
@@ -559,6 +581,13 @@ pub async fn list_keys_ceremonies(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
 
     let elections = get_elections(
         &hasura_transaction,

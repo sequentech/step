@@ -823,6 +823,7 @@ fn event_data(scope: Scope) -> ElectionEvent {
         public_key: Some("public-key".to_string()),
         statistics: Some(json!({"num_emails_sent": 3})),
         external_id: Some("external".to_string()),
+        permission_label: Some("north".to_string()),
     }
 }
 
@@ -865,6 +866,7 @@ async fn insert_election_event_writes_every_column() {
             "public_key": "public-key",
             "statistics": {"num_emails_sent": 3},
             "external_id": "external",
+            "permission_label": "north",
         })
     );
     let created_at: DateTime<Utc> = scalar(

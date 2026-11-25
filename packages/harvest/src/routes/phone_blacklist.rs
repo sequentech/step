@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::audit;
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse};
 use anyhow::Context;
@@ -104,6 +106,13 @@ pub async fn create_phone_blacklist_entry(
             tracing::error!("{e:?}");
             (Status::InternalServerError, format!("{e:?}"))
         })?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        tenant_id,
+        event_id,
+    )
+    .await?;
 
     // Insert the entry
     let entry = pg_phone_blacklist::insert_phone_blacklist_entry(
@@ -180,6 +189,13 @@ pub async fn delete_phone_blacklist_entry(
             tracing::error!("{e:?}");
             (Status::InternalServerError, format!("{e:?}"))
         })?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        tenant_id,
+        event_id,
+    )
+    .await?;
 
     // Delete the entry
     let deleted = pg_phone_blacklist::delete_phone_blacklist_entry(

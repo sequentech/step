@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use crate::services::audit;
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use crate::services::dependencies::HarvestServices;
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
@@ -103,6 +105,13 @@ pub async fn set_voter_authentication(
             error!("Failed to start transaction: {:?}", e);
             (Status::InternalServerError, format!("{:?}", e))
         })?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
 
     // Serialize the full realm update with guard repair and enrollment window
     // refresh; the identity helper is also used by already-locked cron tasks.

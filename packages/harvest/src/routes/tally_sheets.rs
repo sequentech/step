@@ -4,7 +4,8 @@
 
 use crate::services::audit;
 use crate::services::authorization::{
-    authorize, authorize_election_permission_labels,
+    authorize, authorize_election_event_permission_label,
+    authorize_election_permission_labels,
 };
 use crate::services::dependencies::HarvestServices;
 use anyhow::{Context, Result};
@@ -378,6 +379,13 @@ pub async fn preview_tally_sheet_import(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
     let (_document, source_bytes) = read_import_document(
         services,
         &hasura_transaction,
@@ -463,6 +471,13 @@ pub async fn create_tally_sheet_import(
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
     audit::act_for(&hasura_transaction, &claims).await?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
     let (document, source_bytes) = read_import_document(
         services,
         &hasura_transaction,

@@ -8,7 +8,9 @@
 //! harvest only through the `messaging-webhooks` component.
 
 use crate::services::audit;
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use crate::services::dependencies::HarvestServices;
 use crate::services::otp_capacity::{Admitted, Arrival};
 use crate::services::service_auth::VerifiedServiceClaims;
@@ -1640,6 +1642,13 @@ pub async fn update_event_messaging_config(
     let mut client = db_client(services).await?;
     let tx = client.transaction().await.map_err(|e| internal(e.into()))?;
     audit::act_for(&tx, &claims).await?;
+    authorize_election_event_permission_label(
+        &tx,
+        &claims,
+        &tenant_id.to_string(),
+        &input.election_event_id,
+    )
+    .await?;
     let projection = match save_event_messaging_config_as(
         &tx,
         &tenant_id,

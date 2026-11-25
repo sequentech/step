@@ -1334,6 +1334,7 @@ const catalanTranslation: TranslationType = {
             },
             edit: {
                 general: "General",
+                permissionLabel: "Etiqueta de permís",
                 dates: "Dates",
                 customUrls: "Prefix d'URL personalitzats",
                 language: "Idiomes",

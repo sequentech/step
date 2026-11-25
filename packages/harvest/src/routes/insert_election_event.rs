@@ -4,7 +4,7 @@
 
 use crate::services::access::import_users_privileges;
 use crate::services::audit;
-use crate::services::authorization::authorize;
+use crate::services::authorization::{authorize, PermissionLabels};
 use crate::services::tenant_activity::{TenantAction, TenantActivityRecorder};
 use anyhow::Result;
 use deadpool_postgres::Client as DbClient;
@@ -57,7 +57,29 @@ fn authorize_insert_election_event(
         true,
         Some(object.tenant_id.clone()),
         vec![Permissions::ELECTION_EVENT_CREATE],
-    )
+    )?;
+    authorize_new_event_label(claims, object.permission_label.as_deref())
+}
+
+/// An event is created or imported by the service account, which no
+/// permission label limits, so the label it will carry is checked here: an
+/// admin user may only give a new event a label they hold, as Hasura requires
+/// of an insert, or the event would be out of their own reach.
+fn authorize_new_event_label(
+    claims: &JwtClaims,
+    permission_label: Option<&str>,
+) -> Result<(), (Status, String)> {
+    let permission_label = permission_label.filter(|label| !label.is_empty());
+    if PermissionLabels::from_claims(claims).allows(permission_label) {
+        Ok(())
+    } else {
+        Err((
+            Status::Forbidden,
+            "The election event's permission label is outside the user's \
+             permission labels"
+                .to_string(),
+        ))
+    }
 }
 
 #[instrument(skip(claims))]
@@ -411,6 +433,24 @@ pub async fn import_election_event_f(
             }
         };
 
+    if let Err((_, message)) = authorize_new_event_label(
+        &claims,
+        election_event_schema
+            .election_event
+            .permission_label
+            .as_deref(),
+    ) {
+        return Ok(refuse(
+            task_execution,
+            Refusal {
+                log: message.clone(),
+                error: message,
+                problems: None,
+            },
+        )
+        .await);
+    }
+
     let id = election_event_schema.election_event.id.clone();
     // What the read warned about without refusing (a different major version,
     // meta#14760), in `problems` with `severity: warning` beside a success:
@@ -722,6 +762,39 @@ mod insert_election_event_tests {
         assert_eq!(
             result.map_err(|(status, _)| status),
             Err(Status::Unauthorized)
+        );
+    }
+    fn holding(mut claims: JwtClaims, permission_labels: &str) -> JwtClaims {
+        claims.hasura_claims.permission_labels =
+            Some(permission_labels.to_string());
+        claims
+    }
+
+    #[test]
+    fn a_new_event_takes_only_a_label_its_creator_holds() {
+        let tenant_id = Uuid::new_v4().to_string();
+        let mut event = event_in(&tenant_id);
+        event.permission_label = Some("north".to_string());
+
+        for outsider in [
+            admin(&tenant_id),
+            holding(admin(&tenant_id), r#"{"south"}"#),
+        ] {
+            assert_eq!(
+                authorize_insert_election_event(&outsider, &event)
+                    .map_err(|(status, _)| status),
+                Err(Status::Forbidden)
+            );
+        }
+        assert!(authorize_insert_election_event(
+            &holding(admin(&tenant_id), r#"{"north", "south"}"#),
+            &event
+        )
+        .is_ok());
+
+        event.permission_label = Some(String::new());
+        assert!(
+            authorize_insert_election_event(&admin(&tenant_id), &event).is_ok()
         );
     }
 }

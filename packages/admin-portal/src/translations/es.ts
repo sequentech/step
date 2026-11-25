@@ -1497,6 +1497,7 @@ const spanishTranslation: TranslationType = {
             },
             edit: {
                 general: "General",
+                permissionLabel: "Etiqueta de permiso",
                 dates: "Fechas",
                 customUrls: "Prefixo de URLs personalizados",
                 votingPeriod: "Período de votación",

@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_access,
+};
 use crate::services::dependencies::HarvestServices;
 use crate::services::signing_gate::Guarded;
 use crate::services::signing_http::{
@@ -90,6 +92,8 @@ pub async fn create_transmission_package(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::MIRU_CREATE],
     )?;
+    authorize_election_event_access(&claims, &tenant_id, &election_event_id)
+        .await?;
     let celery_app = get_celery_app().await;
     let celery_task = match celery_app
         .send_task(create_transmission_package_task::new(
@@ -292,6 +296,12 @@ pub async fn record_transmission_download(
         Some(claims.hasura_claims.tenant_id.clone()),
         vec![Permissions::MIRU_DOWNLOAD],
     )?;
+    authorize_election_event_access(
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
     let user_id = claims.hasura_claims.user_id.clone();
     let downloader = Downloader {
         name: claims

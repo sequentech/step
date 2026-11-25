@@ -3,7 +3,8 @@
 
 use crate::services::audit;
 use crate::services::authorization::{
-    authorize, authorize_tally_session_permission_labels,
+    authorize, authorize_election_event_permission_label,
+    authorize_tally_session_permission_labels,
 };
 use crate::services::dependencies::HarvestServices;
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
@@ -68,6 +69,14 @@ pub async fn request_server_custody(
         .map_err(internal)?;
     let tx = db.transaction().await.map_err(internal)?;
     audit::act_for(&tx, &claims).await.map_err(refusal)?;
+    authorize_election_event_permission_label(
+        &tx,
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await
+    .map_err(event_refusal)?;
     if let Some(id) = &body.tally_session_id {
         authorize_tally_session_permission_labels(
             &tx,
@@ -119,6 +128,14 @@ fn refusal((status, reason): (Status, String)) -> JsonError {
         ErrorCode::InvalidTrusteeAction
     };
     ErrorResponse::new(status, &reason, code)
+}
+
+fn event_refusal((status, reason): (Status, String)) -> JsonError {
+    if status == Status::Forbidden {
+        refusal((status, reason))
+    } else {
+        internal(reason)
+    }
 }
 
 fn internal(error: impl std::fmt::Display) -> JsonError {

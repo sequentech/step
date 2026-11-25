@@ -14,12 +14,16 @@ use tracing::{error, info, instrument};
 use windmill::postgres::election::{
     get_elections_permission_labels, ElectionPermissionLabel,
 };
+use windmill::postgres::election_event::get_election_event_permission_label;
 use windmill::postgres::tally_session::get_tally_session_by_id_if_exist;
+use windmill::services::database::get_hasura_pool;
 
 pub use sequent_core::services::authorization::*;
 
 const ELECTION_OUTSIDE_PERMISSION_LABELS: &str =
     "Election outside the user's permission labels";
+const ELECTION_EVENT_OUTSIDE_PERMISSION_LABELS: &str =
+    "Election event outside the user's permission labels";
 
 /// A bounded snapshot for queued work. Unlike list filters this never uses
 /// None to mean all elections, since elections may be added before execution.
@@ -30,6 +34,7 @@ pub async fn explicit_participation_elections(
 ) -> Result<Vec<String>, (Status, String)> {
     let elections = event_elections_permission_labels(
         tx,
+        claims,
         &claims.hasura_claims.tenant_id,
         event_id,
         None,
@@ -41,6 +46,74 @@ pub async fn explicit_participation_elections(
         .filter(|election| labels.allows(election.permission_label.as_deref()))
         .map(|election| election.election_id)
         .collect())
+}
+
+fn ensure_event_permitted(
+    permission_labels: &PermissionLabels,
+    event_permission_label: Option<&str>,
+) -> Result<(), (Status, String)> {
+    if permission_labels.allows(event_permission_label) {
+        Ok(())
+    } else {
+        Err((
+            Status::Forbidden,
+            ELECTION_EVENT_OUTSIDE_PERMISSION_LABELS.to_string(),
+        ))
+    }
+}
+
+/// Refuses unless the caller's permission labels allow the election event,
+/// as Hasura applies them to the event and to every row that belongs to it.
+/// An event the tenant does not have has nothing to protect: the step that
+/// uses it reports it as missing.
+#[instrument(skip(hasura_transaction, claims))]
+pub async fn authorize_election_event_permission_label(
+    hasura_transaction: &Transaction<'_>,
+    claims: &JwtClaims,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<(), (Status, String)> {
+    let Some(permission_label) = get_election_event_permission_label(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await
+    .map_err(|error| (Status::InternalServerError, format!("{error:?}")))?
+    else {
+        return Ok(());
+    };
+    ensure_event_permitted(
+        &PermissionLabels::from_claims(claims),
+        permission_label.as_deref(),
+    )
+}
+
+/// `authorize_election_event_permission_label` for a route that has no
+/// database transaction of its own at the point where it authorizes.
+#[instrument(skip(claims))]
+pub async fn authorize_election_event_access(
+    claims: &JwtClaims,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<(), (Status, String)> {
+    let internal = |error: String| (Status::InternalServerError, error);
+    let mut client = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(|error| internal(format!("{error:?}")))?;
+    let transaction = client
+        .transaction()
+        .await
+        .map_err(|error| internal(format!("{error:?}")))?;
+    authorize_election_event_permission_label(
+        &transaction,
+        claims,
+        tenant_id,
+        election_event_id,
+    )
+    .await
 }
 
 fn ensure_elections_permitted(
@@ -73,12 +146,22 @@ fn permitted_election_ids(
     (permitted.len() < elections.len()).then_some(permitted)
 }
 
+/// The elections of the event with their permission labels, refused unless
+/// the caller's permission labels allow the event itself.
 async fn event_elections_permission_labels(
     hasura_transaction: &Transaction<'_>,
+    claims: &JwtClaims,
     tenant_id: &str,
     election_event_id: &str,
     election_ids: Option<&[String]>,
 ) -> Result<Vec<ElectionPermissionLabel>, (Status, String)> {
+    authorize_election_event_permission_label(
+        hasura_transaction,
+        claims,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
     get_elections_permission_labels(
         hasura_transaction,
         tenant_id,
@@ -100,6 +183,7 @@ pub async fn authorize_election_permission_labels(
 ) -> Result<(), (Status, String)> {
     let elections = event_elections_permission_labels(
         hasura_transaction,
+        claims,
         &claims.hasura_claims.tenant_id,
         election_event_id,
         election_ids,
@@ -121,6 +205,13 @@ pub async fn authorize_tally_session_permission_labels(
     election_event_id: &str,
     tally_session_id: &str,
 ) -> Result<(), (Status, String)> {
+    authorize_election_event_permission_label(
+        hasura_transaction,
+        claims,
+        &claims.hasura_claims.tenant_id,
+        election_event_id,
+    )
+    .await?;
     let Some(tally_session) = get_tally_session_by_id_if_exist(
         hasura_transaction,
         &claims.hasura_claims.tenant_id,
@@ -152,6 +243,7 @@ pub async fn permitted_event_election_ids(
 ) -> Result<Option<Vec<String>>, (Status, String)> {
     let elections = event_elections_permission_labels(
         hasura_transaction,
+        claims,
         tenant_id,
         election_event_id,
         None,
@@ -234,6 +326,23 @@ mod permission_label_tests {
             election("north-1", Some("north")),
             election("south-1", Some("south")),
         ]
+    }
+
+    #[test]
+    fn refuses_a_labelled_event_outside_the_permission_labels() {
+        let north = labels(r#"{"north"}"#);
+        assert_eq!(ensure_event_permitted(&north, None), Ok(()));
+        assert_eq!(ensure_event_permitted(&north, Some("north")), Ok(()));
+        assert_eq!(ensure_event_permitted(&labels("{}"), None), Ok(()));
+        for caller in [north, labels("{}")] {
+            assert_eq!(
+                ensure_event_permitted(&caller, Some("south")),
+                Err((
+                    Status::Forbidden,
+                    ELECTION_EVENT_OUTSIDE_PERMISSION_LABELS.to_string()
+                ))
+            );
+        }
     }
 
     #[test]

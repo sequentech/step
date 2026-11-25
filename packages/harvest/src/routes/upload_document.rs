@@ -2,7 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::services::audit;
-use crate::services::authorization::authorize;
+use crate::services::authorization::{
+    authorize, authorize_election_event_permission_label,
+};
 use deadpool_postgres::Client as DbClient;
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -85,6 +87,15 @@ pub async fn get_upload_url(
             )
         })?;
     audit::act_for(&hasura_transaction, &claims).await?;
+    if let Some(election_event_id) = &inner.election_event_id {
+        authorize_election_event_permission_label(
+            &hasura_transaction,
+            &claims,
+            &claims.hasura_claims.tenant_id,
+            election_event_id,
+        )
+        .await?;
+    }
 
     let (document, url) = if restricted {
         documents::stage_configuration_package(

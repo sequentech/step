@@ -7,7 +7,8 @@ use crate::routes::keys_ceremony::{
 };
 use crate::services::audit;
 use crate::services::authorization::{
-    authorize, authorize_election_permission_labels,
+    authorize, authorize_election_event_permission_label,
+    authorize_election_permission_labels,
     authorize_tally_session_permission_labels,
 };
 use crate::services::dependencies::HarvestServices;
@@ -152,6 +153,13 @@ async fn create_tally_ceremony_response(
             )
         })?;
     audit::act_for(&hasura_transaction, &claims).await?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &input.election_event_id,
+    )
+    .await?;
 
     // Initializing voting may need signatures first.
     let outcome = gate_tally_creation(

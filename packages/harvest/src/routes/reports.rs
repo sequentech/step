@@ -5,7 +5,8 @@
 use crate::routes::signing::{signing_failure, SigningReply};
 use crate::services::audit;
 use crate::services::authorization::{
-    authorize, authorize_election_permission_labels,
+    authorize, authorize_election_event_permission_label,
+    authorize_election_permission_labels,
 };
 use crate::services::dependencies::HarvestServices;
 use crate::services::signing_http::SigningError as SigningFailure;
@@ -93,6 +94,15 @@ pub async fn render_document_pdf(
 
     let election_event_id = input.election_event_id.clone();
     let document_id = input.document_id.clone();
+    if let Some(election_event_id) = &election_event_id {
+        authorize_election_event_permission_label(
+            &hasura_transaction,
+            &claims,
+            &claims.hasura_claims.tenant_id,
+            election_event_id,
+        )
+        .await?;
+    }
 
     let Some(found_document) = get_document(
         &hasura_transaction,
@@ -239,6 +249,16 @@ pub async fn generate_template(
         .clone()
         .unwrap_or_else(|| executer_name.clone());
 
+    let EGenerateTemplate::BallotImages {
+        election_event_id, ..
+    } = input.clone();
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &election_event_id,
+    )
+    .await?;
     let document_id: String = Uuid::new_v4().to_string();
     let celery_app = services.tasks.connect().await.map_err(|error| {
         (
@@ -246,9 +266,6 @@ pub async fn generate_template(
             format!("The task queues are not available: {error:#}"),
         )
     })?;
-    let EGenerateTemplate::BallotImages {
-        election_event_id, ..
-    } = input.clone();
 
     // Insert the task execution record
     let task_execution = services
@@ -579,6 +596,13 @@ pub async fn encrypt_report_route(
         .transaction()
         .await
         .map_err(|e| (Status::InternalServerError, format!("{:?}", e)))?;
+    authorize_election_event_permission_label(
+        &hasura_transaction,
+        &claims,
+        &tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
 
     services
         .vault
@@ -933,6 +957,13 @@ pub async fn signing_held_report_requests(
         .transaction()
         .await
         .map_err(SigningFailure::internal)?;
+    authorize_election_event_permission_label(
+        &transaction,
+        &claims,
+        &claims.hasura_claims.tenant_id,
+        &body.election_event_id,
+    )
+    .await?;
     let requests = held_report_requests(
         &transaction,
         &caller,
