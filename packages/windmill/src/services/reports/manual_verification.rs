@@ -203,7 +203,13 @@ async fn get_manual_verification_url(
 
     let keycloak = KeycloakAdminClient::pub_new().await?;
     let service_token = keycloak.token_supplier.get(&keycloak_url).await?;
-    let client = reqwest::Client::new();
+    // The issuer receives a one-time proof in a custom header. Never
+    // forward it to a redirect destination (including another origin).
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .connect_timeout(std::time::Duration::from_secs(5))
+        .timeout(std::time::Duration::from_secs(30))
+        .build()?;
 
     let response = client
         .get(generate_token_url)
