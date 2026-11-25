@@ -1687,6 +1687,9 @@ pub async fn execute_tally_session_wrapped(
                 is_execution_completed,
                 tally_session_execution.results_event_id.as_deref(),
             ),
+        // Derived initialization artifacts may only use a completed board read,
+        // never a forced or partial tally pass.
+        is_execution_completed,
     )
     .await?;
 
