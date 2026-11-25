@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">public-verification | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4397/docs/developers/wbraid/public-verification"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="public-verification | Sequent Online Voting"><meta data-rh="true" name="description" content="--&gt;"><meta data-rh="true" property="og:description" content="--&gt;"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4397/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4397/docs/developers/wbraid/public-verification"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4397/docs/developers/wbraid/public-verification" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4397/docs/developers/wbraid/public-verification" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"public-verification","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4397/docs/developers/wbraid/public-verification"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4397/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4397/assets/js/runtime~main.4b4f2cd3.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4397/assets/js/runtime~main.8291835b.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4397/assets/js/main.996944cd.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -80,6 +80,11 @@ message in padded base64. The page passes <code>{version: 1, dkg_messages, tally
 service or its storage, so neither <code>WBRAID_BOARD_URL</code>, cross-origin access to the
 board and its storage, nor a forwarded storage port in the devcontainer affects
 the verification.</p>
+<p>The verifier runs in a dedicated module worker that loads <code>/wbraid-trustee/</code>
+and its thread pool, so the page stays responsive while a batch is checked;
+leaving the section stops the run and the worker. Both actions also require the
+caller&#x27;s permission labels to allow every election of the tally session, as the
+other tally routes do.</p>
 <p>The anchors are the platform&#x27;s records, so the page is a self-check of the
 platform against its boards, not an independent audit. <strong>Download evidence</strong>
 saves the run as JSON: each batch&#x27;s <code>anchors</code>, <code>report</code> and the <code>transcript</code>
