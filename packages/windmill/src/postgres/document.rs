@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
+use crate::services::signing::operational_policy::{
+    direct_hsm_approval_build, signing_mode, OperationalSigningMode,
+};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
@@ -27,7 +29,11 @@ pub async fn get_exportable_document_ids(
     let event = parse_uuid_v4(election_event_id)?;
     // A signed manual-verification PDF is left out by its issuance ledger
     // binding as well as by its editable `purpose` (checked below).
-    let query = if signing_mode(transaction, tenant).await? == OperationalSigningMode::HsmRequired {
+    // The direct-HSM build registers MIRU output on a legacy-p12 tenant; its
+    // exclusions are that event's registered artifacts (never NULL there).
+    let query = if signing_mode(transaction, tenant).await? == OperationalSigningMode::HsmRequired
+        || direct_hsm_approval_build()
+    {
         // One READ COMMITTED statement and one classification snapshot:
         // neither a just-committed object nor its registry membership can
         // appear in only half of the export decision.

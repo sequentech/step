@@ -28,6 +28,11 @@ Before any future review of activation:
    Validate the imported event, anchor Post, publication and its required rules. Reconcile pending legacy requests before any
    operator enables the new marker. The exact existing V1 Initialize on
    the anchor is not reclassified.
+   Where this lineage builds MIRU packages, apply the standard migration
+   1794700002340 and then optional migration 1794700002342. They let the
+   central registry classify, and so withhold, the output of the exact
+   anchored Post or the single Post of a device-root event. They add no
+   tenant, signer, proof or release authority.
 4. Verify the genuine isolated actor-key enrollment, separate actors meeting
    each threshold, expiration and replay defenses, the new exact publication
    after a configuration approval, and all deferred effects and trustee

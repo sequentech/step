@@ -392,7 +392,9 @@ pub async fn ordinary_document_url_allowed(
     tenant_id: &str,
     document: &Document,
 ) -> anyhow::Result<bool> {
-    use crate::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
+    use crate::services::signing::operational_policy::{
+        direct_hsm_approval_build, signing_mode, OperationalSigningMode,
+    };
     let tenant = uuid::Uuid::parse_str(tenant_id)?;
     if configuration_package_storage(tx, tenant, &document.id)
         .await?
@@ -400,7 +402,10 @@ pub async fn ordinary_document_url_allowed(
     {
         return Ok(false);
     }
-    if signing_mode(tx, tenant).await? != OperationalSigningMode::HsmRequired {
+    let hsm_tenant = signing_mode(tx, tenant).await? == OperationalSigningMode::HsmRequired;
+    // The direct-HSM build registers its MIRU output on a legacy-p12 tenant;
+    // that output is withheld like an HSM-required tenant's.
+    if !hsm_tenant && !direct_hsm_approval_build() {
         return Ok(true);
     }
     let event = document
@@ -417,6 +422,10 @@ pub async fn ordinary_document_url_allowed(
         )
         .await?
         .try_get(0)?;
+    if !hsm_tenant {
+        // A legacy tenant has no inventory: only a registered document is withheld.
+        return Ok(withheld != Some(true));
+    }
     Ok(!withheld
         .ok_or_else(|| anyhow::anyhow!("Operational document inventory not yet verified"))?)
 }
