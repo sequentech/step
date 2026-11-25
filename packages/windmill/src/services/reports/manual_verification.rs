@@ -108,6 +108,13 @@ impl TemplateRenderer for ManualVerificationTemplate {
         self.ids.voter_id.clone()
     }
 
+    fn should_send_email(&self, is_scheduled_task: bool) -> bool {
+        // An issuance produces a private, one-use document for its
+        // initiator to download. Its voter ID selects the rendering target,
+        // not an email recipient.
+        self.permit.is_none() && (is_scheduled_task || self.get_voter_id().is_some())
+    }
+
     fn base_name(&self) -> String {
         "manual_verification".to_string()
     }
@@ -236,4 +243,50 @@ async fn get_manual_verification_url(
         .map_err(|_| anyhow!("Invalid manual verification issuer response"))?;
 
     Ok(response_body.link)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use uuid::Uuid;
+
+    fn origins(voter_id: Option<&str>) -> ReportOrigins {
+        ReportOrigins {
+            tenant_id: "tenant".to_owned(),
+            election_event_id: "event".to_owned(),
+            election_id: None,
+            template_alias: None,
+            voter_id: voter_id.map(str::to_owned),
+            report_origin: ReportOriginatedFrom::ExportFunction,
+            executer_username: None,
+            tally_session_id: None,
+        }
+    }
+
+    #[test]
+    fn a_private_issuance_uses_the_voter_for_rendering_but_never_for_email() {
+        for signed in [true, false] {
+            let report = ManualVerificationTemplate::for_issuance(
+                origins(Some("voter")),
+                RenderPermit {
+                    initiation: Uuid::nil(),
+                    proof: Uuid::nil(),
+                    signed,
+                },
+            );
+            assert_eq!(report.get_voter_id().as_deref(), Some("voter"));
+            assert_eq!(report.is_signed_manual_verification(), signed);
+            assert!(!report.should_send_email(false));
+            assert!(!report.should_send_email(true));
+        }
+    }
+
+    #[test]
+    fn non_issuance_and_scheduled_report_delivery_policy_is_unchanged() {
+        let voter_report = ManualVerificationTemplate::new(origins(Some("voter")));
+        assert!(voter_report.should_send_email(false));
+        let event_report = ManualVerificationTemplate::new(origins(None));
+        assert!(!event_report.should_send_email(false));
+        assert!(event_report.should_send_email(true));
+    }
 }

@@ -4,6 +4,7 @@
 
 use crate::services::authorization::authorize;
 use crate::services::signing_gate::{caller, Guarded};
+use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
@@ -48,30 +49,63 @@ fn unavailable<E>(_: E) -> (Status, String) {
     )
 }
 
+fn pdf_authorization_error((status, _): (Status, String)) -> JsonError {
+    ErrorResponse::new(
+        status,
+        "Manual verification is not authorized.",
+        ErrorCode::Unauthorized,
+    )
+}
+
+fn pdf_scope_id(value: &str) -> Result<Uuid, JsonError> {
+    Uuid::parse_str(value).map_err(|_| {
+        ErrorResponse::new(
+            Status::BadRequest,
+            "Invalid election scope.",
+            ErrorCode::UuidParseFailed,
+        )
+    })
+}
+
+fn pdf_unavailable<E>(_: E) -> JsonError {
+    ErrorResponse::new(
+        Status::ServiceUnavailable,
+        "Manual verification is unavailable.",
+        ErrorCode::ManualVerificationUnavailable,
+    )
+}
+
+fn pdf_delivery_failed() -> JsonError {
+    ErrorResponse::new(
+        Status::Conflict,
+        "This document could not be delivered. Start a new authorization.",
+        ErrorCode::ManualVerificationDeliveryFailed,
+    )
+}
+
 #[instrument(skip_all)]
 #[post("/get-manual-verification-pdf", format = "json", data = "<body>")]
 pub async fn get_manual_verification_pdf(
     body: Json<GetManualVerificationPdfInput>,
     claims: JwtClaims,
-) -> Result<Json<GetManualVerificationPdfOutput>, Guarded<(Status, String)>> {
+) -> Result<Json<GetManualVerificationPdfOutput>, Guarded<JsonError>> {
     let input = body.into_inner();
     authorize(
         &claims,
         true,
         Some(input.tenant_id.clone()),
         vec![Permissions::VOTER_MANUALLY_VERIFY],
-    )?;
-    let id = |s: &str| {
-        Uuid::parse_str(s).map_err(|_| {
-            (Status::BadRequest, "Invalid election scope.".to_owned())
-        })
-    };
-    let tenant = id(&input.tenant_id)?;
-    let event = id(&input.election_event_id)?;
+    )
+    .map_err(pdf_authorization_error)?;
+    let tenant = pdf_scope_id(&input.tenant_id)?;
+    let event = pdf_scope_id(&input.election_event_id)?;
     let initiation = input.initiation_id.unwrap_or_else(Uuid::new_v4);
-    let mut client =
-        get_hasura_pool().await.get().await.map_err(unavailable)?;
-    let tx = client.transaction().await.map_err(unavailable)?;
+    let mut client = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .map_err(pdf_unavailable)?;
+    let tx = client.transaction().await.map_err(pdf_unavailable)?;
     let names = get_declared_report_secret_attribute_names(
         &tx,
         &input.tenant_id,
@@ -80,7 +114,7 @@ pub async fn get_manual_verification_pdf(
         None,
     )
     .await
-    .map_err(unavailable)?;
+    .map_err(pdf_unavailable)?;
     let mut names: Vec<_> = names.into_iter().collect();
     names.sort();
     if !names.is_empty() {
@@ -89,7 +123,8 @@ pub async fn get_manual_verification_pdf(
             true,
             Some(input.tenant_id.clone()),
             vec![Permissions::VOTER_SECRET_ATTRIBUTE_READ],
-        )?;
+        )
+        .map_err(pdf_authorization_error)?;
     }
     let outcome = initiate(
         &tx,
@@ -102,15 +137,12 @@ pub async fn get_manual_verification_pdf(
         input.recover_request_id,
     )
     .await?;
-    tx.commit().await.map_err(unavailable)?;
+    tx.commit().await.map_err(pdf_unavailable)?;
     drop(client);
     match outcome {
-        Delivery::Failed => Err((
-            Status::Conflict,
-            "This document could not be delivered. Start a new authorization."
-                .to_owned(),
-        )
-            .into()),
+        // Hasura must get the typed 409 (not a plain-text webhook error).
+        // This attempt may already have minted its one-use link.
+        Delivery::Failed => Err(pdf_delivery_failed().into()),
         Delivery::Waiting(summary) => {
             kick_signing_log_outbox();
             Ok(Json(GetManualVerificationPdfOutput {
@@ -135,11 +167,11 @@ pub async fn get_manual_verification_pdf(
                         },
                     )
                     .await
-                    .map_err(unavailable)?;
+                    .map_err(pdf_unavailable)?;
                 }
                 // Sending again after a lost acknowledgement is safe: Windmill
                 // atomically claims the initiation before asking for the one-use link.
-                get_celery_app().await.send_task(windmill::tasks::manual_verification_report::generate_manual_verification_report::new(id.to_string(),input.tenant_id,input.election_event_id,input.voter_id,None,!names.is_empty())).await.map_err(unavailable)?;
+                get_celery_app().await.send_task(windmill::tasks::manual_verification_report::generate_manual_verification_report::new(id.to_string(),input.tenant_id,input.election_event_id,input.voter_id,None,!names.is_empty())).await.map_err(pdf_unavailable)?;
             }
             Ok(Json(GetManualVerificationPdfOutput {
                 status: "pending",
@@ -197,4 +229,67 @@ pub async fn manual_verification_authority(
     })?;
     tx.commit().await.map_err(unavailable)?;
     Ok(Status::NoContent)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rocket::http::ContentType;
+
+    #[get("/probe/<case>")]
+    fn public_error_probe(case: &str) -> Guarded<JsonError> {
+        match case {
+            "failed" => pdf_delivery_failed().into(),
+            "scope" => pdf_scope_id("not-a-uuid").err().unwrap().into(),
+            "auth" => pdf_authorization_error((
+                Status::Forbidden,
+                "private auth detail".into(),
+            ))
+            .into(),
+            "unavailable" => pdf_unavailable("private service detail").into(),
+            _ => unreachable!(),
+        }
+    }
+
+    #[rocket::async_test]
+    async fn manual_verification_refusals_keep_status_and_use_hasura_json_error_contract(
+    ) {
+        let client = rocket::local::asynchronous::Client::tracked(
+            rocket::build().mount("/", routes![public_error_probe]),
+        )
+        .await
+        .unwrap();
+        for (case, status, code, message) in [
+            (
+                "failed",
+                Status::Conflict,
+                "manual-verification-delivery-failed",
+                "This document could not be delivered. Start a new authorization.",
+            ),
+            (
+                "scope",
+                Status::BadRequest,
+                "UuidParseFailed",
+                "Invalid election scope.",
+            ),
+            (
+                "auth",
+                Status::Forbidden,
+                "Unauthorized",
+                "Manual verification is not authorized.",
+            ),
+            (
+                "unavailable",
+                Status::ServiceUnavailable,
+                "manual-verification-unavailable",
+                "Manual verification is unavailable.",
+            ),
+        ] {
+            let response = client.get(format!("/probe/{case}")).dispatch().await;
+            assert_eq!(response.status(), status);
+            assert_eq!(response.content_type(), Some(ContentType::JSON));
+            let body = response.into_json::<serde_json::Value>().await.unwrap();
+            assert_eq!(body, serde_json::json!({"message": message, "extensions": {"code": code}}));
+        }
+    }
 }
