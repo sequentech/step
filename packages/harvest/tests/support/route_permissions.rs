@@ -334,6 +334,8 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/export-election-event", {"election_event_id": EVENT_ID, "export_configurations": {}}, [ELECTION_EVENT_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-election-event-logs", {"election_event_id": EVENT_ID, "format": "CSV"}, [LOGS_EXPORT], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-tally-results", {"election_event_id": EVENT_ID, "tally_session_id": "test-session"}, [TALLY_RESULTS_READ], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/tally-public-verification-boards", {"election_event_id": UUID_V4_EVENT_ID, "tally_session_id": UUID_V4_EVENT_ID}, [TALLY_RESULTS_READ], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/tally-public-verification-transcript", {"election_event_id": UUID_V4_EVENT_ID, "tally_session_id": UUID_V4_EVENT_ID, "tally_board": "tally_d9792af071b849528aac94bc0fead5f7_0"}, [TALLY_RESULTS_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-tasks-execution", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [TASKS_READ], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(Admin, "/export-template", {"tenant_id": TENANT_ID}, [TEMPLATE_WRITE], BACKEND, BACKEND),

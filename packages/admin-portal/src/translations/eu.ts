@@ -3160,6 +3160,52 @@ const basqueTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "Errorea izan da sinadura igotzean",
             downloadTransmissionPackage: "Deskargatu Transmisio Paketea",
+            publicVerification: {
+                sectionTitle: "Egiaztapen kriptografikoa",
+                description:
+                    "Egiaztatu zure nabigatzailean zenbaketa honen iragarki-taula: zifratutako boto bakoitzaren ezagutza zeroko froga, nahasketa bakoitzaren nahasketa-froga eta fideikomisario bakoitzaren deszifratze-froga. Egiaztapenak plataforma honek tauletaz dituen erregistroetan oinarritzen dira. Ikuskaritza independente baterako, exekutatu trustee verify agindua sinatutako konfigurazio-paketetik hartutako aingurekin.",
+                verify: "Egiaztatu iragarki-taula",
+                verifyAgain: "Egiaztatu berriro",
+                unavailable: "Zenbaketa amaitzean erabilgarri.",
+                loading: "Zenbaketaren taulak irakurtzen…",
+                progress: "{{total}} sortetatik {{current}}. egiaztatzen…",
+                empty: "Zenbaketa honek ez du egiaztatzeko sortarik iragarki-taulan.",
+                failed: "Ezin izan da egiaztapena egin: {{message}}",
+                verifierUnavailable:
+                    "Nabigatzaile honek ezin izan du egiaztatzailea abiarazi: {{message}}",
+                summary: {
+                    verified: "Sorta guztiak egiaztatuta: {{count}} / {{total}}.",
+                    invalid: "Egiaztapena gainditu ez duten sortak: {{count}} / {{total}}.",
+                    error: "Egiaztatu ezin izan diren sortak: {{count}} / {{total}}. Errenkada bakoitzak arrazoia ematen du.",
+                    incomplete:
+                        "Sorta osatugabeak: {{count}} / {{total}}. Beharrezko argitalpenak falta dira, beraz ez daude egiaztatuta.",
+                },
+                checks: {
+                    title: "Sorta bakoitzean egiaztatuta:",
+                    ballots: "Zifratutako boto bakoitzaren ezagutza zeroko froga",
+                    mixing: "Nahasketa bakoitzaren nahasketa-froga, ordenan, beste fideikomisarioek onartua",
+                    decryption:
+                        "Fideikomisario bakoitzaren deszifratze-froga, emaitzak berriro kalkulatuta eta bat etorrita",
+                },
+                columns: {
+                    batch: "Sorta",
+                    ballots: "Botoak",
+                    result: "Emaitza",
+                    detail: "Xehetasuna",
+                },
+                batch: "{{batch}}. sorta",
+                status: {
+                    verified: "Egiaztatuta",
+                    incomplete: "Osatugabea",
+                    invalid: "Baliogabea",
+                    error: "Egiaztatu gabe",
+                },
+                detail: {
+                    verified: "Sortaren froga eta argitalpen guztiak egiaztatu dira.",
+                    incomplete: "Beharrezko argitalpenak falta dira iragarki-taulan.",
+                },
+                download: "Deskargatu frogak",
+            },
             resultsPublication: {
                 sectionTitle: "Argitaratu emaitzen webgunean",
                 policyTitle: "Emaitzen webgunea",
@@ -3352,6 +3398,20 @@ const basqueTranslation: TranslationType = {
                     "Amaitu hautatutako hauteskunde bakoitzeko bozketa eta gelditu kanal aktiboak zenbaketa sortu aurretik.",
                 sealBallotBoxes:
                     "Hauteskunde bat zenbatu daiteke hautestontzi guztiak zigilatuta daudenean eta haien zigiluen erregistroak argitaratuta daudenean.",
+            },
+            failure: {
+                title: "Zenbaketak huts egin du",
+                detail: "Xehetasunak",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "Zenbaketa-taula bat ez dator bat gakoen zeremonian erregistratutako konfigurazioarekin.",
+                    INVALID_BOARD_CONTENT: "Zenbaketa-taula batek erabili ezin den edukia du.",
+                    TRUSTEE_HALTED:
+                        "Fideikomisario batek zenbaketa gelditu eta errore baten berri eman du.",
+                    SEALED_BALLOTS_REFUSED:
+                        "Gordetako boto-paper batzuk ezin dira zenbatu: ez dira irekitzen edo ez datoz bat beren erregistroekin. Ez da boto-paperik zenbatu. Konpondu arrazoia eta, ondoren, hasi zenbaketa berri bat.",
+                    unknown: "Ezin izan da zenbaketa osatu.",
+                },
             },
             createTallySuccess: "Zenbaketa sortua",
             createTallyError: "Ezin izan da Zenbaketa sortu",

@@ -3483,6 +3483,51 @@ const englishTranslation = {
         tally: {
             errorUploadingSignature: "There was an error uploading signature",
             downloadTransmissionPackage: "Download Transmission Package",
+            publicVerification: {
+                sectionTitle: "Cryptographic verification",
+                description:
+                    "Verify this tally's bulletin board in your browser: the zero-knowledge proof of every encrypted ballot, the shuffle proof of every mix, and every trustee's decryption proof. The checks are anchored to this platform's records of the boards. For an independent audit, run the trustee verify command with anchors taken from the signed configuration package.",
+                verify: "Verify bulletin board",
+                verifyAgain: "Verify again",
+                unavailable: "Available once the tally has finished.",
+                loading: "Reading the tally's boards…",
+                progress: "Verifying batch {{current}} of {{total}}…",
+                empty: "This tally has no bulletin board batches to verify.",
+                failed: "The verification could not run: {{message}}",
+                verifierUnavailable: "This browser could not start the verifier: {{message}}",
+                summary: {
+                    verified: "All batches verified: {{count}} of {{total}}.",
+                    invalid: "Batches that failed verification: {{count}} of {{total}}.",
+                    error: "Batches that could not be verified: {{count}} of {{total}}. Each row gives the reason.",
+                    incomplete:
+                        "Incomplete batches: {{count}} of {{total}}. Their required publications are missing, so they are not verified.",
+                },
+                checks: {
+                    title: "Verified in every batch:",
+                    ballots: "The zero-knowledge proof of every encrypted ballot",
+                    mixing: "The shuffle proof of every mix, in order, endorsed by the other trustees",
+                    decryption:
+                        "Every trustee's decryption proof, with the results recomputed and matched",
+                },
+                columns: {
+                    batch: "Batch",
+                    ballots: "Ballots",
+                    result: "Result",
+                    detail: "Detail",
+                },
+                batch: "Batch {{batch}}",
+                status: {
+                    verified: "Verified",
+                    incomplete: "Incomplete",
+                    invalid: "Invalid",
+                    error: "Not verified",
+                },
+                detail: {
+                    verified: "Every proof and publication of the batch was checked.",
+                    incomplete: "Required publications are missing from the board.",
+                },
+                download: "Download evidence",
+            },
             resultsPublication: {
                 sectionTitle: "Publish to results website",
                 policyTitle: "Results Website",
@@ -3671,6 +3716,19 @@ const englishTranslation = {
                     "End voting in each selected election and stop its active voting channels before creating the tally.",
                 sealBallotBoxes:
                     "An election can be tallied once every ballot box is sealed and its seal record is published.",
+            },
+            failure: {
+                title: "The tally failed",
+                detail: "Details",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "A tally board doesn't match the configuration recorded at the keys ceremony.",
+                    INVALID_BOARD_CONTENT: "A tally board holds content that can't be used.",
+                    TRUSTEE_HALTED: "A trustee stopped the tally and reported an error.",
+                    SEALED_BALLOTS_REFUSED:
+                        "Some stored ballots can't be counted: they don't open, or they don't match their records. No ballots were counted. Resolve the cause, then start a new tally.",
+                    unknown: "The tally couldn't be completed.",
+                },
             },
             createTallySuccess: "Tally created",
             createTallyError: "Could not create Tally",

@@ -5,6 +5,7 @@ import {expect, userEvent, waitFor, within} from "storybook/test"
 import type {DeepPartial} from "keycloakify/tools/DeepPartial"
 import {createKcPageStory} from "../KcPageStory"
 import type {KcContext} from "../KcContext"
+import {CameraChoice} from "../scanovate/camera"
 import {ScanovateErrorCode} from "../scanovate/types"
 
 const {KcPageStory} = createKcPageStory({pageId: "scanovate-capture.ftl"})
@@ -450,6 +451,8 @@ function fakeCameraAndUploads(
     cameras: FakeCamera[] = [FRONT_CAMERA],
     capabilities = true
 ) {
+    // Each story starts as a device where no camera was chosen for the holding photo.
+    localStorage.removeItem(CameraChoice.Holding)
     uploads.length = 0
     openedStreams.length = 0
     motion.moving = moving
@@ -783,6 +786,8 @@ function holdingSwitchesBothWays(capabilities: boolean): Story {
 
             await userEvent.click(canvas.getByRole("button", {name: "Switch camera"}))
             await waitFor(() => expect(video()).not.toHaveClass("mirrored"))
+            // The camera chosen is kept for the next voter on this device.
+            await expect(localStorage.getItem(CameraChoice.Holding)).toBe("rear")
             motion.moving = false
             await expect(await autoPhoto(canvasElement)).toBeVisible()
             // No switch while the voter checks the photo.
@@ -795,6 +800,35 @@ function holdingSwitchesBothWays(capabilities: boolean): Story {
     }
 }
 export const HoldingSwitchesCamera: Story = holdingSwitchesBothWays(true)
+
+/**
+ * A tablet whose operator turned to the rear camera for an earlier voter: the
+ * holding photo opens it at once, shown as it sees, and the switch still
+ * leads back to the front camera.
+ */
+export const HoldingStartsWithTheCameraLastChosen: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () => {
+        const restore = fakeCameraAndUploads(200, true, true, [FRONT_CAMERA, BACK_CAMERA])
+        localStorage.setItem(CameraChoice.Holding, "rear")
+        return () => {
+            localStorage.removeItem(CameraChoice.Holding)
+            restore()
+        }
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        const video = () => canvasElement.querySelector(".scanovate-window video")!
+        const switchButton = await canvas.findByRole("button", {name: "Switch camera"})
+        await expect(video()).not.toHaveClass("mirrored")
+        await expect(liveCameras()).toBe(1)
+
+        await userEvent.click(switchButton)
+        await waitFor(() => expect(video()).toHaveClass("mirrored"))
+        await expect(localStorage.getItem(CameraChoice.Holding)).toBe("front")
+    },
+}
 export const HoldingSwitchesCameraWithoutListedSides: Story = holdingSwitchesBothWays(false)
 
 /** A computer with an external webcam: the switch goes round its cameras. */

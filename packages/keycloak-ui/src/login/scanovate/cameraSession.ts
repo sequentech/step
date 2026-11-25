@@ -29,6 +29,15 @@ export const HOLDING_CAMERA: CameraPolicy = {
 }
 
 /**
+ * The holding photo's policy on a device where a camera was chosen for it:
+ * that camera first. A tablet whose operator turned to the rear camera opens
+ * it for the next voter too.
+ */
+export function holdingCamera(preferred: CameraFacing): CameraPolicy {
+    return {...HOLDING_CAMERA, preferred}
+}
+
+/**
  * How long an allowed camera may take to open. Past it the page tries the
  * next one, and stops this one if it answers later. While the browser asks
  * the voter for the camera there is no limit: the time starts once it is

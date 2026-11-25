@@ -59,6 +59,9 @@ const englishMessages = {
     "messageOtp.auth.neutralSent": "If an account exists, we sent a code to its contact.",
     "messageOtp.delivery.unknown": "Delivery is not confirmed yet.",
     "messageOtp.delivery.failed": "We could not send the code to your {0}.",
+    "messageOtp.delivery.failedCode": "We could not send your code.",
+    "messageOtp.delivery.retry":
+        "This is a problem on our side, not with your details. You do not need to start again: send the code again when the button is ready.",
     "messageOtp.messenger.title": "Get your code in Messenger",
     "messageOtp.messenger.ifMessenger": "If you get your codes in Messenger",
     "messageOtp.messenger.intro": "The Facebook Page {0} sends your code in a chat.",
@@ -180,6 +183,9 @@ const {useI18n, ofTypeI18n} = i18nBuilder
                 "Si existe una cuenta, le enviamos un código a su contacto.",
             "messageOtp.delivery.unknown": "La entrega aún no está confirmada.",
             "messageOtp.delivery.failed": "No pudimos enviar el código a su {0}.",
+            "messageOtp.delivery.failedCode": "No pudimos enviar su código.",
+            "messageOtp.delivery.retry":
+                "Es un problema nuestro, no de sus datos. No necesita empezar de nuevo: vuelva a enviar el código cuando el botón esté disponible.",
             "messageOtp.messenger.title": "Reciba su código en Messenger",
             "messageOtp.messenger.ifMessenger": "Si recibe sus códigos por Messenger",
             "messageOtp.messenger.intro":

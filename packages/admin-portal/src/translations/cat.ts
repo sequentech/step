@@ -3186,6 +3186,52 @@ const catalanTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "S'ha produït un error en carregar la signatura",
             downloadTransmissionPackage: "Descarregar paquet",
+            publicVerification: {
+                sectionTitle: "Verificació criptogràfica",
+                description:
+                    "Verifica al navegador el tauler d'anuncis d'aquest recompte: la prova de coneixement zero de cada papereta xifrada, la prova de barreja de cada mescla i la prova de desxifratge de cada autoritat. Les comprovacions es basen en els registres dels taulers d'aquesta plataforma. Per a una auditoria independent, executa l'ordre trustee verify amb ancoratges presos del paquet de configuració signat.",
+                verify: "Verificar el tauler d'anuncis",
+                verifyAgain: "Tornar a verificar",
+                unavailable: "Disponible quan el recompte hagi acabat.",
+                loading: "Llegint els taulers del recompte…",
+                progress: "Verificant el lot {{current}} de {{total}}…",
+                empty: "Aquest recompte no té lots al tauler d'anuncis per verificar.",
+                failed: "No s'ha pogut fer la verificació: {{message}}",
+                verifierUnavailable:
+                    "Aquest navegador no ha pogut iniciar el verificador: {{message}}",
+                summary: {
+                    verified: "Tots els lots verificats: {{count}} de {{total}}.",
+                    invalid: "Lots que no han superat la verificació: {{count}} de {{total}}.",
+                    error: "Lots que no s'han pogut verificar: {{count}} de {{total}}. Cada fila n'indica el motiu.",
+                    incomplete:
+                        "Lots incomplets: {{count}} de {{total}}. Hi falten publicacions necessàries, per tant no estan verificats.",
+                },
+                checks: {
+                    title: "Verificat a cada lot:",
+                    ballots: "La prova de coneixement zero de cada papereta xifrada",
+                    mixing: "La prova de barreja de cada mescla, en ordre, avalada per les altres autoritats",
+                    decryption:
+                        "La prova de desxifratge de cada autoritat, amb els resultats recalculats i coincidents",
+                },
+                columns: {
+                    batch: "Lot",
+                    ballots: "Paperetes",
+                    result: "Resultat",
+                    detail: "Detall",
+                },
+                batch: "Lot {{batch}}",
+                status: {
+                    verified: "Verificat",
+                    incomplete: "Incomplet",
+                    invalid: "No vàlid",
+                    error: "Sense verificar",
+                },
+                detail: {
+                    verified: "S'han comprovat totes les proves i publicacions del lot.",
+                    incomplete: "Falten publicacions necessàries al tauler.",
+                },
+                download: "Descarregar les evidències",
+            },
             resultsPublication: {
                 sectionTitle: "Publicar al lloc web de resultats",
                 policyTitle: "Lloc web de resultats",
@@ -3379,6 +3425,20 @@ const catalanTranslation: TranslationType = {
                     "Finalitza la votació de cada elecció seleccionada i atura els canals actius abans de crear el recompte.",
                 sealBallotBoxes:
                     "Una elecció es pot incloure en el recompte quan totes les seves urnes estan segellades i les seves actes de segellat estan publicades.",
+            },
+            failure: {
+                title: "El recompte ha fallat",
+                detail: "Detalls",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "Un tauler de recompte no coincideix amb la configuració registrada a la cerimònia de claus.",
+                    INVALID_BOARD_CONTENT:
+                        "Un tauler de recompte té contingut que no es pot fer servir.",
+                    TRUSTEE_HALTED: "Un trustee va aturar el recompte i va informar d'un error.",
+                    SEALED_BALLOTS_REFUSED:
+                        "Algunes paperetes emmagatzemades no es poden comptar: no s'obren o no coincideixen amb els seus registres. No s'ha comptat cap papereta. Resol la causa i després inicia un nou recompte.",
+                    unknown: "No s'ha pogut completar el recompte.",
+                },
             },
             createTallySuccess: "Recompte creat",
             createTallyError: "Error creant recompte",
