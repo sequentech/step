@@ -1,3 +1,4 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
 """Offline wiring/authority contract. Not an end-to-end enrollment or SQL integration test."""
 import re

@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 //! A single-process, bounded rendezvous. The value is a move-only proof; a
 //! second consumer needs a new authenticated observation from the nominee.
@@ -22,34 +23,58 @@ impl<K: Eq + Hash, V> Window<K, V> {
     }
     fn prune(&mut self, now: Instant) {
         let ttl = self.lifetime;
-        self.slots
-            .retain(|_, (at, _)| now.checked_duration_since(*at).is_some_and(|age| age < ttl));
+        self.slots.retain(|_, (at, _)| {
+            now.checked_duration_since(*at).is_some_and(|age| age < ttl)
+        });
     }
-    pub(super) fn put(&mut self, k: K, v: V, observed: Instant, now: Instant) -> bool {
+    pub(super) fn put(
+        &mut self,
+        k: K,
+        v: V,
+        observed: Instant,
+        now: Instant,
+    ) -> bool {
         self.prune(now);
         if !now
             .checked_duration_since(observed)
             .is_some_and(|age| age < self.lifetime)
             || (!self.slots.contains_key(&k) && self.slots.len() >= self.limit)
-            || self.slots.get(&k).is_some_and(|(other, _)| *other > observed)
+            || self
+                .slots
+                .get(&k)
+                .is_some_and(|(other, _)| *other > observed)
         {
             return false;
         }
         self.slots.insert(k, (observed, v));
         true
     }
-    pub(super) fn matches(&mut self, k: &K, now: Instant, allowed: impl FnOnce(&V) -> bool) -> bool {
+    pub(super) fn matches(
+        &mut self,
+        k: &K,
+        now: Instant,
+        allowed: impl FnOnce(&V) -> bool,
+    ) -> bool {
         self.prune(now);
         self.slots.get(k).is_some_and(|(_, v)| allowed(v))
     }
-    pub(super) fn take(&mut self, k: &K, now: Instant, allowed: impl FnOnce(&V) -> bool) -> Option<V> {
+    pub(super) fn take(
+        &mut self,
+        k: &K,
+        now: Instant,
+        allowed: impl FnOnce(&V) -> bool,
+    ) -> Option<V> {
         self.prune(now);
         if !self.slots.get(k).is_some_and(|(_, v)| allowed(v)) {
             return None;
         }
         self.slots.remove(k).map(|(_, v)| v)
     }
-    pub(super) fn visible<R>(&mut self, now: Instant, view: impl Fn(&V) -> Option<R>) -> Vec<R> {
+    pub(super) fn visible<R>(
+        &mut self,
+        now: Instant,
+        view: impl Fn(&V) -> Option<R>,
+    ) -> Vec<R> {
         self.prune(now);
         self.slots.values().filter_map(|(_, v)| view(v)).collect()
     }

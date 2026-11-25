@@ -35,6 +35,58 @@ fn exemptions() -> BTreeMap<String, String> {
         .collect()
 }
 
+/// The setup login cannot insert outbox rows directly. Its two committing
+/// functions enforce the specific local overlay trigger in the same tx.
+fn local_setup_audit(source: &str) -> bool {
+    let sql = include_str!(
+        "../../../../hasura/felix3-local-initialize/1794700002280_setup_browser_audit/up.sql"
+    );
+    let trigger = "local_setup_browser_audit";
+    if !source.contains(trigger)
+        || !source.contains("t.tgenabled='A'")
+        || !sql.contains("INSERT INTO sequent_backend.audit_log_outbox")
+        || !sql.contains("AFTER UPDATE OF portal_session_sha256, delivery_revision")
+        || !sql.contains("ENABLE ALWAYS TRIGGER local_setup_browser_audit")
+        || !sql.contains("REVOKE ALL ON FUNCTION sequent_backend.audit_local_setup_browser_transition() FROM PUBLIC")
+    {
+        return false;
+    }
+    let begins = ["pub(crate) async fn begin(", "pub(crate) async fn release("];
+    source.matches(".commit()").count() == begins.len()
+        && begins
+            .into_iter()
+            .zip(["bind_browser", "take_delivery"])
+            .all(|(start, transition)| {
+                let Some((_, route)) = source.split_once(start) else {
+                    return false;
+                };
+                let Some((route, _)) = route.split_once("\n}\n") else {
+                    return false;
+                };
+                let Some((_, after)) = route.split_once(transition) else {
+                    return false;
+                };
+                let Some((before_commit, _)) = after.split_once(".commit()")
+                else {
+                    return false;
+                };
+                before_commit
+                    .contains("require_setup_browser_audit(&tx).await?")
+            })
+}
+
+#[test]
+fn local_setup_rejects_an_unchecked_guard_or_an_extra_commit() {
+    let source =
+        include_str!("../../src/routes/local_initialize_self_setup.rs");
+    assert!(local_setup_audit(source));
+    let without_guard =
+        source.replace("require_setup_browser_audit(&tx).await?", "");
+    assert!(!local_setup_audit(&without_guard));
+    let extra_commit = format!("{source}\nother_tx.commit()");
+    assert!(!local_setup_audit(&extra_commit));
+}
+
 /// The route files that commit a transaction, with whether they audit.
 fn committing_routes() -> BTreeMap<String, bool> {
     let routes = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/routes");
@@ -46,10 +98,10 @@ fn committing_routes() -> BTreeMap<String, bool> {
             let source = std::fs::read_to_string(&path).expect("route source");
             source.contains(".commit()").then(|| {
                 let name = path.file_name().unwrap().to_string_lossy();
-                (
-                    name.to_string(),
-                    AUDITS.iter().any(|audit| source.contains(audit)),
-                )
+                let audits = AUDITS.iter().any(|audit| source.contains(audit))
+                    || (name == "local_initialize_self_setup.rs"
+                        && local_setup_audit(&source));
+                (name.to_string(), audits)
             })
         })
         .collect()

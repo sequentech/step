@@ -8,7 +8,7 @@ SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 SPDX-License-Identifier: AGPL-3.0-only
 -->
 
-Signing adds 21 permissions. They are assigned to roles in **Users and Roles** > **Roles**,
+Signing adds 22 permissions. They are assigned to roles in **Users and Roles** > **Roles**,
 where they are listed with the labels below; typing "Signatures" or "Sign:" in the grid's
 search finds them. A role change takes effect at the user's next sign-in. The general rules
 for these permissions, and how existing tenants get them, are in
@@ -35,7 +35,8 @@ for these permissions, and how existing tenants get them, are in
 | `sign-generate-election-returns` | Sign: generate election returns | Sign the election returns. |
 | `sign-generate-reports` | Sign: generate other election reports | Sign the other election reports. |
 | `sign-transmit-results` | Sign: transmit results | Sign a results package. |
-| `sign-approve-voter` | Sign: approve a voter manually | Sign a manual voter approval. |
+| `sign-approve-voter` | Sign: approve an enrollment application | Sign an Approvals-tab enrollment decision. |
+| `sign-authorize-manual-verification` | Sign: authorize manual identity verification | Sign issuance of a Voters-list manual verification document, not an enrollment decision. |
 | `sign-approve-configuration` | Sign: approve a configuration version | Sign a configuration version. |
 | `sign-key-ceremony` | Sign: confirm custody | Approve one's own public custody proof in the key ceremony. |
 | `sign-tally-key` | Sign: authorize tally custody | Approve one's own public custody proof bound to the tally session. |
@@ -87,13 +88,14 @@ it**; adjust the groups and rules to the organization's own roles.
 | `sign-initialize-voting`, `sign-open-voting`, `sign-close-voting` | | | | | Yes | |
 | `sign-generate-election-returns`, `sign-generate-reports`, `sign-transmit-results` | | | | | Yes | |
 | `sign-approve-voter` | | | Yes | | Yes | |
+| `sign-authorize-manual-verification` | | | | | | |
 | `sign-approve-configuration` | Yes | Yes | | | | |
 | `sign-key-ceremony`, `sign-tally-key` | | | | | | Yes |
 
 So the Configuration Manager sees only Protected actions, the Security Officer only
 Certificates, the requests operators (`ofov`) only Requests, and the Auditor all three read
 only. The template's Post board members (`sbei`) sign the Post actions and voter approvals,
-and its trustees their own key steps. The `admin` group holds all 21. The four settings groups also get
+and its trustees their own key steps. The `admin` group holds all 22. The four settings groups also get
 `election-event-read`, to reach an election event; the Security Officer also gets what
 opening **Users and Roles** and finding a person take.
 
@@ -104,7 +106,8 @@ The sample template's rules and checks, imported with its election events:
 | Initialize, open and close voting | 2 of the Post's board members | 30 minutes |
 | Generate election returns | 3 | 2 hours |
 | Generate other election reports, transmit results | 2 | 2 hours |
-| Approve a voter manually | 1 | No limit |
+| Approve an enrollment application | 1 | No limit |
+| Authorize manual identity verification | 1 | No limit |
 | Approve a configuration version | 2 | 24 hours |
 | Confirm and contribute a key share | Each trustee | 1 hour |
 

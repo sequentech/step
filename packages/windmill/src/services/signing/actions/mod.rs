@@ -33,6 +33,7 @@
 pub mod configuration;
 pub mod eml;
 pub mod initialize;
+pub mod manual_verification;
 pub mod reports;
 pub mod transmission;
 pub mod voter;
@@ -71,12 +72,13 @@ use tracing::{error, instrument, warn};
 use uuid::Uuid;
 
 /// The actions this module runs.
-pub const ACTIONS: [SigningAction; 8] = [
+pub const ACTIONS: [SigningAction; 9] = [
     SigningAction::InitializeVoting,
     SigningAction::OpenVoting,
     SigningAction::CloseVoting,
     SigningAction::ApproveConfiguration,
     SigningAction::ApproveVoter,
+    SigningAction::AuthorizeManualVerification,
     SigningAction::TransmitResults,
     SigningAction::GenerateElectionReturns,
     SigningAction::GenerateReports,
@@ -411,6 +413,9 @@ impl SignedActionEffects for ProductionEffects {
             SigningAction::ApproveConfiguration => {
                 configuration::publish(hasura_transaction, request, progress).await
             }
+            SigningAction::AuthorizeManualVerification => {
+                manual_verification::settle(hasura_transaction, request).await
+            }
             SigningAction::ApproveVoter => {
                 voter::approve(
                     hasura_transaction,
@@ -432,14 +437,30 @@ impl SignedActionEffects for ProductionEffects {
                 .await
             }
             SigningAction::GenerateElectionReturns | SigningAction::GenerateReports => {
-                reports::release_report(
+                let released = reports::release_report(
                     hasura_transaction,
                     &S3RevisionStore,
                     &reports::StoredReports,
                     request,
                     progress,
                 )
-                .await
+                .await;
+                // A direct approval is of the original PDF. It is never a
+                // CMS signature. The existing official release path can
+                // still release legitimate independently signed revisions.
+                match released {
+                    Err(error)
+                        if approvals.iter().any(|a| a.action_direct_proof.is_some())
+                            && error.downcast_ref::<EffectRefused>().is_some_and(|e|
+                                matches!(e.code.as_str(), "no-signed-revision" | "signatures-missing")) =>
+                    {
+                        Err(refuse(
+                            "official-artifact-certification-unavailable",
+                            "Demo HSM approvals were recorded, but the required officially signed PDF is not available.",
+                        ))
+                    }
+                    result => result,
+                }
             }
             other => Err(refuse(
                 "no-effect",
@@ -610,12 +631,18 @@ pub async fn run_claimed(
                     list_signing_approvals(&transaction, tenant_id, election_event_id, request_id)
                         .await?;
                 let progress = EffectProgress::default();
-                if direct.is_none() && approvals.iter().any(|a| a.initialize_direct_proof.is_some()) {
+                if direct.is_none() && approvals.iter().any(SigningApprovalRow::is_direct_demo) {
                     transaction.rollback().await?;
-                    return settle_failure(client, task,
-                        refuse("scope-unavailable", "The stored proof has no active direct Initialize scope."),
+                    return settle_failure(
+                        client,
+                        task,
+                        refuse(
+                            "scope-unavailable",
+                            "The stored proof has no active direct HSM scope.",
+                        ),
                         &progress,
-                    ).await;
+                    )
+                    .await;
                 }
                 if mode == OperationalSigningMode::HsmRequired {
                     let current = effective_rule_in_mode(

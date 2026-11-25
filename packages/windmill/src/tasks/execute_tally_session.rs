@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::adapters::tally_execution::{PgTallyExecution, RandomTrusteeOrder, TallyExecutionLogs};
 use crate::domain::tally_execution::{execution_conclusion, TrusteeSelection};
+use crate::domain::trustee_signatures::TrusteeSignatures;
 use crate::ports::tally_execution::{ExecutionRecord, ExecutionScope};
 use crate::postgres::area::get_event_areas;
 use crate::postgres::election::set_election_initialization_report_generated;
@@ -61,6 +62,9 @@ use crate::services::reports::template_renderer::{
 use crate::services::reports::utils::get_public_asset_template;
 use crate::services::signing::actions::reports::start_held_tally_reports;
 use crate::services::signing::custody_proofs::tally_trustee_signatures;
+use crate::services::signing::operational_policy::{
+    direct_hsm_approval_build, verified_automated_zero_report,
+};
 use crate::services::tally_sheets::validation::validate_tally_sheet;
 use crate::services::tasks_semaphore::acquire_semaphore;
 use crate::services::temp_path::{
@@ -101,7 +105,9 @@ use sequent_core::types::ceremonies::TallyExecutionStatus;
 use sequent_core::types::ceremonies::TallyRunReason;
 use sequent_core::types::ceremonies::TallyTrusteeStatus;
 use sequent_core::types::ceremonies::TallyType;
-use sequent_core::types::ceremonies::{CeremoniesPolicy, TallyCeremonyStatus};
+use sequent_core::types::ceremonies::{
+    CeremoniesPolicy, KeysCeremonyExecutionStatus, TallyCeremonyStatus,
+};
 use sequent_core::types::ceremonies::{
     TallySessionResolution, TallySessionResolutionData, TallySessionResolutionStatus,
     TallySessionResolutionType, TieBreakingMethod,
@@ -598,6 +604,129 @@ fn is_decrypted(view: &TallyView) -> bool {
     }
 }
 
+fn is_automated_hsm_report(
+    dedicated: bool,
+    tally_type: Option<&str>,
+    policy: CeremoniesPolicy,
+) -> bool {
+    dedicated
+        && tally_type.and_then(|kind| TallyType::try_from(kind).ok())
+            == Some(TallyType::INITIALIZATION_REPORT)
+        && policy == CeremoniesPolicy::AUTOMATED_CEREMONIES
+}
+
+fn check_automated_report_has_no_ballots<'a, B: 'a>(
+    automatic_hsm_report: bool,
+    mut areas: impl Iterator<Item = &'a [(i64, Vec<B>)]>,
+) -> AnyhowResult<()> {
+    // Extraction deliberately returns an empty batch for an area
+    // even when no ballot exists. Keep that normal board protocol.
+    anyhow::ensure!(
+        !automatic_hsm_report
+            || !areas.any(|batches| batches.iter().any(|(_, ballots)| !ballots.is_empty())),
+        "Automated HSM initialization requires zero ballots"
+    );
+    Ok(())
+}
+
+#[cfg(test)]
+mod automatic_hsm_report_tests {
+    use super::*;
+
+    #[test]
+    fn dedicated_automatic_zero_report_does_not_replace_any_other_custody_path() {
+        let automatic = CeremoniesPolicy::AUTOMATED_CEREMONIES;
+        assert!(is_automated_hsm_report(
+            true,
+            Some("INITIALIZATION_REPORT"),
+            automatic.clone()
+        ));
+        assert!(!is_automated_hsm_report(
+            true,
+            Some("INITIALIZATION_REPORT"),
+            CeremoniesPolicy::MANUAL_CEREMONIES,
+        ));
+        assert!(!is_automated_hsm_report(
+            true,
+            Some("ELECTORAL_RESULTS"),
+            automatic.clone()
+        ));
+        assert!(!is_automated_hsm_report(
+            true,
+            Some("unrecognized"),
+            automatic.clone()
+        ));
+        assert!(!is_automated_hsm_report(
+            false,
+            Some("INITIALIZATION_REPORT"),
+            automatic
+        ));
+        let empty_batch: &[(i64, Vec<u8>)] = &[(1, vec![])];
+        let another_empty_batch: &[(i64, Vec<u8>)] = &[(2, vec![])];
+        let one_ciphertext: &[(i64, Vec<u8>)] = &[(3, vec![1])];
+        assert!(check_automated_report_has_no_ballots(
+            true,
+            [empty_batch, another_empty_batch].into_iter(),
+        )
+        .is_ok());
+        assert!(check_automated_report_has_no_ballots(
+            true,
+            [empty_batch, one_ciphertext].into_iter()
+        )
+        .is_err());
+        assert!(check_automated_report_has_no_ballots(
+            false,
+            [empty_batch, one_ciphertext].into_iter()
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn zero_report_keeps_the_dkg_threshold_and_manual_signed_custody() {
+        use crate::domain::tally_execution::{eligible_trustees, select_trustees};
+        use sequent_core::types::ceremonies::TallyTrustee;
+
+        let trustees = ["alice", "bob"].map(|name| TallyTrustee {
+            name: name.to_owned(),
+            status: TallyTrusteeStatus::CUSTODY_CONFIRMED,
+        });
+        let auto = CeremoniesPolicy::AUTOMATED_CEREMONIES;
+        let available = eligible_trustees(
+            trustees.to_vec(),
+            auto.clone(),
+            &TrusteeSignatures::NotNeeded,
+        );
+        assert_eq!(
+            select_trustees(available, 2),
+            TrusteeSelection::Ready(vec!["alice".to_owned(), "bob".to_owned()])
+        );
+        let only_one =
+            eligible_trustees(trustees[..1].to_vec(), auto, &TrusteeSignatures::NotNeeded);
+        assert_eq!(
+            select_trustees(only_one, 2),
+            TrusteeSelection::Insufficient {
+                available: 1,
+                threshold: 2
+            }
+        );
+        let only_one = eligible_trustees(
+            trustees.to_vec(),
+            CeremoniesPolicy::MANUAL_CEREMONIES,
+            &TrusteeSignatures::Needed {
+                signed: ["alice".to_owned()].into_iter().collect(),
+                signing: None,
+            },
+        );
+        assert_eq!(
+            select_trustees(only_one, 2),
+            TrusteeSelection::Insufficient {
+                available: 1,
+                threshold: 2
+            }
+        );
+    }
+}
+
 /// Choose the session's quorum, extract its ballots into one signed `Ballots`
 /// message per batch, and record the boards together with the contest areas'
 /// annotations and each election's electorate. Nothing is published here: a
@@ -617,13 +746,48 @@ async fn create_tally_boards(
     let tenant_id = &tally_session.tenant_id;
     let election_event_id = &tally_session.election_event_id;
 
-    let signatures = tally_trustee_signatures(
-        hasura_transaction,
-        tenant_id,
-        election_event_id,
-        &tally_session.id,
-    )
-    .await?;
+    let automatic_hsm_report = is_automated_hsm_report(
+        direct_hsm_approval_build(),
+        tally_session.tally_type.as_deref(),
+        keys_ceremony.policy(),
+    );
+    let signatures = if automatic_hsm_report {
+        // The worker uses the stored linked ceremony, not a requester's
+        // asserted policy. The normal automated DKG threshold still applies.
+        anyhow::ensure!(
+            keys_ceremony.id == tally_session.keys_ceremony_id
+                && keys_ceremony.tenant_id == *tenant_id
+                && keys_ceremony.election_event_id == *election_event_id
+                && keys_ceremony.threshold > 0
+                && keys_ceremony.execution_status()? == KeysCeremonyExecutionStatus::SUCCESS,
+            "Automated initialization needs its exact successful keys ceremony"
+        );
+        let Some([post]) = tally_session.election_ids.as_deref() else {
+            anyhow::bail!("Automated initialization needs exactly one authorized Post");
+        };
+        if !verified_automated_zero_report(
+            hasura_transaction,
+            Uuid::parse_str(tenant_id)?,
+            Uuid::parse_str(election_event_id)?,
+            Uuid::parse_str(post)?,
+            Uuid::parse_str(&tally_session.id)?,
+        )
+        .await?
+        {
+            return Ok(None);
+        }
+        TrusteeSignatures::NotNeeded
+    } else {
+        // Manual and non-initialization tally custody use the original
+        // strict guard (including required human proof in this build).
+        tally_trustee_signatures(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            &tally_session.id,
+        )
+        .await?
+    };
     let trustee_names = match select_execution_trustees_with(
         &PgTallyExecution {
             transaction: hasura_transaction,
@@ -679,6 +843,10 @@ async fn create_tally_boards(
     )
     .await?;
 
+    check_automated_report_has_no_ballots(
+        automatic_hsm_report,
+        extracted.iter().map(|area| area.batches.as_slice()),
+    )?;
     let mut boards: Vec<TallyBoardRef> = vec![];
     let mut annotated_contests: Vec<TallySessionContest> = Vec::with_capacity(extracted.len());
     for area in extracted {
@@ -1539,6 +1707,9 @@ pub async fn execute_tally_session_wrapped(
                 is_execution_completed,
                 tally_session_execution.results_event_id.as_deref(),
             ),
+        // Derived initialization artifacts may only use a completed board read,
+        // never a forced or partial tally pass.
+        is_execution_completed,
     )
     .await?;
 

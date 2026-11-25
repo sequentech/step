@@ -697,6 +697,20 @@ pub struct InitializeDirectProofMetadata {
     pub profile: String,
 }
 
+/// The distinct version-two certificate-free demo record. Never presented as
+/// a staff certificate, official PDF or EML document signature.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DirectActionProofMetadata {
+    pub installation: Uuid,
+    pub post: Uuid,
+    pub publication: Uuid,
+    pub nonce: Uuid,
+    pub payload_sha256: String,
+    pub profile: String,
+    pub action: SigningAction,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct SigningApprovalRow {
     pub id: Uuid,
@@ -713,6 +727,7 @@ pub struct SigningApprovalRow {
     pub fingerprint_sha256: Option<String>,
     pub spki_sha256: String,
     pub initialize_direct_proof: Option<InitializeDirectProofMetadata>,
+    pub action_direct_proof: Option<DirectActionProofMetadata>,
     pub holder_sha256: Option<String>,
     pub algorithm: SignatureAlgorithm,
     pub payload_signature: Vec<u8>,
@@ -723,15 +738,37 @@ pub struct SigningApprovalRow {
     pub created_at: DateTime<Utc>,
 }
 
+impl SigningApprovalRow {
+    pub fn is_direct_demo(&self) -> bool {
+        self.initialize_direct_proof.is_some() || self.action_direct_proof.is_some()
+    }
+}
+
 impl TryFrom<Row> for SigningApprovalRow {
     type Error = anyhow::Error;
 
     fn try_from(row: Row) -> Result<Self> {
-        let initialize_direct_proof = if row.columns().iter().any(|c| c.name() == "initialize_direct_proof") {
+        let initialize_direct_proof = if row
+            .columns()
+            .iter()
+            .any(|c| c.name() == "initialize_direct_proof")
+        {
             row.try_get::<_, Option<Value>>("initialize_direct_proof")?
-                .map(serde_json::from_value).transpose()?
+                .map(serde_json::from_value)
+                .transpose()?
         } else {
             None // The optional synthetic migration has never been installed.
+        };
+        let action_direct_proof = if row
+            .columns()
+            .iter()
+            .any(|c| c.name() == "action_direct_proof")
+        {
+            row.try_get::<_, Option<Value>>("action_direct_proof")?
+                .map(serde_json::from_value)
+                .transpose()?
+        } else {
+            None
         };
         let approval = SigningApprovalRow {
             id: row.try_get("id")?,
@@ -748,6 +785,7 @@ impl TryFrom<Row> for SigningApprovalRow {
             fingerprint_sha256: row.try_get("fingerprint_sha256")?,
             spki_sha256: row.try_get("spki_sha256")?,
             initialize_direct_proof,
+            action_direct_proof,
             holder_sha256: row.try_get("holder_sha256")?,
             algorithm: text_enum(&row, "algorithm")?,
             payload_signature: row.try_get("payload_signature")?,
@@ -757,11 +795,23 @@ impl TryFrom<Row> for SigningApprovalRow {
             signed_at: row.try_get("signed_at")?,
             created_at: row.try_get("created_at")?,
         };
-        let has_cert = [approval.certificate_id.is_some(), approval.certificate_pem.is_some(),
-            approval.chain_pem.is_some(), approval.fingerprint_sha256.is_some(),
-            approval.holder_sha256.is_some(), approval.revocation_status.is_some()];
-        anyhow::ensure!(has_cert.iter().all(|present| *present == approval.initialize_direct_proof.is_none()),
-            "Invalid mixed signing approval evidence");
+        let has_cert = [
+            approval.certificate_id.is_some(),
+            approval.certificate_pem.is_some(),
+            approval.chain_pem.is_some(),
+            approval.fingerprint_sha256.is_some(),
+            approval.holder_sha256.is_some(),
+            approval.revocation_status.is_some(),
+        ];
+        anyhow::ensure!(
+            !(approval.initialize_direct_proof.is_some() && approval.action_direct_proof.is_some())
+                && has_cert
+                    .iter()
+                    .all(|present| *present != approval.is_direct_demo())
+                && (!approval.is_direct_demo()
+                    || (approval.document_signature.is_none() && approval.pdf_cms.is_none())),
+            "Invalid mixed signing approval evidence"
+        );
         Ok(approval)
     }
 }
@@ -1513,36 +1563,58 @@ pub struct SigningLogOutboxUser {
     pub area_id: Option<Uuid>,
 }
 
-/// The people of the event's unposted USER entries up to `up_to_id`. It
-/// locks nothing.
+/// The last row and people in the first batch of the event's unposted
+/// entries up to `up_to_id`. Count SYSTEM entries toward the bound, as
+/// delivery does. The bound and keys share one snapshot; another posting
+/// worker can only shrink this batch, not move its upper bound. Locks nothing.
 #[instrument(skip(hasura_transaction), err)]
-pub async fn unposted_signing_log_outbox_users(
+pub async fn unposted_signing_log_outbox_batch(
     hasura_transaction: &Transaction<'_>,
     tenant_id: Uuid,
     election_event_id: Uuid,
     up_to_id: i64,
-) -> Result<Vec<SigningLogOutboxUser>> {
-    hasura_transaction
+    rows: i64,
+) -> Result<Option<(i64, Vec<SigningLogOutboxUser>)>> {
+    let batch = hasura_transaction
         .query(
-            "SELECT DISTINCT ON (user_id) user_id, username, election_id, area_id
-             FROM sequent_backend.signing_log_outbox
-             WHERE tenant_id = $1 AND election_event_id = $2 AND posted_at IS NULL
-                 AND id <= $3 AND user_id IS NOT NULL
-             ORDER BY user_id, id",
-            &[&tenant_id, &election_event_id, &up_to_id],
+            "WITH batch AS (
+                 SELECT id, user_id, username, election_id, area_id
+                 FROM sequent_backend.signing_log_outbox
+                 WHERE tenant_id = $1 AND election_event_id = $2 AND posted_at IS NULL
+                     AND id <= $3
+                 ORDER BY id LIMIT $4
+             )
+             SELECT bounds.last_id, people.user_id, people.username,
+                    people.election_id, people.area_id
+             FROM (SELECT max(id) AS last_id FROM batch) bounds
+             LEFT JOIN (
+                 SELECT DISTINCT ON (user_id) user_id, username, election_id, area_id
+                 FROM batch WHERE user_id IS NOT NULL ORDER BY user_id, id
+             ) people ON true",
+            &[&tenant_id, &election_event_id, &up_to_id, &rows],
         )
         .await
-        .context("Error reading the people of the unposted signing log entries")?
-        .into_iter()
-        .map(|row| {
-            Ok(SigningLogOutboxUser {
-                user_id: row.try_get("user_id")?,
+        .context("Error reading the first batch of unposted signing log entries")?;
+    let last_id = batch
+        .first()
+        .map(|row| row.try_get::<_, Option<i64>>("last_id"))
+        .transpose()?
+        .flatten();
+    let Some(last_id) = last_id else {
+        return Ok(None);
+    };
+    let mut users = Vec::new();
+    for row in batch {
+        if let Some(user_id) = row.try_get("user_id")? {
+            users.push(SigningLogOutboxUser {
+                user_id,
                 username: row.try_get("username")?,
                 election_id: row.try_get("election_id")?,
                 area_id: row.try_get("area_id")?,
-            })
-        })
-        .collect()
+            });
+        }
+    }
+    Ok(Some((last_id, users)))
 }
 
 // Rules (lists)

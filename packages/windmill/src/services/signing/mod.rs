@@ -11,12 +11,23 @@ pub mod configuration;
 pub mod context;
 pub mod crl;
 pub mod custody_proofs;
-pub mod directory;
+#[cfg(feature = "comelec-demo-direct-hsm")]
+pub mod direct_actions;
 #[cfg(feature = "comelec-demo-direct-hsm")]
 pub mod direct_initialize;
+#[cfg(feature = "comelec-demo-direct-hsm")]
+pub(crate) mod direct_multi_event;
+#[cfg(feature = "comelec-demo-direct-hsm")]
+pub mod direct_protocol;
+pub mod directory;
 pub mod executors;
 pub mod guard;
 pub mod issuers;
+#[cfg(all(
+    feature = "felix3-local-initialize",
+    not(feature = "operational-signing-demo-fixture")
+))]
+pub mod local_initialize_attachment;
 pub mod log;
 pub mod operational_approval;
 #[cfg(feature = "operational-signing-candidate")]
@@ -25,11 +36,6 @@ pub mod operational_cms;
 pub mod operational_device;
 #[cfg(feature = "operational-signing-candidate")]
 pub mod operational_initialize;
-#[cfg(all(
-    feature = "felix3-local-initialize",
-    not(feature = "operational-signing-demo-fixture")
-))]
-pub mod local_initialize_attachment;
 pub mod operational_policy;
 mod operational_quorum;
 pub mod pades;

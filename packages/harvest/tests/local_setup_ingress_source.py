@@ -1,3 +1,4 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 # SPDX-License-Identifier: AGPL-3.0-only
 """Offline contracts for the normal local Initialize ingress. No application services."""
 import json
@@ -78,7 +79,7 @@ class IngressContracts(unittest.TestCase):
 
     def test_every_private_handoff_rechecks_the_normal_actor_and_post(self):
         guards = function(STORE, "checked_scope")
-        ordered(self, guards, "caller(&claims.0)", "prepare_initialize_signing", "pin.verify", "current.payload_sha256()", "tx.commit()")
+        ordered(self, guards, "caller(&claims.0)", "prepare_initialize_signing", "pin.verify", "current.payload_sha256()", "tx.rollback()")
         authority = (HARVEST / "local_initialize_authority.rs").read_text()
         for predicate in ("self.present(app)", "published_publication_of_post", "read_request", "get_signing_post",
                           "list_signers", "current_signer(&signers", "actor.signs_for"):

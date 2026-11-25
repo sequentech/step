@@ -59,11 +59,8 @@ use windmill::services::signing::approve::{
 use windmill::services::signing::crl::{refresh_chain_crls, HttpCrlFetcher};
 use windmill::services::signing::directory::KeycloakUserDirectory;
 use windmill::services::signing::operational_policy::{
-    require_legacy_request, require_legacy_signing,
-};
-#[cfg(feature = "comelec-demo-direct-hsm")]
-use windmill::services::signing::operational_policy::{
-    signing_mode, OperationalSigningMode,
+    approval_signing_mode, require_legacy_request, require_legacy_signing,
+    signing_mode_for_event, OperationalSigningMode,
 };
 use windmill::services::signing::pdf::PdfPrepared;
 use windmill::services::signing::requests::{
@@ -344,14 +341,18 @@ pub async fn approve_signing_request(
     // is left to the checks, which refuse or accept per the event.
     let request = {
         let transaction = client.transaction().await.map_err(internal)?;
-        let request = get_signing_request_in_tenant(&transaction, tenant_id, input.request_id)
-            .await
-            .map_err(internal)?;
+        let request = get_signing_request_in_tenant(
+            &transaction,
+            tenant_id,
+            input.request_id,
+        )
+        .await
+        .map_err(internal)?;
         if let Some(row) = &request {
             // Before the legacy certificate chain can cause revocation-list I/O.
-            require_legacy_request(&transaction, row)
-                .await
-                .map_err(|error| SigningFailure::forbidden(error.to_string()))?;
+            require_legacy_request(&transaction, row).await.map_err(
+                |error| SigningFailure::forbidden(error.to_string()),
+            )?;
         }
         request
     };
@@ -708,14 +709,17 @@ pub async fn signing_event_info(
         hasura_client.transaction().await.map_err(internal)?;
     let keycloak_transaction =
         keycloak_client.transaction().await.map_err(internal)?;
-    let operational_signing_mode =
-        match signing_mode(&hasura_transaction, tenant_id)
-            .await
-            .map_err(internal)?
-        {
-            OperationalSigningMode::LegacyP12 => "legacy-p12",
-            OperationalSigningMode::HsmRequired => "hsm-required",
-        };
+    let operational_signing_mode = match signing_mode_for_event(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await
+    .map_err(internal)?
+    {
+        OperationalSigningMode::LegacyP12 => "legacy-p12",
+        OperationalSigningMode::HsmRequired => "hsm-required",
+    };
     let info = event_info(
         &hasura_transaction,
         &keycloak_transaction,
@@ -760,10 +764,11 @@ pub async fn miru_operational_signing_mode(
     }
     let mut client = hasura(services).await?;
     let tx = client.transaction().await.map_err(internal)?;
-    let mode = match signing_mode(&tx, tenant).await.map_err(internal)? {
-        OperationalSigningMode::LegacyP12 => "legacy-p12",
-        OperationalSigningMode::HsmRequired => "hsm-required",
-    };
+    let mode =
+        match approval_signing_mode(&tx, tenant).await.map_err(internal)? {
+            OperationalSigningMode::LegacyP12 => "legacy-p12",
+            OperationalSigningMode::HsmRequired => "hsm-required",
+        };
     Ok(Json(MiruOperationalSigningModeOutput {
         tenant_id: tenant,
         mode,

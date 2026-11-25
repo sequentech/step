@@ -85,9 +85,29 @@ const dialog = async () => {
     return within(element)
 }
 
+const unavailableOutsideSigningOrigin = async (view: ReturnType<typeof within>) => {
+    // Storybook does not run on an installed local signing origin. Plain
+    // HTTP must not even ask the service to report a device or setup phase.
+    await waitFor(() =>
+        expect(view.getByRole("status")).toHaveTextContent(
+            "Signing is unavailable for this request. No approval was submitted here."
+        )
+    )
+    await expect(view.getByText("0 of 2 approvals recorded")).toBeVisible()
+    expect(view.queryByRole("button", {name: "Retry signing setup"})).toBeNull()
+    expect(view.queryByRole("button", {name: "Set up signing"})).toBeNull()
+    expect(view.queryByRole("button", {name: /^Approve$/})).toBeNull()
+    expect(view.queryByText(/software test token/i)).toBeNull()
+    expect(boundary.calls).toHaveLength(0)
+}
+
 export const UnusedSoftHsmSetup: Story = {
     play: async () => {
         const view = await dialog()
+        if (window.location.protocol !== "https:") {
+            await unavailableOutsideSigningOrigin(view)
+            return
+        }
         await expect(await view.findByRole("button", {name: "Retry signing setup"})).toBeVisible()
         await expect(view.getByText("Isolated demo signing. Not for production use.")).toBeVisible()
         await expect(
@@ -103,7 +123,10 @@ export const YubiHsmNeedsOperator: Story = {
     args: {provider: "yubihsm", setupPhase: "setup-recovery-required"},
     play: async () => {
         const view = await dialog()
-        // The live-region can already contain the result while the MUI dialog is entering.
+        if (window.location.protocol !== "https:") {
+            await unavailableOutsideSigningOrigin(view)
+            return
+        }
         await waitFor(
             async () => {
                 const status = view.getByRole("status")

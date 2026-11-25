@@ -147,6 +147,7 @@ fn approval(signer: &Issued, user: &str) -> SigningApprovalRow {
         fingerprint_sha256: Some(identity.fingerprint_sha256),
         spki_sha256: identity.spki_sha256,
         initialize_direct_proof: None,
+        action_direct_proof: None,
         holder_sha256: Some(identity.holder_sha256),
         algorithm: SignatureAlgorithm::RsaPkcs1Sha256,
         payload_signature: vec![1],

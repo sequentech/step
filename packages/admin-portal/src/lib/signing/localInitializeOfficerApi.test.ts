@@ -12,7 +12,8 @@ if (!globalThis.crypto?.subtle) {
 const chain = readFileSync(join(__dirname, "__fixtures__", "example-commercial-chain.pem"), "utf8")
 const pem = chain.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----\n/)![0]
 const received = (source: string | Uint8Array) => {
-    const bytes = typeof source === "string" ? new TextEncoder().encode(source) : new Uint8Array(source)
+    const bytes =
+        typeof source === "string" ? new TextEncoder().encode(source) : new Uint8Array(source)
     return {size: bytes.length, arrayBuffer: async () => bytes.buffer}
 }
 
@@ -22,8 +23,12 @@ test("local officer widgets stay off by default, even if strings or inactive pro
     const tenant = "cb25f973-2738-411e-a3a3-04a96c97bb29"
     expect(localOfficerSettings(origin, tenant, registration)).toBeUndefined()
     for (const value of [false, "true", true]) {
-        expect(localOfficerSettings(origin, tenant, {...registration, FELIX3_LOCAL_OFFICER_BRIDGE: value}))
-            .toBeUndefined()
+        expect(
+            localOfficerSettings(origin, tenant, {
+                ...registration,
+                FELIX3_LOCAL_OFFICER_BRIDGE: value,
+            })
+        ).toBeUndefined()
     }
 })
 

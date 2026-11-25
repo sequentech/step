@@ -4,8 +4,9 @@
 use super::super::{PortalScope, ReturnPage, SigningReply};
 use super::transport::{Delivery, SetupServices};
 use super::{
-    begin, checked_scope, refused, release, storage_error, BrokerScope, HarvestServices, LocalInitializePost,
-    OperationalPortalClaims, SigningError,
+    begin, checked_scope, refused, release, storage_error, BrokerScope,
+    HarvestServices, LocalInitializePost, OperationalPortalClaims,
+    SigningError,
 };
 use crate::services::audit;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
@@ -41,7 +42,8 @@ struct SessionId {
 impl SessionId {
     fn id(self) -> Option<Uuid> {
         let id = self.sid.or(self.session_state)?;
-        (!id.is_nil() && self.session_state.is_none_or(|other| other == id)).then_some(id)
+        (!id.is_nil() && self.session_state.is_none_or(|other| other == id))
+            .then_some(id)
     }
 }
 
@@ -51,12 +53,15 @@ impl<'r> FromRequest<'r> for SetupSession {
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, ()> {
         // This guard verifies the actual ingress peer and the signature, issuer,
         // client, audience and actor of the single immutable Authorization header.
-        let claims = match OperationalPortalClaims::from_request(request).await {
+        let claims = match OperationalPortalClaims::from_request(request).await
+        {
             Outcome::Success(claims) => claims,
             Outcome::Error(error) => return Outcome::Error(error),
             Outcome::Forward(status) => return Outcome::Forward(status),
         };
-        let session = request.headers().get_one("Authorization")
+        let session = request
+            .headers()
+            .get_one("Authorization")
             .and_then(|h| h.strip_prefix("Bearer "))
             .and_then(|jwt| jwt.split('.').nth(1))
             .and_then(|body| URL_SAFE_NO_PAD.decode(body).ok())
@@ -68,7 +73,10 @@ impl<'r> FromRequest<'r> for SetupSession {
         let mut hash = Sha256::new();
         hash.update(b"felix3-local-initialize/setup/portal-session/v1\0");
         hash.update(id.as_bytes());
-        Outcome::Success(Self { claims, digest: hex::encode(hash.finalize()) })
+        Outcome::Success(Self {
+            claims,
+            digest: hex::encode(hash.finalize()),
+        })
     }
 }
 
@@ -101,10 +109,13 @@ pub(super) struct Snapshot {
 
 impl Snapshot {
     pub(super) fn from_row(
-        scope: BrokerScope, pin: &LocalInitializePost, row: &tokio_postgres::Row,
+        scope: BrokerScope,
+        pin: &LocalInitializePost,
+        row: &tokio_postgres::Row,
     ) -> Result<Self, SigningError> {
         let phase: &str = row.try_get(0).map_err(storage_error)?;
-        let mut phase: Phase = serde_json::from_value(json!(phase)).map_err(|_| refused())?;
+        let mut phase: Phase =
+            serde_json::from_value(json!(phase)).map_err(|_| refused())?;
         let id: Option<Uuid> = row.try_get(1).map_err(storage_error)?;
         let owned = if let Some(attempt) = id {
             let path: &str = row.try_get(2).map_err(storage_error)?;
@@ -118,20 +129,36 @@ impl Snapshot {
                 return Err(refused());
             }
             let revision = row.try_get(4).map_err(storage_error)?;
-            Some(Owned { attempt, page, revision })
+            Some(Owned {
+                attempt,
+                page,
+                revision,
+            })
         } else {
             None
         };
-        if owned.is_none() && matches!(phase,
-            Phase::WaitingForSetupGold | Phase::SetupConfirmationRequired | Phase::SetupRetryAvailable)
+        if owned.is_none()
+            && matches!(
+                phase,
+                Phase::WaitingForSetupGold
+                    | Phase::SetupConfirmationRequired
+                    | Phase::SetupRetryAvailable
+            )
         {
             phase = Phase::Unavailable;
         }
-        Ok(Self { scope, device_profile: pin.profile, phase, owned })
+        Ok(Self {
+            scope,
+            device_profile: pin.profile,
+            phase,
+            owned,
+        })
     }
 
     fn original(&self, expected: Uuid) -> Result<Owned, SigningError> {
-        self.owned.filter(|o| o.attempt == expected).ok_or_else(refused)
+        self.owned
+            .filter(|o| o.attempt == expected)
+            .ok_or_else(refused)
     }
 
     fn view(&self) -> View {
@@ -142,13 +169,22 @@ impl Snapshot {
             official: self.scope.official,
         };
         let (attempt, delivery_revision) = match (self.phase, self.owned) {
-            (Phase::WaitingForSetupGold, Some(original)) => (Some(original.attempt), None),
-            (Phase::SetupConfirmationRequired | Phase::SetupRetryAvailable, Some(original)) => {
-                (Some(original.attempt), Some(original.revision))
+            (Phase::WaitingForSetupGold, Some(original)) => {
+                (Some(original.attempt), None)
             }
+            (
+                Phase::SetupConfirmationRequired | Phase::SetupRetryAvailable,
+                Some(original),
+            ) => (Some(original.attempt), Some(original.revision)),
             _ => (None, None),
         };
-        View { scope, device_profile: self.device_profile, phase: self.phase, attempt, delivery_revision }
+        View {
+            scope,
+            device_profile: self.device_profile,
+            phase: self.phase,
+            attempt,
+            delivery_revision,
+        }
     }
 }
 
@@ -216,18 +252,31 @@ pub(crate) struct Confirmed {
 // Record only an authorized intent, before the private operation. No proof,
 // nonce, session digest, redirect or device response goes in the event log.
 async fn record_intent(
-    services: &HarvestServices, session: &SetupSession, scope: &BrokerScope,
-    attempt: Uuid, action: AdminAction, description: &'static str,
+    services: &HarvestServices,
+    session: &SetupSession,
+    scope: &BrokerScope,
+    attempt: Uuid,
+    action: AdminAction,
+    description: &'static str,
 ) -> Result<(), SigningError> {
     let entry = audit::change(
         &session.claims.0,
-        AuditLogTarget { tenant_id: scope.tenant, election_event_id: Some(scope.event) },
+        AuditLogTarget {
+            tenant_id: scope.tenant,
+            election_event_id: Some(scope.event),
+        },
         AuditObject::new("local_initialize_self_setup", attempt, None),
         action,
     )
     .with_extra(json!({"signing_request_id": scope.request}))
     .with_description(description);
-    let mut db = services.databases.hasura().await.get().await.map_err(storage_error)?;
+    let mut db = services
+        .databases
+        .hasura()
+        .await
+        .get()
+        .await
+        .map_err(storage_error)?;
     let tx = db.transaction().await.map_err(storage_error)?;
     audit_log::stage(&tx, &entry).await.map_err(storage_error)?;
     tx.commit().await.map_err(storage_error)?;
@@ -235,7 +284,11 @@ async fn record_intent(
     Ok(())
 }
 
-#[rocket::post("/operational-signing/initialize/self-setup/status", format = "json", data = "<input>")]
+#[rocket::post(
+    "/operational-signing/initialize/self-setup/status",
+    format = "json",
+    data = "<input>"
+)]
 pub(crate) async fn status(
     session: SetupSession,
     app: &State<HarvestServices>,
@@ -243,12 +296,24 @@ pub(crate) async fn status(
     setup: &State<SetupServices>,
     input: Json<Review>,
 ) -> SigningReply<View> {
-    let current = super::status(app, pin, &session.claims, &setup.pool, input.request_id,
-        &input.payload_sha256, &session.digest).await?;
+    let current = super::status(
+        app,
+        pin,
+        &session.claims,
+        &setup.pool,
+        input.request_id,
+        &input.payload_sha256,
+        &session.digest,
+    )
+    .await?;
     Ok(Json(current.view()))
 }
 
-#[rocket::post("/operational-signing/initialize/self-setup/start", format = "json", data = "<input>")]
+#[rocket::post(
+    "/operational-signing/initialize/self-setup/start",
+    format = "json",
+    data = "<input>"
+)]
 pub(crate) async fn start(
     session: SetupSession,
     app: &State<HarvestServices>,
@@ -258,30 +323,83 @@ pub(crate) async fn start(
 ) -> SigningReply<Redirect> {
     let request = input.request_id;
     let digest = &input.payload_sha256;
-    let current = super::status(app, pin, &session.claims, &setup.pool, request, digest, &session.digest).await?;
+    let current = super::status(
+        app,
+        pin,
+        &session.claims,
+        &setup.pool,
+        request,
+        digest,
+        &session.digest,
+    )
+    .await?;
     if !input.page.matches_request(Some(pin.post)) {
         return Err(refused());
     }
     let owned = match (current.phase, input.attempt) {
         (Phase::SetupAvailable, None) => {
             let attempt = Uuid::new_v4();
-            record_intent(app, &session, &current.scope, attempt, AdminAction::Create,
-                "Requested Initialize signing key setup").await?;
-            let scope = checked_scope(app, pin, &session.claims, request, digest).await?;
-            let nonce = setup.gold.nonce(&Delivery::new(pin, &scope, attempt)).await?;
-            begin(app, pin, &session.claims, &setup.pool, request, digest, attempt,
-                &nonce, &session.digest, input.page).await?;
-            Owned { attempt, page: input.page, revision: 0 }
+            record_intent(
+                app,
+                &session,
+                &current.scope,
+                attempt,
+                AdminAction::Create,
+                "Requested Initialize signing key setup",
+            )
+            .await?;
+            let scope =
+                checked_scope(app, pin, &session.claims, request, digest)
+                    .await?;
+            let nonce = setup
+                .gold
+                .nonce(&Delivery::new(pin, &scope, attempt))
+                .await?;
+            begin(
+                app,
+                pin,
+                &session.claims,
+                &setup.pool,
+                request,
+                digest,
+                attempt,
+                &nonce,
+                &session.digest,
+                input.page,
+            )
+            .await?;
+            Owned {
+                attempt,
+                page: input.page,
+                revision: 0,
+            }
         }
-        (Phase::WaitingForSetupGold, Some(expected)) => current.original(expected)?,
+        (Phase::WaitingForSetupGold, Some(expected)) => {
+            current.original(expected)?
+        }
         _ => return Err(refused()),
     };
-    let scope = checked_scope(app, pin, &session.claims, request, digest).await?;
-    let redirect = setup.gold.par(&Delivery::new(pin, &scope, owned.attempt), &pin.authorization).await?;
-    Ok(Json(Redirect { attempt: owned.attempt, redirect, page: owned.page }))
+    let scope =
+        checked_scope(app, pin, &session.claims, request, digest).await?;
+    let redirect = setup
+        .gold
+        .par(
+            &Delivery::new(pin, &scope, owned.attempt),
+            &pin.authorization,
+        )
+        .await?;
+    Ok(Json(Redirect {
+        attempt: owned.attempt,
+        redirect,
+        page: owned.page,
+    }))
 }
 
-#[rocket::post("/operational-signing/initialize/self-setup/confirm", format = "json", data = "<input>")]
+#[rocket::post(
+    "/operational-signing/initialize/self-setup/confirm",
+    format = "json",
+    data = "<input>"
+)]
 pub(crate) async fn confirm(
     session: SetupSession,
     app: &State<HarvestServices>,
@@ -291,21 +409,57 @@ pub(crate) async fn confirm(
 ) -> SigningReply<Confirmed> {
     let request = input.request_id;
     let digest = &input.payload_sha256;
-    let before = super::status(app, pin, &session.claims, &setup.pool, request, digest, &session.digest).await?;
+    let before = super::status(
+        app,
+        pin,
+        &session.claims,
+        &setup.pool,
+        request,
+        digest,
+        &session.digest,
+    )
+    .await?;
     let owned = before.original(input.attempt)?;
     if before.phase != Phase::WaitingForSetupGold
         || input.state.len() != 43
-        || !input.state.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_".contains(&b))
+        || !input
+            .state
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"-_".contains(&b))
         || !(1..=4096).contains(&input.code.len())
         || !input.code.bytes().all(|b| b.is_ascii_graphic())
     {
         return Err(refused());
     }
-    record_intent(app, &session, &before.scope, owned.attempt, AdminAction::Update,
-        "Returned from Initialize setup identity verification").await?;
-    let scope = checked_scope(app, pin, &session.claims, request, digest).await?;
-    setup.gold.confirm(&Delivery::new(pin, &scope, owned.attempt), &input.state, &input.code).await?;
-    let after = super::status(app, pin, &session.claims, &setup.pool, request, digest, &session.digest).await?;
+    record_intent(
+        app,
+        &session,
+        &before.scope,
+        owned.attempt,
+        AdminAction::Update,
+        "Returned from Initialize setup identity verification",
+    )
+    .await?;
+    let scope =
+        checked_scope(app, pin, &session.claims, request, digest).await?;
+    setup
+        .gold
+        .confirm(
+            &Delivery::new(pin, &scope, owned.attempt),
+            &input.state,
+            &input.code,
+        )
+        .await?;
+    let after = super::status(
+        app,
+        pin,
+        &session.claims,
+        &setup.pool,
+        request,
+        digest,
+        &session.digest,
+    )
+    .await?;
     let original = after.original(owned.attempt)?;
     if after.phase != Phase::SetupConfirmationRequired {
         return Err(refused());
@@ -318,7 +472,11 @@ pub(crate) async fn confirm(
     }))
 }
 
-#[rocket::post("/operational-signing/initialize/self-setup/register", format = "json", data = "<input>")]
+#[rocket::post(
+    "/operational-signing/initialize/self-setup/register",
+    format = "json",
+    data = "<input>"
+)]
 pub(crate) async fn register(
     session: SetupSession,
     app: &State<HarvestServices>,
@@ -328,28 +486,72 @@ pub(crate) async fn register(
 ) -> SigningReply<View> {
     let request = input.request_id;
     let digest = &input.payload_sha256;
-    let before = super::status(app, pin, &session.claims, &setup.pool, request, digest, &session.digest).await?;
+    let before = super::status(
+        app,
+        pin,
+        &session.claims,
+        &setup.pool,
+        request,
+        digest,
+        &session.digest,
+    )
+    .await?;
     let owned = before.original(input.attempt)?;
-    if !matches!(before.phase, Phase::SetupConfirmationRequired | Phase::SetupRetryAvailable)
-        || input.delivery_revision != owned.revision
+    if !matches!(
+        before.phase,
+        Phase::SetupConfirmationRequired | Phase::SetupRetryAvailable
+    ) || input.delivery_revision != owned.revision
     {
         return Err(refused());
     }
-    record_intent(app, &session, &before.scope, owned.attempt, AdminAction::Update,
-        "Requested key registration for the confirmed Initialize setup attempt").await?;
-    let released = release(app, pin, &session.claims, &setup.pool, request, digest, owned.attempt,
-        &session.digest, owned.revision).await?;
-    let scope = checked_scope(app, pin, &session.claims, request, digest).await?;
+    record_intent(
+        app,
+        &session,
+        &before.scope,
+        owned.attempt,
+        AdminAction::Update,
+        "Requested key registration for the confirmed Initialize setup attempt",
+    )
+    .await?;
+    let released = release(
+        app,
+        pin,
+        &session.claims,
+        &setup.pool,
+        request,
+        digest,
+        owned.attempt,
+        &session.digest,
+        owned.revision,
+    )
+    .await?;
+    let scope =
+        checked_scope(app, pin, &session.claims, request, digest).await?;
     if scope != released.scope {
         return Err(refused());
     }
     // A lost or invalid receipt can follow a commit. Reconcile against 2200
     // before answering. Only an explicit click on an unclaimed revision can resend.
     let delivery = setup.device.deliver(pin, &released).await;
-    let after = super::status(app, pin, &session.claims, &setup.pool, request, digest, &session.digest).await?;
+    let after = super::status(
+        app,
+        pin,
+        &session.claims,
+        &setup.pool,
+        request,
+        digest,
+        &session.digest,
+    )
+    .await?;
     match (delivery, after.phase) {
-        (Ok(()), _) | (Err(_), Phase::SetupRetryAvailable | Phase::SetupPending
-            | Phase::SetupRecoveryRequired | Phase::CertificateOnFile) => Ok(Json(after.view())),
+        (Ok(()), _)
+        | (
+            Err(_),
+            Phase::SetupRetryAvailable
+            | Phase::SetupPending
+            | Phase::SetupRecoveryRequired
+            | Phase::CertificateOnFile,
+        ) => Ok(Json(after.view())),
         (Err(error), _) => Err(error),
     }
 }
@@ -362,13 +564,25 @@ mod tests {
     fn session_projection_requires_one_consistent_non_nil_session() {
         let id = Uuid::from_u128(7);
         let other = Uuid::from_u128(8);
-        for claims in [json!({"sid": id}), json!({"session_state": id}),
-                       json!({"sid": id, "session_state": id})] {
-            assert_eq!(serde_json::from_value::<SessionId>(claims).unwrap().id(), Some(id));
+        for claims in [
+            json!({"sid": id}),
+            json!({"session_state": id}),
+            json!({"sid": id, "session_state": id}),
+        ] {
+            assert_eq!(
+                serde_json::from_value::<SessionId>(claims).unwrap().id(),
+                Some(id)
+            );
         }
-        for claims in [json!({}), json!({"sid": Uuid::nil()}),
-                       json!({"sid": id, "session_state": other})] {
-            assert_eq!(serde_json::from_value::<SessionId>(claims).unwrap().id(), None);
+        for claims in [
+            json!({}),
+            json!({"sid": Uuid::nil()}),
+            json!({"sid": id, "session_state": other}),
+        ] {
+            assert_eq!(
+                serde_json::from_value::<SessionId>(claims).unwrap().id(),
+                None
+            );
         }
     }
 

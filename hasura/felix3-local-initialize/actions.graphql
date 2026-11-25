@@ -1,23 +1,58 @@
 type Query {
-    operationalInitializeNomineeReviewStatus(request_id: uuid!, payload_sha256: String!): LocalNomineeReviewStatus!
-    operationalInitializeOfficerPending(election_event_id: uuid!): LocalOfficerPending!
+    operationalInitializeNomineeReviewStatus(
+        request_id: uuid!
+        payload_sha256: String!
+    ): LocalNomineeReviewStatus!
+    operationalInitializeOfficerPending(
+        election_event_id: uuid!
+    ): LocalOfficerPending!
     operationalInitializeStatus(request_id: uuid!): OperationalInitializeStatus!
-    operationalInitializeSelfSetupStatus(request_id: uuid!, payload_sha256: String!): OperationalInitializeSelfSetupStatus!
+    operationalInitializeSelfSetupStatus(
+        request_id: uuid!
+        payload_sha256: String!
+    ): OperationalInitializeSelfSetupStatus!
 }
 
 type Mutation {
-    operationalInitializeNomineeResume(request_id: uuid!, payload_sha256: String!): OperationalNomineePresence!
-    operationalInitializeNomineePresence(request_id: uuid!, payload_sha256: String!): OperationalNomineePresence!
-    operationalInitializeOfficerReview(request_id: uuid!, payload_sha256: String!, official_id: uuid!): LocalOfficerReview!
-    operationalInitializeOfficerAttach(request_id: uuid!, payload_sha256: String!, official_id: uuid!, csr_sha256: String!, leaf_sha256: String!, leaf_der: String!): LocalOfficerReceipt!
+    operationalInitializeNomineeResume(
+        request_id: uuid!
+        payload_sha256: String!
+    ): OperationalNomineePresence!
+    operationalInitializeNomineePresence(
+        request_id: uuid!
+        payload_sha256: String!
+    ): OperationalNomineePresence!
+    operationalInitializeOfficerReview(
+        request_id: uuid!
+        payload_sha256: String!
+        official_id: uuid!
+    ): LocalOfficerReview!
+    operationalInitializeOfficerAttach(
+        request_id: uuid!
+        payload_sha256: String!
+        official_id: uuid!
+        csr_sha256: String!
+        leaf_sha256: String!
+        leaf_der: String!
+    ): LocalOfficerReceipt!
     operationalInitializeSelfSetupStart(
-        request_id: uuid!, payload_sha256: String!, page: OperationalInitializeReturnPageInput!, attempt: uuid
+        request_id: uuid!
+        payload_sha256: String!
+        page: OperationalInitializeReturnPageInput!
+        attempt: uuid
     ): OperationalInitializeSelfSetupStart!
     operationalInitializeSelfSetupConfirm(
-        request_id: uuid!, payload_sha256: String!, attempt: uuid!, state: String!, code: String!
+        request_id: uuid!
+        payload_sha256: String!
+        attempt: uuid!
+        state: String!
+        code: String!
     ): OperationalInitializeReturn!
     operationalInitializeSelfSetupRegister(
-        request_id: uuid!, payload_sha256: String!, attempt: uuid!, delivery_revision: Int!
+        request_id: uuid!
+        payload_sha256: String!
+        attempt: uuid!
+        delivery_revision: Int!
     ): OperationalInitializeSelfSetupStatus!
     operationalInitializeStart(
         request_id: uuid!
@@ -30,8 +65,13 @@ type Mutation {
         state: String!
         code: String!
     ): OperationalInitializeReturn!
-    operationalInitializeCancel(request_id: uuid!, attempt: uuid!): OperationalInitializeOutcome!
-    operationalInitializeReconcile(request_id: uuid!): OperationalInitializeOutcome!
+    operationalInitializeCancel(
+        request_id: uuid!
+        attempt: uuid!
+    ): OperationalInitializeOutcome!
+    operationalInitializeReconcile(
+        request_id: uuid!
+    ): OperationalInitializeOutcome!
 }
 
 input OperationalInitializeReturnPageInput {
@@ -93,8 +133,12 @@ type OperationalInitializeSelfSetupStart {
     page: OperationalInitializePage!
 }
 
-type OperationalNomineePresence { active: Boolean! }
-type LocalOfficerPending { items: [LocalOfficerRef!]! }
+type OperationalNomineePresence {
+    active: Boolean!
+}
+type LocalOfficerPending {
+    items: [LocalOfficerRef!]!
+}
 type LocalOfficerRef {
     request_id: uuid!
     payload_sha256: String!
@@ -119,4 +163,6 @@ type LocalOfficerReceipt {
     attached_at: String!
 }
 
-type LocalNomineeReviewStatus { phase: String! }
+type LocalNomineeReviewStatus {
+    phase: String!
+}

@@ -21,7 +21,8 @@ use tokio_postgres::NoTls;
 use uuid::Uuid;
 use windmill::services::database::PgConfig;
 use windmill::services::signing::operational_policy::{
-    assert_startup_policy, require_legacy_signing, signing_mode, LegacySigningBlocked,
+    approval_signing_mode, assert_startup_policy, direct_hsm_approval_build, require_legacy_event,
+    require_legacy_signing, signing_mode, signing_mode_for_event, LegacySigningBlocked,
     OperationalSigningMode,
 };
 
@@ -46,7 +47,41 @@ async fn the_default_policy_is_legacy_p12() {
         signing_mode(&tx, tenant).await,
         Ok(OperationalSigningMode::LegacyP12)
     );
-    assert_eq!(require_legacy_signing(&tx, tenant).await, Ok(()));
+    assert_eq!(
+        require_legacy_signing(&tx, tenant).await,
+        if direct_hsm_approval_build() {
+            Err(LegacySigningBlocked::HsmRequired)
+        } else {
+            Ok(())
+        }
+    );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn approval_does_not_need_a_tenant_or_event_switch() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let (tenant, event) = (Uuid::new_v4(), Uuid::new_v4());
+    let expected = if direct_hsm_approval_build() {
+        OperationalSigningMode::HsmRequired
+    } else {
+        OperationalSigningMode::LegacyP12
+    };
+    assert_eq!(approval_signing_mode(&tx, tenant).await, Ok(expected));
+    assert_eq!(
+        signing_mode_for_event(&tx, tenant, event).await,
+        Ok(expected)
+    );
+    assert_eq!(
+        require_legacy_event(&tx, tenant, event).await,
+        if direct_hsm_approval_build() {
+            Err(LegacySigningBlocked::HsmRequired)
+        } else {
+            Ok(())
+        }
+    );
     tx.rollback().await.unwrap();
 }
 
@@ -84,7 +119,14 @@ async fn a_promoted_tenant_requires_hardware_and_other_tenants_stay_legacy() {
         signing_mode(&tx, other).await,
         Ok(OperationalSigningMode::LegacyP12)
     );
-    assert_eq!(require_legacy_signing(&tx, other).await, Ok(()));
+    assert_eq!(
+        require_legacy_signing(&tx, other).await,
+        if direct_hsm_approval_build() {
+            Err(LegacySigningBlocked::HsmRequired)
+        } else {
+            Ok(())
+        }
+    );
     tx.rollback().await.unwrap();
 }
 
@@ -233,9 +275,19 @@ async fn the_startup_assertion_follows_the_environment_and_the_database() {
     let text = |value: &str| OsString::from(value);
 
     // The committed deployment policy of the fixture is legacy-p12.
-    // No assertion, or the matching one: the worker starts.
+    // The dedicated build has no configurable signing profile. Without
+    // one, the workers can start in setup-only mode.
     child(&settings, &[], "ok").await;
-    child(&settings, &[(PROFILE, text("legacy-p12"))], "ok").await;
+    child(
+        &settings,
+        &[(PROFILE, text("legacy-p12"))],
+        if direct_hsm_approval_build() {
+            "unavailable"
+        } else {
+            "ok"
+        },
+    )
+    .await;
     // A profile the database doesn't have, or that is no profile.
     child(&settings, &[(PROFILE, text("hsm-required"))], "unavailable").await;
     child(&settings, &[(PROFILE, text("softhsm"))], "unavailable").await;

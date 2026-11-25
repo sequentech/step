@@ -84,8 +84,17 @@ pub async fn installed_profile(
     event: Uuid,
     action: SigningAction,
 ) -> Result<Option<InstalledDevice>> {
+    super::operational_policy::lock_signing_policy(tx).await?;
+    if super::operational_policy::direct_hsm_approval_build() {
+        return Ok(None);
+    }
+    if super::operational_policy::local_scope::action_latch(tx, tenant, event)
+        .await?
+        .is_some()
+    {
+        return Ok(None);
+    }
     if action == SigningAction::InitializeVoting {
-        super::operational_policy::lock_signing_policy(tx).await?;
         if super::operational_policy::local_scope::read_latch(tx, tenant, event)
             .await?
             .is_some()
@@ -117,8 +126,12 @@ pub(super) async fn profile_for_canonical_request(
     tx: &Transaction<'_>,
     row: &SigningRequestRow,
 ) -> Result<Option<InstalledDevice>> {
-    if row.action == SigningAction::InitializeVoting {
-        super::operational_policy::request_signing_mode(tx, row).await?;
+    if super::operational_policy::local_scope::request_mode_and_latch(tx, row)
+        .await?
+        .1
+        .is_some()
+    {
+        return Ok(None);
     }
     #[cfg(feature = "felix3-local-initialize")]
     {
@@ -440,7 +453,12 @@ mod canonical_tests {
         let device = InstalledDevice::YubiHsm;
         let InstalledDevice::YubiHsm = device;
         assert!(device.admits(Some("yubihsm")));
-        for other in [None, Some("softhsm-test"), Some("legacy-p12"), Some("software")] {
+        for other in [
+            None,
+            Some("softhsm-test"),
+            Some("legacy-p12"),
+            Some("software"),
+        ] {
             assert!(!device.admits(other));
         }
     }

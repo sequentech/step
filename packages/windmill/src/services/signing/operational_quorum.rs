@@ -5,10 +5,12 @@
 //! Consumption-side check for an already persisted operational quorum.
 //! The original approval transaction verified the receipts cryptographically.
 
-use super::operational_policy::local_scope::request_mode_and_latch;
 use super::operational_device::{
     matches_canonical_request, profile_for_canonical_request, InstalledDevice,
 };
+use super::operational_policy::local_scope::request_mode_and_latch;
+#[cfg(feature = "comelec-demo-direct-hsm")]
+use super::operational_policy::local_scope::DirectProtocol;
 use crate::postgres::signing::{SigningApprovalRow, SigningRequestRow};
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
@@ -22,7 +24,15 @@ pub(super) async fn has_operational_quorum(
 ) -> Result<bool> {
     if let (_, Some(latch)) = request_mode_and_latch(tx, request).await? {
         #[cfg(feature = "comelec-demo-direct-hsm")]
-        return super::direct_initialize::has_quorum(tx, request, latch, approvals, minimum).await;
+        {
+            if latch.protocol == DirectProtocol::InitializeV1 {
+                return super::direct_initialize::has_quorum(
+                    tx, request, latch, approvals, minimum,
+                )
+                .await;
+            }
+            return super::direct_actions::has_quorum(tx, request, latch, approvals, minimum).await;
+        }
         #[cfg(not(feature = "comelec-demo-direct-hsm"))]
         {
             let _ = latch;
@@ -56,9 +66,10 @@ pub(super) async fn checked_approval_device(
         .iter()
         .map(|approval| approval.user_id.as_str())
         .collect();
-    if distinct.len() != approvals.len() || !matches_canonical_request(request)
-        || approvals.iter().any(|approval| approval.initialize_direct_proof.is_some()) {
-
+    if distinct.len() != approvals.len()
+        || !matches_canonical_request(request)
+        || approvals.iter().any(SigningApprovalRow::is_direct_demo)
+    {
         return Ok(None);
     }
     if !approvals.is_empty() {
@@ -102,9 +113,12 @@ pub(super) async fn checked_approval_device(
     // Approval rows are unique per request and user. Validate every row, not
     // just a sufficient subset: mixed legacy approvals cannot dispatch.
     for approval in approvals {
-        let (Some(fingerprint), Some(certificate_id)) =
-            (approval.fingerprint_sha256.as_deref(), approval.certificate_id)
-        else { return Ok(None); };
+        let (Some(fingerprint), Some(certificate_id)) = (
+            approval.fingerprint_sha256.as_deref(),
+            approval.certificate_id,
+        ) else {
+            return Ok(None);
+        };
         let matching: bool = tx
             .query_one(
                 include_str!("sql/operational_quorum.sql"),

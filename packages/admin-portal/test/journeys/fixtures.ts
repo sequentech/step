@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {expect} from "@playwright/test"
 import {test as base} from "@sequentech/ui-test-kit/coverage/fixture"
+import {readFileSync} from "node:fs"
+import {extendSchema, parse} from "graphql"
 import {resolve, dirname} from "node:path"
 import {fileURLToPath} from "node:url"
 import {serveDist} from "@sequentech/ui-test-kit/server/static"
@@ -15,6 +17,7 @@ import {FIXED_TIME, IDS} from "@sequentech/ui-test-kit/fixtures"
 import {withConfigurationPackageActions} from "./settings/configurationPackageSchema"
 
 const directory = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
+const DIRECT_HSM_ORIGIN = "http://localhost:3002"
 export const TENANT_ID = IDS.tenant
 export const SECOND_TENANT_ID = "10000000-0000-4000-8000-000000000002"
 export interface AdminPortal extends PortalServices {
@@ -29,6 +32,7 @@ export const test = base.extend<
         roles: string[]
         trustee: string | undefined
         configurationPackageActions: boolean
+        directHsm: boolean
     },
     {dist: Awaited<ReturnType<typeof serveDist>>}
 >({
@@ -45,11 +49,17 @@ export const test = base.extend<
     /** The `trustee` claim Keycloak adds for a user with the trustee attribute. */
     trustee: [undefined, {option: true}],
     configurationPackageActions: [false, {option: true}],
+    directHsm: [false, {option: true}],
     dist: [
         // Playwright requires an object pattern for a fixture without dependencies.
         // eslint-disable-next-line no-empty-pattern
         async ({}, use, workerInfo) => {
-            const dist = await serveDist(resolve(directory, "dist"), undefined, workerInfo)
+            const dist = await serveDist(
+                resolve(directory, "dist"),
+                undefined,
+                workerInfo,
+                DIRECT_HSM_ORIGIN
+            )
             try {
                 await use(dist)
             } finally {
@@ -58,17 +68,40 @@ export const test = base.extend<
         },
         {scope: "worker"},
     ],
-    portal: async ({context, page, dist, roles, trustee, configurationPackageActions}, use) => {
-        const {origin} = dist
+    // Keep the real registered origin, but never connect to whatever happens to
+    // occupy port 3002. A per-context proxy serves only this worker's fixture,
+    // including OIDC callbacks Chromium does not pass back through its route.
+    proxy: async ({dist, directHsm}, use) => {
+        await use(directHsm ? {server: dist.origin, bypass: "<-loopback>"} : undefined)
+    },
+    portal: async (
+        {context, page, dist, roles, trustee, configurationPackageActions, directHsm},
+        use
+    ) => {
+        const origin = directHsm ? DIRECT_HSM_ORIGIN : dist.origin
         const violations = new ViolationLog()
         const s3 = new S3Mock({origin, violations})
         const baseline = loadClientSchema(resolve(directory, "graphql.schema.json"))
+        const schema = withConfigurationPackageActions(
+            baseline,
+            resolve(directory, "../../hasura/metadata/actions.graphql"),
+            configurationPackageActions
+        )
         const graphql = new GraphQLMock({
-            schema: withConfigurationPackageActions(
-                baseline,
-                resolve(directory, "../../hasura/metadata/actions.graphql"),
-                configurationPackageActions
-            ),
+            schema: directHsm
+                ? extendSchema(
+                      schema,
+                      parse(
+                          readFileSync(
+                              resolve(directory, "../../hasura/felix3-direct-hsm/actions.graphql"),
+                              "utf8"
+                          ).replace(
+                              "type Mutation {",
+                              `extend type ${schema.getMutationType()?.name} {`
+                          )
+                      )
+                  )
+                : schema,
             violations,
         })
         const oidc = new OidcMock({
@@ -236,7 +269,7 @@ export const test = base.extend<
         const unroute = await routePortal(context, portal)
         // React-admin's known telemetry image is answered locally; it never leaves the browser.
         await context.route(
-            "https://react-admin-telemetry.marmelab.com/react-admin-telemetry?domain=127.0.0.1",
+            `https://react-admin-telemetry.marmelab.com/react-admin-telemetry?domain=${new URL(origin).hostname}`,
             (route) => {
                 const request = route.request()
                 if (request.method() !== "GET" || request.resourceType() !== "image") {

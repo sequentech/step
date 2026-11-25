@@ -123,7 +123,7 @@ const checkLine = (view: ReturnType<typeof within>, id: CertificateCheckId) =>
     view.getByRole("list", {name: "Certificate checks"}).querySelector(`[data-check="${id}"]`)
 
 export const CheckWithDocument: Story = {
-    parameters: {widgets: ["CheckStep", "LocalSigningNote"]},
+    parameters: {widgets: ["LegacySigningDialog", "CheckStep", "LocalSigningNote"]},
     play: async ({args}) => {
         const view = await dialog()
         await expect(view.getByRole("heading", {name: "Sign the election returns"})).toBeVisible()
@@ -177,7 +177,9 @@ export const CheckWithDetails: Story = {
     parameters: {widgets: ["CheckStep", "LocalSigningNote"]},
     play: async () => {
         const view = await dialog()
-        await expect(view.getByRole("heading", {name: "Sign the voter approval"})).toBeVisible()
+        await expect(
+            view.getByRole("heading", {name: "Sign the enrollment approval"})
+        ).toBeVisible()
         const table = view.getByRole("table", {name: "Details"})
         // The rows are the payload's subject, labelled by the portal's
         // words (the server's label only where it has none), and coded

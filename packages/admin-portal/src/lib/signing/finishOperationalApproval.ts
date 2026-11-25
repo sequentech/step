@@ -3,7 +3,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import Keycloak from "keycloak-js"
-import {INITIALIZE_RETURN_PATH, localInitializeBuild, matchLocalInitializeSettings} from "./localInitializeAuthority"
+import {
+    INITIALIZE_RETURN_PATH,
+    localInitializeBuild,
+    matchLocalInitializeSettings,
+} from "./localInitializeAuthority"
 import {
     bindReturnedPage,
     clearTabMarker,
@@ -107,7 +111,11 @@ export async function finishOperationalApproval(
     const local = localInitializeBuild(location.origin)
     if (
         location.protocol !== "https:" &&
-        !(local && location.protocol === "http:" && location.href === location.origin + INITIALIZE_RETURN_PATH)
+        !(
+            local &&
+            location.protocol === "http:" &&
+            location.href === location.origin + INITIALIZE_RETURN_PATH
+        )
     )
         return false
     const storage = browser.sessionStorage
@@ -146,7 +154,11 @@ export async function finishOperationalApproval(
         const graph = new URL(HASURA_URL, location.origin)
         if (local) {
             const registration = matchLocalInitializeSettings(location.origin, tab.tenant, config)
-            if (!registration || captured.issuer !== registration.issuer || (setup && !registration.setupClient))
+            if (
+                !registration ||
+                captured.issuer !== registration.issuer ||
+                (setup && !registration.setupClient)
+            )
                 return resume("reconcile")
         } else if (
             !secureUrl(issuer) ||
@@ -176,11 +188,13 @@ export async function finishOperationalApproval(
             },
             body: JSON.stringify({
                 operationName: setup ? "LocalInitializeSetupReturn" : "OperationalGoldReturn",
-                query: setup ? `mutation LocalInitializeSetupReturn($request: uuid!, $digest: String!, $attempt: uuid!, $state: String!, $code: String!) {
+                query: setup
+                    ? `mutation LocalInitializeSetupReturn($request: uuid!, $digest: String!, $attempt: uuid!, $state: String!, $code: String!) {
                     operationalInitializeSelfSetupConfirm(request_id: $request, payload_sha256: $digest, attempt: $attempt, state: $state, code: $code) {
                         tenant event official request attempt phase page {path panel election_id}
                     }
-                }` : `mutation OperationalGoldReturn($request: uuid!, $attempt: uuid!, $state: String!, $code: String!) {
+                }`
+                    : `mutation OperationalGoldReturn($request: uuid!, $attempt: uuid!, $state: String!, $code: String!) {
                     operationalInitializeFinish(request_id: $request, attempt: $attempt, state: $state, code: $code) {
                         tenant event official request attempt phase page {path panel election_id}
                     }
@@ -196,10 +210,20 @@ export async function finishOperationalApproval(
         })
         if (!response.ok || (local && response.url !== graph.href)) return resume("reconcile")
         const body = record(await response.json())
-        const returned = record(record(body.data)[setup ? "operationalInitializeSelfSetupConfirm" : "operationalInitializeFinish"])
-        if (body.errors || !bindReturnedPage(tab, returned, {tenant: tab.tenant, official: tab.official}))
+        const returned = record(
+            record(body.data)[
+                setup ? "operationalInitializeSelfSetupConfirm" : "operationalInitializeFinish"
+            ]
+        )
+        if (
+            body.errors ||
+            !bindReturnedPage(tab, returned, {tenant: tab.tenant, official: tab.official})
+        )
             return resume("reconcile")
-        if (setup) return resume(returned.phase === "setup-confirmation-required" ? "setup-returned" : "reconcile")
+        if (setup)
+            return resume(
+                returned.phase === "setup-confirmation-required" ? "setup-returned" : "reconcile"
+            )
         return resume(returned.phase === "approval-recorded" ? "approval-recorded" : "reconcile")
     } catch {
         return resume("reconcile")

@@ -12,6 +12,29 @@ actions:
               version: 2
       permissions:
           - role: sign-initialize-voting
+    - name: signingApproveActionDirect
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/signing-requests/direct-action
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
+          - role: sign-open-voting
+          - role: sign-close-voting
+          - role: sign-generate-election-returns
+          - role: sign-generate-reports
+          - role: sign-transmit-results
+          - role: sign-approve-voter
+          - role: sign-authorize-manual-verification
+          - role: sign-approve-configuration
+          - role: sign-key-ceremony
+          - role: sign-tally-key
 custom_types:
     objects:
         - name: DirectInitializeApprovalResult

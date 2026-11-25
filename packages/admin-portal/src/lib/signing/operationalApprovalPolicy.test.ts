@@ -2,7 +2,37 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
+import buildProfile from "./localInitializeProfile.json"
 import {approvalControl, signingExperience} from "./operationalApprovalPolicy"
+import {SigningAction} from "./types"
+
+jest.mock("./localInitializeProfile.json", () => ({profile: "disabled"}))
+
+afterEach(() => {
+    buildProfile.profile = "disabled"
+})
+
+describe("certificate-free approval build", () => {
+    it("never offers P12, the ordinary managed provider, or a no-approval fallback", () => {
+        buildProfile.profile = "comelec-demo-direct-hsm"
+        for (const action of Object.values(SigningAction)) {
+            expect(signingExperience("hsm-demo-direct-action", action)).toBe("direct")
+            for (const mode of [
+                undefined,
+                null,
+                false,
+                "unavailable",
+                "hsm-required",
+                "legacy-p12",
+            ]) {
+                expect(signingExperience(mode, action)).toBe("unavailable")
+            }
+        }
+        expect(signingExperience("hsm-demo-raw", SigningAction.InitializeVoting)).toBe("direct")
+        expect(signingExperience("hsm-demo-raw", SigningAction.CloseVoting)).toBe("unavailable")
+        expect(signingExperience("hsm-demo-direct-action", "wrong-action")).toBe("unavailable")
+    })
+})
 
 describe("operational approval controls", () => {
     it("mounts the upload flow only on explicit server legacy policy", () => {

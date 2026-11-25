@@ -602,8 +602,11 @@ impl SealRecord {
         let mut signatures: Vec<ClosingSignature> = approvals
             .iter()
             .filter_map(|approval| {
-                let (subject, common_name) =
-                    approval.certificate_pem.as_deref().map(certificate_names).unwrap_or_default();
+                let (subject, common_name) = approval
+                    .certificate_pem
+                    .as_deref()
+                    .map(certificate_names)
+                    .unwrap_or_default();
                 Some(ClosingSignature {
                     user_id: approval.user_id.clone(),
                     username: approval.username.clone(),
@@ -1711,6 +1714,11 @@ pub async fn enforce_signed_closes(
     let state = EventState::read_for_closes(hasura_transaction, tenant, event).await?;
     let mut closed = vec![];
     for post in state.posts.iter().map(|post| post.id) {
+        // Retained closes do not use the editable-row evaluator, but still
+        // require the same installed scope and saved direct approval rules.
+        if state.direct_approval_unavailable_for(SigningAction::CloseVoting, Some(post)) {
+            continue;
+        }
         let Some(approval) = state.approval(Some(post)) else {
             continue;
         };
