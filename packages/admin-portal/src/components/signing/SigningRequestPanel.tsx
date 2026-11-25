@@ -447,7 +447,7 @@ export const SigningRequestPanel: React.FC<ISigningRequestPanelProps> = ({
                         <Alert severity="error">{t("signing.widget.panel.failed")}</Alert>
                     ) : null}
                     {waiting ? (
-                        <Stack direction="row" spacing={1.5} sx={{flexWrap: "wrap", rowGap: 1.5}}>
+                        <Stack direction="row" sx={{flexWrap: "wrap", gap: 1.5}}>
                             {block === SignBlock.None && signing === "direct" ? (
                                 <DirectInitializeApprove
                                     key={data.request.id + data.request.payload_sha256}
@@ -470,13 +470,34 @@ export const SigningRequestPanel: React.FC<ISigningRequestPanelProps> = ({
                                     {t("signing.operational.phase.unavailable")}
                                 </Alert>
                             ) : null}
-                            {canHandOver ? (
-                                <SigningHandoverLauncher data={data} api={api} storage={storage} />
-                            ) : null}
-                            {canCancel ? (
-                                <Button color="inherit" onClick={() => setCancelOpen(true)}>
-                                    {t("signing.panel.cancel")}
-                                </Button>
+                            {canHandOver || canCancel ? (
+                                <Box
+                                    data-testid="signing-request-footer"
+                                    sx={{
+                                        display: "flex",
+                                        flexWrap: "wrap",
+                                        alignItems: "center",
+                                        gap: 1.5,
+                                        width: "100%",
+                                    }}
+                                >
+                                    {canHandOver ? (
+                                        <SigningHandoverLauncher
+                                            data={data}
+                                            api={api}
+                                            storage={storage}
+                                        />
+                                    ) : null}
+                                    {canCancel ? (
+                                        <Button
+                                            color="inherit"
+                                            sx={{marginInlineStart: "auto"}}
+                                            onClick={() => setCancelOpen(true)}
+                                        >
+                                            {t("signing.panel.cancel")}
+                                        </Button>
+                                    ) : null}
+                                </Box>
                             ) : null}
                         </Stack>
                     ) : null}

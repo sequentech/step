@@ -1222,6 +1222,17 @@ const englishTranslation = {
                 statementTimestampTo: "Statement Timestamp to",
                 timeZone: "Timezone",
             },
+            signingActivity: {
+                filter: "Signing activity",
+                help: "Enter a statement kind, or choose a signing event.",
+                created: "Request created",
+                approved: "Approval recorded",
+                quorum: "Approval threshold reached",
+                actionResult: "Action finalized or failed",
+                cancelled: "Request cancelled",
+                expired: "Request expired",
+                refused: "Signature refused",
+            },
             scheduledOutcome: {
                 outcome: {
                     "waiting-for-initialization": "Waiting for initialization",

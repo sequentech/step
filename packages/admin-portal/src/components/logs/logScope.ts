@@ -28,6 +28,17 @@ export const TENANT_LOG_STATEMENT_KINDS = [
     "AdminPublicKey",
 ] as const
 
+/** Event-ledger wire kinds. Approval threshold and effect settlement are distinct. */
+export const SIGNING_LOG_STATEMENT_KINDS = [
+    ["SigningRequestCreated", "created"],
+    ["SigningRequestSigned", "approved"],
+    ["SigningRequestCompleted", "quorum"],
+    ["SigningActionExecuted", "actionResult"],
+    ["SigningRequestCancelled", "cancelled"],
+    ["SigningRequestExpired", "expired"],
+    ["SigningSignatureRefused", "refused"],
+] as const
+
 export const LOG_EVENT_TYPES = ["USER", "SYSTEM"] as const
 export const LOG_TYPES = ["INFO", "ERROR"] as const
 

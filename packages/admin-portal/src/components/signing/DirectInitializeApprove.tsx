@@ -24,8 +24,7 @@ export const DirectInitializeApprove: React.FC<{
         reviewedInitializePost(request, view)
     )
     return (
-        <Stack spacing={1}>
-            <Alert severity="info">{t("signing.operational.softwareDemo")}</Alert>
+        <Stack spacing={1} sx={{width: "100%"}}>
             {notConfirmed ? <Alert severity="warning">{t("signing.operational.error")}</Alert> : null}
             <Button
                 variant="contained"
