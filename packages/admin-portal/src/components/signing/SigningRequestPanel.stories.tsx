@@ -137,12 +137,12 @@ export const WaitingDirectFooter: Story = {
     args: {panel: {signingMode: "hsm-demo-direct-action"}},
     play: async () => {
         const view = await panel()
-        await expect(view.getByRole("button", {name: "Approve", exact: true})).toBeVisible()
+        await expect(view.getByRole("button", {name: /^Approve$/})).toBeVisible()
         expect(view.queryByText(/demo only: signatures use a software test token/i)).toBeNull()
         const footer = within(view.getByTestId("signing-request-footer"))
         await expect(footer.getByRole("button", {name: "Next member signs in"})).toBeVisible()
         await expect(footer.getByRole("button", {name: "Cancel request"})).toBeVisible()
-        expect(footer.queryByRole("button", {name: "Approve", exact: true})).toBeNull()
+        expect(footer.queryByRole("button", {name: /^Approve$/})).toBeNull()
     },
 }
 
