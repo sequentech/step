@@ -115,8 +115,9 @@ class BackendJourneys(unittest.TestCase):
         # The admin portal's verification reads its anchors through Harvest:
         # every tally board of each session, with the stored messages.
         published = {}
+        api = Hasura(token=self.admin_token(), role="tally-results-read")
         for session in {child["tally_session_id"] for child in children}:
-            listed = Hasura(token=self.admin_token(), role="tally-results-read").query(
+            listed = api.query(
                 """query ($event: String!, $session: String!) {
                   get_tally_public_verification_boards(
                     election_event_id: $event, tally_session_id: $session
