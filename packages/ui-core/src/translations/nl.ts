@@ -320,6 +320,18 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 "candidate": {
+                    "inline-photo": {
+                        lead: "Ongeldige kandidatenfoto",
+                        text: "Ongeldige kandidatenfoto — Gebruik één statische PNG of JPEG per kandidaat, behalve bij een invulkeuze. Controleer de limieten van het bestand en de werkmap.",
+                    },
+                    "sql-photo": {
+                        lead: "Ongeldige SQL-foto",
+                        text: "Ongeldige SQL-foto — PICTURE moet een BLOB zijn met een statische PNG, JPEG, WebP of AVIF die aan de importlimieten voldoet. Exporteer de afbeelding zonder EXIF-rotatie of AVIF-weergavetransformaties.",
+                    },
+                    "photo-source-conflict": {
+                        lead: "Twee bronnen voor de kandidatenfoto",
+                        text: "Twee bronnen voor de kandidatenfoto — Bewaar de foto in SQL PICTURE of Excel image_data_url, niet in beide.",
+                    },
                     "contest-missing": {
                         lead: "Stemming van de kandidaat ontbreekt",
                         text: "Stemming van de kandidaat ontbreekt — de kandidaat hoort bij een stemming die niet in dit bestand staat.",

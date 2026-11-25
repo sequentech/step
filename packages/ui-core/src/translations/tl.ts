@@ -321,6 +321,18 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 "candidate": {
+                    "inline-photo": {
+                        lead: "Hindi wastong larawan ng kandidato",
+                        text: "Hindi wastong larawan ng kandidato — Gumamit ng isang static na PNG o JPEG bawat kandidato, maliban sa opsiyong isusulat ng botante. Suriin ang mga limitasyon ng file at workbook.",
+                    },
+                    "sql-photo": {
+                        lead: "Hindi wastong larawan sa SQL",
+                        text: "Hindi wastong larawan sa SQL — Ang PICTURE ay dapat na BLOB na may static na PNG, JPEG, WebP o AVIF na pasok sa mga limitasyon ng import. I-export ito nang walang EXIF rotation o AVIF display transform.",
+                    },
+                    "photo-source-conflict": {
+                        lead: "Dalawang pinagmulan ng larawan",
+                        text: "Dalawang pinagmulan ng larawan — Ilagay ang larawan sa SQL PICTURE o sa Excel image_data_url, huwag sa pareho.",
+                    },
                     "contest-missing": {
                         lead: "Nawawala ang contest ng kandidato",
                         text: "Nawawala ang contest ng kandidato — kabilang ang kandidato sa contest na wala sa file na ito.",

@@ -323,6 +323,18 @@ const galegoTranslation: TranslationType = {
                     },
                 },
                 "candidate": {
+                    "inline-photo": {
+                        lead: "Foto de candidatura non válida",
+                        text: "Foto de candidatura non válida — Usa un único PNG ou JPEG estático por candidatura, agás nas opcións de voto por escrito. Comproba os límites do ficheiro e do libro.",
+                    },
+                    "sql-photo": {
+                        lead: "Foto SQL non válida",
+                        text: "Foto SQL non válida — PICTURE debe ser un BLOB cunha imaxe estática PNG, JPEG, WebP ou AVIF dentro dos límites de importación. Expórtaa sen rotación EXIF nin transformacións de visualización AVIF.",
+                    },
+                    "photo-source-conflict": {
+                        lead: "Dúas fontes para a foto",
+                        text: "Dúas fontes para a foto — Deixa a foto en PICTURE do SQL ou en image_data_url do Excel, pero non nos dous sitios.",
+                    },
                     "contest-missing": {
                         lead: "Falta a votación da candidatura",
                         text: "Falta a votación da candidatura — a candidatura pertence a unha votación que non está neste ficheiro.",
