@@ -1434,6 +1434,17 @@ type mutation_root {
   """
   delete_sequent_backend_election_type_by_pk(id: uuid!, tenant_id: uuid!): election_type
   """
+  delete data from the table: "sequent_backend.electoral_log_outbox"
+  """
+  delete_sequent_backend_electoral_log_outbox(
+    """filter the rows which have to be deleted"""
+    where: electoral_log_outbox_bool_exp!
+  ): electoral_log_outbox_mutation_response
+  """
+  delete single row from the table: "sequent_backend.electoral_log_outbox"
+  """
+  delete_sequent_backend_electoral_log_outbox_by_pk(id: uuid!): electoral_log_outbox
+  """
   delete data from the table: "sequent_backend.event_execution"
   """
   delete_sequent_backend_event_execution(
@@ -2056,6 +2067,24 @@ type mutation_root {
     """upsert condition"""
     on_conflict: election_type_on_conflict
   ): election_type
+  """
+  insert data into the table: "sequent_backend.electoral_log_outbox"
+  """
+  insert_sequent_backend_electoral_log_outbox(
+    """the rows to be inserted"""
+    objects: [electoral_log_outbox_insert_input!]!
+    """upsert condition"""
+    on_conflict: electoral_log_outbox_on_conflict
+  ): electoral_log_outbox_mutation_response
+  """
+  insert a single row into the table: "sequent_backend.electoral_log_outbox"
+  """
+  insert_sequent_backend_electoral_log_outbox_one(
+    """the row to be inserted"""
+    object: electoral_log_outbox_insert_input!
+    """upsert condition"""
+    on_conflict: electoral_log_outbox_on_conflict
+  ): electoral_log_outbox
   """
   insert data into the table: "sequent_backend.event_execution"
   """
@@ -3375,6 +3404,62 @@ type mutation_root {
     """updates to execute, in order"""
     updates: [election_type_updates!]!
   ): [election_type_mutation_response]
+  """
+  update data of the table: "sequent_backend.electoral_log_outbox"
+  """
+  update_sequent_backend_electoral_log_outbox(
+    """append existing jsonb value of filtered columns with new jsonb value"""
+    _append: electoral_log_outbox_append_input
+    """
+    delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+    """
+    _delete_at_path: electoral_log_outbox_delete_at_path_input
+    """
+    delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+    """
+    _delete_elem: electoral_log_outbox_delete_elem_input
+    """
+    delete key/value pair or string element. key/value pairs are matched based on their key value
+    """
+    _delete_key: electoral_log_outbox_delete_key_input
+    """prepend existing jsonb value of filtered columns with new jsonb value"""
+    _prepend: electoral_log_outbox_prepend_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: electoral_log_outbox_set_input
+    """filter the rows which have to be updated"""
+    where: electoral_log_outbox_bool_exp!
+  ): electoral_log_outbox_mutation_response
+  """
+  update single row of the table: "sequent_backend.electoral_log_outbox"
+  """
+  update_sequent_backend_electoral_log_outbox_by_pk(
+    """append existing jsonb value of filtered columns with new jsonb value"""
+    _append: electoral_log_outbox_append_input
+    """
+    delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+    """
+    _delete_at_path: electoral_log_outbox_delete_at_path_input
+    """
+    delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+    """
+    _delete_elem: electoral_log_outbox_delete_elem_input
+    """
+    delete key/value pair or string element. key/value pairs are matched based on their key value
+    """
+    _delete_key: electoral_log_outbox_delete_key_input
+    """prepend existing jsonb value of filtered columns with new jsonb value"""
+    _prepend: electoral_log_outbox_prepend_input
+    """sets the columns of the filtered rows to the given values"""
+    _set: electoral_log_outbox_set_input
+    pk_columns: electoral_log_outbox_pk_columns_input!
+  ): electoral_log_outbox
+  """
+  update multiples rows of table: "sequent_backend.electoral_log_outbox"
+  """
+  update_sequent_backend_electoral_log_outbox_many(
+    """updates to execute, in order"""
+    updates: [electoral_log_outbox_updates!]!
+  ): [electoral_log_outbox_mutation_response]
   """
   update data of the table: "sequent_backend.event_execution"
   """
@@ -5545,6 +5630,40 @@ type query_root {
   fetch data from the table: "sequent_backend.election_type" using primary key columns
   """
   sequent_backend_election_type_by_pk(id: uuid!, tenant_id: uuid!): election_type
+  """
+  fetch data from the table: "sequent_backend.electoral_log_outbox"
+  """
+  sequent_backend_electoral_log_outbox(
+    """distinct select on columns"""
+    distinct_on: [electoral_log_outbox_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [electoral_log_outbox_order_by!]
+    """filter the rows returned"""
+    where: electoral_log_outbox_bool_exp
+  ): [electoral_log_outbox!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.electoral_log_outbox"
+  """
+  sequent_backend_electoral_log_outbox_aggregate(
+    """distinct select on columns"""
+    distinct_on: [electoral_log_outbox_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [electoral_log_outbox_order_by!]
+    """filter the rows returned"""
+    where: electoral_log_outbox_bool_exp
+  ): electoral_log_outbox_aggregate!
+  """
+  fetch data from the table: "sequent_backend.electoral_log_outbox" using primary key columns
+  """
+  sequent_backend_electoral_log_outbox_by_pk(id: uuid!): electoral_log_outbox
   """
   fetch data from the table: "sequent_backend.event_execution"
   """
@@ -12231,6 +12350,241 @@ order by variance() on columns of table "sequent_backend.election"
 """
 input election_variance_order_by {
   num_allowed_revotes: order_by
+}
+
+"""
+columns and relationships of "sequent_backend.electoral_log_outbox"
+"""
+type electoral_log_outbox {
+  created_at: timestamptz!
+  election_event_id: uuid!
+  id: uuid!
+  input(
+    """JSON select path"""
+    path: String
+  ): jsonb!
+  tenant_id: uuid!
+}
+
+"""
+aggregated selection of "sequent_backend.electoral_log_outbox"
+"""
+type electoral_log_outbox_aggregate {
+  aggregate: electoral_log_outbox_aggregate_fields
+  nodes: [electoral_log_outbox!]!
+}
+
+"""
+aggregate fields of "sequent_backend.electoral_log_outbox"
+"""
+type electoral_log_outbox_aggregate_fields {
+  count(columns: [electoral_log_outbox_select_column!], distinct: Boolean): Int!
+  max: electoral_log_outbox_max_fields
+  min: electoral_log_outbox_min_fields
+}
+
+"""append existing jsonb value of filtered columns with new jsonb value"""
+input electoral_log_outbox_append_input {
+  input: jsonb
+}
+
+"""
+Boolean expression to filter rows from the table "sequent_backend.electoral_log_outbox". All fields are combined with a logical 'AND'.
+"""
+input electoral_log_outbox_bool_exp {
+  _and: [electoral_log_outbox_bool_exp!]
+  _not: electoral_log_outbox_bool_exp
+  _or: [electoral_log_outbox_bool_exp!]
+  created_at: timestamptz_comparison_exp
+  election_event_id: uuid_comparison_exp
+  id: uuid_comparison_exp
+  input: jsonb_comparison_exp
+  tenant_id: uuid_comparison_exp
+}
+
+"""
+unique or primary key constraints on table "sequent_backend.electoral_log_outbox"
+"""
+enum electoral_log_outbox_constraint {
+  """
+  unique or primary key constraint on columns "id"
+  """
+  electoral_log_outbox_pkey
+}
+
+"""
+delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+"""
+input electoral_log_outbox_delete_at_path_input {
+  input: [String!]
+}
+
+"""
+delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+"""
+input electoral_log_outbox_delete_elem_input {
+  input: Int
+}
+
+"""
+delete key/value pair or string element. key/value pairs are matched based on their key value
+"""
+input electoral_log_outbox_delete_key_input {
+  input: String
+}
+
+"""
+input type for inserting data into table "sequent_backend.electoral_log_outbox"
+"""
+input electoral_log_outbox_insert_input {
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  input: jsonb
+  tenant_id: uuid
+}
+
+"""aggregate max on columns"""
+type electoral_log_outbox_max_fields {
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  tenant_id: uuid
+}
+
+"""aggregate min on columns"""
+type electoral_log_outbox_min_fields {
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  tenant_id: uuid
+}
+
+"""
+response of any mutation on the table "sequent_backend.electoral_log_outbox"
+"""
+type electoral_log_outbox_mutation_response {
+  """number of rows affected by the mutation"""
+  affected_rows: Int!
+  """data from the rows affected by the mutation"""
+  returning: [electoral_log_outbox!]!
+}
+
+"""
+on_conflict condition type for table "sequent_backend.electoral_log_outbox"
+"""
+input electoral_log_outbox_on_conflict {
+  constraint: electoral_log_outbox_constraint!
+  update_columns: [electoral_log_outbox_update_column!]! = []
+  where: electoral_log_outbox_bool_exp
+}
+
+"""
+Ordering options when selecting data from "sequent_backend.electoral_log_outbox".
+"""
+input electoral_log_outbox_order_by {
+  created_at: order_by
+  election_event_id: order_by
+  id: order_by
+  input: order_by
+  tenant_id: order_by
+}
+
+"""
+primary key columns input for table: sequent_backend.electoral_log_outbox
+"""
+input electoral_log_outbox_pk_columns_input {
+  id: uuid!
+}
+
+"""prepend existing jsonb value of filtered columns with new jsonb value"""
+input electoral_log_outbox_prepend_input {
+  input: jsonb
+}
+
+"""
+select columns of table "sequent_backend.electoral_log_outbox"
+"""
+enum electoral_log_outbox_select_column {
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  id
+  """column name"""
+  input
+  """column name"""
+  tenant_id
+}
+
+"""
+input type for updating data in table "sequent_backend.electoral_log_outbox"
+"""
+input electoral_log_outbox_set_input {
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  input: jsonb
+  tenant_id: uuid
+}
+
+"""
+Streaming cursor of the table "sequent_backend_electoral_log_outbox"
+"""
+input electoral_log_outbox_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: electoral_log_outbox_stream_cursor_value_input!
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input electoral_log_outbox_stream_cursor_value_input {
+  created_at: timestamptz
+  election_event_id: uuid
+  id: uuid
+  input: jsonb
+  tenant_id: uuid
+}
+
+"""
+update columns of table "sequent_backend.electoral_log_outbox"
+"""
+enum electoral_log_outbox_update_column {
+  """column name"""
+  created_at
+  """column name"""
+  election_event_id
+  """column name"""
+  id
+  """column name"""
+  input
+  """column name"""
+  tenant_id
+}
+
+input electoral_log_outbox_updates {
+  """append existing jsonb value of filtered columns with new jsonb value"""
+  _append: electoral_log_outbox_append_input
+  """
+  delete the field or element with specified path (for JSON arrays, negative integers count from the end)
+  """
+  _delete_at_path: electoral_log_outbox_delete_at_path_input
+  """
+  delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
+  """
+  _delete_elem: electoral_log_outbox_delete_elem_input
+  """
+  delete key/value pair or string element. key/value pairs are matched based on their key value
+  """
+  _delete_key: electoral_log_outbox_delete_key_input
+  """prepend existing jsonb value of filtered columns with new jsonb value"""
+  _prepend: electoral_log_outbox_prepend_input
+  """sets the columns of the filtered rows to the given values"""
+  _set: electoral_log_outbox_set_input
+  """filter the rows which have to be updated"""
+  where: electoral_log_outbox_bool_exp!
 }
 
 """
@@ -24860,6 +25214,51 @@ type subscription_root {
     """filter the rows returned"""
     where: election_type_bool_exp
   ): [election_type!]!
+  """
+  fetch data from the table: "sequent_backend.electoral_log_outbox"
+  """
+  sequent_backend_electoral_log_outbox(
+    """distinct select on columns"""
+    distinct_on: [electoral_log_outbox_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [electoral_log_outbox_order_by!]
+    """filter the rows returned"""
+    where: electoral_log_outbox_bool_exp
+  ): [electoral_log_outbox!]!
+  """
+  fetch aggregated fields from the table: "sequent_backend.electoral_log_outbox"
+  """
+  sequent_backend_electoral_log_outbox_aggregate(
+    """distinct select on columns"""
+    distinct_on: [electoral_log_outbox_select_column!]
+    """limit the number of rows returned"""
+    limit: Int
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+    """sort the rows by one or more columns"""
+    order_by: [electoral_log_outbox_order_by!]
+    """filter the rows returned"""
+    where: electoral_log_outbox_bool_exp
+  ): electoral_log_outbox_aggregate!
+  """
+  fetch data from the table: "sequent_backend.electoral_log_outbox" using primary key columns
+  """
+  sequent_backend_electoral_log_outbox_by_pk(id: uuid!): electoral_log_outbox
+  """
+  fetch data from the table in a streaming manner: "sequent_backend.electoral_log_outbox"
+  """
+  sequent_backend_electoral_log_outbox_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+    """cursor to stream the results returned by the query"""
+    cursor: [electoral_log_outbox_stream_cursor_input]!
+    """filter the rows returned"""
+    where: electoral_log_outbox_bool_exp
+  ): [electoral_log_outbox!]!
   """
   fetch data from the table: "sequent_backend.event_execution"
   """
