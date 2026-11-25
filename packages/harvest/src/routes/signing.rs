@@ -59,11 +59,8 @@ use windmill::services::signing::approve::{
 use windmill::services::signing::crl::{refresh_chain_crls, HttpCrlFetcher};
 use windmill::services::signing::directory::KeycloakUserDirectory;
 use windmill::services::signing::operational_policy::{
-    require_legacy_request, require_legacy_signing,
-};
-#[cfg(feature = "comelec-demo-direct-hsm")]
-use windmill::services::signing::operational_policy::{
-    signing_mode, signing_mode_for_event, OperationalSigningMode,
+    require_legacy_request, require_legacy_signing, signing_mode,
+    signing_mode_for_event, OperationalSigningMode,
 };
 use windmill::services::signing::pdf::PdfPrepared;
 use windmill::services::signing::requests::{
