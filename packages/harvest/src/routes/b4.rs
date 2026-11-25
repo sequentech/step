@@ -187,6 +187,14 @@ impl BoardService {
             ))
     }
 
+    /// b4's address, when Harvest can reach it.
+    pub fn base_url(&self) -> Option<&str> {
+        match &self.connection {
+            Connection::Ready { base_url, .. } => Some(base_url),
+            _ => None,
+        }
+    }
+
     /// Rewrites b4's presigned storage URLs for browsers; none: unchanged.
     pub fn with_storage(mut self, storage: Option<StorageRewrite>) -> Self {
         self.storage = storage;

@@ -3483,6 +3483,51 @@ const englishTranslation = {
         tally: {
             errorUploadingSignature: "There was an error uploading signature",
             downloadTransmissionPackage: "Download Transmission Package",
+            publicVerification: {
+                sectionTitle: "Cryptographic verification",
+                description:
+                    "Verify this tally's bulletin board in your browser: the zero-knowledge proof of every encrypted ballot, the shuffle proof of every mix, and every trustee's decryption proof. The checks are anchored to this platform's records of the boards. For an independent audit, run the trustee verify command with anchors taken from the signed configuration package.",
+                verify: "Verify bulletin board",
+                verifyAgain: "Verify again",
+                unavailable: "Available once the tally has finished.",
+                loading: "Reading the tally's boards…",
+                progress: "Verifying batch {{current}} of {{total}}…",
+                empty: "This tally has no bulletin board batches to verify.",
+                failed: "The verification could not run: {{message}}",
+                verifierUnavailable: "This browser could not start the verifier: {{message}}",
+                summary: {
+                    verified: "All batches verified: {{count}} of {{total}}.",
+                    invalid: "Batches that failed verification: {{count}} of {{total}}.",
+                    error: "Batches that could not be verified: {{count}} of {{total}}. Each row gives the reason.",
+                    incomplete:
+                        "Incomplete batches: {{count}} of {{total}}. Their required publications are missing, so they are not verified.",
+                },
+                checks: {
+                    title: "Verified in every batch:",
+                    ballots: "The zero-knowledge proof of every encrypted ballot",
+                    mixing: "The shuffle proof of every mix, in order, endorsed by the other trustees",
+                    decryption:
+                        "Every trustee's decryption proof, with the results recomputed and matched",
+                },
+                columns: {
+                    batch: "Batch",
+                    ballots: "Ballots",
+                    result: "Result",
+                    detail: "Detail",
+                },
+                batch: "Batch {{batch}}",
+                status: {
+                    verified: "Verified",
+                    incomplete: "Incomplete",
+                    invalid: "Invalid",
+                    error: "Not verified",
+                },
+                detail: {
+                    verified: "Every proof and publication of the batch was checked.",
+                    incomplete: "Required publications are missing from the board.",
+                },
+                download: "Download evidence",
+            },
             resultsPublication: {
                 sectionTitle: "Publish to results website",
                 policyTitle: "Results Website",

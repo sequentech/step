@@ -82,6 +82,7 @@ pub mod scheduled_event;
 pub mod set_voter_authentication;
 pub mod support_materials;
 pub mod tally_ceremony;
+pub mod tally_public_verification;
 pub mod tally_sheets;
 pub mod templates;
 pub mod trustee_boards;

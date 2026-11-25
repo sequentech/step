@@ -97,7 +97,7 @@ class BackendJourneys(unittest.TestCase):
         boards = self.admin.query(
             """query ($event: uuid!) {
               sequent_backend_protocol_board(where: {election_event_id: {_eq: $event}}) {
-                id name parent_id manager_message tally_session_id
+                id name parent_id manager_message tally_session_id batch
               }
             }""",
             {"event": event_id},
@@ -112,8 +112,41 @@ class BackendJourneys(unittest.TestCase):
             self.assertTrue(message.startswith("\\x"))
             return base64.b64encode(bytes.fromhex(message[2:])).decode()
 
+        # The admin portal's verification reads its anchors through Harvest:
+        # every tally board of each session, with the stored messages.
+        published = {}
+        api = Hasura(token=self.admin_token(), role="tally-results-read")
+        for session in {child["tally_session_id"] for child in children}:
+            listed = api.query(
+                """query ($event: String!, $session: String!) {
+                  get_tally_public_verification_boards(
+                    election_event_id: $event, tally_session_id: $session
+                  ) {
+                    boards {
+                      dkg_board tally_board batch configuration_message ballots_message
+                    }
+                  }
+                }""",
+                {"event": event_id, "session": session},
+            )["get_tally_public_verification_boards"]["boards"]
+            batches = [board["batch"] for board in listed]
+            self.assertEqual(batches, sorted(batches))
+            published.update({board["tally_board"]: board for board in listed})
+        self.assertEqual(set(published), {child["name"] for child in children})
+
         for child in children:
             parent = parents[child["parent_id"]]
+            board = published[child["name"]]
+            self.assertEqual(
+                board,
+                {
+                    "dkg_board": parent["name"],
+                    "tally_board": child["name"],
+                    "batch": child["batch"],
+                    "configuration_message": encoded(parent["manager_message"]),
+                    "ballots_message": encoded(child["manager_message"]),
+                },
+            )
             anchors = {
                 "ballot_ciphertexts": [],
             }
@@ -124,14 +157,38 @@ class BackendJourneys(unittest.TestCase):
                     "boardUrl": B4_URL,
                     "dkgBoard": parent["name"],
                     "tallyBoard": child["name"],
-                    "configurationMessage": encoded(parent["manager_message"]),
-                    "ballotsMessage": encoded(child["manager_message"]),
+                    "configurationMessage": board["configuration_message"],
+                    "ballotsMessage": board["ballots_message"],
                     "anchors": anchors,
                 },
             )
             self.assertEqual(result.status, 200, result.text)
             result = result.json()
             self.assertEqual(result["report"]["status"], "verified", result["report"])
+            # The admin portal verifies the messages Harvest reads for it: the
+            # same ones the observer read from the board itself. A token per
+            # board: each browser verification above can take a while.
+            reader = Hasura(token=self.admin_token(), role="tally-results-read")
+            served = reader.query(
+                """query ($event: String!, $session: String!, $board: String!) {
+                  get_tally_public_verification_transcript(
+                    election_event_id: $event, tally_session_id: $session,
+                    tally_board: $board
+                  ) { dkg_messages tally_messages }
+                }""",
+                {
+                    "event": event_id,
+                    "session": child["tally_session_id"],
+                    "board": child["name"],
+                },
+            )["get_tally_public_verification_transcript"]
+            self.assertEqual(
+                served,
+                {
+                    "dkg_messages": result["transcript"]["dkg_messages"],
+                    "tally_messages": result["transcript"]["tally_messages"],
+                },
+            )
             self.assertEqual(
                 result["report"]["ballot_count"], len(result["report"]["plaintexts"])
             )
@@ -154,8 +211,8 @@ class BackendJourneys(unittest.TestCase):
                         "boardUrl": B4_URL,
                         "dkgBoard": parent["name"],
                         "tallyBoard": child["name"],
-                        "configurationMessage": encoded(parent["manager_message"]),
-                        "ballotsMessage": encoded(child["manager_message"]),
+                        "configurationMessage": board["configuration_message"],
+                        "ballotsMessage": board["ballots_message"],
                         "anchors": anchors,
                     },
                 )

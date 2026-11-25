@@ -41,6 +41,7 @@ import {TallyLogs} from "./TallyLogs"
 import {TallyFailureAlert} from "./TallyFailureAlert"
 import {TallyResolutionPanel} from "./TallyResolutionPanel"
 import {ResultsWebsitePublication} from "./ResultsWebsitePublication"
+import {TallyPublicVerification} from "./TallyPublicVerification"
 import {useGetList, useGetOne, useNotify, useRecordContext} from "react-admin"
 import {WizardStyles} from "@/components/styles/WizardStyles"
 import {UPDATE_TALLY_CEREMONY} from "@/queries/UpdateTallyCeremony"
@@ -152,6 +153,7 @@ export const TallyCeremony: React.FC = () => {
     const [tenantId] = useTenantStore()
     const authContext = useContext(AuthContext)
     const isTrustee = authContext.isAuthorized(true, tenantId, IPermissions.TRUSTEE_CEREMONY)
+    const canReadResults = authContext.isAuthorized(true, tenantId, IPermissions.TALLY_RESULTS_READ)
     const [selectedElections, setSelectedElections] = useState<string[] | undefined>(undefined)
     const [selectedTrustees, setSelectedTrustees] = useState<boolean>(false)
     const [keysCeremonyId, setKeysCeremonyId] = useState<string | undefined>(undefined)
@@ -1195,6 +1197,28 @@ export const TallyCeremony: React.FC = () => {
                                     />
                                 </WizardStyles.AccordionDetails>
                             </Accordion>
+
+                            {canReadResults &&
+                            tally?.id &&
+                            tally.tally_type === ETallyType.ELECTORAL_RESULTS ? (
+                                <Accordion sx={{width: "100%"}}>
+                                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                        <WizardStyles.AccordionTitle>
+                                            {t("tally.publicVerification.sectionTitle")}
+                                        </WizardStyles.AccordionTitle>
+                                    </AccordionSummary>
+                                    <WizardStyles.AccordionDetails>
+                                        <TallyPublicVerification
+                                            electionEventId={tally.election_event_id}
+                                            tallySessionId={tally.id}
+                                            finished={
+                                                tally.execution_status ===
+                                                ITallyExecutionStatus.SUCCESS
+                                            }
+                                        />
+                                    </WizardStyles.AccordionDetails>
+                                </Accordion>
+                            ) : null}
 
                             <Accordion sx={{width: "100%"}}>
                                 <AccordionSummary expandIcon={<ExpandMoreIcon />}>
