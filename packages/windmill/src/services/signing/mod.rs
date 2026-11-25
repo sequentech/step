@@ -14,6 +14,8 @@ pub mod custody_proofs;
 pub mod directory;
 #[cfg(feature = "comelec-demo-direct-hsm")]
 pub mod direct_initialize;
+#[cfg(feature = "comelec-demo-direct-hsm")]
+pub mod direct_protocol;
 pub mod executors;
 pub mod guard;
 pub mod issuers;
