@@ -81,6 +81,19 @@ class JanitorSigningPresetTest(unittest.TestCase):
             ],
         )
 
+    def test_trustees_in_imported_realms_have_direct_account_profile_read(self):
+        # CSV-imported users join /trustee without necessarily inheriting a
+        # default realm role. The group itself must grant profile read only.
+        for path in (
+            JANITOR / "templates/COMELEC/keycloakAdmin.hbs",
+            ROOT / ".devcontainer/keycloak/import"
+            / "tenant-90505c8a-23a9-4cdf-a26b-4e19f6a097d5.json",
+        ):
+            with self.subTest(path=path):
+                realm = signing_preset.load(path)
+                group = next(g for g in realm["groups"] if g["path"] == "/trustee")
+                self.assertEqual(group.get("clientRoles", {}).get("account"), ["view-profile"])
+
     def test_a_role_without_a_title_is_warned_about(self):
         with self.assertLogs(level="WARNING") as logs:
             rows = signing_preset.sbei_admin_rows(

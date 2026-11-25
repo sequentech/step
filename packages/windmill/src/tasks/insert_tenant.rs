@@ -41,6 +41,29 @@ pub async fn read_default_tenant_realm() -> AnyhowResult<RealmRepresentation> {
 pub fn prepare_new_tenant_realm(realm: &mut RealmRepresentation) {
     TenantBootstrapAdminPolicy::apply_to_realm(realm);
     prepare_realm_for_tenant_log(realm);
+    grant_trustee_profile_read(realm);
+}
+
+/// The Admin Portal reads its user's tenant from Keycloak's Account API.
+/// Give the standard top-level trustee group that read independently of
+/// any default realm role, which bulk-imported users may not hold.
+fn grant_trustee_profile_read(realm: &mut RealmRepresentation) {
+    let Some(trustees) = realm
+        .groups
+        .iter_mut()
+        .flatten()
+        .find(|group| group.name.as_deref() == Some("trustee"))
+    else {
+        return;
+    };
+    let roles = trustees
+        .client_roles
+        .get_or_insert_with(Default::default)
+        .entry("account".into())
+        .or_default();
+    if !roles.iter().any(|role| role == "view-profile") {
+        roles.push("view-profile".into());
+    }
 }
 
 #[instrument(err)]
@@ -172,6 +195,48 @@ pub async fn insert_tenant(
 mod tests {
     use super::*;
     use crate::tasks::migrate_tenant_logs::EVENT_LISTENER;
+
+    #[test]
+    fn new_tenant_grants_trustees_profile_read_without_overwriting_existing_roles() {
+        // The configured S3 realm can predate this direct client-role mapping.
+        // A nested namesake is not the built-in trustee group.
+        let mut realm: RealmRepresentation = serde_json::from_value(serde_json::json!({
+            "groups": [
+                {
+                    "name": "trustee",
+                    "realmRoles": ["trustee-ceremony", "sign-key-ceremony"],
+                    "clientRoles": {"account": ["view-consent"], "custom": ["preserve"]}
+                },
+                {"name": "custom", "subGroups": [{"name": "trustee"}]}
+            ]
+        }))
+        .unwrap();
+
+        prepare_new_tenant_realm(&mut realm);
+        prepare_new_tenant_realm(&mut realm);
+
+        let prepared = serde_json::to_value(realm).unwrap();
+        assert_eq!(
+            prepared["groups"][0]["clientRoles"],
+            serde_json::json!({"account": ["view-consent", "view-profile"], "custom": ["preserve"]})
+        );
+        assert_eq!(
+            prepared["groups"][0]["realmRoles"],
+            serde_json::json!(["trustee-ceremony", "sign-key-ceremony"])
+        );
+        assert!(prepared["groups"][1]["subGroups"][0]
+            .get("clientRoles")
+            .is_none());
+    }
+
+    #[test]
+    fn a_minimal_tenant_template_does_not_get_a_new_group() {
+        let mut realm = RealmRepresentation::default();
+
+        prepare_new_tenant_realm(&mut realm);
+
+        assert!(realm.groups.is_none());
+    }
 
     /// A tenant created after the tenant log's one-off migration needs no
     /// migration: its realm feeds the log from the start.
