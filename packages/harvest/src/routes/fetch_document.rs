@@ -121,15 +121,15 @@ async fn fetch_document_url(
     .ok_or_else(|| (Status::NotFound, DOCUMENT_NOT_FOUND.to_string()))?;
     // Receipt UUIDs are delivered to the requesting voter. Administrative
     // document/task access must not turn them into an enumeration shortcut.
-    let owner_access = !document.is_signed_manual_verification()
-        || windmill::services::signing::actions::manual_verification::may_download(
-            &hasura_transaction,
-            uuid::Uuid::parse_str(&document.id)
-                .map_err(|_| (Status::NotFound, DOCUMENT_NOT_FOUND.to_owned()))?,
-            &crate::services::signing_gate::caller(&claims),
-        )
-        .await
-        .map_err(|_| (Status::ServiceUnavailable, "Document access policy unavailable.".to_owned()))?;
+    // A signed manual-verification PDF is recognised by its issuance ledger
+    // binding too, so clearing its editable `purpose` does not open it.
+    let owner_access = windmill::services::signing::actions::manual_verification::may_read_document(
+        &hasura_transaction,
+        &document,
+        &crate::services::signing_gate::caller(&claims),
+    )
+    .await
+    .map_err(|_| (Status::ServiceUnavailable, "Document access policy unavailable.".to_owned()))?;
     if !owner_access || document.is_ballot_receipt() {
         return Err((Status::NotFound, DOCUMENT_NOT_FOUND.to_string()));
     }

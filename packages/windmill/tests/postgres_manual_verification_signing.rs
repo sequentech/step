@@ -14,12 +14,15 @@ mod signing;
 mod signing_actions;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::signing::{RequesterSigning, SigningAction};
+use sequent_core::types::hasura::core::Document;
 use sequent_core::types::permissions::Permissions;
 use signing::{caller, world};
 use signing_actions::{sign_all, Dispatched};
 use uuid::Uuid;
+use windmill::postgres::document::get_exportable_document_ids;
 use windmill::services::signing::actions::manual_verification::{
-    authorize_token, claim_render, finish_render, initiate, may_download, Delivery, Phase,
+    authorize_token, claim_render, finish_render, initiate, is_signed_issuance, may_download,
+    may_read_document, Delivery, Phase,
 };
 use windmill::services::signing::actions::{run_dispatched, NoSeal, ProductionEffects, RunOutcome};
 
@@ -291,6 +294,53 @@ async fn enrollment_and_manual_issuance_are_independent_and_only_the_exact_inten
     finish_render(&tx, &permit, true).await.unwrap();
     assert!(may_download(&tx, doc, &owner).await.unwrap());
     assert!(!may_download(&tx, doc, &other).await.unwrap());
+    // The issuance ledger, not the document's editable annotations, classifies
+    // the PDF: with its purpose cleared it stays private and out of archives.
+    tx.execute(
+        "INSERT INTO sequent_backend.document(id,tenant_id,election_event_id,is_public)
+         VALUES($1,$2,$3,false) ON CONFLICT DO NOTHING",
+        &[&doc, &w.tenant, &w.event],
+    )
+    .await
+    .unwrap();
+    tx.execute(
+        "UPDATE sequent_backend.document SET annotations='{}'::jsonb, name='report.pdf' WHERE id=$1",
+        &[&doc],
+    )
+    .await
+    .unwrap();
+    let cleared = Document {
+        id: doc.to_string(),
+        tenant_id: Some(w.tenant.to_string()),
+        election_event_id: Some(w.event.to_string()),
+        name: Some("report.pdf".into()),
+        media_type: None,
+        size: None,
+        labels: None,
+        annotations: Some(serde_json::json!({})),
+        created_at: None,
+        last_updated_at: None,
+        is_public: Some(false),
+    };
+    assert!(!cleared.is_signed_manual_verification());
+    assert!(is_signed_issuance(&tx, doc).await.unwrap());
+    assert!(may_read_document(&tx, &cleared, &owner).await.unwrap());
+    assert!(!may_read_document(&tx, &cleared, &other).await.unwrap());
+    let unrelated = Document {
+        id: Uuid::new_v4().to_string(),
+        ..cleared.clone()
+    };
+    assert!(
+        !is_signed_issuance(&tx, Uuid::parse_str(&unrelated.id).unwrap())
+            .await
+            .unwrap()
+    );
+    assert!(may_read_document(&tx, &unrelated, &other).await.unwrap());
+    let archived =
+        get_exportable_document_ids(&tx, &w.tenant.to_string(), &w.event.to_string(), true)
+            .await
+            .unwrap();
+    assert!(!archived.contains(&doc.to_string()));
     authorize_token(
         &tx,
         w.tenant,

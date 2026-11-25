@@ -25,6 +25,8 @@ pub async fn get_exportable_document_ids(
 ) -> Result<std::collections::HashSet<String>> {
     let tenant = parse_uuid_v4(tenant_id)?;
     let event = parse_uuid_v4(election_event_id)?;
+    // A signed manual-verification PDF is left out by its issuance ledger
+    // binding as well as by its editable `purpose` (checked below).
     let query = if signing_mode(transaction, tenant).await? == OperationalSigningMode::HsmRequired {
         // One READ COMMITTED statement and one classification snapshot:
         // neither a just-committed object nor its registry membership can
@@ -34,12 +36,16 @@ pub async fn get_exportable_document_ids(
          )
          SELECT gate.withheld IS NOT NULL AS inventory_ready, doc.id, doc.annotations
          FROM gate LEFT JOIN LATERAL (
-             SELECT id,annotations FROM sequent_backend.document
-             WHERE tenant_id=$1 AND election_event_id=$2 AND NOT (id=ANY(gate.withheld))
+             SELECT d.id,d.annotations FROM sequent_backend.document d
+             WHERE d.tenant_id=$1 AND d.election_event_id=$2 AND NOT (d.id=ANY(gate.withheld))
+               AND NOT EXISTS(SELECT FROM sequent_backend.manual_verification_issuance i
+                              WHERE i.document_id=d.id AND i.request_id IS NOT NULL)
          ) doc ON true"
     } else {
-        "SELECT true AS inventory_ready, id, annotations FROM sequent_backend.document
-         WHERE tenant_id=$1 AND election_event_id=$2"
+        "SELECT true AS inventory_ready, d.id, d.annotations FROM sequent_backend.document d
+         WHERE d.tenant_id=$1 AND d.election_event_id=$2
+           AND NOT EXISTS(SELECT FROM sequent_backend.manual_verification_issuance i
+                          WHERE i.document_id=d.id AND i.request_id IS NOT NULL)"
     };
     let rows = transaction.query(query, &[&tenant, &event]).await?;
     let mut ids = std::collections::HashSet::new();

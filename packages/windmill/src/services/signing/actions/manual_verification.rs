@@ -23,6 +23,7 @@ use anyhow::{anyhow, ensure, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::signing::{SigningAction, SigningRequestStatus};
+use sequent_core::types::hasura::core::Document;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -649,6 +650,41 @@ pub async fn authorize_token(
         "Issuance is not in the required state"
     );
     Ok(Some((init, request_id)))
+}
+
+/// Whether the issuance ledger binds `doc` as a signed manual-verification
+/// PDF. The ledger reserves the document id before the PDF exists, so this
+/// binding, unlike the document's editable annotations, cannot be cleared.
+pub async fn is_signed_issuance(tx: &Transaction<'_>, doc: Uuid) -> Result<bool> {
+    Ok(tx
+        .query_one(
+            "SELECT EXISTS(SELECT FROM sequent_backend.manual_verification_issuance
+              WHERE document_id=$1 AND request_id IS NOT NULL)",
+            &[&doc],
+        )
+        .await?
+        .get(0))
+}
+
+/// Whether `caller` may read `document` at all: any document but a signed
+/// manual-verification PDF, which only its initiating operator may read. The
+/// PDF is recognised by its `purpose` or by its issuance ledger binding.
+pub async fn may_read_document(
+    tx: &Transaction<'_>,
+    document: &Document,
+    caller: &SigningCaller,
+) -> Result<bool> {
+    let id = Uuid::parse_str(&document.id).ok();
+    let signed = document.is_signed_manual_verification()
+        || match id {
+            Some(id) => is_signed_issuance(tx, id).await?,
+            None => false,
+        };
+    match (signed, id) {
+        (false, _) => Ok(true),
+        (true, Some(id)) => may_download(tx, id, caller).await,
+        (true, None) => Ok(false),
+    }
 }
 
 /// A signed manual-verification PDF is a private handoff for the initiating
