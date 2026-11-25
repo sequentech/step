@@ -22,6 +22,36 @@ Upstream `docker-entrypoint.sh` on start:
 3. `migrate apply --all-databases` from `/hasura-migrations`
 4. `metadata reload`, then `exec` normal serve
 
+### Configuration-package credential intake migration
+
+`backend-db` version `1794700001600` belongs to
+`cast_vote_seal_key`. The protected configuration-package intake migration is
+now `1794700001650_configuration_package_credential_intake`. On a fresh
+database Hasura applies both normally; neither creates a tenant or election.
+
+An earlier portable development branch used version `1794700001600` for
+`configuration_package_unwrap`. A separate HSM demo lineage used the same
+number for `operational_signing_demo_installation`. Hasura records only the
+number. Do not infer which SQL ran from `hasura migrate status`, edit an
+applied version, or use `--skip-execution` to make the history look clean.
+Version 1650 refuses to start with missing or incomplete canonical cast-vote
+objects or a partial credential-intake schema.
+
+- For a pristine install, use new databases and object-storage volumes.
+  Leave any old database, vault state, and staged objects intact.
+- To upgrade a prior portable installation with state you must keep, take
+  a backup, stop writers and work on an isolated restore first. Compare its
+  actual schema, constraints, triggers and privileges with the exact
+  migrations from both releases. If the portable staging schema is correct
+  and the entire canonical cast-vote migration is absent, an authorized
+  database operator can run that exact canonical `1600` **up.sql** in one
+  transaction on the restore, without modifying any migration records.
+  Then run the usual Hasura migration: 1650 verifies and adopts the exact
+  pre-existing staging schema without changing any staged record or
+  credential. Do not run that repair SQL over partially present cast-vote
+  objects. The separate HSM demo history requires its own reviewed upgrade;
+  this release does not install or remap those HSM migrations.
+
 ## Required pod env
 
 | Var | Purpose |
