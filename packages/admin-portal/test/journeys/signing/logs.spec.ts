@@ -201,3 +201,42 @@ test("event log details show the complete HSM approver fingerprint, separate fro
         await expect(dialog).toBeHidden()
     }
 })
+
+test("Election Event > Logs filters by any statement kind under Add filter", async ({
+    page,
+    portal,
+}) => {
+    mockSigningEvent(portal)
+    const items = entries()
+    portal.graphql.on("listElectoralLog", ({variables}) => {
+        const kind = (variables.filter as {statement_kind?: string} | undefined)?.statement_kind
+        const listed = kind ? items.filter((item) => item.statement_kind === kind) : items
+        return {
+            data: {listElectoralLog: {items: listed, total: {aggregate: {count: listed.length}}}},
+        }
+    })
+    await page.goto(`${portal.origin}${EVENT_URL}?lang=en`)
+    await page.getByRole("tab", {name: "Logs", exact: true}).click()
+    const rows = page.getByRole("row").filter({has: page.getByRole("cell")})
+    await expect(rows).toHaveCount(items.length)
+
+    // No shortcut for one family of kinds: every kind is under Add filter.
+    await expect(page.getByRole("button", {name: "Signing activity"})).toHaveCount(0)
+    await page.getByRole("button", {name: "Add filter", exact: true}).click()
+    await page.getByRole("menuitemcheckbox", {name: "Statement kind", exact: true}).click()
+    await page.getByRole("combobox", {name: "Statement kind", exact: true}).click()
+    const options = page.getByRole("option").filter({hasText: /\w/})
+    // The backend's 76 kinds, by name.
+    await expect(options).toHaveCount(76)
+    await expect(page.getByRole("option", {name: "Lockdown changed", exact: true})).toHaveCount(1)
+    await expect(page.getByRole("option", {name: "SigningActionExecuted"})).toHaveCount(0)
+    await page.getByRole("option", {name: "Approval threshold reached", exact: true}).click()
+
+    // The server filters by the exact kind; the page shows what it answers.
+    await expect(rows).toHaveCount(2)
+    await expect(rows.filter({hasText: "SigningRequestCompleted"})).toHaveCount(2)
+    expect(portal.graphql.callsTo("listElectoralLog").at(-1)?.variables).toMatchObject({
+        election_event_id: EVENT_ID,
+        filter: {statement_kind: "SigningRequestCompleted"},
+    })
+})

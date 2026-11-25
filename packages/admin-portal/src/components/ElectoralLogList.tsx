@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useId, useState} from "react"
+import React, {ReactElement, useMemo, useState} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -26,7 +26,6 @@ import {useMutation} from "@apollo/client"
 import {IPermissions} from "@/types/keycloak"
 import {ResetFilters} from "./ResetFilters"
 import FactCheckIcon from "@mui/icons-material/FactCheck"
-import HistoryIcon from "@mui/icons-material/History"
 import {useWidgetStore} from "@/providers/WidgetsContextProvider"
 import {ETasksExecution} from "@/types/tasksExecution"
 import {useLogsPermissions} from "@/resources/ElectionEvent/useLogsPermissions"
@@ -60,7 +59,7 @@ import {
     LOG_FILTER_LOG_TYPE,
     LOG_SCOPE_META,
     LOG_TYPES,
-    SIGNING_LOG_STATEMENT_KINDS,
+    EVENT_LOG_STATEMENT_KINDS,
     TENANT_LOG_STATEMENT_KINDS,
     logListLayout,
     type ILogTarget,
@@ -330,20 +329,6 @@ const OpenLogEntry: React.FC<{
     )
 }
 
-const SigningActivityFilterShortcut: React.FC = () => {
-    const {t} = useTranslation()
-    const {displayedFilters, showFilter} = useListContext()
-    if (displayedFilters?.statement_kind) return null
-    return (
-        <Button
-            onClick={() => showFilter("statement_kind", undefined)}
-            label={String(t("logsScreen.signingActivity.filter"))}
-        >
-            <HistoryIcon />
-        </Button>
-    )
-}
-
 export interface ElectoralLogListProps {
     aside?: ReactElement
     filterToShow?: ElectoralLogFilters
@@ -371,7 +356,6 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
 }) => {
     const record = useRecordContext<Sequent_Backend_Election_Event | Sequent_Backend_Election>()
     const {t} = useTranslation()
-    const signingKindsId = useId()
     const tenantLog = scope === ELogScope.TENANT
     const eventId = tenantLog ? undefined : electionEventId || record?.id || undefined
     const log: ILogTarget = tenantLog
@@ -389,6 +373,16 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     const [entry, setEntry] = useState<ILogRow | null>(null)
     const [listRef, width] = useContainerWidth<HTMLDivElement>()
     const layout = logListLayout(width)
+
+    // Every kind the backend writes, by its name in the admin's language.
+    const eventStatementKinds = useMemo(
+        () =>
+            EVENT_LOG_STATEMENT_KINDS.map((kind) => ({
+                id: kind,
+                name: String(t(`logsScreen.statementKind.${kind}`)),
+            })).sort((a, b) => a.name.localeCompare(b.name)),
+        [t]
+    )
 
     // Without a chosen zone, the range is read in the primary (also after a filter reset).
     const filterObject: {[key: string]: any} = {
@@ -456,12 +450,11 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 translateChoice={false}
             />
         ) : (
-            <TextInput
+            <SelectInput
                 key={"statement_kind"}
                 source={"statement_kind"}
                 label={String(t("logsScreen.column.statement_kind"))}
-                helperText={t("logsScreen.signingActivity.help")}
-                slotProps={{htmlInput: {list: signingKindsId}}}
+                choices={eventStatementKinds}
             />
         ),
         <SelectInput
@@ -646,17 +639,6 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 "& .RaList-actions .MuiToolbar-root": {flexWrap: "wrap", minHeight: 0},
             }}
         >
-            {!tenantLog && (
-                <datalist id={signingKindsId}>
-                    {SIGNING_LOG_STATEMENT_KINDS.map(([kind, label]) => (
-                        <option
-                            key={kind}
-                            value={kind}
-                            label={t(`logsScreen.signingActivity.${label}`)}
-                        />
-                    ))}
-                </datalist>
-            )}
             <List
                 resource="electoral_log"
                 actions={
@@ -671,9 +653,6 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                             withExport={tenantLog ? canExportTenantLogs : canExportLogs}
                             withFilter={true}
                             extraActions={[
-                                ...(!tenantLog && eventId && !filterToShow
-                                    ? [<SigningActivityFilterShortcut key="signing-activity" />]
-                                    : []),
                                 ...(canAuditLogs && eventId
                                     ? [
                                           <Button

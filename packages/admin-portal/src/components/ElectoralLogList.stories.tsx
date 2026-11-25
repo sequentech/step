@@ -510,16 +510,25 @@ export const SigningActivity: Story = {
         expect(canvas.queryByText("Started request Q-010")).toBeNull()
         await userEvent.click(created)
         const entry = await within(document.body).findByRole("dialog", {name: "Log entry 20"})
-        await expect(within(entry).getByText("Started request Q-010")).toBeVisible()
+        await waitFor(() => expect(within(entry).getByText("Started request Q-010")).toBeVisible())
         await userEvent.keyboard("{Escape}")
-        await userEvent.click(canvas.getByRole("button", {name: "Signing activity"}))
-        const input = await canvas.findByLabelText("Statement kind")
-        const choices = document.getElementById(input.getAttribute("list") ?? "")
-        expect(choices?.querySelector('option[value="SigningRequestCompleted"]')).toHaveAttribute(
-            "label",
-            "Approval threshold reached"
+        await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
+        // Signing activity is one statement kind among all, under Add filter.
+        expect(canvas.queryByRole("button", {name: "Signing activity"})).toBeNull()
+        await userEvent.click(canvas.getByRole("button", {name: "Add filter"}))
+        await userEvent.click(
+            await within(document.body).findByRole("menuitemcheckbox", {name: "Statement kind"})
         )
-        await userEvent.type(input, "SigningActionExecuted")
+        await userEvent.click(await canvas.findByRole("combobox", {name: "Statement kind"}))
+        const options = within(await within(document.body).findByRole("listbox"))
+        await waitFor(() =>
+            expect(options.getByRole("option", {name: "Approval threshold reached"})).toBeVisible()
+        )
+        expect(options.getByRole("option", {name: "Ballot box sealed"})).toBeInTheDocument()
+        expect(options.queryByRole("option", {name: "SigningActionExecuted"})).toBeNull()
+        await userEvent.click(
+            options.getByRole("option", {name: "Approved action finalized or failed"})
+        )
         await waitFor(() =>
             expect(data.calls.at(-1)?.args).toMatchObject([
                 "electoral_log",
@@ -1010,9 +1019,9 @@ export const PrivacyCompactListFiltersAndExport: Story = {
         await userEvent.click(
             await within(document.body).findByRole("menuitemcheckbox", {name: "Statement kind"})
         )
-        await userEvent.type(
-            await canvas.findByRole("textbox", {name: "Statement kind"}),
-            "CastVote"
+        await userEvent.click(await canvas.findByRole("combobox", {name: "Statement kind"}))
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "Ballot cast"})
         )
         await waitFor(() => expect(canvas.getAllByRole("listitem")).toHaveLength(1))
         expect(canvas.queryByText("Account signed in")).toBeNull()

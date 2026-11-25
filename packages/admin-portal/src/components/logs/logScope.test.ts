@@ -1,24 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {
-    ELogListLayout,
-    SIGNING_LOG_STATEMENT_KINDS,
-    TENANT_LOG_STATEMENT_KINDS,
-    logListLayout,
-} from "./logScope"
-
-it("exposes separate event audit filters for approval, quorum and finalization", () => {
-    const kinds = new Map(SIGNING_LOG_STATEMENT_KINDS)
-    expect(kinds.get("SigningRequestCreated")).toBe("created")
-    expect(kinds.get("SigningRequestSigned")).toBe("approved")
-    expect(kinds.get("SigningRequestCompleted")).toBe("quorum")
-    expect(kinds.get("SigningActionExecuted")).toBe("actionResult")
-    expect(kinds.get("SigningRequestCancelled")).toBe("cancelled")
-    expect(kinds.get("SigningRequestExpired")).toBe("expired")
-    expect(kinds.get("SigningSignatureRefused")).toBe("refused")
-    expect(kinds.size).toBe(SIGNING_LOG_STATEMENT_KINDS.length)
-})
+import {ELogListLayout, TENANT_LOG_STATEMENT_KINDS, logListLayout} from "./logScope"
 
 describe("the layout a log list takes from its own width", () => {
     it.each([
