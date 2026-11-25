@@ -33,3 +33,26 @@ fn tested_completion_requires_an_actual_matching_publication() {
         assert!(!result.passed);
     }
 }
+
+#[test]
+fn official_publication_is_not_a_readiness_predicate() {
+    for publication in [
+        Value::Null,
+        json!({"publication_id":"publication", "matches_manifest":false, "design_count":2}),
+        json!({"publication_id":"publication", "matches_manifest":true, "design_count":0}),
+    ] {
+        let mut evidence = tests::evidence();
+        evidence["official"]["publication"] = publication;
+        let result = evaluate(serde_json::from_value(evidence).unwrap(), "now".into());
+        assert!(result.passed, "{:#?}", result.checks);
+        assert_eq!(
+            result.checks.iter().map(|check| check.kind).collect::<Vec<_>>(),
+            [
+                CheckKind::Configuration,
+                CheckKind::CertifiedVoters,
+                CheckKind::OfficialZero,
+                CheckKind::TestedFinished,
+            ]
+        );
+    }
+}

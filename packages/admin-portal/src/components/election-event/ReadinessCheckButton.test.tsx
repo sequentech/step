@@ -34,7 +34,6 @@ const report = (passed = true) => ({
         "configuration",
         "certified_voters",
         "official_zero",
-        "publication",
         "tested_finished",
     ].map((kind) => ({
         kind,
@@ -119,6 +118,10 @@ it("runs as readiness-check and displays and downloads the signed report", async
         context: {headers: {"x-hasura-role": IPermissions.READINESS_CHECK}},
     })
     expect(screen.getByText("readiness.success")).toBeVisible()
+    const rows = screen.getByRole("list", {name: "readiness.results"})
+    expect(rows.children).toHaveLength(4)
+    expect(screen.getByText("logsScreen.readiness.checks.tested_finished")).toBeVisible()
+    expect(screen.queryByText("logsScreen.readiness.checks.publication")).not.toBeInTheDocument()
     expect(screen.getByText(/2026-10-16T09:00:00Z/)).toBeVisible()
     expect(mockRefresh).toHaveBeenCalledTimes(1)
     fireEvent.click(screen.getByRole("button", {name: "readiness.download"}))
@@ -132,6 +135,16 @@ it("runs as readiness-check and displays and downloads the signed report", async
         reader.readAsText(blob)
     })
     expect(JSON.parse(contents)).toEqual(report())
+})
+it("does not render an old passing official-publication check as a live row", async () => {
+    const oldCheck = {kind: "publication", passed: true, message: "Legacy official publication"}
+    const old = report()
+    mockRun.mockResolvedValue({data: {readiness_check: {...old, checks: [...old.checks, oldCheck]}}})
+    open()
+    select()
+    await run()
+    expect(screen.getByText("readiness.success")).toBeVisible()
+    expect(screen.queryByText(oldCheck.message)).not.toBeInTheDocument()
 })
 it("shows failed checks and retains their evidence for download", async () => {
     mockRun.mockResolvedValue({data: {readiness_check: report(false)}})
