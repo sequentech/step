@@ -563,6 +563,11 @@ fn carry_unread_columns(workbook: &Workbook, plan: &mut Blueprint) {
             contest.columns = take("contests", &contest.external_id);
             for candidate in &mut contest.candidates {
                 candidate.columns = take("candidates", &candidate.external_id);
+                if candidate.image.is_some() {
+                    // The canonical typed image is emitted as a document reference,
+                    // so comparison assumes its consumed raw cell is unread.
+                    candidate.columns.remove(super::workbook_photo::COLUMN);
+                }
             }
         }
     }

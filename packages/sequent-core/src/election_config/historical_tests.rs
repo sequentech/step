@@ -4060,6 +4060,11 @@ fn candidate_supplements_reject_unknown_duplicate_and_source_overrides() {
 
 #[test]
 fn candidate_supplements_survive_historical_conversion_and_build() {
+    use crate::election_config::{
+        architect, plan_from_workbook::plan_from_workbook,
+        workbook_photo::test_png_url,
+    };
+
     let (sql, bytes) = fixture();
     let workbook = read_xlsx(&bytes).unwrap();
     let mut sheets = workbook.sheets().to_vec();
@@ -4072,27 +4077,33 @@ fn candidate_supplements_survive_historical_conversion_and_build() {
                 ("source_candidate_id", json!("0007")),
                 ("presentation.sort_order", json!(0)),
                 ("presentation.i18n.tl.name", json!("Pangalan")),
-                (
-                    "image_data_url",
-                    json!(super::super::workbook_photo::test_png_url(4, 3)),
-                ),
+                ("labels", json!({"group": "example"})),
+                ("image_data_url", json!(test_png_url(4, 3))),
             ],
         )],
     ));
     let xlsx = write_xlsx(&Workbook::new(sheets).unwrap()).unwrap();
     let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    let templates = TemplateSet::builtin().unwrap();
     let bundle = build(
         &adapted.workbook,
-        &TemplateSet::builtin().unwrap(),
+        &templates,
         &BuildOptions::default(),
         &Sources::default(),
     )
     .unwrap();
     let candidate = &bundle.export["candidates"][0];
-    let read =
-        super::super::plan_from_workbook::plan_from_workbook(&adapted.workbook)
-            .expect("the same workbook can open in the wizard");
-    let photo = read.plan.elections[0].contests[0].candidates[0]
+    let read = plan_from_workbook(&adapted.workbook)
+        .expect("the same workbook can open in the wizard");
+    let opened = &read.plan.elections[0].contests[0].candidates[0];
+    assert!(!opened.columns.contains_key("image_data_url"));
+
+    // openFromHistorical returns plan JSON that compilePlan reads back.
+    let mut plan =
+        architect::read_plan_value(serde_json::to_value(&read.plan).unwrap())
+            .unwrap()
+            .plan;
+    let photo = plan.elections[0].contests[0].candidates[0]
         .image
         .as_ref()
         .expect("the wizard retained the pixels");
@@ -4120,9 +4131,62 @@ fn candidate_supplements_survive_historical_conversion_and_build() {
     );
     assert_eq!(candidate["annotations"]["miru:candidate-id"], json!("0007"));
 
+    // The wizard supplies the trustees missing from the historical fixture.
+    plan.trustees = ["trustee-a", "trustee-b"]
+        .map(|name| architect::Trustee {
+            name: name.into(),
+            email: format!("{name}@example.test"),
+        })
+        .to_vec();
+    plan.trustee_threshold = 2;
+    let tenant_id = "00000000-0000-4000-8000-000000000042";
+    let options = BuildOptions {
+        tenant_id: Some(tenant_id.into()),
+        ..BuildOptions::default()
+    };
+    let compile = |plan: &architect::Blueprint| {
+        architect::compile_plan(architect::Compile {
+            plan,
+            templates: &templates,
+            options: &options,
+            profile: None,
+            sources: Some(&read.sources),
+        })
+    };
+    let compiled = compile(&plan).expect("the wizard can compile the photo");
+    assert_eq!(compiled.bundle.tenant_id, tenant_id);
+    assert_eq!(compiled.bundle.images, bundle.images);
+    assert!(compiled.layout.importable.iter().any(|entry| {
+        entry.name == file.entry_name() && entry.bytes == file.bytes
+    }));
+    let compiled_candidate = &compiled.bundle.export["candidates"][0];
+    assert!(compiled_candidate.get("image_data_url").is_none());
+    assert_eq!(compiled_candidate["labels"]["group"], "example");
+    assert_eq!(
+        compiled_candidate["image_document_id"],
+        candidate["image_document_id"]
+    );
+    let url = format!(
+        "tenant-{tenant_id}/document-{}/{}",
+        file.document_id, file.file_name
+    );
+    assert_eq!(
+        compiled_candidate["presentation"]["urls"],
+        json!([{"is_image": true, "url": url}])
+    );
+
+    plan.elections[0].contests[0].candidates[0]
+        .columns
+        .insert("image_data_url".into(), json!(test_png_url(1, 1)));
+    let conflict = compile(&plan).expect_err("two photo sources must conflict");
+    assert!(conflict.errors().any(|problem| {
+        problem.id.as_deref() == Some("candidate.inline-photo")
+            && problem.message.contains("not both")
+    }));
+
     let duplicate = build(
         &adapted.workbook,
-        &TemplateSet::builtin().unwrap(),
+        &templates,
         &BuildOptions {
             images: vec![file.clone()],
             ..BuildOptions::default()
@@ -4150,13 +4214,13 @@ fn candidate_supplements_survive_historical_conversion_and_build() {
     let invalid = Workbook::new(sheets).unwrap();
     let direct = build(
         &invalid,
-        &TemplateSet::builtin().unwrap(),
+        &templates,
         &BuildOptions::default(),
         &Sources::default(),
     )
     .err()
     .expect("direct build refuses an invalid photo without a partial archive");
-    let wizard = super::super::plan_from_workbook::plan_from_workbook(&invalid)
+    let wizard = plan_from_workbook(&invalid)
         .err()
         .expect("wizard refuses the same invalid photo");
     for report in [direct, wizard] {
