@@ -3167,7 +3167,11 @@
         "document-upload",
         "document-download"
       ],
-      "clientRoles": {}
+      "clientRoles": {
+        "account": [
+          "view-profile"
+        ]
+      }
     }
   ],
   "defaultRole": {
