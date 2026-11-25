@@ -664,6 +664,114 @@ async fn private_configuration_staging_is_withheld_without_affecting_ordinary_do
         .is_none());
 }
 
+async fn staged_row(tx: &Transaction<'_>, tenant: &str, uploaded_by: Option<&str>) -> Uuid {
+    let document = Uuid::parse_str(&document(tx, tenant, None, "delivery.zip").await).unwrap();
+    tx.execute(
+        "INSERT INTO sequent_backend.configuration_package_staging (tenant_id, document_id, uploaded_by)
+         VALUES ($1, $2, $3)",
+        &[&Uuid::parse_str(tenant).unwrap(), &document, &uploaded_by],
+    )
+    .await
+    .unwrap();
+    document
+}
+
+#[tokio::test]
+async fn server_unwrap_is_bound_to_the_uploader_publishes_once_and_expires() {
+    use windmill::services::documents::publish_unwrapped_pointer;
+    use windmill::services::import::configuration_package_credentials::{
+        lock_staging, sweep_expired, ALREADY_STAGED, NOT_STAGING, NOT_UPLOADER,
+    };
+
+    let mut client = schema::pool().await.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let tenant_id = tenant(&tx, "optional").await;
+    let tenant = Uuid::parse_str(&tenant_id).unwrap();
+    let other_tenant = Uuid::parse_str(&self::tenant(&tx, "optional").await).unwrap();
+    let staged = staged_row(&tx, &tenant_id, Some("subject-a")).await;
+    let legacy = staged_row(&tx, &tenant_id, None).await;
+    let refused = |error: anyhow::Error| error.to_string();
+
+    // Actor binding: only the recorded uploader, never another admin or tenant.
+    lock_staging(&tx, &tenant, &staged, "subject-a")
+        .await
+        .unwrap();
+    assert_eq!(
+        refused(
+            lock_staging(&tx, &tenant, &staged, "subject-b")
+                .await
+                .unwrap_err()
+        ),
+        NOT_UPLOADER
+    );
+    assert_eq!(
+        refused(
+            lock_staging(&tx, &other_tenant, &staged, "subject-a")
+                .await
+                .unwrap_err()
+        ),
+        NOT_STAGING
+    );
+    // Rows staged before uploaders were recorded stay browser-only (V1).
+    assert_eq!(
+        refused(
+            lock_staging(&tx, &tenant, &legacy, "subject-a")
+                .await
+                .unwrap_err()
+        ),
+        NOT_UPLOADER
+    );
+
+    // The sibling pointer publishes once; never for an uploader-less row.
+    let now = chrono::Utc::now();
+    let later = now + chrono::Duration::hours(12);
+    let sibling = Uuid::new_v4();
+    publish_unwrapped_pointer(&tx, tenant, staged, sibling, later)
+        .await
+        .unwrap();
+    assert!(
+        publish_unwrapped_pointer(&tx, tenant, staged, Uuid::new_v4(), later)
+            .await
+            .is_err()
+    );
+    assert!(
+        publish_unwrapped_pointer(&tx, tenant, legacy, Uuid::new_v4(), later)
+            .await
+            .is_err()
+    );
+    assert!(
+        publish_unwrapped_pointer(&tx, other_tenant, staged, Uuid::new_v4(), later)
+            .await
+            .is_err()
+    );
+    // Once unwrapped, even the uploader can't unwrap again.
+    assert_eq!(
+        refused(
+            lock_staging(&tx, &tenant, &staged, "subject-a")
+                .await
+                .unwrap_err()
+        ),
+        ALREADY_STAGED
+    );
+
+    // TTL cleanup: nothing before expiry; this tenant's entry at expiry.
+    assert_eq!(sweep_expired(&tx, &tenant, now).await.unwrap(), 0);
+    assert_eq!(sweep_expired(&tx, &other_tenant, later).await.unwrap(), 0);
+    assert_eq!(sweep_expired(&tx, &tenant, later).await.unwrap(), 1);
+    let row = tx
+        .query_one(
+            "SELECT unwrapped_id, credentials_expires_at
+             FROM sequent_backend.configuration_package_staging WHERE document_id = $1",
+            &[&staged],
+        )
+        .await
+        .unwrap();
+    // The signed ZIP stays published; only the credentials expired.
+    assert_eq!(row.get::<_, Option<Uuid>>(0), Some(sibling));
+    assert_eq!(row.get::<_, Option<chrono::DateTime<chrono::Utc>>>(1), None);
+    assert_eq!(sweep_expired(&tx, &tenant, later).await.unwrap(), 0);
+}
+
 #[tokio::test]
 async fn an_imported_candidate_image_is_found_among_the_tenants_documents() {
     let mut client = schema::pool().await.get().await.unwrap();

@@ -6,6 +6,7 @@
 //! The signed bytes are never rewritten. The import resolves them in its own
 //! transaction to exactly the target accounts the operator previewed.
 
+use crate::services::import::configuration_package_credentials as package_credentials;
 use crate::services::messaging::config::with_original_account_ids;
 use crate::services::messaging::portable_registry::{self, PortableRegistryPlan};
 use anyhow::{anyhow, ensure, Result};
@@ -33,6 +34,12 @@ pub struct PackageMessaging {
     digest: String,
     definitions: PortableMessagingAccounts,
     confirmed: Option<String>,
+    /// The protected staging document whose vault entry holds any AWS key
+    /// pairs delivered with this package. Set by the server, never the package.
+    staged_document: Option<Uuid>,
+    /// The task's verified actor (the JWT-derived audit user ID Harvest put
+    /// in the task body): staged credentials are only for their uploader.
+    actor: Option<String>,
     snapshot: OnceLock<PortableRegistryPlan>,
     installed_here: AtomicBool,
 }
@@ -54,15 +61,51 @@ impl PackageMessaging {
         digest: String,
         definitions: PortableMessagingAccounts,
         confirmed: Option<String>,
+        staged_document: Option<Uuid>,
+        actor: Option<String>,
     ) -> Self {
         Self {
             tenant,
             digest,
             definitions,
             confirmed,
+            staged_document,
+            actor,
             snapshot: OnceLock::new(),
             installed_here: AtomicBool::new(false),
         }
+    }
+
+    /// Whether this plan creates an account that needs delivered keys. A
+    /// resumed Apply whose committed accounts already exist needs none.
+    fn needs_credentials(&self, plan: &PortableRegistryPlan) -> bool {
+        self.definitions.accounts.iter().any(|definition| {
+            definition.credential_commitment.is_some()
+                && plan
+                    .bindings
+                    .get(&definition.reference_key())
+                    .is_some_and(|binding| binding.existing_fingerprint.is_none())
+        })
+    }
+
+    /// Always consulted, so a staged sidecar is checked (uploader, package,
+    /// expiry, commitments) and consumed even when no new account needs it,
+    /// as on a resumed Apply; required only when one does.
+    async fn credentials(
+        &self,
+        tx: &Transaction<'_>,
+        plan: &PortableRegistryPlan,
+    ) -> Result<Option<package_credentials::StagedCredentials>> {
+        package_credentials::load(
+            tx,
+            &self.tenant,
+            &self.digest,
+            self.staged_document.as_ref(),
+            &self.definitions,
+            self.needs_credentials(plan),
+            self.actor.as_deref(),
+        )
+        .await
     }
 
     pub(crate) fn fingerprint(&self) -> Option<String> {
@@ -95,6 +138,8 @@ impl PackageMessaging {
         }
         let pinned = self.snapshot.get_or_init(|| plan.clone());
         ensure!(pinned == &plan, "{STALE}");
+        // Preview refuses a missing or mismatched sidecar now, not at Apply.
+        self.credentials(tx, &plan).await?;
         Ok(plan)
     }
 
@@ -108,12 +153,17 @@ impl PackageMessaging {
                 let reference = definition.reference_key();
                 let binding = plan.bindings.get(&reference).ok_or_else(|| anyhow!("{STALE}"))?;
                 let provider = definition.account_sender().provider();
-                Ok(json!({
+                let mut row = json!({
                     "reference": reference,
                     "provider": provider,
                     "channel": provider.channel(),
                     "action": if binding.existing_fingerprint.is_some() { "reuse" } else { "create" },
-                }))
+                });
+                // Only that keys are delivered: never a value, ID or digest.
+                if definition.credential_commitment.is_some() {
+                    row["credentials"] = json!("AWS_STATIC_KEY_PAIR");
+                }
+                Ok(row)
             })
             .collect::<Result<Vec<_>>>()
             .map(Value::Array)
@@ -133,7 +183,20 @@ impl PackageMessaging {
     pub(crate) async fn install(&self, tx: &Transaction<'_>) -> Result<Value> {
         ensure!(self.confirmed.is_some(), "{STALE}");
         let planned = self.snapshot.get().ok_or_else(|| anyhow!("{STALE}"))?;
-        portable_registry::apply(tx, self.tenant, &self.digest, &self.definitions, planned).await?;
+        let credentials = self.credentials(tx, planned).await?;
+        portable_registry::apply(
+            tx,
+            self.tenant,
+            &self.digest,
+            &self.definitions,
+            planned,
+            credentials.as_ref(),
+        )
+        .await?;
+        // Same transaction: the staged pair goes only once its keys are in.
+        if let (Some(_), Some(document)) = (&credentials, &self.staged_document) {
+            package_credentials::discard(tx, &self.tenant, document).await?;
+        }
         self.changes(planned)
     }
 
@@ -412,13 +475,38 @@ mod tests {
                 },
             )]),
         };
-        let context = PackageMessaging::new(tenant, digest, definitions, None);
+        let context = PackageMessaging::new(tenant, digest.clone(), definitions, None, None, None);
         context.snapshot.set(plan.clone()).unwrap();
         let changes = context.changes(&plan).unwrap();
         assert_eq!(
             changes,
             json!([{"reference":"package:email","provider":"AWS_SES","channel":"EMAIL","action":"create"}])
         );
+        assert!(!context.needs_credentials(&plan));
+        // A committed pair shows only its kind, and a new account needs it.
+        let commitment = "cd".repeat(32);
+        let committed = portable_messaging::parse(format!(
+            r#"{{"format":"sequent.tenant-messaging-accounts/1","accounts":[{{"reference":"email","name":"Demo email","sender":{{"provider":"AWS_SES","from_address":"demo@example.invalid","region":"us-east-1"}},"credential_commitment":"{commitment}"}}]}}"#
+        ).as_bytes()).unwrap();
+        let with_keys = PackageMessaging::new(
+            tenant,
+            digest,
+            committed,
+            None,
+            Some(Uuid::from_u128(7)),
+            Some("user-a".into()),
+        );
+        let rows = with_keys.changes(&plan).unwrap();
+        assert_eq!(rows[0]["credentials"], "AWS_STATIC_KEY_PAIR");
+        assert!(!rows.to_string().contains(&commitment));
+        assert!(with_keys.needs_credentials(&plan));
+        let mut resumed = plan.clone();
+        resumed
+            .bindings
+            .get_mut("package:email")
+            .unwrap()
+            .existing_fingerprint = Some("ef".repeat(32));
+        assert!(!with_keys.needs_credentials(&resumed));
         let preview = SectionPreview {
             changes: changes.clone(),
             needs_apply: true,

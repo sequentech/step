@@ -9,6 +9,9 @@ use super::config::account_summary;
 use crate::postgres::messaging::{
     account_endpoint, insert_messaging_account_with_id, AccountSettings, MessagingAccount,
 };
+use crate::services::import::configuration_package_credentials::{
+    self as package_credentials, StagedCredentials,
+};
 use anyhow::{anyhow, ensure, Context, Result};
 use chrono::{TimeZone, Utc};
 use deadpool_postgres::Transaction;
@@ -16,7 +19,8 @@ use sequent_core::election_config::portable_messaging::{
     PortableMessagingAccount, PortableMessagingAccounts, REF_PREFIX,
 };
 use sequent_core::types::messaging::{
-    AccountCheck, AccountLimits, AccountSender, AccountSummary, ProviderApproval, ReadinessPolicy,
+    AccountCheck, AccountLimits, AccountSender, AccountSummary, CredentialName, ProviderApproval,
+    ReadinessPolicy,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -96,8 +100,18 @@ impl PortableRegistryPlan {
     }
 }
 
-/// Public: shown to the operator through the portable-messaging blocker allowlist.
-pub const CREDENTIALS_NOT_ACCEPTED: &str = "portable messaging requires AWS credentials this receiver cannot accept yet; deliver the accounts without credentials and set keys on this installation";
+/// The vault credential names a new account carries after Apply: the AWS
+/// pair when its declaration commits one, otherwise none (workload role).
+fn installed_credential_names(definition: &PortableMessagingAccount) -> BTreeSet<CredentialName> {
+    if definition.credential_commitment.is_some() {
+        BTreeSet::from([
+            CredentialName::AWS_ACCESS_KEY_ID,
+            CredentialName::AWS_SECRET_ACCESS_KEY,
+        ])
+    } else {
+        BTreeSet::new()
+    }
+}
 
 fn package_digest(digest: &str) -> Result<&str> {
     ensure!(
@@ -198,16 +212,6 @@ fn plan_from_accounts(
 ) -> Result<PortableRegistryPlan> {
     package_digest(package_sha)?;
     definitions.validate()?;
-    // A committed AWS key pair must reach the vault before any account is
-    // planned. Until this receiver takes the protected sidecar, refuse at
-    // Preview and Apply rather than create the account on the workload role.
-    ensure!(
-        definitions
-            .accounts
-            .iter()
-            .all(|definition| definition.credential_commitment.is_none()),
-        CREDENTIALS_NOT_ACCEPTED
-    );
     let mut desired: Vec<AccountSettings> = vec![];
     let mut bindings = BTreeMap::new();
     let mut bound_ids = BTreeSet::new();
@@ -254,6 +258,15 @@ fn plan_from_accounts(
                 existing_fingerprint: None,
             },
         };
+        // A package sets AWS keys only on an account it creates (or, on a
+        // resumed Apply, the one it already created: the same derived ID).
+        // It never replaces keys an installation manages for its own account.
+        ensure!(
+            definition.credential_commitment.is_none()
+                || binding.existing_fingerprint.is_none()
+                || binding.account_id == incoming_id,
+            "portable messaging reference {reference} already exists on this tenant; its AWS keys are managed here, not by a package"
+        );
         ensure!(
             bound_ids.insert(binding.account_id),
             "more than one portable messaging reference resolved to the same account"
@@ -359,6 +372,7 @@ pub async fn apply(
     package_sha: &str,
     definitions: &PortableMessagingAccounts,
     expected: &PortableRegistryPlan,
+    credentials: Option<&StagedCredentials>,
 ) -> Result<PortableRegistryPlan> {
     lock_registry(tx).await?;
     let current = plan(tx, tenant, package_sha, definitions).await?;
@@ -377,6 +391,12 @@ pub async fn apply(
                 &messaging::link::new_reference(),
             )
             .await?;
+            if definition.credential_commitment.is_some() {
+                let pair = credentials
+                    .and_then(|staged| staged.get(&definition.reference_key()))
+                    .ok_or_else(|| anyhow!(package_credentials::NOT_ACCEPTED))?;
+                package_credentials::install(tx, &tenant, &binding.account_id, pair).await?;
+            }
         }
     }
     let existing = list_registry_accounts(tx, &tenant).await?;
@@ -431,7 +451,8 @@ fn installed_plan(
                 && account.provider_approval == wanted.provider_approval
                 && account.readiness == wanted.readiness
                 && !account.is_default
-                && account.credentials.is_empty()
+                && account.credentials.keys().copied().collect::<BTreeSet<_>>()
+                    == installed_credential_names(definition)
                 && account.status == AccountCheck::default(),
             CHANGED
         );
@@ -650,17 +671,64 @@ mod tests {
     }
 
     #[test]
-    fn committed_aws_credentials_are_refused_until_the_receiver_accepts_them() {
+    fn committed_keys_go_only_to_the_account_this_package_creates() {
         let tenant = Uuid::from_u128(42);
         let mut defs = definitions();
         defs.accounts[0].credential_commitment = Some("ab".repeat(32));
-        let refused = plan_from_accounts(tenant, SHA, &defs, &[]).unwrap_err();
-        assert_eq!(refused.to_string(), CREDENTIALS_NOT_ACCEPTED);
-        // Also when an existing account would otherwise be reused.
+        let created = plan_from_accounts(tenant, SHA, &defs, &[]).unwrap();
+        let id = created.bindings["package:email"].account_id;
+        assert!(created.bindings["package:email"]
+            .existing_fingerprint
+            .is_none());
+        // An installation's own account is never overwritten by a package.
         let existing = with_account(Uuid::from_u128(19), &definitions());
-        assert!(plan_from_accounts(tenant, SHA, &defs, &[existing]).is_err());
+        let refused = plan_from_accounts(tenant, SHA, &defs, &[existing])
+            .unwrap_err()
+            .to_string();
+        assert!(refused.starts_with("portable messaging reference package:email already exists"));
+        assert!(!refused.contains(&"ab".repeat(32)));
+        // Resuming: the row this package created (same derived ID) is reused.
+        let mut resumed = with_account(id, &defs);
+        resumed.credentials = BTreeMap::from([
+            (
+                CredentialName::AWS_ACCESS_KEY_ID,
+                CredentialRecord {
+                    replaced_at: "t".into(),
+                },
+            ),
+            (
+                CredentialName::AWS_SECRET_ACCESS_KEY,
+                CredentialRecord {
+                    replaced_at: "t".into(),
+                },
+            ),
+        ]);
+        assert!(plan_from_accounts(tenant, SHA, &defs, &[resumed]).is_ok());
         // Omitted keeps today's behaviour: workload role or existing keys.
-        assert!(plan_from_accounts(tenant, SHA, &definitions(), &[]).is_ok());
+        let existing = with_account(Uuid::from_u128(19), &definitions());
+        assert!(plan_from_accounts(tenant, SHA, &definitions(), &[existing]).is_ok());
+    }
+
+    #[test]
+    fn a_new_committed_account_must_hold_exactly_its_pair_after_apply() {
+        let tenant = Uuid::from_u128(42);
+        let mut defs = definitions();
+        defs.accounts[0].credential_commitment = Some("ab".repeat(32));
+        let expect = plan_from_accounts(tenant, SHA, &defs, &[]).unwrap();
+        let id = expect.bindings["package:email"].account_id;
+        let record = || CredentialRecord {
+            replaced_at: "t".into(),
+        };
+        let bare = with_account(id, &defs);
+        assert!(installed_plan(tenant, SHA, &defs, &expect, &[bare.clone()]).is_err());
+        let mut half = bare.clone();
+        half.credentials
+            .insert(CredentialName::AWS_ACCESS_KEY_ID, record());
+        assert!(installed_plan(tenant, SHA, &defs, &expect, &[half.clone()]).is_err());
+        let mut both = half;
+        both.credentials
+            .insert(CredentialName::AWS_SECRET_ACCESS_KEY, record());
+        assert!(installed_plan(tenant, SHA, &defs, &expect, &[both]).is_ok());
     }
 
     #[test]

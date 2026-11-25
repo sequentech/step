@@ -173,6 +173,14 @@ const englishTranslation = {
                     "Could not load the local package unlocker. Use HTTPS or localhost and reopen the drawer. Nothing was uploaded.",
                 innerHashMismatch:
                     "The entered SHA-256 does not match the decrypted signed ZIP. Nothing was uploaded.",
+                serverInsecure:
+                    "This package carries messaging credentials. Open the Admin Portal over HTTPS (or on this computer) to upload it. Nothing was uploaded.",
+                serverDecryptFailed:
+                    "Could not unlock this configuration package. Check the password and file, then upload it again.",
+                serverHashMismatch:
+                    "The entered SHA-256 does not match the signed ZIP. Upload the package again.",
+                serverRefused:
+                    "The server could not accept this package's messaging credentials. Upload it again over HTTPS.",
                 innerHashHelp:
                     "For an encrypted package, enter the optional SHA-256 of the signed ZIP inside it.",
             },

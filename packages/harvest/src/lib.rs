@@ -250,6 +250,7 @@ fn build_application_with(
                 routes::messaging_insights::messaging_monthly_volumes,
                 routes::messaging_insights::find_by_support_reference,
                 routes::upload_document::get_upload_url,
+                routes::configuration_package_intake::unwrap_configuration_package,
                 routes::keys_ceremony::create_keys_ceremony,
                 routes::keys_ceremony::get_custody_request,
                 routes::keys_ceremony::confirm_key_custody,

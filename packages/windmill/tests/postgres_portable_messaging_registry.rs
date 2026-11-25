@@ -130,7 +130,7 @@ async fn portable_registry_preview_apply_and_rebind_never_send_or_modify_existin
     tx.commit().await.unwrap();
 
     let tx = client.transaction().await.unwrap();
-    let installed = portable_registry::apply(&tx, tenant, SHA, &definitions, &preview)
+    let installed = portable_registry::apply(&tx, tenant, SHA, &definitions, &preview, None)
         .await
         .unwrap();
     assert!(installed.bindings.iter().all(|(reference, binding)| binding
@@ -231,7 +231,7 @@ async fn portable_registry_preview_apply_and_rebind_never_send_or_modify_existin
         .unwrap();
     assert_eq!(repeated, installed);
     assert_eq!(
-        portable_registry::apply(&tx, tenant, SHA, &definitions, &repeated)
+        portable_registry::apply(&tx, tenant, SHA, &definitions, &repeated, None)
             .await
             .unwrap(),
         repeated
@@ -267,7 +267,7 @@ async fn portable_registry_preview_apply_and_rebind_never_send_or_modify_existin
 
     let tx = client.transaction().await.unwrap();
     assert!(
-        portable_registry::apply(&tx, second, SHA, &definitions, &other_preview)
+        portable_registry::apply(&tx, second, SHA, &definitions, &other_preview, None)
             .await
             .unwrap_err()
             .to_string()
@@ -284,7 +284,7 @@ async fn portable_registry_preview_apply_and_rebind_never_send_or_modify_existin
         .await
         .unwrap();
     assert_eq!(fresh.bindings["package:email"].account_id, donor.id);
-    portable_registry::apply(&tx, second, SHA, &definitions, &fresh)
+    portable_registry::apply(&tx, second, SHA, &definitions, &fresh, None)
         .await
         .unwrap();
     let second_accounts = list_messaging_accounts(&tx, &second).await.unwrap();

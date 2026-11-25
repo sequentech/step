@@ -183,6 +183,14 @@ const spanishTranslation: TranslationType = {
                     "No se pudo cargar la herramienta local para desbloquear el paquete. Usa HTTPS o localhost y vuelve a abrir el panel. No se subió nada.",
                 innerHashMismatch:
                     "El SHA-256 introducido no coincide con el del ZIP firmado descifrado. No se subió nada.",
+                serverInsecure:
+                    "Este paquete incluye credenciales de mensajería. Abre el Portal de administración por HTTPS (o en este equipo) para subirlo. No se subió nada.",
+                serverDecryptFailed:
+                    "No se pudo desbloquear el paquete de configuración. Comprueba la contraseña y el archivo y vuelve a subirlo.",
+                serverHashMismatch:
+                    "El SHA-256 introducido no coincide con el del ZIP firmado. Vuelve a subir el paquete.",
+                serverRefused:
+                    "El servidor no pudo aceptar las credenciales de mensajería de este paquete. Vuelve a subirlo por HTTPS.",
                 innerHashHelp:
                     "Para un paquete cifrado, puedes introducir el SHA-256 del ZIP firmado que contiene.",
             },
