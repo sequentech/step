@@ -4,11 +4,15 @@
 import {SigningRequestStatus, SigningSignerStatus} from "../../../src/lib/signing/types"
 import type {Page} from "@playwright/test"
 import {test, expect, type AdminPortal} from "../fixtures"
+import {ALICE_ID, VOTER_TAB_ROLES, mockVoters, openVoters, rowAction} from "../access/data"
 import {
     MARIA,
     JOSE,
+    ELECTION_ID,
+    SPAIN_ID,
     POST,
     SigningServer,
+    SigningRequestState,
     displayName,
     expectRole,
     mockSignaturesTab,
@@ -235,5 +239,87 @@ test.describe("Outside the registered Portal origin", () => {
         await expect(sign).toBeDisabled()
         await expect(dialog.getByRole("alert")).toBeVisible()
         expect(portal.graphql.callsTo(profiles[0].operation)).toHaveLength(0)
+    })
+})
+
+test.describe("Manually verify identity", () => {
+    test.use({
+        roles: [...VOTER_TAB_ROLES, "voter-manually-verify", "sign-authorize-manual-verification"],
+    })
+
+    test("reviews the exact voter and records an HSM approval before the document can be issued", async ({
+        page,
+        portal,
+    }) => {
+        signInAs(portal, MARIA)
+        mockVoters(portal)
+        let state: SigningRequestState
+        let signedAt: string | null = null
+        portal.graphql.on("ManualVerification", ({variables}) => {
+            state = new SigningRequestState(
+                {
+                    id: requestId,
+                    action: "authorize-manual-verification",
+                    code,
+                    required: 2,
+                    requestedBy: MARIA,
+                    signers: [MARIA, JOSE],
+                    areaId: SPAIN_ID,
+                    subject: {
+                        voter_id: variables.voterId,
+                        initiation_id: variables.initiationId,
+                        requester_id: MARIA.userId,
+                        post_id: ELECTION_ID,
+                        area_id: SPAIN_ID,
+                        secret_attributes: [],
+                    },
+                },
+                portal.now
+            )
+            return {
+                data: {
+                    get_manual_verification_pdf: {
+                        document_id: null,
+                        status: "awaiting-signatures",
+                        signing_request: {id: requestId},
+                    },
+                },
+            }
+        })
+        portal.graphql.on("SigningGetRequest", () => {
+            const data = state.panel(MARIA.userId)
+            data.operational_signing_mode = "hsm-demo-direct-action"
+            if (signedAt) {
+                data.signers[0].signed_at = signedAt
+                data.signers[0].status = SigningSignerStatus.Signed
+                data.count = 1
+            }
+            return {data: {signingGetRequest: {panel: data}}}
+        })
+        portal.graphql.on("SigningApproveActionDirect", () => {
+            signedAt = new Date(portal.now).toISOString()
+            return {data: {signingApproveActionDirect: {request_id: requestId}}}
+        })
+        await openVoters(page, portal)
+        await rowAction(page, "Manually verify identity")
+        await page
+            .getByRole("dialog")
+            .getByRole("button", {name: "Request verification document", exact: true})
+            .click()
+        const dialog = page.getByRole("dialog", {name: /^Sign /})
+        await expect(dialog.locator(".MuiStepLabel-label")).toHaveText(["Review", "Signed"])
+        await expect(dialog.getByRole("table", {name: "Details"})).toContainText(ALICE_ID)
+        const initiation = portal.graphql.callsTo("ManualVerification")[0].variables.initiationId
+        await expect(dialog.getByRole("table", {name: "Details"})).toContainText(String(initiation))
+        await expect(dialog.getByTestId("signing-code")).toHaveText(code)
+        await dialog.getByRole("button", {name: "Sign", exact: true}).click()
+        await expect(dialog.getByText("Your approval was recorded.")).toBeVisible()
+        await dialog.getByRole("button", {name: "Done"}).click()
+        await expect(page.getByTestId("signing-status")).toHaveText("Waiting · 1 of 2")
+        expect(portal.graphql.callsTo("SigningApproveActionDirect")).toHaveLength(1)
+        expectRole(portal, "SigningApproveActionDirect", "sign-authorize-manual-verification")
+        expect(portal.graphql.callsTo("ManualVerification")).toHaveLength(1)
+        expect(portal.graphql.callsTo("FetchDocument")).toHaveLength(0)
+        expect(portal.graphql.callsTo("ChangeApplicationStatus")).toHaveLength(0)
     })
 })
