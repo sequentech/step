@@ -88,7 +88,7 @@ test("receipt QR independently decodes to the scoped locator and print waits for
         })
         for (const call of portal.graphql.callsTo("ReceiptDocument")) {
             expect(call.variables).toEqual({electionEventId: IDS.event, documentId})
-            expect(call.headers["x-hasura-role"]).toBe("cast-vote")
+            expect(call.headers["x-hasura-role"]).toBe("user")
         }
         expect(portal.graphql.callsTo("GetDocument")).toHaveLength(0)
         await expect(page.getByRole("button", {name: "Print", exact: true})).toBeEnabled()

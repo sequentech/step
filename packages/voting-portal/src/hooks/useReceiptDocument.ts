@@ -9,5 +9,6 @@ export const useReceiptDocument = (electionEventId?: string, documentId?: string
         variables: {electionEventId, documentId},
         skip: !electionEventId || !documentId,
         fetchPolicy: "no-cache",
-        context: {headers: {"x-hasura-role": "cast-vote"}},
+        // Voters hold the Hasura role `user`; harvest checks the same role.
+        context: {headers: {"x-hasura-role": "user"}},
     })
