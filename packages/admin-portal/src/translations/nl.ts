@@ -992,7 +992,8 @@ const dutchTranslation: TranslationType = {
                 BallotAudited: "Stembiljet gecontroleerd",
                 PseudonymResolved: "Pseudoniem herleid",
                 ForensicRead: "Forensische inzage",
-                CastVoteSealKeyPublished: "Versleutelingssleutel voor uitgebrachte stemmen gepubliceerd",
+                CastVoteSealKeyPublished:
+                    "Versleutelingssleutel voor uitgebrachte stemmen gepubliceerd",
             },
             signingActivity: {
                 row: {

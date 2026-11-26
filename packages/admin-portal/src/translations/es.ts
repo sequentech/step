@@ -1160,7 +1160,8 @@ const spanishTranslation: TranslationType = {
                 BallotAudited: "Papeleta auditada",
                 PseudonymResolved: "Seudónimo resuelto",
                 ForensicRead: "Lectura forense",
-                CastVoteSealKeyPublished: "Publicación de la clave de cifrado de los votos emitidos",
+                CastVoteSealKeyPublished:
+                    "Publicación de la clave de cifrado de los votos emitidos",
             },
             signingActivity: {
                 row: {
