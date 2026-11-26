@@ -825,8 +825,8 @@ const SettingsConfigurationPackageForScope: React.FC<{
         if (!canStartRecovery || recovery.kind !== "recoverable" || packageRequest.current) return
         setConfirming(false)
         setPreviewed(null)
-        setRequirements(recovery.requirements)
         if (recovery.documentId) {
+            setRequirements(recovery.requirements)
             setDocumentId(recovery.documentId)
             setExpectedSha(recovery.packageSha256)
             void submit(
@@ -1660,7 +1660,11 @@ const SettingsConfigurationPackageForScope: React.FC<{
                             // same-origin unwrap of packages with credentials.
                             getAccessToken={authContext.getAccessToken}
                             formatLabel="ZIP / EZIP"
-                            doCancel={() => setOpenUpload(false)}
+                            doCancel={() => {
+                                setOpenUpload(false)
+                                setDrawerRequirements(false)
+                                setRecoveryDraft(null)
+                            }}
                             onSourceChange={() => {
                                 stopFollowing()
                                 setConfirming(false)

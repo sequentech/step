@@ -108,7 +108,7 @@ const spanishTranslation: TranslationType = {
                         unsettled:
                             "Un envío anterior de esta ejecución aún no está resuelto. Espera antes de continuar.",
                         rosterChanged:
-                            "La confianza de firma cambió desde que empezó esta ejecución, así que no se puede continuar. Resuélvelo en Confianza de firma.",
+                            "La confianza de firma cambió desde que empezó esta ejecución, así que no se puede continuar.",
                         requirementsUnknown:
                             "Los requisitos originales de esta ejecución no constan aquí. Continúala desde el navegador que la inició.",
                     },

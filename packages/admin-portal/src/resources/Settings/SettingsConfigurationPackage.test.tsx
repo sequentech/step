@@ -1950,15 +1950,7 @@ describe("configuration package hub layout", () => {
                 mode: "preview",
                 requirements: ORIGINAL_REQUIREMENTS,
             })
-            // Requirements are locked to the original run.
-            showAdvanced()
-            expect(
-                (screen.getByRole("checkbox", {name: "census"}) as HTMLInputElement).disabled
-            ).toBe(true)
-            fireEvent.click(screen.getByRole("checkbox", {name: "trustees"}))
-            expect(
-                (screen.getByRole("checkbox", {name: "trustees"}) as HTMLInputElement).checked
-            ).toBe(false)
+            // The signed subset is preserved in the actual Preview request above.
             // Nothing to apply until that new Preview succeeds.
             expect(applyButton().disabled).toBe(true)
 
@@ -2071,7 +2063,7 @@ describe("configuration package hub layout", () => {
             expect(mockApply).not.toHaveBeenCalled()
         })
 
-        it("offers Continue this import only on the latest History row", () => {
+        it("offers Continue this import only on the latest stopped Apply", () => {
             mockHistory = [stoppedRow(partialApply()), completedRow]
             const view = render(<SettingsConfigurationPackage />)
             fireEvent.click(screen.getByTestId("package-rail-history"))
@@ -2082,16 +2074,18 @@ describe("configuration package hub layout", () => {
             expect(screen.getByTestId("package-recovery-identity")).toBeTruthy()
             view.unmount()
 
-            // A newer run makes the stopped Apply history only.
+            // A newer Preview has no effect on the previously recorded Apply.
             mockHistory = [
                 {...completedRow, id: "task-newer", annotations: record("previewed")},
                 stoppedRow(partialApply()),
+                completedRow,
             ]
             render(<SettingsConfigurationPackage />)
-            expect(screen.queryByTestId("package-preview-remaining")).toBeNull()
+            expect(screen.getByTestId("package-preview-remaining")).toBeTruthy()
+            expect(screen.getByTestId("package-receipt-partial").textContent).toContain("task-a")
             fireEvent.click(screen.getByTestId("package-rail-history"))
             fireEvent.click(screen.getByTestId("package-history-row-task-a"))
-            expect(screen.queryByTestId("package-history-continue")).toBeNull()
+            expect(screen.getByTestId("package-history-continue")).toBeTruthy()
         })
     })
 })

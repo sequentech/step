@@ -439,8 +439,8 @@ describe("readRecovery: continuing the same signed import", () => {
 
     it.each([
         [
-            "a newer run is latest",
-            [row(record("previewed"), "task-p", "SUCCESS"), row(partialApply())],
+            "a newer unclassified task is unsettled",
+            [row({}, "task-next", "IN_PROGRESS"), row(partialApply())],
         ],
         ["the latest Apply succeeded", [row(partialApply(), "task-a", "SUCCESS")]],
         ["the task is still running", [row(partialApply(), "task-a", "IN_PROGRESS")]],
@@ -454,6 +454,36 @@ describe("readRecovery: continuing the same signed import", () => {
         ["it is a generic failure without a record", [row({})]],
     ])("offers nothing when %s", (_, rows) => {
         expect(readRecovery(rows, "t1", legacy, null)).toEqual({kind: "none"})
+    })
+
+    it("retains the failed apply when a new preview becomes latest", () => {
+        expect(
+            readRecovery(
+                [row(record("previewed"), "task-p", "SUCCESS"), row(partialApply())],
+                "t1",
+                legacy,
+                null
+            )
+        ).toMatchObject({kind: "recoverable", taskId: "task-a"})
+    })
+
+    it("accepts a started failure with recorded submissions but no applied section", () => {
+        const {application} = partialApply()
+        const started = {
+            application: {
+                ...application,
+                sections: application.sections.map((section) => ({
+                    ...section,
+                    status: section.section === "election-event" ? section.status : {state: "not-included"},
+                    history: section.section === "election-event" ? section.history : {
+                        submissions: [], inFlight: null, applied: false,
+                    },
+                })),
+            },
+        }
+        expect(readRecovery([row(started)], "t1", legacy, null)).toMatchObject({
+            kind: "recoverable", applied: [], remaining: ["election-event"],
+        })
     })
 
     it("offers nothing for a failed Apply that applied nothing yet", () => {

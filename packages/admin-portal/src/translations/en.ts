@@ -99,7 +99,7 @@ const englishTranslation = {
                         unsettled:
                             "An earlier submission of this run is not settled yet. Wait for it before continuing.",
                         rosterChanged:
-                            "Signing trust changed since this run began, so it cannot be continued. Resolve it under Signing trust.",
+                            "Signing trust changed since this run began, so it cannot be continued.",
                         requirementsUnknown:
                             "This run's original requirements are not recorded here. Continue it from the browser that started it.",
                     },

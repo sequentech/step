@@ -362,7 +362,12 @@ export const readRecovery = (
         "taskId" | "mode" | "documentId" | "requirements" | "encryptedPayloadSha256"
     > | null
 ): Recovery => {
-    const latest = rows?.[0]
+    // A preview cannot settle an earlier Apply. A newer unclassified/in-flight task
+    // still stops the search rather than letting us assume it was only a preview.
+    const latest = rows?.find((row) => {
+        const report = readApplication(row.annotations)
+        return report?.mode !== "preview" || !["SUCCESS", "FAILED"].includes(row.execution_status ?? "")
+    })
     if (!latest || !tenantId || latest.execution_status !== "FAILED") return {kind: "none"}
     const view = readApplication(latest.annotations)
     const record = asRecord(asRecord(latest.annotations).application)
@@ -391,8 +396,11 @@ export const readRecovery = (
                 section.state !== "unchanged"
         )
     )
-    // Not a partial application: nothing was applied, or nothing is left.
-    if (applied.length === 0 || remaining.length === 0) return {kind: "none"}
+    // A persisted submission proves Apply started even when no section completed.
+    const beganSubmitting = view.sections.some(
+        (section) => section.submissions.length > 0 || !!section.inFlight
+    )
+    if ((!applied.length && !beganSubmitting) || !remaining.length) return {kind: "none"}
     const taskId = latest.id
     // A submission whose effect is not known yet is never worked around.
     if (

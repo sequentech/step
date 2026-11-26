@@ -308,7 +308,7 @@ export const remainingPreview = (sha = ORIGINAL_SHA) => {
                       : {
                             ...section,
                             status: {
-                                state: "unchanged",
+                                state: "previewed",
                                 preview: {needsApply: false, changes: [], blockers: []},
                             },
                         }
