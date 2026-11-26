@@ -1066,6 +1066,7 @@ const catalanTranslation: TranslationType = {
                 BallotAudited: "Papereta auditada",
                 PseudonymResolved: "Pseudònim resolt",
                 ForensicRead: "Lectura forense",
+                CastVoteSealKeyPublished: "Publicació de la clau de xifratge dels vots emesos",
             },
             signingActivity: {
                 row: {

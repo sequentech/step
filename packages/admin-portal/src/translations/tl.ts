@@ -995,6 +995,7 @@ const tagalogTranslation: TranslationType = {
                 BallotAudited: "Na-audit ang balota",
                 PseudonymResolved: "Natukoy ang pseudonym",
                 ForensicRead: "Forensic na pagbasa",
+                CastVoteSealKeyPublished: "Inilathala ang susi sa pag-encrypt ng mga naihulog na balota",
             },
             signingActivity: {
                 row: {

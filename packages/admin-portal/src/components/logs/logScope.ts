@@ -110,6 +110,7 @@ export const EVENT_LOG_STATEMENT_KINDS = [
     "BallotAudited",
     "PseudonymResolved",
     "ForensicRead",
+    "CastVoteSealKeyPublished",
 ] as const
 
 export const LOG_EVENT_TYPES = ["USER", "SYSTEM"] as const

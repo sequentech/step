@@ -1300,6 +1300,7 @@ const englishTranslation = {
                 BallotAudited: "Ballot audited",
                 PseudonymResolved: "Pseudonym resolved",
                 ForensicRead: "Forensic read",
+                CastVoteSealKeyPublished: "Cast ballot encryption key published",
             },
             signingActivity: {
                 row: {

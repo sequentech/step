@@ -983,6 +983,7 @@ const galegoTranslation: TranslationType = {
                 BallotAudited: "Papeleta auditada",
                 PseudonymResolved: "Pseudónimo resolto",
                 ForensicRead: "Lectura forense",
+                CastVoteSealKeyPublished: "Publicación da chave de cifrado dos votos emitidos",
             },
             signingActivity: {
                 row: {

@@ -985,6 +985,7 @@ const basqueTranslation: TranslationType = {
                 BallotAudited: "Txartela auditatuta",
                 PseudonymResolved: "Ezizena ebatzita",
                 ForensicRead: "Irakurketa forentsea",
+                CastVoteSealKeyPublished: "Emandako botoak zifratzeko gakoa argitaratu da",
             },
             signingActivity: {
                 row: {

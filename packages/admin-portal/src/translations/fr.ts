@@ -991,6 +991,7 @@ const frenchTranslation: TranslationType = {
                 BallotAudited: "Bulletin audité",
                 PseudonymResolved: "Pseudonyme résolu",
                 ForensicRead: "Lecture forensique",
+                CastVoteSealKeyPublished: "Publication de la clé de chiffrement des votes exprimés",
             },
             signingActivity: {
                 row: {
