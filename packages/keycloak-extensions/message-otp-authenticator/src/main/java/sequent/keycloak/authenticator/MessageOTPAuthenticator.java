@@ -197,13 +197,15 @@ public class MessageOTPAuthenticator
         if (execution.isRequired()) {
           context.failureChallenge(
               AuthenticationFlowError.ACCESS_DENIED,
-              context
-                  .form()
-                  .setError(
-                      context.form().getMessage("messageOtp.auth.codeWithOtl")
-                          + "<br><br>code_id: "
-                          + sessionId)
-                  .createErrorPage(Response.Status.BAD_REQUEST));
+              EnrollmentDocumentPolicy.forRegistrationRoute(
+                  context,
+                  context
+                      .form()
+                      .setError(
+                          context.form().getMessage("messageOtp.auth.codeWithOtl")
+                              + "<br><br>code_id: "
+                              + sessionId)
+                      .createErrorPage(Response.Status.BAD_REQUEST)));
 
           return;
         } else if (execution.isConditional() || execution.isAlternative()) {
@@ -356,10 +358,12 @@ public class MessageOTPAuthenticator
       log.error("Error verifying OTP");
       context.failureChallenge(
           AuthenticationFlowError.INTERNAL_ERROR,
-          context
-              .form()
-              .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
-              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+          EnrollmentDocumentPolicy.forRegistrationRoute(
+              context,
+              context
+                  .form()
+                  .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
+                  .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR)));
     }
   }
 
@@ -627,10 +631,12 @@ public class MessageOTPAuthenticator
               voterChannelLabel(context, session, user, deferredUser, authSession);
           context.failureChallenge(
               AuthenticationFlowError.INVALID_USER,
-              context
-                  .form()
-                  .setError(refusal.messageKey(), channelLabel)
-                  .createErrorPage(Response.Status.BAD_REQUEST));
+              EnrollmentDocumentPolicy.forRegistrationRoute(
+                  context,
+                  context
+                      .form()
+                      .setError(refusal.messageKey(), channelLabel)
+                      .createErrorPage(Response.Status.BAD_REQUEST)));
           return;
         }
         Optional<String> newPage =
@@ -660,10 +666,12 @@ public class MessageOTPAuthenticator
                 .error(NO_CHANNEL);
             context.failureChallenge(
                 AuthenticationFlowError.INVALID_USER,
-                context
-                    .form()
-                    .setError(RECONNECT_NEEDS_PASSWORD_KEY)
-                    .createErrorPage(Response.Status.BAD_REQUEST));
+                EnrollmentDocumentPolicy.forRegistrationRoute(
+                    context,
+                    context
+                        .form()
+                        .setError(RECONNECT_NEEDS_PASSWORD_KEY)
+                        .createErrorPage(Response.Status.BAD_REQUEST)));
             return;
           }
           log.info("intiateForm(): the voter's Messenger Page changed; reconnecting at sign-in");
@@ -891,7 +899,7 @@ public class MessageOTPAuthenticator
           .setAttribute("codeLength", configMap.get(Utils.CODE_LENGTH))
           .setAttribute("codeRequest", codeProgress.map(CodeProgress::request).orElse(null))
           .setAttribute("codeRequests", codeProgress.map(CodeProgress::requests).orElse(null));
-      return form.createForm(TPL_CODE);
+      return EnrollmentDocumentPolicy.forRegistrationRoute(context, form.createForm(TPL_CODE));
     }
     form.setAttribute(
             "address",
@@ -909,7 +917,7 @@ public class MessageOTPAuthenticator
       // A step that names no channel says a failed send too, never "We sent a code".
       form.setAttribute("deliveryState", MessageAttemptState.FAILED.name());
     }
-    return form.createForm(TPL_CODE);
+    return EnrollmentDocumentPolicy.forRegistrationRoute(context, form.createForm(TPL_CODE));
   }
 
   /**

@@ -541,3 +541,30 @@ async fn a_refused_admission_appends_nothing_and_a_later_one_does() {
         ]
     );
 }
+
+#[test]
+fn unavailable_actor_key_is_not_a_system_key_or_a_different_actors_failure() {
+    let event = row(StatementEventType::USER, StatementLogType::INFO);
+    let mut keys = ElectoralLogKeys::new();
+    keys.unavailable_admins
+        .insert(event.user_id.clone().unwrap());
+    assert!(SigningLogKeys::signing_data(&keys, &event)
+        .err()
+        .expect("an unavailable key must never sign")
+        .to_string()
+        .contains("Could not prepare the actor's key"));
+    let mut other = event.clone();
+    other.user_id = Some("different-person".to_string());
+    assert!(SigningLogKeys::signing_data(&keys, &other)
+        .err()
+        .expect("an unavailable key must never sign")
+        .to_string()
+        .contains("No signing key loaded"));
+    let mut system = event;
+    system.event_type = StatementEventType::SYSTEM;
+    assert!(SigningLogKeys::signing_data(&keys, &system)
+        .err()
+        .expect("an unavailable key must never sign")
+        .to_string()
+        .contains("No signing key loaded"));
+}

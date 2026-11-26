@@ -7,6 +7,7 @@
 // number of signatures is possible, what a drawer save sends, and how
 // certificates and requests are shown and filtered.
 
+import {directHsmApprovalBuild} from "@/lib/signing/operationalApprovalPolicy"
 import {shownRequestStatus} from "@/lib/signing/status"
 import {IPermissions} from "@/types/keycloak"
 import {
@@ -55,13 +56,15 @@ export interface ISignaturesAccess {
 
 export function signaturesAccess(has: (permission: IPermissions) => boolean): ISignaturesAccess {
     const rulesRead = has(IPermissions.SIGNING_RULES_READ)
-    const certificatesRead = has(IPermissions.SIGNING_CERTIFICATES_READ)
+    const certificateSettings = !directHsmApprovalBuild()
+    const certificatesRead = certificateSettings && has(IPermissions.SIGNING_CERTIFICATES_READ)
     const requestsRead = has(IPermissions.SIGNING_REQUESTS_READ)
     const rulesWrite = has(IPermissions.SIGNING_RULES_WRITE)
-    const issuersWrite = has(IPermissions.SIGNING_ISSUERS_WRITE)
-    const checksWrite = has(IPermissions.SIGNING_CHECKS_WRITE)
-    const certificatesRegister = has(IPermissions.SIGNING_CERTIFICATES_REGISTER)
-    const certificatesRevoke = has(IPermissions.SIGNING_CERTIFICATES_REVOKE)
+    const issuersWrite = certificateSettings && has(IPermissions.SIGNING_ISSUERS_WRITE)
+    const checksWrite = certificateSettings && has(IPermissions.SIGNING_CHECKS_WRITE)
+    const certificatesRegister =
+        certificateSettings && has(IPermissions.SIGNING_CERTIFICATES_REGISTER)
+    const certificatesRevoke = certificateSettings && has(IPermissions.SIGNING_CERTIFICATES_REVOKE)
     return {
         tab:
             has(IPermissions.ELECTION_EVENT_SIGNATURES_TAB) &&

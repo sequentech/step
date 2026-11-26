@@ -302,6 +302,8 @@ export class SigningRequestState {
     panel(viewer: string | undefined): ISigningPanelData & Record<string, unknown> {
         const {spec} = this
         return {
+            // These journeys exercise the hosted P12 path. Do not imply a mode when the wire omits it.
+            operational_signing_mode: "legacy-p12",
             request: this.request,
             rule: {
                 action: spec.action as ISigningRequest["action"],

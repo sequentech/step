@@ -1,88 +1,51 @@
-// SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React from "react"
-import ReactDOM from "react-dom/client"
-import "./index.css"
-import App from "./App"
-import "./services/i18n"
-import reportWebVitals from "./reportWebVitals"
-import {ThemeProvider} from "@mui/material"
-import {initCore} from "@sequentech/ui-core"
-import AuthContextProvider from "./providers/AuthContextProvider"
-import {fullAdminTheme} from "./services/AdminTheme"
-import {TenantContextProvider} from "./providers/TenantContextProvider"
-import {ElectionEventContextProvider} from "./providers/ElectionEventContextProvider"
-import {ElectionContextProvider} from "./providers/ElectionContextProvider"
-import {ContestContextProvider} from "./providers/ContestContextProvider"
-import {CandidateContextProvider} from "./providers/CandidateContextProvider"
-import {ElectionEventTallyContextProvider} from "./providers/ElectionEventTallyProvider"
-import NewResourceContextProvider from "./providers/NewResourceProvider"
-import {PublishContextProvider} from "./providers/PublishContextProvider"
-import {SettingsWrapper} from "./providers/SettingsContextProvider"
-import {
-    ApolloContextProvider,
-    ApolloWrapper,
-    defaultApolloContextValues,
-} from "./providers/ApolloContextProvider"
-import {DatabaseProvider} from "./providers/DatabaseProvider"
-import {WidgetsContextProvider} from "./providers/WidgetsContextProvider"
-import {RouterProvider, createBrowserRouter} from "react-router-dom"
-import {PluginProvider} from "./plugins/PluginProvider"
 
-const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement)
+import {captureGoldReturn} from "./lib/signing/operationalGoldReturn"
 
-initCore()
-
-/** Every provider and the app; React Admin declares the routes inside. */
-const Portal = () => (
-    <SettingsWrapper>
-        <ThemeProvider theme={fullAdminTheme}>
-            <AuthContextProvider>
-                <TenantContextProvider>
-                    <NewResourceContextProvider>
-                        <ElectionEventContextProvider>
-                            <ElectionContextProvider>
-                                <ContestContextProvider>
-                                    <CandidateContextProvider>
-                                        <ElectionEventTallyContextProvider>
-                                            <PublishContextProvider>
-                                                <ApolloContextProvider
-                                                    role={defaultApolloContextValues.role}
-                                                >
-                                                    <ApolloWrapper>
-                                                        <DatabaseProvider>
-                                                            <WidgetsContextProvider>
-                                                                <PluginProvider>
-                                                                    <App />
-                                                                </PluginProvider>
-                                                            </WidgetsContextProvider>
-                                                        </DatabaseProvider>
-                                                    </ApolloWrapper>
-                                                </ApolloContextProvider>
-                                            </PublishContextProvider>
-                                        </ElectionEventTallyContextProvider>
-                                    </CandidateContextProvider>
-                                </ContestContextProvider>
-                            </ElectionContextProvider>
-                        </ElectionEventContextProvider>
-                    </NewResourceContextProvider>
-                </TenantContextProvider>
-            </AuthContextProvider>
-        </ThemeProvider>
-    </SettingsWrapper>
-)
-
-// A data router, so screens can hold navigation while they have unsaved changes.
-const router = createBrowserRouter([{path: "*", element: <Portal />}])
-
-root.render(
-    <React.StrictMode>
-        <RouterProvider router={router} />
-    </React.StrictMode>
-)
-
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals()
+if (window.location.pathname === "/operational-signing/return") {
+    // Remove callback credentials before importing the portal, telemetry or an API client.
+    const captured = captureGoldReturn(window.location, (path) =>
+        window.history.replaceState(null, "", path)
+    )
+    const lang = window.navigator.language.split("-")[0]
+    const messages =
+        lang === "es"
+            ? [
+                  "Consultando el estado de la aprobación…",
+                  "No se pudo confirmar la aprobación. ",
+                  "Volver al portal de administración",
+              ]
+            : lang === "tl" || lang === "fil"
+              ? [
+                    "Tinitingnan ang pag-apruba…",
+                    "Hindi makumpirma ang pag-apruba. ",
+                    "Bumalik sa Admin Portal",
+                ]
+              : [
+                    "Checking your approval…",
+                    "Could not confirm the approval. ",
+                    "Return to the Admin Portal",
+                ]
+    const root = document.getElementById("root")
+    if (root) {
+        root.setAttribute("role", "status")
+        root.textContent = messages[0]
+    }
+    const cannotResume = () => {
+        if (!root) return
+        root.textContent = messages[1]
+        const link = document.createElement("a")
+        link.href = "/"
+        link.textContent = messages[2]
+        root.append(link)
+    }
+    void import("./lib/signing/finishOperationalApproval")
+        .then(async ({finishOperationalApproval}) => {
+            if (!(await finishOperationalApproval(window, captured))) cannotResume()
+        })
+        .catch(cannotResume)
+} else {
+    void import("./PortalEntrypoint")
+}

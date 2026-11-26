@@ -173,6 +173,7 @@ test.describe("application approver", () => {
             },
         ])
         expectRole(portal, "ChangeApplicationStatus", "admin-user")
+        expect(portal.graphql.callsTo("ManualVerification")).toHaveLength(0)
     })
 
     test("explains that the chosen voter is already enrolled", async ({page, portal}) => {

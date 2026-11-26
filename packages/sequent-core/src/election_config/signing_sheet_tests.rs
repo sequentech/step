@@ -304,3 +304,24 @@ fn the_approval_matrix_keeps_absent_apart_from_empty() {
     );
     assert_eq!(read(json!({"approval_matrix": null})).approval_matrix, None);
 }
+
+#[test]
+fn manual_verification_needs_the_paired_native_receiving_catalog() {
+    let export = json!({"signing_rules": [
+        {"action": "open-voting"},
+        {"action": MANUAL_VERIFICATION_ACTION}
+    ]});
+    let problem = require_manual_verification_receiving_support(&export, false)
+        .unwrap_err();
+    assert_eq!(
+        problem.id.as_deref(),
+        Some("signing.manual-verification-receiver-required")
+    );
+    assert_eq!(problem.path, "signing_rules[1].action");
+    assert!(require_manual_verification_receiving_support(
+        &json!({"signing_rules": [{"action": "open-voting"}]}),
+        false,
+    )
+    .is_ok());
+    assert!(require_signing_receiver(&export).is_ok());
+}

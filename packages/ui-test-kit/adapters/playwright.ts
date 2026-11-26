@@ -27,7 +27,11 @@ async function fulfill(route: Route, response: MockResponse) {
 }
 
 /** A strict boundary: only registered services, SPA navigations and static assets leave the page. */
-export async function routePortal(context: BrowserContext, services: PortalServices) {
+export async function routePortal(
+    context: BrowserContext,
+    services: PortalServices,
+    staticOrigin = services.origin
+) {
     // HTTP routing does not intercept WebSocket handshakes. Keep this guard for
     // the context's lifetime; these mocked-service journeys have no WS boundary.
     await context.routeWebSocket("**/*", async (socket) => {
@@ -67,7 +71,18 @@ export async function routePortal(context: BrowserContext, services: PortalServi
                         url.pathname
                     ))
             ) {
-                await route.continue()
+                if (staticOrigin === services.origin) await route.continue()
+                else {
+                    // The browser keeps the registered origin. Only this worker's static server receives the GET.
+                    const response = await route.fetch({
+                        url: staticOrigin + url.pathname + url.search,
+                        headers: request.isNavigationRequest()
+                            ? {"sec-fetch-mode": "navigate", "accept": "text/html"}
+                            : undefined,
+                        maxRedirects: 0,
+                    })
+                    await route.fulfill({response})
+                }
             } else {
                 services.violations.add(`Unexpected request: ${request.method()} ${url}`)
                 await route.abort("blockedbyclient")

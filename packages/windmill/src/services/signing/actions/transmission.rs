@@ -18,7 +18,7 @@
 use super::super::guard::{
     effective_rule, GuardOutcome, GuardRequest, RequestScope, SigningDocument,
 };
-use super::super::operational_policy::{signing_mode, OperationalSigningMode};
+use super::super::operational_policy::{signing_mode_for_event, OperationalSigningMode};
 use super::super::operational_quorum::has_operational_quorum;
 use super::super::{SigningCaller, SigningError, SigningResult};
 use super::{gate, refuse, EffectProgress};
@@ -161,9 +161,13 @@ pub async fn guard_transmission_package(
             false => Ok(None),
         };
     };
-    let mode = signing_mode(hasura_transaction, package.tenant_id)
-        .await
-        .context("Operational signing policy unavailable")?;
+    let mode = signing_mode_for_event(
+        hasura_transaction,
+        package.tenant_id,
+        package.election_event_id,
+    )
+    .await
+    .context("Operational signing policy unavailable")?;
     let outcome = gate(
         hasura_transaction,
         requester,
@@ -296,7 +300,12 @@ pub fn package_members(
             )
         })?;
         let signature = BASE64.encode(document_signature);
-        let publickey = public_key_pem(&approval.certificate_pem)?;
+        let publickey = public_key_pem(
+            approval
+                .certificate_pem
+                .as_deref()
+                .context("EML approval has no certificate")?,
+        )?;
         let (id, name) = match sbeis {
             Some(sbeis) => {
                 let identity = sbeis.get(&approval.username).ok_or_else(|| {
@@ -328,7 +337,10 @@ pub fn package_members(
             sbei_miru_id: id,
             pub_key: publickey,
             signature,
-            certificate_fingerprint: approval.fingerprint_sha256.clone(),
+            certificate_fingerprint: approval
+                .fingerprint_sha256
+                .clone()
+                .context("EML approval has no certificate fingerprint")?,
         });
     }
     Ok((members, signatures))
@@ -430,7 +442,12 @@ pub async fn sign_package(
     }
     let destination_sha256 = destination_configuration_hash(&loaded.package.servers)?;
     if destination_names(&loaded.package.servers) != subject.destinations()
-        || (signing_mode(hasura_transaction, request.tenant_id).await?
+        || (signing_mode_for_event(
+            hasura_transaction,
+            request.tenant_id,
+            request.election_event_id,
+        )
+        .await?
             == OperationalSigningMode::HsmRequired
             && request
                 .subject
@@ -447,6 +464,15 @@ pub async fn sign_package(
         return Err(refuse(
             "signatures-missing",
             format!("Signing request {} lacks signatures", request.code),
+        ));
+    }
+    // The approval binds the frozen EML/package/destination digests. The
+    // existing MIRU archive format still requires its independently trusted
+    // member document signatures. Never reinterpret a raw receipt as one.
+    if approvals.iter().any(|a| a.action_direct_proof.is_some()) {
+        return Err(refuse(
+            "official-artifact-certification-unavailable",
+            "Demo HSM approvals were recorded, but certified MIRU member signatures are unavailable; no package was sent.",
         ));
     }
     let (members, signatures) = package_members(approvals, loaded.sbeis.as_ref())?;
@@ -569,7 +595,7 @@ pub async fn transmission_send_check_bound(
     package: &MiruTransmissionPackageData,
     observed_archive_sha256: Option<&str>,
 ) -> Result<std::result::Result<TransmissionSendCheck, TransmissionRefusal>> {
-    let mode = signing_mode(hasura_transaction, tenant_id).await?;
+    let mode = signing_mode_for_event(hasura_transaction, tenant_id, election_event_id).await?;
     let request = match &package.signing_request {
         Some(signing) => {
             let id = Uuid::parse_str(&signing.id).context("Error reading the request id")?;
@@ -711,7 +737,12 @@ pub async fn transmission_send_check_bound(
             };
             expected.push((
                 BASE64.encode(signature),
-                public_key_pem(&approval.certificate_pem)?,
+                public_key_pem(
+                    approval
+                        .certificate_pem
+                        .as_deref()
+                        .context("EML approval has no certificate")?,
+                )?,
             ));
         }
         expected.sort();

@@ -73,10 +73,16 @@ const CHECK_COLUMNS: [&str; 5] = [
 /// Also read as an explicit "never expires", beside the workbook's `null`.
 pub const NO_EXPIRY: &str = "none";
 
-/// An action the canonical HSM receiver can enforce, but this platform
-/// build cannot. Preserve its exact wire value in authoring, not in the
-/// native receiver's `SigningAction` catalog.
+/// Preserve this action's exact wire value in editable plans, including with
+/// an older importer that rejects the action during strict bundle decoding.
 const MANUAL_VERIFICATION_ACTION: &str = "authorize-manual-verification";
+
+fn paired_receiver_supports_manual_verification() -> bool {
+    // The paired receiver builds and enforces its policy from this native
+    // catalog. Do not use the broader authoring catalog or the v11 label:
+    // older signing-capable receivers do not know this action.
+    MANUAL_VERIFICATION_ACTION.parse::<SigningAction>().is_ok()
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
@@ -132,12 +138,22 @@ fn manual_receiver_required(path: String) -> Problem {
     .detail("action", MANUAL_VERIFICATION_ACTION)
 }
 
-/// Check the final, effective policy, including inherited export values.
-/// Keep this guard in the common builder: a direct historical/workbook build
-/// must be as strict as the wizard. Lift it only in a paired implementation
-/// with the enforcement path, permission, and database constraints verified;
-/// neither an authoring enum nor the shared v11 version proves support.
+/// Check the final, effective policy against the paired native catalog,
+/// including inherited rules and both historical-workbook and wizard builds.
 pub(super) fn require_signing_receiver(export: &Value) -> Result<(), Problem> {
+    require_manual_verification_receiving_support(
+        export,
+        paired_receiver_supports_manual_verification(),
+    )
+}
+
+fn require_manual_verification_receiving_support(
+    export: &Value,
+    supported: bool,
+) -> Result<(), Problem> {
+    if supported {
+        return Ok(());
+    }
     let index = export
         .get("signing_rules")
         .and_then(Value::as_array)
@@ -197,6 +213,9 @@ impl PlannedSigning {
     /// The authoring form may open and save a preserved rule even when the
     /// artifact builder cannot deliver it to this receiver.
     pub(super) fn receiver_notice(&self, path: &str) -> Option<Problem> {
+        if paired_receiver_supports_manual_verification() {
+            return None;
+        }
         let index = self.rules.as_ref()?.iter().position(|rule| {
             rule.action == PlannedSigningAction::AuthorizeManualVerification
         })?;
@@ -206,9 +225,8 @@ impl PlannedSigning {
         Some(problem)
     }
 
-    /// A fixed client profile may override ordinary supported rules, but it
-    /// cannot turn a preserved rule it does not enforce into a deliverable
-    /// plan by replacing or removing it on open or on build.
+    /// A fixed client profile may override ordinary rules, but it cannot
+    /// change or drop the preserved manual verification rule.
     pub(super) fn check_manual_rule_preserved(
         &self,
         applied: &Self,

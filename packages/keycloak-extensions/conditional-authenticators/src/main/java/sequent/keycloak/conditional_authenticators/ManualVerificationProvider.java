@@ -7,6 +7,7 @@ package sequent.keycloak.conditional_authenticators;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -27,10 +28,6 @@ import org.keycloak.services.resource.RealmResourceProvider;
 import org.keycloak.services.resources.LoginActionsService;
 import sequent.keycloak.authenticator.smart_link.AbstractAdminResource;
 
-/*
- * curl -v http://127.0.0.1:8090/realms/master/manual-verification/ping | jq -C .
- * curl -v "http://127.0.0.1:8090/realms/master/manual-verification/generate-link?userId=d0924713-5b74-4ce5-b675-2cff1d5c8b91&redirectUri=http://127.0.0.1:3002" | jq -C .
- */
 @JBossLog
 @Provider
 public class ManualVerificationProvider extends AbstractAdminResource
@@ -38,7 +35,14 @@ public class ManualVerificationProvider extends AbstractAdminResource
   static final String CLIENT_ID = "voting-portal";
 
   public ManualVerificationProvider(KeycloakSession session) {
+    this(session, ManualVerificationAuthority::call);
+  }
+
+  private final ManualVerificationAuthority.Check authority;
+
+  ManualVerificationProvider(KeycloakSession session, ManualVerificationAuthority.Check authority) {
     super(session);
+    this.authority = authority;
   }
 
   @GET
@@ -54,20 +58,24 @@ public class ManualVerificationProvider extends AbstractAdminResource
   @Path("/generate-link")
   @Produces(MediaType.APPLICATION_JSON)
   public Response generateLink(
-      @QueryParam("userId") String userId, @QueryParam("redirectUri") String redirectUri) {
+      @QueryParam("userId") String userId,
+      @QueryParam("redirectUri") String redirectUri,
+      @HeaderParam(ManualVerificationAuthority.INITIATION) String initiation,
+      @HeaderParam(ManualVerificationAuthority.PROOF) String proof) {
     log.info("generateLink");
     checkPermissions();
 
-    String tokenLink = generateTokenLink(userId, redirectUri);
+    String tokenLink = generateTokenLink(userId, redirectUri, initiation, proof);
     if (tokenLink != null) {
       Map<String, String> response = new HashMap<>();
       response.put("link", tokenLink);
-      return Response.ok(response).build();
+      return Response.ok(response).header("Cache-Control", "no-store").build();
     }
     return Response.status(Response.Status.NOT_FOUND).build();
   }
 
-  private String generateTokenLink(String userId, String redirectUri) {
+  private String generateTokenLink(
+      String userId, String redirectUri, String initiation, String proof) {
     log.info("generateTokenLink(): start");
     ClientModel client = session.clients().getClientByClientId(realm, CLIENT_ID);
     if (client == null || !client.isEnabled()) {
@@ -84,23 +92,17 @@ public class ManualVerificationProvider extends AbstractAdminResource
     UserModel user = session.users().getUserById(realm, userId);
 
     if (user != null) {
-      log.info(
-          "generateTokenLink(): user found at realm="
-              + realm.getName()
-              + " with id="
-              + userId
-              + ", and username="
-              + user.getUsername());
-
+      ManualVerificationAuthority.require(
+          realm.getName(), user.getId(), "issue", initiation, proof, authority);
       // Generate the token
       ManualVerificationToken mvToken =
           new ManualVerificationToken(user.getId(), expiration, redirectUri);
+      mvToken.bindAuthorization(initiation, proof);
       mvToken.issuedFor(client.getClientId());
       UriBuilder builder = LoginActionsService.actionTokenProcessor(session.getContext().getUri());
       builder.queryParam("key", mvToken.serialize(session, realm, session.getContext().getUri()));
       return builder.build(realm.getName()).toString();
     } else {
-      log.info("generateTokenLink(): No user at realm=" + realm.getName() + " with id=" + userId);
     }
     return null;
   }

@@ -45,6 +45,7 @@ import {
     type ISigningApi,
     type ISigningPanelData,
 } from "@/lib/signing/api"
+import {signingExperience} from "@/lib/signing/operationalApprovalPolicy"
 import type {OpenedCertificate} from "@/lib/signing/certificate"
 import {colonHex} from "@/lib/signing/der"
 import {
@@ -745,13 +746,20 @@ export interface ISigningDialogProps {
     onRequestChanged?: () => void
 }
 
+/** Only the ordinary, explicitly legacy approval experience may mount P12. */
+export const SigningDialog: React.FC<ISigningDialogProps> = (props) =>
+    signingExperience(props.data.operational_signing_mode, props.data.request.action) ===
+    "legacy" ? (
+        <LegacySigningDialog {...props} />
+    ) : null
+
 /**
  * Signs a request in three steps: check what is signed, open the certificate
  * file in the browser (the server dry-runs its checks), sign. The file, the
  * key and the password never leave the browser; the dialog forgets them
  * when it closes.
  */
-export const SigningDialog: React.FC<ISigningDialogProps> = ({
+const LegacySigningDialog: React.FC<ISigningDialogProps> = ({
     open,
     data,
     api,
@@ -832,7 +840,10 @@ export const SigningDialog: React.FC<ISigningDialogProps> = ({
     /** The request as it is now; a closed or changed one ends the attempt. */
     const refetch = async (): Promise<ISigningPanelData | IClosed> => {
         const fresh = validatePanel(await api.getRequest(requestId))
-        const closed = closedOf(fresh, data)
+        const closed =
+            signingExperience(fresh.operational_signing_mode, fresh.request.action) !== "legacy"
+                ? {message: "signing.operational.phase.unavailable"}
+                : closedOf(fresh, data)
         if (closed) onRequestChanged?.()
         return closed ?? fresh
     }

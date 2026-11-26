@@ -22,35 +22,39 @@ Upstream `docker-entrypoint.sh` on start:
 3. `migrate apply --all-databases` from `/hasura-migrations`
 4. `metadata reload`, then `exec` normal serve
 
-### Configuration-package credential intake migration
+### Upgrading databases that recorded version 1794700001600
 
-`backend-db` version `1794700001600` belongs to
-`cast_vote_seal_key`. The protected configuration-package intake migration is
-now `1794700001650_configuration_package_credential_intake`. On a fresh
-database Hasura applies both normally; neither creates a tenant or election.
+Hasura records the numeric version, not the migration name. Canonical OVCS
+version `1794700001600` is `cast_vote_seal_key` and remains unchanged. Earlier
+branches used the same number for the operational demo installation or
+protected configuration-package intake. These now use `1794700001610` and
+`1794700001650`, respectively.
 
-An earlier portable development branch used version `1794700001600` for
-`configuration_package_unwrap`. A separate HSM demo lineage used the same
-number for `operational_signing_demo_installation`. Hasura records only the
-number. Do not infer which SQL ran from `hasura migrate status`, edit an
-applied version, or use `--skip-execution` to make the history look clean.
-Version 1650 refuses to start with missing or incomplete canonical cast-vote
-objects or a partial credential-intake schema.
+Back up first, then rehearse on an isolated restore with writers and other
+migrators stopped. Run normal Hasura migrations even if later versions are
+already recorded. A fresh database applies all three versions in order. On
+an existing database, 1610 verifies and preserves complete cast and demo
+schemas and installs only the wholly absent feature. It briefly locks the
+tenant and election tables and never calls the demo registration routine.
+Version 1650 verifies and preserves exact existing intake columns, constraints,
+index and bound credentials, or adds the schema without a backfill. None
+creates a tenant, election, key or demo installation. An installation already
+on 1650 with canonical cast sealing applies the pending 1610 normally.
 
-- For a pristine install, use new databases and object-storage volumes.
-  Leave any old database, vault state, and staged objects intact.
-- To upgrade a prior portable installation with state you must keep, take
-  a backup, stop writers and work on an isolated restore first. Compare its
-  actual schema, constraints, triggers and privileges with the exact
-  migrations from both releases. If the portable staging schema is correct
-  and the entire canonical cast-vote migration is absent, an authorized
-  database operator can run that exact canonical `1600` **up.sql** in one
-  transaction on the restore, without modifying any migration records.
-  Then run the usual Hasura migration: 1650 verifies and adopts the exact
-  pre-existing staging schema without changing any staged record or
-  credential. Do not run that repair SQL over partially present cast-vote
-  objects. The separate HSM demo history requires its own reviewed upgrade;
-  this release does not install or remap those HSM migrations.
+If a provisional portable installation recorded 1600 **only** for
+`configuration_package_unwrap`, 1610 refuses because neither cast sealing
+nor the operational demo schema is present. On the isolated restore, an
+authorized database operator should verify the exact historical staging schema
+and confirm all database-local canonical cast objects are absent. Then run
+the unchanged `1794700001600_cast_vote_seal_key/up.sql` once in a transaction
+and rerun normal migrations so 1650 adopts the existing staging schema.
+If a schema is partial or has unexpected definitions or grants, stop and
+review it. Do not replay SQL over partial objects, edit Hasura's migration
+records, use `--skip-execution`, or reset existing data.
+
+Rollback of 1610 removes only empty demo schema: it never removes cast keys
+or requirements and refuses for a populated demo. Rollback of 1650 refuses
+while any staging row retains bound intake fields.
 
 ## Required pod env
 

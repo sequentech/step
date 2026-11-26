@@ -119,6 +119,7 @@
 /list-user-roles
 /locate-ballot
 /manage-election-dates
+/manual-verification-authority
 /messages/link
 /messages/link/confirm
 /messages/link/status

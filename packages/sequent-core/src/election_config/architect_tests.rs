@@ -6828,7 +6828,7 @@ fn the_signing_configuration_survives_the_plans_workbook_being_reopened() {
 
 #[cfg(feature = "election_config_xlsx")]
 #[test]
-fn manual_verification_authoring_roundtrips_without_creating_a_delivery() {
+fn manual_verification_roundtrips_through_authoring_delivery_and_receiver() {
     use crate::election_config::{
         build::build, open::open_named, plan_from_event::plan_from_event,
         plan_from_workbook::plan_from_workbook,
@@ -6846,19 +6846,13 @@ fn manual_verification_authoring_roundtrips_without_creating_a_delivery() {
         .unwrap()
         .push(manual.clone());
 
-    // Authoring the row must not add its action to the receiver's catalog.
-    assert!(serde_json::from_value::<ImportElectionEventSchema>(
-        native.clone()
-    )
-    .is_err());
-    let notice = |report: &Report| {
-        report.problems.iter().any(|p| {
-            p.id.as_deref()
-                == Some("signing.manual-verification-receiver-required")
-        })
-    };
+    let schema: ImportElectionEventSchema =
+        serde_json::from_value(native.clone()).unwrap();
+    assert_eq!(
+        schema.signing_rules.unwrap().last().unwrap().action,
+        crate::signing::SigningAction::AuthorizeManualVerification
+    );
     let read = plan_from_event(&native).unwrap();
-    assert!(notice(&read.report));
     assert!(!read.report.has_errors());
 
     let plan = opened(&native);
@@ -6867,7 +6861,6 @@ fn manual_verification_authoring_roundtrips_without_creating_a_delivery() {
     let xlsx = write_xlsx(&workbook).unwrap();
     let workbook = read_xlsx(&xlsx).unwrap();
     let reloaded = plan_from_workbook(&workbook).unwrap();
-    assert!(notice(&reloaded.report));
     assert!(!reloaded.report.has_errors());
     assert_eq!(reloaded.plan.signing, plan.signing);
     assert_eq!(
@@ -6893,22 +6886,14 @@ fn manual_verification_authoring_roundtrips_without_creating_a_delivery() {
     assert_eq!(saved.plan.signing, plan.signing);
 
     let templates = TemplateSet::builtin().unwrap();
-    let rejected =
-        |result: Result<crate::election_config::build::Bundle, Report>| {
-            let Err(report) = result else {
-                panic!("unsupported signing rule reached the bundle")
-            };
-            assert!(report.has_errors() && notice(&report), "{report}");
-        };
-    rejected(build(
-        &workbook,
-        &templates,
-        &BuildOptions::default(),
-        &sources,
-    ));
-    // The gate also sees the effective rule when no workbook sheet overrides it.
+    let built =
+        build(&workbook, &templates, &BuildOptions::default(), &sources)
+            .unwrap();
+    assert_eq!(built.export["signing_rules"][3], manual);
+
+    // The same native action is read even when inherited from the export.
     let ordinary = to_workbook(&sound(), &sources).unwrap();
-    rejected(build(
+    let inherited = build(
         &ordinary,
         &templates,
         &BuildOptions {
@@ -6916,17 +6901,18 @@ fn manual_verification_authoring_roundtrips_without_creating_a_delivery() {
             ..Default::default()
         },
         &sources,
-    ));
-    let Err(report) = compile_plan(Compile {
+    )
+    .unwrap();
+    assert_eq!(inherited.export["signing_rules"][3], manual);
+    let delivery = compile_plan(Compile {
         plan: &reloaded.plan,
         templates: &templates,
         options: &BuildOptions::default(),
         profile: None,
         sources: None,
-    }) else {
-        panic!("unsupported signing rule reached the delivery")
-    };
-    assert!(report.has_errors() && notice(&report), "{report}");
+    })
+    .unwrap();
+    assert_eq!(delivery.bundle.export["signing_rules"][3], manual);
 }
 
 #[test]

@@ -20,6 +20,21 @@ public class ManualVerificationToken extends DefaultActionToken {
   @JsonProperty(JSON_FIELD_REDIRECT_URI)
   private String redirectUri;
 
+  @JsonProperty("mv_intent")
+  private String initiation;
+
+  @JsonProperty("mv_proof")
+  private String proof;
+
+  void bindAuthorization(String initiation, String proof) {
+    this.initiation = initiation;
+    this.proof = proof;
+  }
+
+  void authorizeRedemption(String realm, String voter) {
+    ManualVerificationAuthority.require(realm, voter, "redeem", initiation, proof);
+  }
+
   public ManualVerificationToken(String userId, int absoluteExpirationInSecs, String redirectUri) {
     super(userId, TOKEN_TYPE, absoluteExpirationInSecs, null, null);
     log.info("ManualVerificationToken");
@@ -32,12 +47,10 @@ public class ManualVerificationToken extends DefaultActionToken {
   }
 
   public String getRedirectUri() {
-    log.info("getRedirectUri(): " + redirectUri);
     return redirectUri;
   }
 
   public void setRedirectUri(String redirectUri) {
-    log.info("setRedirectUri() = " + redirectUri);
     this.redirectUri = redirectUri;
   }
 }

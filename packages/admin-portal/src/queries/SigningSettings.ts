@@ -116,6 +116,18 @@ export const GET_SIGNING_RULE_CAPACITIES = gql`
             waiting
             config_version
         }
+        authorize_manual_verification: signingRuleCapacity(
+            election_event_id: $electionEventId
+            action: "authorize-manual-verification"
+        ) {
+            max
+            posts
+            posts_short
+            posts_short_without_requester
+            roles
+            waiting
+            config_version
+        }
         approve_configuration: signingRuleCapacity(
             election_event_id: $electionEventId
             action: "approve-configuration"

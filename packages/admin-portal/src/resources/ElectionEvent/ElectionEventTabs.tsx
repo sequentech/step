@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {directHsmApprovalBuild} from "@/lib/signing/operationalApprovalPolicy"
+import {SettingsContext} from "@/providers/SettingsContextProvider"
+import {localOfficerSettings} from "@/lib/signing/localInitializeOfficerApi"
 import React, {
     useContext,
     useEffect,
@@ -233,6 +236,7 @@ const ApprovalsTab: React.FC<{showList: string | undefined}> = ({showList}) => {
 export const ElectionEventTabs: React.FC = () => {
     const record = useRecordContext<Sequent_Backend_Election_Event>()
     const authContext = useContext(AuthContext)
+    const {globalSettings: localSettings} = useContext(SettingsContext)
     const dataMode = useElectionEventDataMode(record)
     const {t} = useTranslation()
     const location = useLocation()
@@ -377,7 +381,7 @@ export const ElectionEventTabs: React.FC = () => {
         ) &&
         authContext.isAuthorized(true, authContext.tenantId, [
             IPermissions.SIGNING_RULES_READ,
-            IPermissions.SIGNING_CERTIFICATES_READ,
+            ...(directHsmApprovalBuild() ? [] : [IPermissions.SIGNING_CERTIFICATES_READ]),
             IPermissions.SIGNING_REQUESTS_READ,
         ])
     const showCAs =
@@ -460,6 +464,7 @@ export const ElectionEventTabs: React.FC = () => {
         // Signatures
         if (showSignatures) {
             result.push({
+                id: "signatures",
                 label: t("signing.tab.title"),
                 component: SignaturesTab,
             })
@@ -573,6 +578,15 @@ export const ElectionEventTabs: React.FC = () => {
         pendingTallySheetImportId,
         clearPendingTallySheetImportId,
     ])
+
+    const localOfficerTabIndex = tabs.findIndex((tab) => tab.id === "signatures")
+    const localOfficerReturn =
+        new URLSearchParams(location.search).get("tabId") === "local-initialize-officer" &&
+        authContext.hasRole("signing-certificates-register") &&
+        Boolean(localOfficerSettings(window.location.origin, authContext.tenantId, localSettings))
+    useEffect(() => {
+        if (localOfficerReturn && localOfficerTabIndex >= 0) setSelectedTab(localOfficerTabIndex)
+    }, [localOfficerReturn, localOfficerTabIndex])
 
     const tallySheetImportsTabIndex = tabs.findIndex((tab) => tab.id === "tally-sheet-imports")
     const dataTabIndex = tabs.findIndex((tab) => tab.id === "data")
