@@ -442,19 +442,235 @@ fn awaiting_pair(
     access: &signed::ClaimSet,
     id: &signed::ClaimSet,
 ) -> AwaitingVerification {
+    let nonce = fixture.device_nonce.clone();
+    awaiting_pair_for(fixture, access, id, nonce)
+}
+
+/// The fixture's own grant (its binding, with `nonce` as the device
+/// request's), polled through the bound path with the tokens' reply.
+fn awaiting_pair_for(
+    fixture: &mut signed::Fixture,
+    access: &signed::ClaimSet,
+    id: &signed::ClaimSet,
+    nonce: DeviceNonce,
+) -> AwaitingVerification {
     let body = fixture.token_reply(access, id);
-    let reply = parse_poll(200, Some(JSON), &body);
-    let polled = Polled {
-        ticket: fixture.ticket(),
-        reply,
-        nonce: fixture.device_nonce.clone(),
+    let bound = BoundDeviceGrant {
+        grant: grant_with(nonce),
+        binding: fixture.binding.take().expect("fixture binding"),
     };
+    let Ok(ticket) = bound.claim_ticket(fixture.ticket()) else {
+        panic!("the fixture's own ticket");
+    };
+    let polled = bound.polled(ticket, parse_poll(200, Some(JSON), &body));
     let Ok(Settled::AwaitingVerification(waiting)) =
         polled.settle(&mut fixture.machine, signed::clock(5, signed::NOW))
     else {
         panic!("expected a reply awaiting verification");
     };
     waiting
+}
+
+/// A pending grant as `authorize` makes it, with `nonce` as its request's.
+fn grant_with(nonce: DeviceNonce) -> PendingDeviceGrant {
+    PendingDeviceGrant {
+        authorization: parse_device(&device_body(|_| {})).unwrap(),
+        pkce: pkce(),
+        nonce,
+    }
+}
+
+fn grant() -> PendingDeviceGrant {
+    grant_with(DeviceNonce::generate().unwrap())
+}
+
+/// A model machine for the synthetic scope with no challenge yet.
+fn idle_machine() -> DeviceLogin {
+    let scope = crate::device::DeviceScope::new(crate::device::ScopeInput {
+        issuer: "https://idp.synthetic.invalid/realms/tenant-synthetic",
+        audience: "synthetic-audience",
+        client_id: "synthetic-device-client",
+        subject: "synthetic-subject-0001",
+        tenant: "synthetic-tenant",
+        trustee_name: "synthetic-trustee-a",
+        required_role: "synthetic-trustee-role",
+    })
+    .unwrap();
+    DeviceLogin::new(scope)
+}
+
+/// The grant, begun and bound on `machine` at `at(0)`.
+fn bound_on(machine: &mut DeviceLogin) -> BoundDeviceGrant {
+    match grant().begin(machine, at(0)) {
+        Ok(bound) => bound,
+        Err((error, _)) => panic!("begin: {error:?}"),
+    }
+}
+
+/// Whether `bound` refused `ticket`, handing it back unspent.
+fn refused(bound: &BoundDeviceGrant, ticket: PollTicket) -> Option<PollTicket> {
+    match bound.claim_ticket(ticket) {
+        Ok(_) => None,
+        Err((TransportError::ForeignTicket, ticket)) => Some(ticket),
+        Err(_) => None,
+    }
+}
+
+#[test]
+fn a_bound_grant_polls_only_with_its_own_machines_challenge_ticket() {
+    let mut own = idle_machine();
+    let mut other = idle_machine();
+    let bound = bound_on(&mut own);
+    let _other_bound = bound_on(&mut other);
+    // Both machines are at an equal-looking challenge, with the same timing.
+    let own_challenge = pending_challenge(&mut own, 0);
+    assert_eq!(pending_challenge(&mut other, 0), own_challenge);
+    assert!(matches!(
+        own.start_poll(at(4).mono, own_challenge).err(),
+        Some(DeviceError::TooEarly { wait: 1 })
+    ));
+    let other_ticket = other.start_poll(at(5).mono, own_challenge).unwrap();
+    // The equal-looking foreign ticket is refused before any request and
+    // comes back unspent: the other machine settles with it as usual.
+    let other_ticket = refused(&bound, other_ticket).expect("refused");
+    assert!(matches!(
+        other.settle(at(5), &other_ticket, PollOutcome::AuthorizationPending),
+        Ok(DeviceStatus::Pending { .. })
+    ));
+    // The grant's own ticket is taken.
+    let own_ticket = own.start_poll(at(5).mono, own_challenge).unwrap();
+    let Ok(own_ticket) = bound.claim_ticket(own_ticket) else {
+        panic!("own ticket refused");
+    };
+    let polled = bound.polled(own_ticket, PollReply::Pending);
+    assert!(matches!(
+        polled.settle(&mut own, at(5)),
+        Ok(Settled::Status(DeviceStatus::Pending { .. }))
+    ));
+}
+
+#[test]
+fn a_replaced_authorization_or_restart_never_takes_the_old_grant() {
+    // The machine's challenge ended and a new authorization began another:
+    // the old grant cannot poll the new challenge.
+    let mut machine = idle_machine();
+    let first = bound_on(&mut machine);
+    let first_challenge = pending_challenge(&mut machine, 0);
+    let ticket = machine.start_poll(at(5).mono, first_challenge).unwrap();
+    machine
+        .settle(at(5), &ticket, PollOutcome::ExpiredToken)
+        .unwrap();
+    let second = match grant().begin(&mut machine, at(6)) {
+        Ok(bound) => bound,
+        Err((error, _)) => panic!("begin: {error:?}"),
+    };
+    let second_challenge = pending_challenge(&mut machine, 6);
+    assert_ne!(second_challenge, first_challenge);
+    let ticket = machine.start_poll(at(11).mono, second_challenge).unwrap();
+    let ticket = refused(&first, ticket).expect("old grant refused");
+    assert!(second.claim_ticket(ticket).is_ok());
+
+    // After a restart, a new machine at challenge 1 shares nothing with the
+    // old grant.
+    let mut restarted = idle_machine();
+    let _fresh = bound_on(&mut restarted);
+    let restarted_challenge = pending_challenge(&mut restarted, 0);
+    let ticket = restarted
+        .start_poll(at(5).mono, restarted_challenge)
+        .unwrap();
+    assert!(refused(&first, ticket).is_some());
+}
+
+#[test]
+fn a_grant_that_cannot_begin_comes_back_unchanged() {
+    let mut machine = idle_machine();
+    let _bound = bound_on(&mut machine);
+    let pending = pending_challenge(&mut machine, 0);
+    // The machine's challenge is pending: another grant cannot begin on it,
+    // and is handed back, with the proper pending challenge untouched.
+    let Err((error, returned)) = grant().begin(&mut machine, at(1)) else {
+        panic!("began on a busy machine");
+    };
+    assert_eq!(error, DeviceError::Busy);
+    assert_eq!(returned.authorization().expires_in(), 600);
+    assert_eq!(pending_challenge(&mut machine, 1), pending);
+    assert!(machine.start_poll(at(5).mono, pending).is_ok());
+}
+
+/// The challenge `machine` has pending, read from its status at `at(offset)`
+/// (no earlier than the machine's last observed time).
+fn pending_challenge(
+    machine: &mut DeviceLogin,
+    offset: u64,
+) -> crate::device::ChallengeId {
+    match machine.status(at(offset)) {
+        DeviceStatus::Pending { challenge, .. } => challenge,
+        _ => panic!("no pending challenge"),
+    }
+}
+
+#[test]
+fn a_bound_grant_shows_no_secret() {
+    let mut machine = idle_machine();
+    let nonce = DeviceNonce::generate().unwrap();
+    let nonce_value = nonce.form_value().to_owned();
+    let bound = match grant_with(nonce).begin(&mut machine, at(0)) {
+        Ok(bound) => bound,
+        Err((error, _)) => panic!("begin: {error:?}"),
+    };
+    let shown = format!("{bound:?}");
+    for secret in [
+        USER_CODE.to_owned(),
+        device_code(),
+        verifier(),
+        challenge(),
+        nonce_value,
+    ] {
+        assert!(!shown.contains(&secret), "{shown}");
+    }
+}
+
+#[test]
+fn the_bound_path_settles_valid_and_wrong_scope_pairs() {
+    // A valid pair through the bound path: discarded for want of a factor.
+    let mut fixture = signed::fixture();
+    let challenge = fixture.challenge;
+    let waiting = awaiting_pair(
+        &mut fixture,
+        &signed::access_claims(),
+        &signed::id_claims(),
+    );
+    let clock = signed::clock(6, signed::NOW);
+    assert_eq!(
+        waiting.verify_and_settle(
+            &mut fixture.machine,
+            clock,
+            &fixture.verifier
+        ),
+        Ok(DeviceStatus::Closed {
+            challenge,
+            closure: crate::device::Closure::Discarded(
+                crate::device::DiscardReason::MfaAbsent
+            ),
+        })
+    );
+    // Another trustee's pair for the same request: wrong scope, denied.
+    let mut fixture = signed::fixture();
+    let challenge = fixture.challenge;
+    let mut other = signed::access_claims();
+    signed::set(&mut other, "sub", json!(signed::OTHER_UUID));
+    let waiting = awaiting_pair(&mut fixture, &other, &signed::id_claims());
+    assert_eq!(
+        waiting.verify_and_settle(
+            &mut fixture.machine,
+            clock,
+            &fixture.verifier
+        ),
+        Ok(DeviceStatus::Closed {
+            challenge,
+            closure: crate::device::Closure::Denied,
+        })
+    );
 }
 
 #[test]
@@ -489,19 +705,13 @@ fn a_pair_of_another_device_request_closes_this_ticket_as_denied() {
     // issued for another (stock: same reused session, other device code).
     let mut fixture = signed::fixture();
     let challenge = fixture.challenge;
-    let body =
-        fixture.token_reply(&signed::access_claims(), &signed::id_claims());
-    let polled = Polled {
-        ticket: fixture.ticket(),
-        reply: parse_poll(200, Some(JSON), &body),
-        nonce: DeviceNonce::generate().unwrap(),
-    };
+    let waiting = awaiting_pair_for(
+        &mut fixture,
+        &signed::access_claims(),
+        &signed::id_claims(),
+        DeviceNonce::generate().unwrap(),
+    );
     let clock = signed::clock(5, signed::NOW);
-    let Ok(Settled::AwaitingVerification(waiting)) =
-        polled.settle(&mut fixture.machine, clock)
-    else {
-        panic!("expected a reply awaiting verification");
-    };
     assert_eq!(
         waiting.verify_and_settle(
             &mut fixture.machine,

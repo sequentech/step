@@ -42,7 +42,8 @@ use serde::Deserialize;
 
 use crate::device::verify::{DeviceNonce, NativeVerifier};
 use crate::device::{
-    Clock, DeviceError, DeviceLogin, DeviceStatus, PollOutcome, PollTicket,
+    ChallengeBinding, Clock, DeviceError, DeviceLogin, DeviceStatus,
+    PollOutcome, PollTicket,
 };
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -72,6 +73,8 @@ pub(crate) enum TransportError {
     Nonce,
     /// The device request nonce was already used by this transport.
     NonceReused,
+    /// The poll ticket is not of the grant's own machine and challenge.
+    ForeignTicket,
     BadCaBundle,
     ClientBuild,
     /// Network failure, timeout, HTTP 429 or 5xx: try again later.
@@ -393,6 +396,75 @@ pub(crate) struct PendingDeviceGrant {
 impl PendingDeviceGrant {
     pub(crate) fn authorization(&self) -> &DeviceAuthorization {
         &self.authorization
+    }
+
+    /// Begins `machine`'s challenge from this authorization's lifetime and
+    /// interval, binding the grant to exactly that machine and challenge.
+    /// Consumes the grant only on success: if the machine cannot begin, the
+    /// grant comes back unchanged with the reason.
+    pub(crate) fn begin(
+        self,
+        machine: &mut DeviceLogin,
+        clock: Clock,
+    ) -> Result<BoundDeviceGrant, (DeviceError, PendingDeviceGrant)> {
+        let (expires_in, interval) =
+            (self.authorization.expires_in, self.authorization.interval);
+        match machine.begin_bound(clock, expires_in, interval) {
+            Ok(binding) => Ok(BoundDeviceGrant {
+                grant: self,
+                binding,
+            }),
+            Err(error) => Err((error, self)),
+        }
+    }
+}
+
+/// A pending device grant (device code, PKCE verifier, nonce) bound, when
+/// its challenge began, to one machine's one challenge. Its polls take
+/// only that machine's tickets for that challenge; nothing in it can be
+/// read or swapped from outside. Inert: no runtime caller yet.
+pub(crate) struct BoundDeviceGrant {
+    grant: PendingDeviceGrant,
+    binding: ChallengeBinding,
+}
+
+impl BoundDeviceGrant {
+    pub(crate) fn authorization(&self) -> &DeviceAuthorization {
+        &self.grant.authorization
+    }
+
+    /// The ticket, if it is this grant's machine's for this grant's
+    /// challenge; otherwise it is handed back unspent, so a foreign or
+    /// stale call costs the proper poll nothing. Checked before any
+    /// network request.
+    fn claim_ticket(
+        &self,
+        ticket: PollTicket,
+    ) -> Result<PollTicket, (TransportError, PollTicket)> {
+        if self.binding.matches(&ticket) {
+            Ok(ticket)
+        } else {
+            Err((TransportError::ForeignTicket, ticket))
+        }
+    }
+
+    /// The poll's reply, paired with the ticket this grant accepted and
+    /// this grant's own nonce: the only way a [`Polled`] is made.
+    fn polled(&self, ticket: PollTicket, reply: PollReply) -> Polled {
+        Polled {
+            ticket,
+            reply,
+            nonce: self.grant.nonce.clone(),
+        }
+    }
+}
+
+impl fmt::Debug for BoundDeviceGrant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BoundDeviceGrant")
+            .field("grant", &self.grant)
+            .field("binding", &self.binding)
+            .finish()
     }
 }
 
@@ -855,19 +927,18 @@ impl DeviceTransport {
         })
     }
 
-    /// Polls once, spending the ticket the model issued when its interval
-    /// allowed; there is no other way to poll.
+    /// Polls once with the bound grant, spending the ticket the model
+    /// issued when its interval allowed; there is no other way to poll. A
+    /// ticket of another machine or challenge is refused before any request
+    /// and handed back unspent.
     pub(crate) async fn poll(
         &self,
-        grant: &PendingDeviceGrant,
+        bound: &BoundDeviceGrant,
         ticket: PollTicket,
-    ) -> Polled {
-        let reply = self.exchange(grant).await;
-        Polled {
-            ticket,
-            reply,
-            nonce: grant.nonce.clone(),
-        }
+    ) -> Result<Polled, (TransportError, PollTicket)> {
+        let ticket = bound.claim_ticket(ticket)?;
+        let reply = self.exchange(&bound.grant).await;
+        Ok(bound.polled(ticket, reply))
     }
 
     async fn exchange(&self, grant: &PendingDeviceGrant) -> PollReply {

@@ -80,10 +80,11 @@
 //!   ID token's signed `nonce` exactly equal to the device request's, no
 //!   access token `nonce`, and a signed `at_hash` matching the exact access
 //!   token bytes. That is the transaction's identity, not factor evidence.
-//! - Before any runtime use, the pending device grant (its device code,
-//!   PKCE verifier and nonce) must also be bound to the machine's pending
-//!   challenge and ticket, so a grant can only settle its own challenge's
-//!   poll; today the caller pairs them. That binding is not built.
+//! - The pending device grant (device code, PKCE verifier, nonce) is bound,
+//!   as its challenge begins, to that machine and challenge
+//!   (`DeviceLogin::begin_bound`, transport `BoundDeviceGrant`); it polls
+//!   only with that challenge's tickets. Inert and test-only like the rest:
+//!   no runtime caller begins a bound challenge yet.
 //! - Which executions approved this device code is not recorded per device
 //!   in stock Keycloak: approval stores only the user session's id, and
 //!   `amr`/`auth_time` belong to that user session. Binding the executions

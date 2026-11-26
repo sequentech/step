@@ -168,6 +168,8 @@ pub(crate) struct Fixture {
     pub(crate) verifier: NativeVerifier,
     /// The nonce of the challenge's own device request.
     pub(crate) device_nonce: DeviceNonce,
+    /// The binding made as the challenge began, until a grant takes it.
+    pub(crate) binding: Option<crate::device::ChallengeBinding>,
     /// The admission evidence proven fixtures verify with.
     admission: Option<AdmissionEvidence>,
 }
@@ -201,8 +203,8 @@ fn device_nonce() -> DeviceNonce {
 fn fixture_started(started: UnixSeconds) -> Fixture {
     let signer = Signer::new(KID);
     let mut machine = DeviceLogin::new(scope(|_| {}));
-    let challenge = machine
-        .begin(clock(0, started), 600, None)
+    let binding = machine
+        .begin_bound(clock(0, started), 600, None)
         .expect("synthetic challenge");
     let ring = TrustedKeyRing::new(ISSUER, vec![signer.trusted()])
         .expect("synthetic key ring");
@@ -211,9 +213,10 @@ fn fixture_started(started: UnixSeconds) -> Fixture {
     Fixture {
         signer,
         machine,
-        challenge,
+        challenge: ChallengeId(1),
         verifier,
         device_nonce: device_nonce(),
+        binding: Some(binding),
         admission: None,
     }
 }
@@ -1110,8 +1113,8 @@ fn admitted_fixture_with(
 ) -> Result<Fixture, VerifyError> {
     let signer = Signer::new(KID);
     let mut machine = DeviceLogin::new(scope(|_| {}));
-    let challenge = machine
-        .begin(clock(0, START), 600, None)
+    let binding = machine
+        .begin_bound(clock(0, START), 600, None)
         .expect("synthetic challenge");
     let ring = TrustedKeyRing::new(ISSUER, vec![signer.trusted()])
         .expect("synthetic key ring");
@@ -1123,9 +1126,10 @@ fn admitted_fixture_with(
     Ok(Fixture {
         signer,
         machine,
-        challenge,
+        challenge: ChallengeId(1),
         verifier,
         device_nonce: device_nonce(),
+        binding: Some(binding),
         admission: Some(admission),
     })
 }

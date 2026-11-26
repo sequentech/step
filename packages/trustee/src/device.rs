@@ -296,6 +296,31 @@ pub(crate) struct PollTicket {
     sequence: u64,
 }
 
+/// An opaque binding to one challenge of one machine. Only
+/// [`DeviceLogin::begin_bound`] makes one, as it begins that challenge; it
+/// is not `Clone` and shows nothing. A device grant bound to it can only
+/// poll with tickets of that machine for that challenge: an equal-looking
+/// challenge of another machine, or a later challenge of the same machine,
+/// never matches. Inert: nothing at runtime begins a bound challenge yet.
+pub(crate) struct ChallengeBinding {
+    owner: Owner,
+    challenge: ChallengeId,
+}
+
+impl ChallengeBinding {
+    /// Whether `ticket` is this machine's, for this challenge.
+    pub(crate) fn matches(&self, ticket: &PollTicket) -> bool {
+        Arc::ptr_eq(&self.owner.0, &ticket.owner.0)
+            && self.challenge == ticket.challenge
+    }
+}
+
+impl std::fmt::Debug for ChallengeBinding {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ChallengeBinding(..)")
+    }
+}
+
 struct Pending {
     challenge: ChallengeId,
     /// Wall time at the start: no authentication before it counts.
@@ -408,6 +433,21 @@ impl DeviceLogin {
             failures: 0,
         });
         Ok(challenge)
+    }
+
+    /// Begins a challenge as [`Self::begin`] does, and binds it: the binding
+    /// names this machine and this challenge alone.
+    pub(crate) fn begin_bound(
+        &mut self,
+        clock: Clock,
+        expires_in: u64,
+        interval: Option<u64>,
+    ) -> Result<ChallengeBinding, DeviceError> {
+        let challenge = self.begin(clock, expires_in, interval)?;
+        Ok(ChallengeBinding {
+            owner: self.owner.clone(),
+            challenge,
+        })
     }
 
     /// The ticket for the challenge's next poll, once its wait passed.

@@ -978,3 +978,31 @@ fn status_and_errors_show_no_identity_or_claim() {
         }
     }
 }
+
+#[test]
+fn a_challenge_binding_matches_only_its_own_machines_challenge() {
+    let mut machine = DeviceLogin::new(scope());
+    let binding = machine.begin_bound(at(0), LIFETIME, None).unwrap();
+    let ticket = machine.start_poll(mono(5), ChallengeId(1)).unwrap();
+    assert!(binding.matches(&ticket));
+    assert_eq!(format!("{binding:?}"), "ChallengeBinding(..)");
+
+    // Another machine at an equal-looking challenge 1.
+    let mut other = DeviceLogin::new(scope());
+    let other_binding = other.begin_bound(at(0), LIFETIME, None).unwrap();
+    let other_ticket = other.start_poll(mono(5), ChallengeId(1)).unwrap();
+    assert!(!binding.matches(&other_ticket));
+    assert!(!other_binding.matches(&ticket));
+
+    // The same machine's later challenge, after the first ended.
+    machine
+        .settle(at(5), &ticket, PollOutcome::AccessDenied)
+        .unwrap();
+    let replaced = machine.begin_bound(at(6), LIFETIME, None).unwrap();
+    let later = machine.start_poll(mono(11), ChallengeId(2)).unwrap();
+    assert!(!binding.matches(&later));
+    assert!(replaced.matches(&later));
+
+    // A machine that cannot begin makes no binding.
+    assert!(machine.begin_bound(at(12), LIFETIME, None).is_err());
+}
