@@ -88,6 +88,10 @@ const spanishTranslation: TranslationType = {
         },
         configurationPackage: {
             workflow: {
+                missingSection: "Falta una sección obligatoria: {{section}}.",
+                missingCensus: "Falta el censo obligatorio en el paquete.",
+                previewRefusalWithoutDetails:
+                    "La plataforma rechazó la previsualización sin registrar un motivo concreto. Revisa el resultado antes de volver a intentarlo.",
                 censusRequired: "Censo obligatorio",
                 censusOptional: "Censo opcional",
                 steps: {
@@ -119,7 +123,7 @@ const spanishTranslation: TranslationType = {
                     },
                     previewBlocked: {
                         title: "La previsualización ha encontrado bloqueos",
-                        help: "Cada bloqueo aparece bajo su sección en el resultado. Corrígelo en el paquete o en la organización y vuelve a previsualizar.",
+                        help: "Revisa los bloqueos registrados antes de volver a previsualizar.",
                     },
                     previewAgain: {
                         title: "Vuelve a previsualizar antes de aplicar",

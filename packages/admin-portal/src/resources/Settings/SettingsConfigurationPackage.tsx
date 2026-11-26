@@ -82,6 +82,7 @@ import {
     readManagedPreview,
     readPackageRetry,
     readPortablePreview,
+    readRefusedPreview,
     changeLines,
     hasPortableReplacement,
     rememberSubmission,
@@ -517,8 +518,15 @@ const SettingsConfigurationPackageForScope: React.FC<{
         })
 
     const running = submitting || (!!submitted && !finished && !unreadable)
+    const refusal = !unreadable ? readRefusedPreview(task, submitted) : null
+    const blockers = refusal?.blockers ?? previewed?.view.blockers ?? []
+    const missingSections = refusal?.missingSections ?? []
+    const hasRefusalDetails =
+        blockers.length > 0 || missingSections.length > 0 || refusal?.censusMissing
+    const knownSections: readonly string[] = PACKAGE_SECTIONS
     const canApply =
         !running &&
+        !refusal &&
         mayApply(previewed, tenantId, documentId, requirements, expectedSha) &&
         matchesTrust(roster.status, previewed)
     const shaMismatch = !!previewed && !shaMatches(previewed.view, expectedSha)
@@ -531,7 +539,8 @@ const SettingsConfigurationPackageForScope: React.FC<{
         submittedMode: submitted?.mode,
         outcome: view?.outcome,
         canApply,
-        hasBlockers: !!previewed?.view.blockers.length,
+        hasBlockers: blockers.length > 0,
+        previewRefused: !!refusal,
         unreadable,
         noRecord,
         hasError: !!error,
@@ -617,7 +626,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
                             </Button>
                         }
                     >
-                        {!canApply && previewed?.view.blockers.length ? (
+                        {!canApply && (refusal || blockers.length > 0) ? (
                             <Alert
                                 severity="warning"
                                 role="status"
@@ -625,19 +634,45 @@ const SettingsConfigurationPackageForScope: React.FC<{
                                 data-testid="package-blocked"
                             >
                                 <Typography variant="body2" sx={{fontWeight: "medium"}}>
-                                    {t("configurationPackage.blocked")}
+                                    {t(
+                                        hasRefusalDetails
+                                            ? "configurationPackage.blocked"
+                                            : "configurationPackage.workflow.previewRefusalWithoutDetails"
+                                    )}
                                 </Typography>
-                                <Box component="ul" sx={{m: 0, mt: 0.5, pl: 2.5}}>
-                                    {previewed.view.blockers.map((blocker, index) => (
-                                        <Typography
-                                            component="li"
-                                            variant="body2"
-                                            key={`${index}:${blocker}`}
-                                        >
-                                            {safeText(blocker)}
-                                        </Typography>
-                                    ))}
-                                </Box>
+                                {hasRefusalDetails && (
+                                    <Box component="ul" sx={{m: 0, mt: 0.5, pl: 2.5}}>
+                                        {blockers.map((blocker, index) => (
+                                            <Typography
+                                                component="li"
+                                                variant="body2"
+                                                key={`${index}:${blocker}`}
+                                            >
+                                                {safeText(blocker)}
+                                            </Typography>
+                                        ))}
+                                        {missingSections.map((section, index) => (
+                                            <Typography
+                                                component="li"
+                                                variant="body2"
+                                                key={`missing:${index}:${section}`}
+                                            >
+                                                {t("configurationPackage.workflow.missingSection", {
+                                                    section: knownSections.includes(section)
+                                                        ? t(
+                                                              `configurationPackage.sections.${section}`
+                                                          )
+                                                        : safeText(section),
+                                                })}
+                                            </Typography>
+                                        ))}
+                                        {refusal?.censusMissing && (
+                                            <Typography component="li" variant="body2">
+                                                {t("configurationPackage.workflow.missingCensus")}
+                                            </Typography>
+                                        )}
+                                    </Box>
+                                )}
                             </Alert>
                         ) : null}
                         {previewTrustChanged && (

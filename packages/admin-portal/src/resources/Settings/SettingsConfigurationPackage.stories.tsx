@@ -10,7 +10,7 @@ import {storyId} from "@/__stories__/fixtures"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {SettingsConfigurationPackage} from "./SettingsConfigurationPackage"
 import {COMPLETE_DELIVERY, PACKAGE_PERMISSIONS} from "./configurationPackage"
-import {record} from "./configurationPackage.fixture"
+import {record, refusedPreview} from "./configurationPackage.fixture"
 
 interface Scenario {
     allowed: boolean
@@ -31,10 +31,12 @@ const meta = {
         // The page also shows the tenant's signing card, which reads the
         // tenant record; no signing configured yet.
         data = resourceBoundary({sequent_backend_tenant: [{id: TENANT_ID, settings: {}}]})
-        const annotations = record(
-            "previewed",
-            args.blocked ? ["Unknown role: synthetic-reviewer"] : []
-        )
+        const annotations = args.blocked
+            ? refusedPreview(["Unknown role: synthetic-reviewer"], {
+                  missingTrustees: true,
+                  missingCensus: true,
+              })
+            : record("previewed")
         annotations.application.tenantId = TENANT_ID
         annotations.application.packageSha256 = "ab".repeat(32)
         // A readable proposal, not credentials or arbitrary raw configuration.
@@ -119,7 +121,7 @@ const meta = {
                         : [
                               {
                                   id: TASK_ID,
-                                  execution_status: "SUCCESS",
+                                  execution_status: args.blocked ? "FAILED" : "SUCCESS",
                                   annotations,
                                   logs: [],
                               },
@@ -222,7 +224,12 @@ export const BlockedPreview: Story = {
         await expect(await canvas.findByTestId("section-tenant-configuration")).toHaveTextContent(
             "Unknown role: synthetic-reviewer"
         )
-        await expect(await canvas.findByText(i18n.t("configurationPackage.blocked"))).toBeVisible()
+        const alert = await canvas.findByTestId("package-blocked")
+        await expect(within(alert).getByText(i18n.t("configurationPackage.blocked"))).toBeVisible()
+        await expect(
+            within(alert).getByText(i18n.t("configurationPackage.workflow.missingCensus"))
+        ).toBeVisible()
+        await expect(canvas.getByTestId("section-trustees")).toHaveTextContent("missing")
         await expect(canvas.getByTestId("package-apply")).toBeDisabled()
         expect(graphql.calls.filter(({name}) => name === "ApplyConfigurationPackage")).toHaveLength(
             1

@@ -29,6 +29,7 @@ export interface PackageImportSignals {
     outcome?: Outcome
     canApply: boolean
     hasBlockers: boolean
+    previewRefused: boolean
     unreadable: boolean
     noRecord: boolean
     hasError: boolean
@@ -56,6 +57,9 @@ export const packageImportPhase = (signals: PackageImportSignals): PackageImport
             return "starting"
         }
         return submittedMode === "apply" ? "applying" : "previewing"
+    }
+    if (signals.previewRefused && submittedMode === "preview") {
+        return "previewBlocked"
     }
     if (outcome === "failed" || outcome === "refused" || outcome === "unknown") {
         return "attention"

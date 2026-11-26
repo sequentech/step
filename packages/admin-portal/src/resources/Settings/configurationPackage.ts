@@ -310,6 +310,35 @@ export interface ActiveSubmission {
     encryptedPayloadSha256?: string
 }
 
+/** Recorded reasons for a terminal refusal; this is never an eligible preview. */
+export const readRefusedPreview = (
+    task: {id: string; execution_status?: string | null; annotations?: unknown} | null | undefined,
+    submitted: Pick<ActiveSubmission, "taskId" | "mode"> | null | undefined
+) => {
+    if (
+        !task ||
+        submitted?.mode !== "preview" ||
+        task.id !== submitted.taskId ||
+        task.execution_status !== "FAILED"
+    ) {
+        return null
+    }
+    const view = readApplication(task.annotations)
+    if (view?.mode !== "preview" || view.outcome !== "refused") return null
+    const coverage = asObject(asObject(asObject(task.annotations).application).coverage)
+    return {
+        blockers: view.sections.flatMap(({section, state, preview}) =>
+            state === "blocked"
+                ? (preview?.blockers ?? []).map((reason) => `${section}: ${reason}`)
+                : []
+        ),
+        missingSections: view.sections
+            .filter(({state}) => state === "missing")
+            .map(({section}) => section),
+        censusMissing: asObject(coverage.census).state === "missing",
+    }
+}
+
 /** The receiver's safe options for this rejected Preview. A previous task
  * is not a new authorization and these options are never saved in the browser.
  */

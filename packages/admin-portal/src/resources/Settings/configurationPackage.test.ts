@@ -13,13 +13,14 @@ import {
     mayApply,
     mayApplyPackages,
     readApplication,
+    readRefusedPreview,
     recalledSubmission,
     rememberSubmission,
     safeText,
     sectionsToChange,
     shaMatches,
 } from "./configurationPackage"
-import {record} from "./configurationPackage.fixture"
+import {record, refusedPreview} from "./configurationPackage.fixture"
 
 describe("reading the platform's application record", () => {
     it("is null until the task has one", () => {
@@ -69,6 +70,39 @@ describe("reading the platform's application record", () => {
             submissions: ["task-earlier"],
         })
         expect(refused.sections[1].earlierApplied).toBe(false)
+    })
+})
+
+describe("reading a refused preview for display only", () => {
+    const followed = {taskId: "task-a", mode: "preview"} as const
+    const refused = {
+        id: followed.taskId,
+        execution_status: "FAILED",
+        annotations: refusedPreview(["Unknown role"], {missingTrustees: true, missingCensus: true}),
+    }
+    it("reads blockers with missing sections and census from the current FAILED/refused preview", () => {
+        expect(readRefusedPreview(refused, followed)).toEqual({
+            blockers: ["tenant-configuration: Unknown role"],
+            missingSections: ["trustees"],
+            censusMissing: true,
+        })
+    })
+    it("does not invent a reason for an underspecified refusal", () => {
+        expect(readRefusedPreview({...refused, annotations: refusedPreview([])}, followed)).toEqual(
+            {blockers: [], missingSections: [], censusMissing: false}
+        )
+    })
+    it.each([
+        ["a different row", {id: "other"}],
+        ["an unfinished row", {execution_status: "IN_PROGRESS"}],
+        ["a contradictory success row", {execution_status: "SUCCESS"}],
+        ["a refused apply", {annotations: record("refused")}],
+        ["an unsettled outcome", {annotations: record("unknown")}],
+    ])("does not classify %s as a refused preview", (_, update) => {
+        expect(readRefusedPreview({...refused, ...update}, followed)).toBeNull()
+    })
+    it("does not classify an apply submission as a refused preview", () => {
+        expect(readRefusedPreview(refused, {...followed, mode: "apply"})).toBeNull()
     })
 })
 

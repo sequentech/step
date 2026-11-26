@@ -81,6 +81,10 @@ const englishTranslation = {
         },
         configurationPackage: {
             workflow: {
+                missingSection: "Required section missing: {{section}}.",
+                missingCensus: "The package is missing the required census.",
+                previewRefusalWithoutDetails:
+                    "The platform refused the preview without recording a specific reason. Check the result before trying again.",
                 censusRequired: "Census required",
                 censusOptional: "Census optional",
                 steps: {
@@ -112,7 +116,7 @@ const englishTranslation = {
                     },
                     previewBlocked: {
                         title: "The preview found blockers",
-                        help: "Each blocker is listed under its section in the result. Fix it in the package or on the tenant, then preview again.",
+                        help: "Read any recorded blockers below before previewing again.",
                     },
                     previewAgain: {
                         title: "Preview again before applying",

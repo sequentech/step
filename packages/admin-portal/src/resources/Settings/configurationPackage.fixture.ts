@@ -173,3 +173,41 @@ export const record = (outcome: string, blockers: string[] = []) => {
             ])
     }
 }
+
+/** The worker saves a refused preview, including absent coverage, on a FAILED task. */
+export const refusedPreview = (
+    blockers: string[],
+    {missingTrustees = false, missingCensus = false} = {}
+) => {
+    const {application: base} = record("previewed", blockers)
+    return {
+        application: {
+            ...base,
+            outcome: "refused",
+            coverage: {
+                ...base.coverage,
+                members: base.coverage.members.filter(
+                    (member) => !missingCensus || member.path !== "export_voters-e1.csv"
+                ),
+                sections: {
+                    ...base.coverage.sections,
+                    ...(missingTrustees && {trustees: {state: "missing"}}),
+                },
+                census: missingCensus ? {state: "missing"} : base.coverage.census,
+            },
+            sections: [
+                ...base.sections,
+                ...(missingTrustees
+                    ? [
+                          {
+                              section: "trustees",
+                              members: [],
+                              status: {state: "missing"},
+                              history: history(false),
+                          },
+                      ]
+                    : []),
+            ],
+        },
+    }
+}

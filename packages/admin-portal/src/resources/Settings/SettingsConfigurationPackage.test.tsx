@@ -5,7 +5,7 @@ import React from "react"
 import {act, fireEvent, render, screen, within} from "@testing-library/react"
 import {ThemeProvider} from "@mui/material/styles"
 import {adminTheme} from "../../../../ui-essentials/src/services/theme"
-import {record} from "./configurationPackage.fixture"
+import {record, refusedPreview} from "./configurationPackage.fixture"
 import {COMPLETE_DELIVERY} from "./configurationPackage"
 import {
     notifyConfigurationPackageElectionImported,
@@ -286,7 +286,7 @@ it("discloses advanced controls on demand without changing requirements, includi
     expect(mockApply).not.toHaveBeenCalled()
 })
 
-it("previews an upload first, showing members, blockers and the task, and refuses to apply", async () => {
+it("shows the recorded FAILED/refused preview blocker without allowing Apply", async () => {
     mockApply.mockResolvedValue(accepted("task-p"))
     const {rerender} = render(<SettingsConfigurationPackage />)
     expect(screen.getByTestId("package-tenant").textContent).toContain("t1")
@@ -310,15 +310,55 @@ it("previews an upload first, showing members, blockers and the task, and refuse
     })
     expect(applyButton().disabled).toBe(true)
 
-    mockTask = task("task-p", "SUCCESS", record("previewed", ["unknown role x"]))
+    mockTask = task("task-p", "FAILED", refusedPreview(["unknown role x"]))
     rerender(<SettingsConfigurationPackage />)
     expect(screen.getByTestId("package-task").textContent).toContain("task-p")
     expect(screen.getByTestId("package-members").textContent).toContain("export_voters-e1.csv")
+    expect(
+        within(screen.getByTestId("package-workflow")).getByRole("heading", {
+            name: "configurationPackage.workflow.phases.previewBlocked.title",
+        })
+    ).toBeTruthy()
+    expect(screen.getByTestId("package-blocked").textContent).toContain("unknown role x")
+    fireEvent.click(applyButton())
+    expect(screen.queryByTestId("package-apply-confirm")).toBeNull()
+    expect(mockApply.mock.calls.map(([options]) => options.variables.mode)).toEqual(["preview"])
+    expect(mockManagedApply).not.toHaveBeenCalled()
     expect(screen.getByTestId("section-tenant-configuration").textContent).toContain(
         "unknown role x"
     )
     expect(applyButton().disabled).toBe(true)
     expect(mockStopPolling).toHaveBeenCalled()
+})
+
+it("names missing required sections and census even without a recorded blocker string", async () => {
+    mockApply.mockResolvedValue(accepted("task-p"))
+    const {rerender} = render(<SettingsConfigurationPackage />)
+    await upload()
+    mockTask = task(
+        "task-p",
+        "FAILED",
+        refusedPreview([], {missingTrustees: true, missingCensus: true})
+    )
+    rerender(<SettingsConfigurationPackage />)
+    const alert = screen.getByTestId("package-blocked")
+    expect(alert.textContent).toContain("configurationPackage.workflow.missingSection")
+    expect(alert.textContent).toContain("configurationPackage.sections.trustees")
+    expect(alert.textContent).toContain("configurationPackage.workflow.missingCensus")
+    expect(screen.getByTestId("section-trustees").textContent).toContain("missing")
+    expect(applyButton().disabled).toBe(true)
+    expect(mockApply).toHaveBeenCalledTimes(1)
+})
+
+it("does not use a different task's refused preview as the current blocker", async () => {
+    mockApply.mockResolvedValue(accepted("current-task"))
+    const {rerender} = render(<SettingsConfigurationPackage />)
+    await upload()
+    mockTask = task("other-task", "FAILED", refusedPreview(["stale blocker"]))
+    rerender(<SettingsConfigurationPackage />)
+    expect(screen.queryByTestId("package-blocked")).toBeNull()
+    expect(applyButton().disabled).toBe(true)
+    expect(mockApply).toHaveBeenCalledTimes(1)
 })
 
 it("looks the task up within the tenant only", async () => {
