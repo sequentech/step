@@ -23,10 +23,10 @@ use crate::{
     },
     services::{
         database::get_hasura_pool,
-        documents::{get_document_as_temp_file, upload_and_return_document},
+        documents::{get_operational_miru_document_as_temp_file, upload_and_return_document},
         signing::{
             actions::transmission::{transmission_send_check_bound, TransmissionRefusal},
-            operational_policy::{signing_mode, OperationalSigningMode},
+            operational_policy::{signing_mode_for_event, OperationalSigningMode},
         },
         time_zones::event_time_zone,
     },
@@ -552,7 +552,7 @@ pub async fn send_transmission_package_service(
     let tenant_uuid = Uuid::parse_str(tenant_id).context("Invalid tenant id")?;
     let event_uuid = Uuid::parse_str(&election_event.id).context("Invalid election event id")?;
     let tally_uuid = Uuid::parse_str(tally_session_id).context("Invalid tally session id")?;
-    let hardware = signing_mode(&hasura_transaction, tenant_uuid).await?
+    let hardware = signing_mode_for_event(&hasura_transaction, tenant_uuid, event_uuid).await?
         == OperationalSigningMode::HsmRequired;
     // Request and registered revision must match before loading any archive.
     transmission_send_check_bound(
@@ -580,7 +580,8 @@ pub async fn send_transmission_package_service(
         )
     })?;
 
-    let mut compressed_zip = get_document_as_temp_file(tenant_id, &document).await?;
+    let mut compressed_zip =
+        get_operational_miru_document_as_temp_file(tenant_id, &document).await?;
 
     let verified_archive_sha = if hardware {
         let archive_sha = sha256_archive(compressed_zip.path())?;

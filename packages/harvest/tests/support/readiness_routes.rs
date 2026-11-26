@@ -259,7 +259,6 @@ fn readiness_returns_failed_checks_without_recording_a_success() {
                 "configuration",
                 "certified_voters",
                 "official_zero",
-                "publication",
                 "tested_finished"
             ]
         );

@@ -4,6 +4,11 @@
 
 import Keycloak from "keycloak-js"
 import {
+    INITIALIZE_RETURN_PATH,
+    localInitializeBuild,
+    matchLocalInitializeSettings,
+} from "./localInitializeAuthority"
+import {
     bindReturnedPage,
     clearTabMarker,
     readTabMarker,
@@ -103,7 +108,16 @@ export async function finishOperationalApproval(
     captured: ReturnSecret | undefined
 ) {
     const location = browser.location
-    if (location.protocol !== "https:") return false
+    const local = localInitializeBuild(location.origin)
+    if (
+        location.protocol !== "https:" &&
+        !(
+            local &&
+            location.protocol === "http:" &&
+            location.href === location.origin + INITIALIZE_RETURN_PATH
+        )
+    )
+        return false
     const storage = browser.sessionStorage
     const tab = readTabMarker(storage)
     if (!tab) return false
@@ -114,17 +128,20 @@ export async function finishOperationalApproval(
         location.replace(path)
         return true
     }
-    if (!captured) return resume("reconcile")
+    const setup = tab.purpose === "initialize-setup"
+    if (!captured || (setup && !local)) return resume("reconcile")
     try {
         const settingsUrl = new URL("/global-settings.json", location.origin)
         const settings = await fetch(settingsUrl, {
             cache: "no-store",
             redirect: "error",
-            credentials: "same-origin",
+            credentials: local ? "omit" : "same-origin",
+            referrerPolicy: "no-referrer",
             signal: AbortSignal.timeout(4000),
         })
         if (!settings.ok || settings.url !== settingsUrl.href) return resume("reconcile")
-        const {KEYCLOAK_URL, HASURA_URL, ONLINE_VOTING_CLIENT_ID} = record(await settings.json())
+        const config = record(await settings.json())
+        const {KEYCLOAK_URL, HASURA_URL, ONLINE_VOTING_CLIENT_ID} = config
         if (
             typeof KEYCLOAK_URL !== "string" ||
             typeof HASURA_URL !== "string" ||
@@ -135,7 +152,15 @@ export async function finishOperationalApproval(
             return resume("reconcile")
         const issuer = new URL(KEYCLOAK_URL)
         const graph = new URL(HASURA_URL, location.origin)
-        if (
+        if (local) {
+            const registration = matchLocalInitializeSettings(location.origin, tab.tenant, config)
+            if (
+                !registration ||
+                captured.issuer !== registration.issuer ||
+                (setup && !registration.setupClient)
+            )
+                return resume("reconcile")
+        } else if (
             !secureUrl(issuer) ||
             !secureUrl(graph) ||
             graph.origin !== location.origin ||
@@ -153,7 +178,7 @@ export async function finishOperationalApproval(
             method: "POST",
             cache: "no-store",
             redirect: "error",
-            credentials: "same-origin",
+            credentials: local ? "omit" : "same-origin",
             referrerPolicy: "no-referrer",
             signal: AbortSignal.timeout(12000),
             headers: {
@@ -162,8 +187,14 @@ export async function finishOperationalApproval(
                 "x-hasura-role": "sign-initialize-voting",
             },
             body: JSON.stringify({
-                operationName: "OperationalGoldReturn",
-                query: `mutation OperationalGoldReturn($request: uuid!, $attempt: uuid!, $state: String!, $code: String!) {
+                operationName: setup ? "LocalInitializeSetupReturn" : "OperationalGoldReturn",
+                query: setup
+                    ? `mutation LocalInitializeSetupReturn($request: uuid!, $digest: String!, $attempt: uuid!, $state: String!, $code: String!) {
+                    operationalInitializeSelfSetupConfirm(request_id: $request, payload_sha256: $digest, attempt: $attempt, state: $state, code: $code) {
+                        tenant event official request attempt phase page {path panel election_id}
+                    }
+                }`
+                    : `mutation OperationalGoldReturn($request: uuid!, $attempt: uuid!, $state: String!, $code: String!) {
                     operationalInitializeFinish(request_id: $request, attempt: $attempt, state: $state, code: $code) {
                         tenant event official request attempt phase page {path panel election_id}
                     }
@@ -171,21 +202,29 @@ export async function finishOperationalApproval(
                 variables: {
                     request: tab.request,
                     attempt: tab.attempt,
+                    ...(setup && {digest: tab.payloadSha256}),
                     state: captured.state,
                     code: captured.code,
                 },
             }),
         })
-        if (!response.ok) return resume("reconcile")
+        if (!response.ok || (local && response.url !== graph.href)) return resume("reconcile")
         const body = record(await response.json())
-        const returned = record(record(body.data).operationalInitializeFinish)
-        return resume(
-            !body.errors &&
-                returned.phase === "approval-recorded" &&
-                bindReturnedPage(tab, returned, {tenant: tab.tenant, official: tab.official})
-                ? "approval-recorded"
-                : "reconcile"
+        const returned = record(
+            record(body.data)[
+                setup ? "operationalInitializeSelfSetupConfirm" : "operationalInitializeFinish"
+            ]
         )
+        if (
+            body.errors ||
+            !bindReturnedPage(tab, returned, {tenant: tab.tenant, official: tab.official})
+        )
+            return resume("reconcile")
+        if (setup)
+            return resume(
+                returned.phase === "setup-confirmation-required" ? "setup-returned" : "reconcile"
+            )
+        return resume(returned.phase === "approval-recorded" ? "approval-recorded" : "reconcile")
     } catch {
         return resume("reconcile")
     }

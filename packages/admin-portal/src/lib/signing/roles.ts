@@ -12,13 +12,12 @@ import {SIGNING_ACTIONS, SigningAction} from "./types"
 
 /** The widget's calls, grouped by the roles their Hasura action allows. */
 export enum SigningOperation {
-    /** signingGetRequest: admin-user, every sign-<action> and signing-requests-read. */
+    /** Signing request readers, signers, or a manual-verification initiator (their request only). */
     GetRequest = "get-request",
-    /**
-     * signingCheckCertificate, signingPdfPrepare, signingApprove, signingOpenFailure and
-     * signingHandover: admin-user and the sign-<action> permissions.
-     */
+    /** Certificate checks, PDF preparation and approvals: admin-user or signing permissions. */
     Sign = "sign",
+    /** Signing handover permits the manual-verification requester, not just a signer. */
+    Handover = "handover",
     /**
      * signingCancel: admin-user, signing-requests-cancel, the sign-<action> permissions and
      * the permissions that start an action (a requester cancels their own request;
@@ -44,6 +43,7 @@ const START_PERMISSIONS: Record<SigningAction, IPermissions> = {
     [SigningAction.GenerateReports]: IPermissions.REPORT_READ,
     [SigningAction.TransmitResults]: IPermissions.MIRU_CREATE,
     [SigningAction.ApproveVoter]: IPermissions.APPLICATION_WRITE,
+    [SigningAction.AuthorizeManualVerification]: IPermissions.VOTER_MANUALLY_VERIFY,
     [SigningAction.ApproveConfiguration]: IPermissions.PUBLISH_WRITE,
     [SigningAction.ConfirmCustodyProof]: IPermissions.TRUSTEE_CEREMONY,
     [SigningAction.ContributeCustodyProof]: IPermissions.TRUSTEE_CEREMONY,
@@ -74,7 +74,17 @@ export const signingOperationRole = (
                 ownSign,
                 IPermissions.SIGNING_REQUESTS_READ,
                 IPermissions.ADMIN_USER,
-                ...SIGN_PERMISSIONS
+                ...SIGN_PERMISSIONS,
+                IPermissions.VOTER_MANUALLY_VERIFY
+            )
+        case SigningOperation.Handover:
+            return held(
+                ownSign,
+                IPermissions.ADMIN_USER,
+                ...SIGN_PERMISSIONS,
+                action === SigningAction.AuthorizeManualVerification
+                    ? IPermissions.VOTER_MANUALLY_VERIFY
+                    : undefined
             )
         case SigningOperation.Sign:
             return held(ownSign, IPermissions.ADMIN_USER, ...SIGN_PERMISSIONS)

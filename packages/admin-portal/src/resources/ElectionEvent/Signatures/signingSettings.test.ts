@@ -2,6 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {IPermissions} from "@/types/keycloak"
+import buildProfile from "@/lib/signing/localInitializeProfile.json"
 import {
     RequesterSigning,
     SigningAction,
@@ -52,6 +53,12 @@ const holding =
     (permission: IPermissions) =>
         permissions.includes(permission)
 
+jest.mock("@/lib/signing/localInitializeProfile.json", () => ({profile: "disabled"}))
+
+afterEach(() => {
+    buildProfile.profile = "disabled"
+})
+
 describe("signaturesAccess", () => {
     it("shows the tab only with the tab permission and one read permission", () => {
         expect(signaturesAccess(holding(IPermissions.ELECTION_EVENT_SIGNATURES_TAB)).tab).toBe(
@@ -67,6 +74,25 @@ describe("signaturesAccess", () => {
                 signaturesAccess(holding(IPermissions.ELECTION_EVENT_SIGNATURES_TAB, read)).tab
             ).toBe(true)
         }
+    })
+
+    it("hides the operational Certificates tab and its controls in the HSM-only build", () => {
+        buildProfile.profile = "comelec-demo-direct-hsm"
+        const tab = IPermissions.ELECTION_EVENT_SIGNATURES_TAB
+        const certificate = IPermissions.SIGNING_CERTIFICATES_READ
+        expect(signaturesAccess(holding(tab, certificate)).tab).toBe(false)
+        expect(signaturesAccess(() => true)).toMatchObject({
+            tab: true,
+            rulesRead: true,
+            requestsRead: true,
+            requestsCancel: true,
+            requestsExport: true,
+            certificatesRead: false,
+            issuersWrite: false,
+            checksWrite: false,
+            certificatesRegister: false,
+            certificatesRevoke: false,
+        })
     })
 
     it("lets roles change from the drawer only with role-read, role-write and the rules' write", () => {
@@ -148,7 +174,7 @@ describe("rules", () => {
         expect(ruleOf(SigningAction.CloseVoting, [saved])).toBe(saved)
     })
 
-    it("groups the ten actions in catalog order", () => {
+    it("groups the protected actions in catalog order", () => {
         expect(actionGroups()).toEqual([
             {
                 group: SigningActionGroup.Voting,
@@ -166,7 +192,10 @@ describe("rules", () => {
                     SigningAction.TransmitResults,
                 ],
             },
-            {group: SigningActionGroup.Enrollment, actions: [SigningAction.ApproveVoter]},
+            {
+                group: SigningActionGroup.Enrollment,
+                actions: [SigningAction.ApproveVoter, SigningAction.AuthorizeManualVerification],
+            },
             {
                 group: SigningActionGroup.ConfigurationAndKeys,
                 actions: [

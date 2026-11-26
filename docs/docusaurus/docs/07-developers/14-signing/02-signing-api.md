@@ -155,7 +155,7 @@ Values are kebab-case strings in JSON and in the database.
 
 | Enum | Values |
 |---|---|
-| Action | `initialize-voting`, `open-voting`, `close-voting`, `generate-election-returns`, `generate-reports`, `transmit-results`, `approve-voter`, `approve-configuration`, `key-ceremony`, `tally-key` |
+| Action | `initialize-voting`, `open-voting`, `close-voting`, `generate-election-returns`, `generate-reports`, `transmit-results`, `approve-voter`, `authorize-manual-verification`, `approve-configuration`, `key-ceremony`, `tally-key` |
 | Requirement | `not-required`, `required` |
 | Requester signing | `allowed`, `not-allowed` |
 | Request status | `waiting`, `completed`, `executed`, `cancelled`, `expired`, `failed` |
@@ -226,3 +226,28 @@ the terminal response. Real participation reports require a Post when GenerateRe
 Required; the report API rejects event-wide generation before enqueueing it. The form and
 Reports list explain this when the caller can read the rules. Preview and unsigned
 participation reports can cover the whole event.
+
+### Manual identity verification is not an enrollment decision
+
+The **Approvals** tab keeps using `change_application_status` / `approve-voter`. The
+**Voters** row action uses `get_manual_verification_pdf` / `authorize-manual-verification`.
+They have independent rules and signer permissions. The latter authorizes *issuance*
+of one private document; it never accepts an application or verifies the voter.
+
+On the Voters action, generate an `initiation_id` once per deliberate request and reuse
+it on retries. A required rule returns `status: awaiting-signatures`, the signing
+request summary, and **no document ID**. When that authorization is **Executed**, the
+original requester can call the same mutation with the original voter and initiation
+and `recover_request_id` set to the exact executed request. Recovery is lookup-only.
+An unprotected action, or a settled protected action, returns `pending` and the stable
+private document ID. Poll the normal authenticated document route. Do not send, log
+or archive bearer credentials. A rendering failure after a possible mint requires a
+new deliberate initiation, not another mint for the old authorization.
+
+Keycloak consults Harvest's tenant-service-account authority before both minting
+and redeeming. An unbound administrative call or pre-upgrade token is valid only
+if the authority affirmatively finds signatures unnecessary for its own event. An
+unavailable authority denies. Roll out the schema and direct-profile allowlist
+before matching Harvest, Windmill, Keycloak, HSM service and portal builds; do
+not enable the new rule against an older token issuer. Existing signer assignments
+for enrollment applications are not grants for manual verification.

@@ -1077,11 +1077,13 @@ fn evaluate_readable(
     let signed = context.approvals.iter().find_map(|approval| {
         if approval.user_id == *signer {
             Some("you already signed this request")
-        } else if approval.fingerprint_sha256 == identity.fingerprint_sha256 {
+        } else if approval.fingerprint_sha256.as_deref()
+            == Some(identity.fingerprint_sha256.as_str())
+        {
             Some("this certificate already signed this request")
         } else if approval.spki_sha256 == identity.spki_sha256 {
             Some("this key already signed this request")
-        } else if approval.holder_sha256 == identity.holder_sha256 {
+        } else if approval.holder_sha256.as_deref() == Some(identity.holder_sha256.as_str()) {
             Some("this certificate's holder already signed this request")
         } else {
             None

@@ -58,6 +58,29 @@ class ManualVerificationTokenHandlerTest {
     assertInvalidRedirect("javascript:alert(1)");
   }
 
+  @Test
+  void neitherUnsignedRedemptionNorTargetMismatchMutatesTheUser() {
+    var auth = tokenContext.getAuthenticationSession();
+    var target = mock(org.keycloak.models.UserModel.class);
+    var realm = mock(org.keycloak.models.RealmModel.class);
+    when(auth.getAuthenticatedUser()).thenReturn(target);
+    when(tokenContext.getRealm()).thenReturn(realm);
+    // Invalid/missing realm also simulates an unavailable issuing authority:
+    // no writes to the target, auth-session or credential service.
+    when(target.getId()).thenReturn("voter");
+    assertThrows(
+        jakarta.ws.rs.ForbiddenException.class,
+        () -> handler.handleToken(token(null), tokenContext));
+    when(target.getId()).thenReturn("different-synthetic-voter");
+    assertThrows(
+        jakarta.ws.rs.ForbiddenException.class,
+        () -> handler.handleToken(token(null), tokenContext));
+    verify(target, never()).setEmailVerified(anyBoolean());
+    verify(target, never()).setAttribute(anyString(), any());
+    verify(target, never()).addRequiredAction(anyString());
+    verify(auth, never()).addRequiredAction(anyString());
+  }
+
   private void assertInvalidRedirect(String redirect) {
     VerificationException error =
         assertThrows(VerificationException.class, () -> passesVerifiers(token(redirect)));

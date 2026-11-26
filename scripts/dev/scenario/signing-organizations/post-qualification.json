@@ -44,6 +44,12 @@
             "permissions": [
                 "sign-approve-voter"
             ]
+        },
+        {
+            "name": "demo-manual-verification-reviewer",
+            "permissions": [
+                "sign-authorize-manual-verification"
+            ]
         }
     ],
     "posts": [
@@ -102,6 +108,13 @@
             "username": "ofov-{n}",
             "event_wide": [
                 "Overseas Voting Officer"
+            ]
+        },
+        {
+            "group": "demo-manual-verification-reviewer",
+            "username": "demo-manual-verification-reviewer-{n}",
+            "event_wide": [
+                "Manual Verification Reviewer"
             ]
         }
     ],

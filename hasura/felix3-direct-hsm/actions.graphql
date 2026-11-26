@@ -1,0 +1,14 @@
+type Mutation {
+    signingApproveActionDirect(
+        request_id: uuid!
+        payload_sha256: String!
+    ): DirectInitializeApprovalResult!
+    signingApproveInitializeDirect(
+        request_id: uuid!
+        payload_sha256: String!
+    ): DirectInitializeApprovalResult!
+}
+
+type DirectInitializeApprovalResult {
+    request_id: uuid!
+}

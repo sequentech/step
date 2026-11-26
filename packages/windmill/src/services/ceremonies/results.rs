@@ -368,6 +368,7 @@ pub async fn process_results_tables(
     tally_type_enum: TallyType,
     sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
     force_new_id: bool,
+    execution_complete: bool,
 ) -> Result<Option<String>> {
     let results_event_id_opt = generate_results_id_if_necessary(
         hasura_transaction,
@@ -403,6 +404,7 @@ pub async fn process_results_tables(
                 default_language,
                 tally_type_enum,
                 sqlite_transaction_opt,
+                execution_complete,
             )
             .await?;
         }
@@ -428,6 +430,7 @@ pub async fn populate_results_tables(
     tally_type_enum: TallyType,
     is_empty: bool,
     force_new_id: bool,
+    execution_complete: bool,
 ) -> Result<(Option<String>, Option<TallySessionDocuments>)> {
     let velvet_output_dir = base_tally_path.join("output");
     let base_database_path = velvet_output_dir.join(PipeNameOutputDir::GenerateDatabase.as_ref());
@@ -455,6 +458,7 @@ pub async fn populate_results_tables(
                         tally_type_enum,
                         Some(&sqlite_transaction),
                         force_new_id,
+                        execution_complete,
                     )
                     .await
                 })?;
@@ -480,6 +484,7 @@ pub async fn populate_results_tables(
                         tally_type_enum,
                         None,
                         force_new_id,
+                        execution_complete,
                     )
                     .await
                 })?;

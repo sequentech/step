@@ -43,7 +43,9 @@ use crate::services::reports::report_variables::configuration_stamp_without_temp
 use crate::services::signing::actions::transmission::{
     guard_transmission_package, sha256_hex, PackageToSign,
 };
-use crate::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
+use crate::services::signing::operational_policy::{
+    signing_mode_for_event, OperationalSigningMode,
+};
 use crate::services::signing::SigningCaller;
 use crate::types::miru_plugin::{
     MiruCcsServer, MiruDocument, MiruDocumentHashes, MiruDocumentIds, MiruSignature,
@@ -619,10 +621,10 @@ pub async fn create_transmission_package_service(
     // rows are visible. In hard mode the provisional archive and loose
     // EML/XZ/CSV never become generic-download or export candidates.
     let scoped_tenant = parse(tenant_id, "tenant id")?;
-    if signing_mode(&hasura_transaction, scoped_tenant).await?
+    let event = parse(&election_event.id, "event id")?;
+    if signing_mode_for_event(&hasura_transaction, scoped_tenant, event).await?
         == OperationalSigningMode::HsmRequired
     {
-        let event = parse(&election_event.id, "event id")?;
         let tally = parse(tally_session_id, "tally session id")?;
         let election = parse(election_id, "election id")?;
         let country = parse(area_id, "area id")?;

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React, {ReactElement, useState} from "react"
+import React, {ReactElement, useMemo, useState} from "react"
 import {
     DatagridConfigurable,
     List,
@@ -41,6 +41,7 @@ import {
 import type {TFunction} from "i18next"
 import {readinessDescription} from "./logs/readinessLog"
 import {configurationPackageDescription} from "./logs/configurationPackageLog"
+import {signingActivityDescription} from "./logs/signingActivityDescription"
 import {ballotLogDetails} from "./logs/ballotLogDetails"
 import {logMessage} from "./logs/logMessage"
 import {LogTime} from "./logs/LogTime"
@@ -58,6 +59,7 @@ import {
     LOG_FILTER_LOG_TYPE,
     LOG_SCOPE_META,
     LOG_TYPES,
+    EVENT_LOG_STATEMENT_KINDS,
     TENANT_LOG_STATEMENT_KINDS,
     logListLayout,
     type ILogTarget,
@@ -186,10 +188,15 @@ const messageUser = (record: ILogRow, field: "user_id" | "username"): string | n
     return !projected || projected === "null" ? null : projected
 }
 
-const description = (t: TFunction, record: ILogRow): string =>
-    readinessDescription(t, record.statement_kind) ??
-    configurationPackageDescription(t, record.statement_kind, logMessage(record)) ??
-    (logMessage(record)?.statement?.head?.description || "-")
+const description = (t: TFunction, record: ILogRow): string => {
+    const message = logMessage(record)
+    return (
+        signingActivityDescription(t, record.statement_kind, message) ??
+        readinessDescription(t, record.statement_kind) ??
+        configurationPackageDescription(t, record.statement_kind, message) ??
+        (message?.statement?.head?.description || "-")
+    )
+}
 
 /** Use the timestamp's existing height; the description never adds another line to the row. */
 const LogRowDescription: React.FC<{
@@ -367,6 +374,16 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
     const [listRef, width] = useContainerWidth<HTMLDivElement>()
     const layout = logListLayout(width)
 
+    // Every kind the backend writes, by its name in the admin's language.
+    const eventStatementKinds = useMemo(
+        () =>
+            EVENT_LOG_STATEMENT_KINDS.map((kind) => ({
+                id: kind,
+                name: String(t(`logsScreen.statementKind.${kind}`)),
+            })).sort((a, b) => a.name.localeCompare(b.name)),
+        [t]
+    )
+
     // Without a chosen zone, the range is read in the primary (also after a filter reset).
     const filterObject: {[key: string]: any} = {
         ...(tenantLog ? {} : {election_event_id: eventId}),
@@ -433,10 +450,11 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                 translateChoice={false}
             />
         ) : (
-            <TextInput
+            <SelectInput
                 key={"statement_kind"}
                 source={"statement_kind"}
                 label={String(t("logsScreen.column.statement_kind"))}
+                choices={eventStatementKinds}
             />
         ),
         <SelectInput
@@ -634,8 +652,8 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                             doExport={() => setOpenExport(true)}
                             withExport={tenantLog ? canExportTenantLogs : canExportLogs}
                             withFilter={true}
-                            extraActions={
-                                canAuditLogs && eventId
+                            extraActions={[
+                                ...(canAuditLogs && eventId
                                     ? [
                                           <Button
                                               key="audit"
@@ -646,8 +664,8 @@ export const ElectoralLogList: React.FC<ElectoralLogListProps> = ({
                                               <FactCheckIcon />
                                           </Button>,
                                       ]
-                                    : []
-                            }
+                                    : []),
+                            ]}
                         />
                     )
                 }

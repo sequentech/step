@@ -539,7 +539,13 @@ mod header_tests {
         let url = format!("http://{}/b4/", listener.local_addr().unwrap());
         let (polled, waiting) = mpsc::sync_channel(1);
         let server = thread::spawn(move || {
-            let mut polled = Some(polled);
+            // The client cannot know the URL yet. Confirm the empty
+            // queue before signalling readiness, independent of scheduling.
+            assert_eq!(
+                listener.accept().unwrap_err().kind(),
+                std::io::ErrorKind::WouldBlock
+            );
+            polled.send(()).unwrap();
             let deadline = Instant::now() + Duration::from_secs(5);
             let (mut stream, _) = loop {
                 match listener.accept() {
@@ -549,9 +555,6 @@ mod header_tests {
                     {
                         assert!(Instant::now() < deadline, "no request");
                         thread::sleep(Duration::from_millis(5));
-                        if let Some(polled) = polled.take() {
-                            let _ = polled.try_send(());
-                        }
                     }
                     Err(error) => panic!("accept failed: {error}"),
                 }

@@ -169,8 +169,8 @@ describe("the roles the widget sends", () => {
             "signingPdfPrepare",
             "signingApprove",
             "signingOpenFailure",
-            "signingHandover",
         ],
+        [SigningOperation.Handover]: ["signingHandover"],
         [SigningOperation.Cancel]: ["signingCancel"],
     }
     const permissions = Object.values(IPermissions)

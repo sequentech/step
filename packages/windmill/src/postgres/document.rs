@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-use crate::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
+use crate::services::signing::operational_policy::{
+    direct_hsm_approval_build, signing_mode, OperationalSigningMode,
+};
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
@@ -25,7 +27,13 @@ pub async fn get_exportable_document_ids(
 ) -> Result<std::collections::HashSet<String>> {
     let tenant = parse_uuid_v4(tenant_id)?;
     let event = parse_uuid_v4(election_event_id)?;
-    let query = if signing_mode(transaction, tenant).await? == OperationalSigningMode::HsmRequired {
+    // A signed manual-verification PDF is left out by its issuance ledger
+    // binding as well as by its editable `purpose` (checked below).
+    // The direct-HSM build registers MIRU output on a legacy-p12 tenant; its
+    // exclusions are that event's registered artifacts (never NULL there).
+    let query = if signing_mode(transaction, tenant).await? == OperationalSigningMode::HsmRequired
+        || direct_hsm_approval_build()
+    {
         // One READ COMMITTED statement and one classification snapshot:
         // neither a just-committed object nor its registry membership can
         // appear in only half of the export decision.
@@ -34,12 +42,16 @@ pub async fn get_exportable_document_ids(
          )
          SELECT gate.withheld IS NOT NULL AS inventory_ready, doc.id, doc.annotations
          FROM gate LEFT JOIN LATERAL (
-             SELECT id,annotations FROM sequent_backend.document
-             WHERE tenant_id=$1 AND election_event_id=$2 AND NOT (id=ANY(gate.withheld))
+             SELECT d.id,d.annotations FROM sequent_backend.document d
+             WHERE d.tenant_id=$1 AND d.election_event_id=$2 AND NOT (d.id=ANY(gate.withheld))
+               AND NOT EXISTS(SELECT FROM sequent_backend.manual_verification_issuance i
+                              WHERE i.document_id=d.id AND i.request_id IS NOT NULL)
          ) doc ON true"
     } else {
-        "SELECT true AS inventory_ready, id, annotations FROM sequent_backend.document
-         WHERE tenant_id=$1 AND election_event_id=$2"
+        "SELECT true AS inventory_ready, d.id, d.annotations FROM sequent_backend.document d
+         WHERE d.tenant_id=$1 AND d.election_event_id=$2
+           AND NOT EXISTS(SELECT FROM sequent_backend.manual_verification_issuance i
+                          WHERE i.document_id=d.id AND i.request_id IS NOT NULL)"
     };
     let rows = transaction.query(query, &[&tenant, &event]).await?;
     let mut ids = std::collections::HashSet::new();
@@ -56,6 +68,13 @@ pub async fn get_exportable_document_ids(
         let access = annotations
             .map(serde_json::from_value::<DocumentAnnotations>)
             .transpose()?;
+        // A signed manual-verification document contains a bearer credential for
+        // the initiating operator. Not even a secret-inclusive archive transfers it.
+        if access.as_ref().and_then(|a| a.purpose)
+            == Some(sequent_core::types::hasura::core::DocumentPurpose::SignedManualVerification)
+        {
+            continue;
+        }
         // An archive carrying integration secrets never travels inside
         // another export: its download is gated by `integration-secret-read`.
         if access

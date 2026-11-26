@@ -20,11 +20,13 @@ use crate::postgres::document::get_document;
 use crate::postgres::election_event::get_election_event_by_election_area;
 use crate::postgres::signing::get_signing_post;
 use crate::services::database::get_hasura_pool;
-use crate::services::documents::get_document_as_temp_file;
+use crate::services::documents::get_operational_miru_document_as_temp_file;
 use crate::services::signing::actions::transmission::{
     transmission_send_check_bound, TransmissionSendCheck,
 };
-use crate::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
+use crate::services::signing::operational_policy::{
+    signing_mode_for_event, OperationalSigningMode,
+};
 use crate::services::signing::SigningCaller;
 use crate::types::miru_plugin::{MiruDelivery, MiruDocument, MiruTransmissionPackageData};
 use anyhow::{anyhow, Context, Result};
@@ -232,7 +234,8 @@ async fn stored_sha256(
     )
     .await?
     .ok_or_else(|| anyhow!("Can't find document {}", download.document_id))?;
-    let mut file = get_document_as_temp_file(&download.tenant_id, &document).await?;
+    let mut file =
+        get_operational_miru_document_as_temp_file(&download.tenant_id, &document).await?;
     Ok(file_sha256(&read_temp_file(&mut file)?))
 }
 
@@ -253,7 +256,10 @@ pub async fn record_transmission_download(
         .await
         .context("Error acquiring hasura transaction")?;
     let tenant = Uuid::parse_str(&download.tenant_id).context("Invalid tenant")?;
-    if signing_mode(&hasura_transaction, tenant).await? == OperationalSigningMode::HsmRequired {
+    let event = Uuid::parse_str(&download.election_event_id).context("Invalid event")?;
+    if signing_mode_for_event(&hasura_transaction, tenant, event).await?
+        == OperationalSigningMode::HsmRequired
+    {
         // A log-only endpoint cannot authorize hard-mode issuance.
         return Ok(Err(DownloadRefusal::NotAPackageFile));
     }
@@ -394,7 +400,7 @@ pub async fn prepare_hardware_manual_archive(
     let event = Uuid::parse_str(&download.election_event_id).context("Invalid event")?;
     let election = Uuid::parse_str(&download.election_id).context("Invalid Post")?;
     let tally = Uuid::parse_str(&download.tally_session_id).context("Invalid tally session")?;
-    if signing_mode(tx, tenant).await? != OperationalSigningMode::HsmRequired {
+    if signing_mode_for_event(tx, tenant, event).await? != OperationalSigningMode::HsmRequired {
         return Ok(Err(DownloadRefusal::NoPackage));
     }
     let Some(post) = get_signing_post(tx, tenant, event, election).await? else {
@@ -463,7 +469,7 @@ pub async fn prepare_hardware_manual_archive(
     if document.is_public.unwrap_or(false) {
         return Ok(Err(DownloadRefusal::NotAPackageFile));
     }
-    let file = get_document_as_temp_file(&download.tenant_id, &document).await?;
+    let file = get_operational_miru_document_as_temp_file(&download.tenant_id, &document).await?;
     let digest = sha256_local_file(&file)?;
     if !matches!(
         transmission_send_check_bound(tx, tenant, event, Some(tally), &package, Some(&digest))

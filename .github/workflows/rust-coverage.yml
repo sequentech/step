@@ -35,7 +35,6 @@ env:
   HEAD_REF: ${{ github.sha }}
   PR_NUMBER: ${{ github.event.number }}
   PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-  PR_MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
 
 jobs:
   reporter-tests:

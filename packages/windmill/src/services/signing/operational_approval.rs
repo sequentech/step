@@ -9,8 +9,8 @@
 
 use super::approve::{ApproveInput, SigningServices};
 use super::certificates::{parse_chain, verify_signature, CertificateIdentity};
-use super::operational_device::{installed_profile, InstalledDevice};
-use super::operational_quorum::check_with_installed_device;
+use super::operational_device::InstalledDevice;
+use super::operational_quorum::checked_approval_device;
 use super::pdf::{operational_pdf_artifact, S3RevisionStore};
 use super::{SigningCaller, SigningError, SigningResult};
 use crate::postgres::signing::{SigningApprovalRow, SigningRequestRow};
@@ -127,8 +127,7 @@ async fn load(
         .await
         .context("Cannot check provenance of the applied device receipt")?
         .try_get(0)?;
-    // The normal application cannot accept or count a disposable fixture
-    // signature after database restore or profile reconfiguration.
+    // The recorded PKCS#11 profile must match this request's installed device.
     if !installed.admits(device_profile.as_deref()) {
         return Err(refusal());
     }
@@ -159,15 +158,16 @@ impl OperationalEvidence {
             DocumentKind::Eml => &["approval-payload", "eml"],
             DocumentKind::Pdf => &["approval-payload", "pdf-cms"],
         };
-        let installed = installed_profile(tx, row.tenant_id, row.election_event_id, row.action)
-            .await?
-            .ok_or_else(refusal)?;
-        if !check_with_installed_device(tx, row, existing, installed).await? {
-            return Err(SigningError::Conflict(
-                "An earlier approval did not use the required signing device. Start a new request."
-                    .into(),
-            ));
-        }
+        let installed = checked_approval_device(tx, row, existing).await?.ok_or_else(|| {
+            if existing.is_empty() {
+                refusal()
+            } else {
+                SigningError::Conflict(
+                    "An earlier approval did not use the required signing device. Start a new request."
+                        .into(),
+                )
+            }
+        })?;
         let approval = load(
             tx,
             row,

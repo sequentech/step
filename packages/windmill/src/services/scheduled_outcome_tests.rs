@@ -51,6 +51,7 @@ fn inputs(
 ) -> Inputs {
     Inputs {
         action,
+        direct_approval_unavailable: false,
         current,
         published,
         coverage,
@@ -651,6 +652,8 @@ fn initialization_state(post: Uuid) -> EventState {
         },
     );
     EventState {
+        direct_schedule_proofs: None,
+        direct_schedule_unavailable: false,
         tenant_id: Uuid::from_u128(1),
         election_event_id: Uuid::from_u128(2),
         policies: LifecyclePolicies::default(),
@@ -688,6 +691,175 @@ fn opening_row(post: Uuid) -> ScheduledRow {
         annotations: json!({}),
         written_now: false,
     }
+}
+
+#[test]
+fn direct_demo_schedule_cannot_use_old_proof_or_another_post() {
+    let post = Uuid::from_u128(3);
+    let other = Uuid::from_u128(4);
+    let mut state = initialization_state(post);
+    state.rules.close_voting = rule(true, 2);
+    state.rules.approve_configuration = true;
+    state.policies.unsigned_scheduled_close = RUN_AS_SYSTEM;
+    let old = Uuid::from_u128(5);
+    let newest = Uuid::from_u128(6);
+    let approval = |request_id| Approval {
+        request_id,
+        code: "exact".into(),
+        target: None,
+        executed_at: state.now,
+        schedule: vec![],
+        signers: vec![],
+        post_channels: BTreeMap::new(),
+        initialization_scope: InitializationScope::default(),
+        initialization_report_policies: BTreeMap::new(),
+    };
+    state.approvals = vec![approval(newest), approval(old)];
+    state.direct_schedule_proofs = Some((post, HashSet::from([old])));
+    assert!(state.approval(Some(post)).is_none());
+    state.direct_schedule_proofs = Some((post, HashSet::from([newest, old])));
+    assert_eq!(state.approval(Some(post)).unwrap().request_id, newest);
+    assert!(state.approval(Some(other)).is_none());
+    let row = ScheduledRow {
+        transition: transition_of(
+            "closing",
+            "END_VOTING_PERIOD",
+            Some(&json!({"scheduled_date": "2028-05-08T10:00:00Z"})),
+            Some(&json!({"election_id": other})),
+        )
+        .unwrap(),
+        annotations: json!({}),
+        written_now: false,
+    };
+    let outside = state.inputs(&row, Some(other), Moment::FireTime);
+    assert_eq!(outside.current.close_policy, REFUSE);
+    assert_eq!(evaluate(&outside).outcome, ScheduledOutcomeKind::Refused);
+    state.direct_schedule_proofs = None;
+    assert_eq!(state.approval(Some(other)).unwrap().request_id, newest);
+}
+
+#[test]
+fn both_direct_schedules_require_the_exact_committed_configuration() {
+    let post = Uuid::from_u128(3);
+    let other = Uuid::from_u128(4);
+    let latest = Uuid::from_u128(5);
+    let superseded = Uuid::from_u128(6);
+    let mut state = initialization_state(post);
+    state.rules.open_voting = rule(true, 2);
+    state.rules.close_voting = rule(true, 2);
+    state.rules.approve_configuration = true;
+    let row = |id, processor, date| ScheduledRow {
+        transition: transition_of(
+            id,
+            processor,
+            Some(&json!({"scheduled_date": date})),
+            Some(&json!({"election_id": post})),
+        )
+        .unwrap(),
+        annotations: json!({}),
+        written_now: false,
+    };
+    let opens = row("open", "START_VOTING_PERIOD", "2028-05-08T11:00:00Z");
+    let closes = row("close", "END_VOTING_PERIOD", "2028-05-08T11:30:00Z");
+    let approval = |request_id| Approval {
+        request_id,
+        code: "committed".into(),
+        target: Some(post),
+        executed_at: state.now,
+        schedule: vec![opens.transition.clone(), closes.transition.clone()],
+        signers: vec!["Authorized signer".into()],
+        post_channels: BTreeMap::from([(post.to_string(), state.enabled_channels(post))]),
+        initialization_scope: InitializationScope::POST,
+        initialization_report_policies: BTreeMap::new(),
+    };
+    state.approvals = vec![approval(latest), approval(superseded)];
+    for (scheduled, processor) in [
+        (&opens, "START_VOTING_PERIOD"),
+        (&closes, "END_VOTING_PERIOD"),
+    ] {
+        let explain = |state: &EventState, scheduled, scope| {
+            evaluate(&state.inputs(scheduled, Some(scope), Moment::FireTime))
+        };
+        state.direct_schedule_proofs = Some((post, HashSet::from([latest, superseded])));
+        let covered = explain(&state, scheduled, post);
+        assert_eq!(covered.outcome, ScheduledOutcomeKind::Runs);
+        assert_eq!(
+            covered.authorized_by.unwrap().request_id,
+            latest.to_string()
+        );
+        assert_eq!(
+            explain(&state, scheduled, other).outcome,
+            ScheduledOutcomeKind::Refused
+        );
+        let edited = row(
+            &scheduled.transition.scheduled_event_id,
+            processor,
+            "2028-05-08T12:00:00Z",
+        );
+        assert_eq!(
+            explain(&state, &edited, post).outcome,
+            ScheduledOutcomeKind::Refused
+        );
+        state.direct_schedule_proofs = Some((post, HashSet::from([superseded])));
+        assert_eq!(
+            explain(&state, scheduled, post).outcome,
+            ScheduledOutcomeKind::Refused
+        );
+    }
+}
+
+#[test]
+fn fresh_hsm_schedule_authoring_can_save_rules_but_cannot_fire_before_proof() {
+    let post = Uuid::from_u128(3);
+    let mut state = initialization_state(post);
+    state.direct_schedule_proofs = Some((post, HashSet::new()));
+    state.direct_schedule_unavailable = true;
+    state.policies.unsigned_scheduled_close = RUN_AS_SYSTEM;
+    let rows = vec![
+        opening_row(post),
+        ScheduledRow {
+            transition: transition_of(
+                "closing",
+                "END_VOTING_PERIOD",
+                Some(&json!({"scheduled_date": "2028-05-08T11:30:00Z"})),
+                Some(&json!({"election_id": post})),
+            )
+            .unwrap(),
+            annotations: json!({}),
+            written_now: false,
+        },
+    ];
+    // The portal's preview uses apply_change for each proposed ordinary
+    // rule. A fresh event must not require a finished approval to do this.
+    for action in [SigningAction::ApproveConfiguration, OPEN, CLOSE] {
+        (state, _, _) = apply_change(
+            &state,
+            &rows,
+            &PendingChange::Rule {
+                action,
+                required: true,
+                signatures: Some(2),
+            },
+        );
+        for row in &rows {
+            for moment in [Moment::Prediction, Moment::FireTime] {
+                let decision = state.explain(row, Some(post), moment);
+                assert_eq!(decision.outcome, ScheduledOutcomeKind::Refused);
+                assert!(decision.authorized_by.is_none());
+            }
+        }
+    }
+    assert!(state.rules.approve_configuration);
+    assert!(state.rules.open_voting.required);
+    assert!(state.rules.close_voting.required);
+    assert!(state.direct_approval_unavailable_for(CLOSE, Some(post)));
+
+    // Retained signed closes do not use the editable schedule-row evaluator.
+    // Their shared gate must still require the current Close rule.
+    state.direct_schedule_unavailable = false;
+    state.rules.close_voting = rule(false, 0);
+    assert!(state.direct_approval_unavailable_for(CLOSE, Some(post)));
+    assert!(!state.direct_approval_unavailable_for(OPEN, Some(post)));
 }
 
 #[test]

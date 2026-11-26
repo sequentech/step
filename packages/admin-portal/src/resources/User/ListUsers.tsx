@@ -67,14 +67,13 @@ import {
     ExportUsersMutation,
     GetUserProfileConfigurationQuery,
     ImportUsersMutation,
-    ManualVerificationMutation,
     GenerateVoterInformationLetterMutation,
     Sequent_Backend_Election_Event,
     Sequent_Backend_Support_Material,
     UserProfileAttribute,
 } from "@/gql/graphql"
 import {DELETE_USER} from "@/queries/DeleteUser"
-import {MANUAL_VERIFICATION} from "@/queries/ManualVerification"
+import {ManualVerificationDialog} from "./ManualVerification"
 import {useMutation, useQuery} from "@apollo/client"
 import {ATTR_RESET_VALUE, IPermissions} from "@/types/keycloak"
 import {isDatafixElectionEvent} from "@/services/Datafix"
@@ -265,7 +264,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const [audienceSelection, setAudienceSelection] = useState<AudienceSelection>(
         AudienceSelection.SELECTED
     )
-    const [documentId, setDocumentId] = useState<string | null>(null)
     const [addWidget, setWidgetTaskId, updateWidgetFail] = useWidgetStore()
     const [openUsersLogsModal, setOpenUsersLogsModal] = React.useState(false)
     const [openSendTemplate, setOpenSendTemplate] = React.useState(false)
@@ -296,7 +294,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
     const refresh = useRefresh()
     const unselectAll = useUnselectAll("user")
     const [deleteUser] = useMutation<DeleteUserMutation>(DELETE_USER)
-    const [getManualVerificationPdf] = useMutation<ManualVerificationMutation>(MANUAL_VERIFICATION)
     const [deleteUsers] = useMutation<DeleteUsersMutation>(DELETE_USERS)
     const [exportUsers] = useMutation<ExportUsersMutation>(EXPORT_USERS)
     const [generateVoterInformationLetter] = useMutation<GenerateVoterInformationLetterMutation>(
@@ -630,35 +627,6 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         }
     }
 
-    const confirmManualVerificationAction = async () => {
-        const {errors, data} = await getManualVerificationPdf({
-            variables: {
-                tenantId: tenantId,
-                electionEventId: electionEventId,
-                voterId: recordIds[0],
-            },
-        })
-
-        if (errors) {
-            console.log(`Error manually verifying user: ${errors}`)
-            notify(t("usersAndRolesScreen.voters.notifications.manualVerificationError"), {
-                type: "error",
-            })
-            setRecordIds([])
-            setOpenManualVerificationModal(false)
-            refresh()
-            return
-        }
-        console.log(`fetchData success: ${data}`)
-        setRecordIds([])
-        refresh()
-
-        let docId = data?.get_manual_verification_pdf?.document_id
-        if (docId) {
-            setDocumentId(docId)
-        }
-    }
-
     const confirmDeleteAction = async () => {
         const resource = electionEventId ? "voters" : "users"
         try {
@@ -716,7 +684,7 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
         [UserActionTypes.MANUAL_VERIFICATION]: {
             icon: <CreditScoreIcon />,
             action: manualVerificationAction,
-            showAction: () => canManuallyVerify,
+            showAction: () => Boolean(electionEventId) && canManuallyVerify,
             label: t(`usersAndRolesScreen.voters.manualVerification.label`),
             saveRecordAction: setUserRecord,
         },
@@ -1699,53 +1667,24 @@ export const ListUsers: React.FC<ListUsersProps> = ({aside, electionEventId, ele
                 {t(`usersAndRolesScreen.${electionEventId ? "voters" : "users"}.delete.body`)}
             </Dialog>
 
-            <Dialog
-                variant="warning"
-                open={openManualVerificationModal}
-                okEnabled={() => {
-                    return checkUserEmailAndPhoneNumber() && !documentId
-                }}
-                ok={String(t("usersAndRolesScreen.voters.manualVerification.verify"))}
-                cancel={String(t("common.label.cancel"))}
-                title={String(t("common.label.warning"))}
-                errorMessage={
-                    checkUserEmailAndPhoneNumber()
-                        ? undefined
-                        : t(`usersAndRolesScreen.voters.manualVerification.noEmailOrPhone`)
-                }
-                handleClose={(result: boolean) => {
-                    if (result) {
-                        confirmManualVerificationAction()
-                        return
-                    }
-                    setOpenManualVerificationModal(false)
-                }}
-            >
-                {t(`usersAndRolesScreen.voters.manualVerification.body`)}
-                <FormStyles.ReservedProgressSpace>
-                    {documentId ? <FormStyles.ShowProgress /> : null}
-                    {documentId ? (
-                        <DownloadDocument
-                            documentId={documentId}
-                            electionEventId={electionEventId ?? ""}
-                            fileName={`manual-verify-${electionEventId}-${documentId}.pdf`}
-                            onDownload={() => {
-                                console.log("onDownload called")
-                                notify(
-                                    t(
-                                        "usersAndRolesScreen.voters.notifications.manualVerificationSuccess"
-                                    ),
-                                    {
-                                        type: "success",
-                                    }
-                                )
-                                setOpenManualVerificationModal(false)
-                                setDocumentId(null)
-                            }}
-                        />
-                    ) : null}
-                </FormStyles.ReservedProgressSpace>
-            </Dialog>
+            {openManualVerificationModal && tenantId && electionEventId && recordIds[0] && (
+                <ManualVerificationDialog
+                    key={JSON.stringify([
+                        authContext.userId,
+                        tenantId,
+                        electionEventId,
+                        recordIds[0],
+                    ])}
+                    tenantId={tenantId}
+                    electionEventId={electionEventId}
+                    voterId={String(recordIds[0])}
+                    reachable={checkUserEmailAndPhoneNumber()}
+                    onClose={() => {
+                        setOpenManualVerificationModal(false)
+                        setRecordIds([])
+                    }}
+                />
+            )}
 
             {electionEventId && showVoterListSync ? (
                 <ReconciliationWizard

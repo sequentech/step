@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type {Page} from "@playwright/test"
 import {FIXED_TIME} from "@sequentech/ui-test-kit/fixtures"
+import {SigningSignerStatus} from "../../../src/lib/signing/types"
 import {test, expect, TENANT_ID, type AdminPortal} from "../fixtures"
 import {
     EVENT_ID,
@@ -163,6 +164,48 @@ async function stopVoting(page: Page, portal: AdminPortal) {
     await page.getByRole("menuitem", {name: "Stop Online Voting", exact: true}).click()
     await page.getByRole("dialog").getByRole("button", {name: "Confirm", exact: true}).click()
 }
+
+test.describe("Direct HSM approval", () => {
+    test.use({directHsm: true})
+
+    test("Publish opens Review and records one HSM approval while the action waits for quorum", async ({
+        page,
+        portal,
+    }) => {
+        signInAs(portal, MARIA)
+        const server = new SigningServer(portal)
+        mockPost(portal, server)
+        guardStopVoting(portal, server)
+        let signedAt: string | null = null
+        portal.graphql.on("SigningApproveActionDirect", () => {
+            signedAt = FIXED_TIME
+            return {data: {signingApproveActionDirect: {request_id: REQUEST_ID}}}
+        })
+        portal.graphql.on("SigningGetRequest", () => {
+            const data = server.requests.get(REQUEST_ID)!.panel(MARIA.userId)
+            data.operational_signing_mode = "hsm-demo-direct-action"
+            if (signedAt) {
+                const member = data.signers.find((signer) => signer.is_you)!
+                member.signed_at = signedAt
+                member.status = SigningSignerStatus.Signed
+                data.count = 1
+            }
+            return {data: {signingGetRequest: {panel: data}}}
+        })
+        await stopVoting(page, portal)
+        const dialog = signingDialog(page)
+        await expect(dialog.getByText("Review", {exact: true})).toBeVisible()
+        await expect(dialog.getByTestId("signing-code")).toHaveText(CODE)
+        expect(portal.graphql.callsTo("SigningApproveActionDirect")).toHaveLength(0)
+        await dialog.getByRole("button", {name: "Sign", exact: true}).click()
+        await expect(dialog.getByText("Your approval was recorded.")).toBeVisible()
+        await dialog.getByRole("button", {name: "Done", exact: true}).click()
+        await expect(dialog).toHaveCount(0)
+        await expect(panel(page).getByTestId("signing-status")).toHaveText("Waiting · 1 of 2")
+        expect(portal.graphql.callsTo("SigningApproveActionDirect")).toHaveLength(1)
+        expect(portal.graphql.callsTo("UpdateElectionVotingStatus")).toHaveLength(1)
+    })
+})
 
 /** Maria starts Stop voting and signs, hands the laptop over, and Jose signs last. */
 async function closeWithHandover(
