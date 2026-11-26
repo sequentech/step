@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2025 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+use crate::postgres::cast_vote::get_voter_cast_vote_states_for_event;
 use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::election::is_election_event_locked_down;
 use crate::services::tasks_execution::{update_complete_with_annotations, update_fail};
@@ -23,6 +24,8 @@ const RESOLVE_PAGE_SIZE: i32 = 1000;
 /// Failures recorded verbatim on the task before the rest are summarised, so a
 /// wholesale failure cannot blow up the task_execution row.
 const MAX_REPORTED_FAILURES: usize = 50;
+
+const VOTER_HAS_BALLOT: &str = "the voter has cast a ballot";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeleteUsersOutput {
@@ -80,6 +83,17 @@ pub async fn delete_users(
     // destructive operation.
     ensure_election_event_not_locked(&task_execution).await?;
 
+    let voters_with_ballots = match voters_with_active_ballots(&task_execution).await {
+        Ok(voters) => voters,
+        Err(err) => {
+            return fail(
+                &task_execution,
+                format!("Failed to check the voters' ballots: {err}"),
+            )
+            .await;
+        }
+    };
+
     let total = ids.len();
     info!("Deleting {total} voters from realm {realm}");
 
@@ -97,6 +111,10 @@ pub async fn delete_users(
     let mut failures: Vec<String> = vec![];
     let mut deleted: usize = 0;
     for id in &ids {
+        if voters_with_ballots.contains(id) {
+            failures.push(format!("{id}: {VOTER_HAS_BALLOT}"));
+            continue;
+        }
         match client.delete_user(&realm, id).await {
             Ok(_) => deleted += 1,
             Err(err) => failures.push(format!("{id}: {err}")),
@@ -163,6 +181,33 @@ async fn ensure_election_event_not_locked(task_execution: &Option<TasksExecution
             .await
         }
     }
+}
+
+/// The voters of the task's election event with a valid or in-progress
+/// ballot. Deleting one would leave that ballot out of the tally.
+async fn voters_with_active_ballots(
+    task_execution: &Option<TasksExecution>,
+) -> anyhow::Result<HashSet<String>> {
+    let task = task_execution
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("Missing task execution record"))?;
+    let election_event_id = task
+        .election_event_id
+        .as_deref()
+        .ok_or_else(|| anyhow::anyhow!("Missing election event id"))?;
+    let mut hasura_db_client: DbClient = get_hasura_pool().await.get().await?;
+    let hasura_transaction = hasura_db_client.transaction().await?;
+    let states = get_voter_cast_vote_states_for_event(
+        &hasura_transaction,
+        &task.tenant_id,
+        election_event_id,
+    )
+    .await?;
+    Ok(states
+        .into_iter()
+        .filter(|(_, state)| state.has_active_vote())
+        .map(|(voter_id, _)| voter_id)
+        .collect())
 }
 
 /// Marks the task failed and returns the same message as the task error, so the
