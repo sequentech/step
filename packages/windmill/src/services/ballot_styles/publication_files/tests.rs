@@ -88,6 +88,48 @@ fn new_styles_order_nested_object_keys_without_reordering_arrays() -> Result<()>
     Ok(())
 }
 
+#[tokio::test]
+async fn uploads_keep_the_concurrency_limit_busy_and_finish_every_object() -> Result<()> {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let in_flight = AtomicUsize::new(0);
+    let most_in_flight = AtomicUsize::new(0);
+    let uploaded = AtomicUsize::new(0);
+    let objects: Vec<(String, Value)> = (0..UPLOAD_CONCURRENCY * 3)
+        .map(|i| (format!("object-{i}"), json!(i)))
+        .collect();
+
+    upload_all(objects, |_key, _value| async {
+        let now = in_flight.fetch_add(1, Ordering::SeqCst) + 1;
+        most_in_flight.fetch_max(now, Ordering::SeqCst);
+        for _ in 0..3 {
+            tokio::task::yield_now().await;
+        }
+        in_flight.fetch_sub(1, Ordering::SeqCst);
+        uploaded.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    })
+    .await?;
+
+    assert_eq!(most_in_flight.into_inner(), UPLOAD_CONCURRENCY);
+    assert_eq!(uploaded.into_inner(), UPLOAD_CONCURRENCY * 3);
+    Ok(())
+}
+
+#[tokio::test]
+async fn a_failed_upload_fails_the_batch() {
+    let objects = vec![("good".to_owned(), json!(1)), ("bad".to_owned(), json!(2))];
+
+    let result = upload_all(objects, |key, _value| async move {
+        if key == "bad" {
+            bail!("upload refused");
+        }
+        Ok(())
+    })
+    .await;
+
+    assert_eq!(result.unwrap_err().to_string(), "upload refused");
+}
+
 async fn claim(pool: &Pool, tenant: &str, event: &str, publication: &str) -> Result<PgLock> {
     let lease = PgLock {
         key: format!("create_ballot_style-{tenant}-{event}-{publication}"),
