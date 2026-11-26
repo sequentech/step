@@ -261,7 +261,12 @@ export const partialApply = ({
             appliedSection("tenant-settings", "task-s2"),
             appliedSection("role-permissions", "task-s3"),
             appliedSection("admin-accounts", "task-s4"),
-            {section: "trustees", members: [], status: {state: "not-included"}, history: history(false)},
+            {
+                section: "trustees",
+                members: [],
+                status: {state: "not-included"},
+                history: history(false),
+            },
             appliedSection("messaging-accounts", "task-s6"),
             {
                 section: "election-event",

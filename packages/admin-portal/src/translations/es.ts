@@ -95,13 +95,15 @@ const spanishTranslation: TranslationType = {
                         "Corrige la causa y luego Previsualizar cambios pendientes: se vuelve a previsualizar el mismo paquete firmado con sus requisitos originales. Las secciones ya aplicadas siguen aplicadas y no se envían de nuevo.",
                     previewRemaining: "Previsualizar cambios pendientes",
                     continue: "Continuar esta importación",
-                    chooseSame: "Elige de nuevo el mismo archivo. Debe ser el paquete de esta ejecución:",
+                    chooseSame:
+                        "Elige de nuevo el mismo archivo. Debe ser el paquete de esta ejecución:",
                     locked: "Requisitos bloqueados a los de la ejecución original",
                     wrongFile:
                         "Este no es el paquete de esta ejecución, así que no se envió nada. Elige de nuevo el mismo archivo.",
                     confirmKeep:
                         "Las secciones que aplicó la ejecución anterior siguen aplicadas; no se envían de nuevo.",
-                    partial: "Actualizado parcialmente después por una ejecución sin terminar (tarea {{taskId}}).",
+                    partial:
+                        "Actualizado parcialmente después por una ejecución sin terminar (tarea {{taskId}}).",
                     blocked: {
                         unsettled:
                             "Un envío anterior de esta ejecución aún no está resuelto. Espera antes de continuar.",

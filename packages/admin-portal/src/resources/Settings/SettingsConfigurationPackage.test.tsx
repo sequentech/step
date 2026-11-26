@@ -1968,9 +1968,9 @@ describe("configuration package hub layout", () => {
             expect(applyButton().disabled).toBe(false)
             fireEvent.click(applyButton())
             expect(
-                Array.from(
-                    screen.getByTestId("package-confirm-order").querySelectorAll("li")
-                ).map((item) => item.textContent)
+                Array.from(screen.getByTestId("package-confirm-order").querySelectorAll("li")).map(
+                    (item) => item.textContent
+                )
             ).toEqual(["configurationPackage.sections.election-event"])
             expect(screen.getByTestId("package-confirm-recovery")).toBeTruthy()
             expect(mockApply).toHaveBeenCalledTimes(3)
@@ -2095,4 +2095,3 @@ describe("configuration package hub layout", () => {
         })
     })
 })
-

@@ -929,10 +929,10 @@ const SettingsConfigurationPackageForScope: React.FC<{
                 {recovery.kind === "blocked" &&
                     !running &&
                     (phase === "attention" || phase === "choose") && (
-                    <Alert severity="warning" data-testid="package-recovery-blocked">
-                        {t(`configurationPackage.hub.recovery.blocked.${recovery.reason}`)}
-                    </Alert>
-                )}
+                        <Alert severity="warning" data-testid="package-recovery-blocked">
+                            {t(`configurationPackage.hub.recovery.blocked.${recovery.reason}`)}
+                        </Alert>
+                    )}
                 {showStaleReason && (
                     <Alert
                         severity="info"
@@ -2270,18 +2270,17 @@ const ApplicationHistory: React.FC<{
                                 {modeLabel(record?.mode)}
                             </Typography>
                             {/* Only the latest run, when it is a recoverable stopped Apply. */}
-                            {recovery.kind === "recoverable" &&
-                                recovery.taskId === selected.id && (
-                                    <Button
-                                        variant="outlined"
-                                        size="small"
-                                        disabled={!canContinue}
-                                        data-testid="package-history-continue"
-                                        onClick={onContinue}
-                                    >
-                                        {t("configurationPackage.hub.recovery.continue")}
-                                    </Button>
-                                )}
+                            {recovery.kind === "recoverable" && recovery.taskId === selected.id && (
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    disabled={!canContinue}
+                                    data-testid="package-history-continue"
+                                    onClick={onContinue}
+                                >
+                                    {t("configurationPackage.hub.recovery.continue")}
+                                </Button>
+                            )}
                         </Stack>
                         {recovery.kind === "blocked" && recovery.taskId === selected.id && (
                             <Alert

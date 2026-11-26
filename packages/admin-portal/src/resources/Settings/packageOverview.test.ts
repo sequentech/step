@@ -418,9 +418,9 @@ describe("readRecovery: continuing the same signed import", () => {
     it("fails closed when the signer roster is not the one the run began under", () => {
         const binding = {sha256: "ab".repeat(32), generation: 3, requiredApprovals: 2}
         const bound = row(partialApply({rosterBinding: binding}))
-        expect(
-            readRecovery([bound], "t1", {managed: true, binding: {...binding}}, null).kind
-        ).toBe("recoverable")
+        expect(readRecovery([bound], "t1", {managed: true, binding: {...binding}}, null).kind).toBe(
+            "recoverable"
+        )
         for (const current of [
             {managed: true, binding: {...binding, generation: 4}},
             {managed: true, binding: {...binding, sha256: "cd".repeat(32)}},
@@ -438,7 +438,10 @@ describe("readRecovery: continuing the same signed import", () => {
     })
 
     it.each([
-        ["a newer run is latest", [row(record("previewed"), "task-p", "SUCCESS"), row(partialApply())]],
+        [
+            "a newer run is latest",
+            [row(record("previewed"), "task-p", "SUCCESS"), row(partialApply())],
+        ],
         ["the latest Apply succeeded", [row(partialApply(), "task-a", "SUCCESS")]],
         ["the task is still running", [row(partialApply(), "task-a", "IN_PROGRESS")]],
         ["it is another tenant's record", [row(partialApply({tenantId: "t2"}))]],
@@ -472,4 +475,3 @@ describe("readRecovery: continuing the same signed import", () => {
         expect(readRecovery(undefined, "t1", legacy, null)).toEqual({kind: "none"})
     })
 })
-

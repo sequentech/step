@@ -423,8 +423,6 @@ export const readRecovery = (
         requirements,
         applied,
         remaining,
-        documentId:
-            ownFollow && !ownFollow.encryptedPayloadSha256 ? ownFollow.documentId : null,
+        documentId: ownFollow && !ownFollow.encryptedPayloadSha256 ? ownFollow.documentId : null,
     }
 }
-
