@@ -6409,6 +6409,8 @@ const galegoTranslation: TranslationType = {
                     "{{channel}} aínda non pode enviar {{purpose}}. Falta: {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "O modelo de {{channel}} para {{purpose}} en {{language}} non está aprobado polo provedor.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "Un botón do modelo de {{channel}} para {{purpose}} en {{language}} non ten valor.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} non pode enviar fóra dunha xanela de conversa con esta conta: non ten xanela de conversa ou os seus avisos xa precisan un modelo.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -6500,6 +6502,24 @@ const galegoTranslation: TranslationType = {
                 REPORT_PASSWORD: "Contrasinal de informes",
             },
             deliveryUnavailable: "Entrega non dispoñible",
+            templateButtons: {
+                title: "Botóns do modelo",
+                help: "Os valores cos que se envían os botóns do modelo, na orde en que aparecen nel. {{code}} substitúese polo código que se envía.",
+                choice: {
+                    DEFAULT: "Predeterminados para o propósito",
+                    CUSTOM: "Definidos para este modelo",
+                },
+                type: "Tipo de botón",
+                parameter: "Valor",
+                add: "Engadir botón",
+                remove: "Quitar botón",
+                none: "Sen botóns",
+                required: "Introduza un valor",
+                types: {
+                    URL: "URL (copiar código ou ligazón)",
+                    QUICK_REPLY: "Resposta rápida",
+                },
+            },
             templates: {
                 noMethod: "Escolle polo menos un método para o modelo.",
                 parameters: "Parámetros do modelo",
@@ -6531,6 +6551,8 @@ const galegoTranslation: TranslationType = {
                 approvedWording: "Texto aprobado",
                 approvedWordingHelp:
                     "Unha copia do modelo aprobado, usada como vista previa. Cambiala aquí non cambia o que envía o provedor.",
+                buttonsHelp:
+                    "Úsaos WhatsApp a través de Infobip co modelo do provedor de arriba. Sen el, úsanse o modelo do evento e os seus botóns.",
                 viberWording: "Texto",
                 viberWordingHelp:
                     "Unha conta que envía texto libre envía este texto tal cal. Con modelos aprobados é unha copia do modelo, usada como vista previa, e non cambia o que se envía.",

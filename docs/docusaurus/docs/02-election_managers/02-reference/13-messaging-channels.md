@@ -538,6 +538,18 @@ binding closes the previous editor and retains its changes. Add opens the new
 binding immediately; saving highlights and opens incomplete bindings. Save includes all bindings,
 including those whose editors are closed.
 
+For WhatsApp through Infobip, a binding also has **Template buttons**: the
+value each of its template's buttons is sent with, in the template's button
+order. **Default for the purpose** sends, for codes, a URL button carrying
+the code followed by a quick reply `NA`, and no buttons for notices. **Set
+for this template** lists the template's own: each a **URL** button (the
+code's copy-code button, or a link's variable part) or a **Quick reply**
+(its payload); `{{code}}` becomes the code, and an empty list sends no
+buttons. Infobip refuses a message whose template has buttons without
+values, and a button without a value can't be saved. A message template
+that names its own WhatsApp provider template sets that template's buttons
+the same way, in **Templates**.
+
 The **Message type or template** field offers translated names for built-in
 messages, such as **Verification code** or **Enrollment rejected**, and the
 administrator-defined aliases from **Templates**. Custom aliases can also be

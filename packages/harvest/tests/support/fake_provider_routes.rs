@@ -890,6 +890,7 @@ async fn assert_ready(stack: &Stack, accounts: &[(&str, MessageChannel)]) {
             language: "en".to_string(),
             provider_template: name.to_string(),
             provider_language: None,
+            buttons: None,
         };
         let templates = match channel {
             MessageChannel::WHATSAPP => vec![

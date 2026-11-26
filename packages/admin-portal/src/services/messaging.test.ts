@@ -6,6 +6,8 @@ import {
     EMessageChannel,
     EMessagePurpose,
     EViberContentMode,
+    ETemplateButtonType,
+    TEMPLATE_BUTTON_CODE,
     EMessagingProvider,
     EOutOfWindowPolicy,
     EProviderApproval,
@@ -23,6 +25,7 @@ import {
 } from "@/types/messaging"
 import {
     acceptedCredentials,
+    defaultTemplateButtons,
     accountDeliveryFeedback,
     accountIdentity,
     checkedForAnotherIdentity,
@@ -812,6 +815,59 @@ describe("template and out-of-window validation", () => {
                 language: "en",
             },
         ])
+    })
+
+    it("refuses a bound template button without a value, as the backend does", () => {
+        const whatsapp = account(
+            "wa-1",
+            EMessageChannel.WHATSAPP,
+            EMessagingProvider.WHATSAPP_INFOBIP,
+            readyCheck([[EMessagePurpose.NOTICE, "en"]])
+        )
+        const withButtons = (parameter: string) =>
+            config({
+                channels: [
+                    {
+                        ...channelConfig(EMessageChannel.WHATSAPP, "wa-1", [
+                            EMessagePurpose.NOTICE,
+                        ]),
+                        templates: [
+                            {
+                                ...binding(null, "en", "polls_close"),
+                                buttons: [{type: ETemplateButtonType.QUICK_REPLY, parameter}],
+                            },
+                        ],
+                    },
+                ],
+            })
+        expect(validateEventMessagingConfig(withButtons("STOP"), TENANT, [whatsapp], [])).toEqual(
+            []
+        )
+        expect(validateEventMessagingConfig(withButtons(" "), TENANT, [whatsapp], [])).toEqual([
+            {
+                kind: "TEMPLATE_BUTTON_WITHOUT_VALUE",
+                channel: EMessageChannel.WHATSAPP,
+                purpose: EMessagePurpose.NOTICE,
+                language: "en",
+            },
+        ])
+    })
+
+    it("sends a code's template through Infobip WhatsApp with the code and a quick reply by default", () => {
+        // As `MessagingProvider::default_template_buttons`.
+        expect(
+            defaultTemplateButtons(EMessagingProvider.WHATSAPP_INFOBIP, EMessagePurpose.OTP)
+        ).toEqual([
+            {type: ETemplateButtonType.URL, parameter: TEMPLATE_BUTTON_CODE},
+            {type: ETemplateButtonType.QUICK_REPLY, parameter: "NA"},
+        ])
+        for (const [provider, purpose] of [
+            [EMessagingProvider.WHATSAPP_INFOBIP, EMessagePurpose.NOTICE],
+            [EMessagingProvider.WHATSAPP_CLOUD_API, EMessagePurpose.OTP],
+            [EMessagingProvider.VIBER_INFOBIP, EMessagePurpose.OTP],
+        ] as const) {
+            expect(defaultTemplateButtons(provider, purpose)).toEqual([])
+        }
     })
 
     it("lets Messenger send utility messages outside the window", () => {

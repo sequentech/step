@@ -2083,10 +2083,13 @@ async fn infobip_whatsapp_send(
         let mut fake = FakeContent {
             template_name: text(&content["templateName"]),
             template_language: text(&content["language"]),
+            // The copy-code button is the URL one; quick replies carry
+            // their payload.
             code: data["buttons"]
                 .as_array()
                 .into_iter()
                 .flatten()
+                .filter(|button| button["type"] == "URL")
                 .find_map(|button| text(&button["parameter"])),
             ..Default::default()
         };

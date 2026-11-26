@@ -104,11 +104,17 @@ configure on the platform side.
   - `whatsapp:message:send` (or `whatsapp:manage`, which also allows it):
     sending (`POST /whatsapp/1/message/template`).
 
-  Codes need an approved **authentication** template whose copy-code
-  button carries the code (the code fills the body placeholder and the
-  button); notices need approved **utility** templates, whose placeholders
-  are filled in order from the notice's parameters. Bind them on the event
-  per purpose and language, as for WhatsApp through Meta. Then create a
+  Codes need an approved template whose body placeholder takes the code;
+  notices need approved **utility** templates, whose placeholders are
+  filled in order from the notice's parameters. Bind them on the event per
+  purpose and language, as for WhatsApp through Meta. Infobip refuses a
+  template whose buttons don't get their values, so each binding (and a
+  message template that names its own provider template) gives its
+  template's buttons in button order: `URL` (a copy-code button, or a
+  link's variable part) or `QUICK_REPLY` (the payload), where `{{code}}`
+  becomes the code. A binding that sets none uses the default: for codes,
+  a `URL` button with `{{code}}` then a `QUICK_REPLY` with `NA`; for
+  notices, no buttons. An empty list sends none. Then create a
   subscription for WhatsApp delivery reports with the account's callback
   URL (`/webhooks/infobip/<key>`) and Basic authentication, using the
   report username and password the account generated (shown once).

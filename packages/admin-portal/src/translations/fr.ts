@@ -6485,6 +6485,8 @@ const frenchTranslation: TranslationType = {
                     "{{channel}} ne peut pas encore envoyer de {{purpose}}. Manque : {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "Le modèle {{channel}} pour {{purpose}} en {{language}} n'est pas approuvé par le fournisseur.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "Un bouton du modèle {{channel}} pour {{purpose}} en {{language}} n'a pas de valeur.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} ne peut pas envoyer hors d'une fenêtre de conversation avec ce compte : il n'a pas de fenêtre de conversation, ou ses avis nécessitent déjà un modèle.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -6577,6 +6579,24 @@ const frenchTranslation: TranslationType = {
                 REPORT_PASSWORD: "Mot de passe des rapports",
             },
             deliveryUnavailable: "Remise non disponible",
+            templateButtons: {
+                title: "Boutons du modèle",
+                help: "Les valeurs envoyées avec les boutons du modèle, dans l'ordre où ils y figurent. {{code}} est remplacé par le code envoyé.",
+                choice: {
+                    DEFAULT: "Par défaut pour l'usage",
+                    CUSTOM: "Définis pour ce modèle",
+                },
+                type: "Type de bouton",
+                parameter: "Valeur",
+                add: "Ajouter un bouton",
+                remove: "Retirer le bouton",
+                none: "Aucun bouton",
+                required: "Saisissez une valeur",
+                types: {
+                    URL: "URL (copier le code ou lien)",
+                    QUICK_REPLY: "Réponse rapide",
+                },
+            },
             templates: {
                 noMethod: "Choisissez au moins une méthode pour le modèle.",
                 parameters: "Paramètres du modèle",
@@ -6608,6 +6628,8 @@ const frenchTranslation: TranslationType = {
                 approvedWording: "Texte approuvé",
                 approvedWordingHelp:
                     "Une copie du modèle approuvé, utilisée comme aperçu. La modifier ici ne change pas ce que le fournisseur envoie.",
+                buttonsHelp:
+                    "Utilisés par WhatsApp via Infobip avec le modèle du fournisseur ci-dessus. Sans lui, le modèle de l'événement et ses boutons sont utilisés.",
                 viberWording: "Texte",
                 viberWordingHelp:
                     "Un compte qui envoie du texte libre envoie ce texte tel quel. Avec des modèles approuvés, c'est une copie du modèle, utilisée comme aperçu, qui ne change pas ce qui est envoyé.",

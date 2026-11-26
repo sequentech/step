@@ -89,6 +89,23 @@ export enum EOutOfWindowPolicy {
     UTILITY_MESSAGES = "UTILITY_MESSAGES",
 }
 
+/** The kind of a template button that takes a value when sent (`TemplateButtonType`). */
+export enum ETemplateButtonType {
+    /** The value completes the button's address; a copy-code button is sent as one. */
+    URL = "URL",
+    /** The value is the payload returned when it is pressed. */
+    QUICK_REPLY = "QUICK_REPLY",
+}
+
+/** In a button's value, replaced with the code being sent. */
+export const TEMPLATE_BUTTON_CODE = "{{code}}"
+
+/** One button of an approved template, as it is sent. */
+export interface ITemplateButton {
+    type: ETemplateButtonType
+    parameter: string
+}
+
 /** What a Viber account sends: approved templates, or the message's own text. */
 export enum EViberContentMode {
     APPROVED_TEMPLATES = "APPROVED_TEMPLATES",
@@ -397,6 +414,11 @@ export interface ITemplateBinding {
     provider_template: string
     /** The provider's code for the language when it differs, such as `en_US` for `en`. */
     provider_language?: string | null
+    /**
+     * The values of the template's buttons, in its button order. Absent or `null`: the
+     * provider's default for the purpose (`defaultTemplateButtons`); empty: none.
+     */
+    buttons?: ITemplateButton[] | null
 }
 
 /**
@@ -454,6 +476,12 @@ export type IMessagingConfigError =
           purpose: EMessagePurpose
           language: string
       }
+    | {
+          kind: "TEMPLATE_BUTTON_WITHOUT_VALUE"
+          channel: EMessageChannel
+          purpose: EMessagePurpose
+          language: string
+      }
     | {kind: "OUT_OF_WINDOW_NOT_SUPPORTED"; channel: EMessageChannel}
     | {kind: "UTILITY_TEMPLATE_MISSING"; channel: EMessageChannel}
     | {kind: "ELECTION_CHANNEL_NOT_ENABLED"; election_id: string; channel: EMessageChannel}
@@ -504,6 +532,8 @@ export interface IInstantMessageConfig {
     /** The approved template at the provider; the event's binding is used without it. */
     provider_template?: string | null
     provider_language?: string | null
+    /** That template's buttons, in its button order. Absent: the provider's default; empty: none. */
+    buttons?: ITemplateButton[] | null
 }
 
 /** Keycloak user attributes of a voter's one channel (written after a verified code). */

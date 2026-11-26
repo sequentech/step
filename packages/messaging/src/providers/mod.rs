@@ -636,6 +636,7 @@ mod tests {
                     code: None,
                 },
                 provider_template: Some("tpl".to_string()),
+                template_buttons: None,
                 idempotency_key: "k:1".to_string(),
                 expires_at: None,
                 last_inbound_at: None,

@@ -1104,6 +1104,7 @@ async fn a_bound_template_goes_out_as_a_utility_message_outside_the_window() {
                     language: "en".to_string(),
                     provider_template: "generic_notice".to_string(),
                     provider_language: None,
+                    buttons: None,
                 },
                 TemplateBinding {
                     purpose: MessagePurpose::NOTICE,
@@ -1111,6 +1112,7 @@ async fn a_bound_template_goes_out_as_a_utility_message_outside_the_window() {
                     language: "en".to_string(),
                     provider_template: "voting_reminder".to_string(),
                     provider_language: Some("en_US".to_string()),
+                    buttons: None,
                 },
             ],
             // The first release's "do not send": Messenger now always uses

@@ -6464,6 +6464,8 @@ const dutchTranslation: TranslationType = {
                     "{{channel}} kan nog geen {{purpose}} verzenden. Ontbreekt: {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "De {{channel}}-sjabloon voor {{purpose}} in {{language}} is niet goedgekeurd door de provider.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "Een knop van de {{channel}}-sjabloon voor {{purpose}} in {{language}} heeft geen waarde.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} kan met dit account niet buiten een gespreksvenster verzenden: het heeft geen gespreksvenster, of de berichten hebben al een sjabloon nodig.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -6557,6 +6559,24 @@ const dutchTranslation: TranslationType = {
                 REPORT_PASSWORD: "Wachtwoord voor rapporten",
             },
             deliveryUnavailable: "Aflevering niet beschikbaar",
+            templateButtons: {
+                title: "Sjabloonknoppen",
+                help: "De waarden waarmee de knoppen van de sjabloon worden verzonden, in de volgorde waarin ze erin staan. {{code}} wordt vervangen door de verzonden code.",
+                choice: {
+                    DEFAULT: "Standaard voor het doel",
+                    CUSTOM: "Ingesteld voor deze sjabloon",
+                },
+                type: "Knoptype",
+                parameter: "Waarde",
+                add: "Knop toevoegen",
+                remove: "Knop verwijderen",
+                none: "Geen knoppen",
+                required: "Vul een waarde in",
+                types: {
+                    URL: "URL (code kopiëren of link)",
+                    QUICK_REPLY: "Snel antwoord",
+                },
+            },
             templates: {
                 noMethod: "Kies minstens één methode voor de sjabloon.",
                 parameters: "Sjabloonparameters",
@@ -6588,6 +6608,8 @@ const dutchTranslation: TranslationType = {
                 approvedWording: "Goedgekeurde tekst",
                 approvedWordingHelp:
                     "Een kopie van de goedgekeurde sjabloon, gebruikt als voorbeeld. Hier wijzigen verandert niet wat de provider verzendt.",
+                buttonsHelp:
+                    "Gebruikt door WhatsApp via Infobip met de providersjabloon hierboven. Zonder die sjabloon worden de sjabloon van het evenement en de knoppen ervan gebruikt.",
                 viberWording: "Tekst",
                 viberWordingHelp:
                     "Een account dat vrije tekst verzendt, verzendt deze tekst zoals hij is. Bij goedgekeurde sjablonen is het een kopie van de sjabloon, gebruikt als voorbeeld, en verandert het niet wat wordt verzonden.",

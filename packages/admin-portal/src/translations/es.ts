@@ -6653,6 +6653,8 @@ const spanishTranslation: TranslationType = {
                     "{{channel}} aún no puede enviar {{purpose}}. Falta: {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "La plantilla de {{channel}} para {{purpose}} en {{language}} no está aprobada por el proveedor.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "Un botón de la plantilla de {{channel}} para {{purpose}} en {{language}} no tiene valor.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} no puede enviar fuera de una ventana de conversación con esta cuenta: no tiene ventana de conversación o sus avisos ya necesitan una plantilla.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -6745,6 +6747,24 @@ const spanishTranslation: TranslationType = {
                 REPORT_PASSWORD: "Contraseña de informes",
             },
             deliveryUnavailable: "Entrega no disponible",
+            templateButtons: {
+                title: "Botones de la plantilla",
+                help: "Los valores con que se envían los botones de la plantilla, en el orden en que aparecen en ella. {{code}} se sustituye por el código que se envía.",
+                choice: {
+                    DEFAULT: "Predeterminados para el propósito",
+                    CUSTOM: "Definidos para esta plantilla",
+                },
+                type: "Tipo de botón",
+                parameter: "Valor",
+                add: "Añadir botón",
+                remove: "Quitar botón",
+                none: "Sin botones",
+                required: "Introduzca un valor",
+                types: {
+                    URL: "URL (copiar código o enlace)",
+                    QUICK_REPLY: "Respuesta rápida",
+                },
+            },
             templates: {
                 noMethod: "Elige al menos un método para la plantilla.",
                 parameters: "Parámetros de la plantilla",
@@ -6776,6 +6796,8 @@ const spanishTranslation: TranslationType = {
                 approvedWording: "Texto aprobado",
                 approvedWordingHelp:
                     "Una copia de la plantilla aprobada, usada como vista previa. Cambiarla aquí no cambia lo que envía el proveedor.",
+                buttonsHelp:
+                    "Los usa WhatsApp a través de Infobip con la plantilla del proveedor de arriba. Sin ella, se usan la plantilla del evento y sus botones.",
                 viberWording: "Texto",
                 viberWordingHelp:
                     "Una cuenta que envía texto libre envía este texto tal cual. Con plantillas aprobadas es una copia de la plantilla, usada como vista previa, y no cambia lo que se envía.",

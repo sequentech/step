@@ -6528,6 +6528,8 @@ const tagalogTranslation: TranslationType = {
                     "Hindi pa makakapagpadala ang {{channel}} ng {{purpose}}. Kulang: {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "Hindi aprubado ng provider ang template ng {{channel}} para sa {{purpose}} sa {{language}}.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "Walang halaga ang isang button ng template ng {{channel}} para sa {{purpose}} sa {{language}}.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "Hindi makakapagpadala ang {{channel}} sa labas ng window ng usapan gamit ang account na ito: wala itong window ng usapan, o kailangan na ng template ang mga abiso nito.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -6620,6 +6622,24 @@ const tagalogTranslation: TranslationType = {
                 REPORT_PASSWORD: "Password para sa mga ulat",
             },
             deliveryUnavailable: "Hindi available ang paghahatid",
+            templateButtons: {
+                title: "Mga button ng template",
+                help: "Ang mga value na ipinapadala kasama ng mga button ng template, sa pagkakasunod nila sa template. Pinapalitan ang {{code}} ng code na ipinapadala.",
+                choice: {
+                    DEFAULT: "Default para sa layunin",
+                    CUSTOM: "Itinakda para sa template na ito",
+                },
+                type: "Uri ng button",
+                parameter: "Halaga",
+                add: "Magdagdag ng button",
+                remove: "Alisin ang button",
+                none: "Walang button",
+                required: "Maglagay ng halaga",
+                types: {
+                    URL: "URL (kopyahin ang code o link)",
+                    QUICK_REPLY: "Mabilis na sagot",
+                },
+            },
             templates: {
                 noMethod: "Pumili ng kahit isang paraan para sa template.",
                 parameters: "Mga parameter ng template",
@@ -6651,6 +6671,8 @@ const tagalogTranslation: TranslationType = {
                 approvedWording: "Aprubadong teksto",
                 approvedWordingHelp:
                     "Kopya ng aprubadong template, ginagamit bilang preview. Hindi nito binabago ang ipinapadala ng provider.",
+                buttonsHelp:
+                    "Ginagamit ng WhatsApp sa pamamagitan ng Infobip kasama ang template ng provider sa itaas. Kung wala ito, ang template ng event at ang mga button nito ang ginagamit.",
                 viberWording: "Teksto",
                 viberWordingHelp:
                     "Ipinapadala ng account na nagpapadala ng malayang teksto ang tekstong ito nang eksakto. Sa mga aprubadong template, kopya ito ng template na ginagamit bilang preview, at hindi nito binabago ang ipinapadala.",

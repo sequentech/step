@@ -6426,6 +6426,8 @@ const basqueTranslation: TranslationType = {
                     "{{channel}}-ek ezin ditu oraindik {{purpose}} bidali. Falta da: {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "{{channel}} txantiloia ({{purpose}}, {{language}}) ez dago hornitzaileak onartuta.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "{{channel}} txantiloiaren botoi batek ez du baliorik ({{purpose}}, {{language}}).",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} kanalak ezin du elkarrizketa-leihotik kanpo bidali kontu honekin: ez du elkarrizketa-leihorik, edo bere jakinarazpenek dagoeneko txantiloi bat behar dute.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -6517,6 +6519,24 @@ const basqueTranslation: TranslationType = {
                 REPORT_PASSWORD: "Txostenen pasahitza",
             },
             deliveryUnavailable: "Entrega ez dago erabilgarri",
+            templateButtons: {
+                title: "Txantiloiaren botoiak",
+                help: "Txantiloiaren botoiak bidaltzeko balioak, txantiloian agertzen diren ordenan. {{code}} bidaltzen den kodearekin ordezten da.",
+                choice: {
+                    DEFAULT: "Helbururako lehenetsiak",
+                    CUSTOM: "Txantiloi honetarako ezarriak",
+                },
+                type: "Botoi mota",
+                parameter: "Balioa",
+                add: "Gehitu botoia",
+                remove: "Kendu botoia",
+                none: "Botoirik ez",
+                required: "Idatzi balio bat",
+                types: {
+                    URL: "URLa (kodea kopiatu edo esteka)",
+                    QUICK_REPLY: "Erantzun azkarra",
+                },
+            },
             templates: {
                 noMethod: "Aukeratu gutxienez metodo bat txantiloirako.",
                 parameters: "Txantiloiaren parametroak",
@@ -6548,6 +6568,8 @@ const basqueTranslation: TranslationType = {
                 approvedWording: "Testu onartua",
                 approvedWordingHelp:
                     "Txantiloi onartuaren kopia bat, aurrebista gisa erabilia. Hemen aldatzeak ez du aldatzen hornitzaileak bidaltzen duena.",
+                buttonsHelp:
+                    "Infobip bidezko WhatsApp-ek erabiltzen ditu goiko hornitzailearen txantiloiarekin. Hura gabe, gertaeraren txantiloia eta haren botoiak erabiltzen dira.",
                 viberWording: "Testua",
                 viberWordingHelp:
                     "Testu librea bidaltzen duen kontu batek testu hau dagoen bezala bidaltzen du. Txantiloi onartuekin, txantiloiaren kopia bat da, aurrebista gisa erabilia, eta ez du aldatzen bidaltzen dena.",

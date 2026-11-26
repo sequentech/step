@@ -6446,6 +6446,8 @@ const catalanTranslation: TranslationType = {
                     "{{channel}} encara no pot enviar {{purpose}}. Falta: {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "La plantilla de {{channel}} per a {{purpose}} en {{language}} no està aprovada pel proveïdor.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "Un botó de la plantilla de {{channel}} per a {{purpose}} en {{language}} no té valor.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} no pot enviar fora d'una finestra de conversa amb aquest compte: no té finestra de conversa o els seus avisos ja necessiten una plantilla.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -6537,6 +6539,24 @@ const catalanTranslation: TranslationType = {
                 REPORT_PASSWORD: "Contrasenya d'informes",
             },
             deliveryUnavailable: "Lliurament no disponible",
+            templateButtons: {
+                title: "Botons de la plantilla",
+                help: "Els valors amb què s'envien els botons de la plantilla, en l'ordre en què hi apareixen. {{code}} se substitueix pel codi que s'envia.",
+                choice: {
+                    DEFAULT: "Predeterminats per al propòsit",
+                    CUSTOM: "Definits per a aquesta plantilla",
+                },
+                type: "Tipus de botó",
+                parameter: "Valor",
+                add: "Afegeix un botó",
+                remove: "Treu el botó",
+                none: "Sense botons",
+                required: "Introduïu un valor",
+                types: {
+                    URL: "URL (copiar el codi o enllaç)",
+                    QUICK_REPLY: "Resposta ràpida",
+                },
+            },
             templates: {
                 noMethod: "Tria almenys un mètode per a la plantilla.",
                 parameters: "Paràmetres de la plantilla",
@@ -6568,6 +6588,8 @@ const catalanTranslation: TranslationType = {
                 approvedWording: "Text aprovat",
                 approvedWordingHelp:
                     "Una còpia de la plantilla aprovada, feta servir com a previsualització. Canviar-la aquí no canvia el que envia el proveïdor.",
+                buttonsHelp:
+                    "Els fa servir WhatsApp a través d'Infobip amb la plantilla del proveïdor de dalt. Sense aquesta, s'usen la plantilla de l'esdeveniment i els seus botons.",
                 viberWording: "Text",
                 viberWordingHelp:
                     "Un compte que envia text lliure envia aquest text tal qual. Amb plantilles aprovades és una còpia de la plantilla, usada com a vista prèvia, i no canvia el que s'envia.",

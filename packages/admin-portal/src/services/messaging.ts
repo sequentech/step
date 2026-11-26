@@ -18,6 +18,9 @@ import {
     ERecipientKind,
     EVENT_MESSAGING_CONFIG_VERSION,
     EViberContentMode,
+    ETemplateButtonType,
+    ITemplateButton,
+    TEMPLATE_BUTTON_CODE,
     GENERATED_CREDENTIALS,
     IAccountCallbackStatus,
     IAccountCheck,
@@ -125,6 +128,22 @@ export const providerCapabilities = (
             return {...base, template_required_for: [...both], conversation_window_hours: 24}
     }
 }
+
+/**
+ * The buttons a template is sent with when its binding or message sets none
+ * (`MessagingProvider::default_template_buttons`): WhatsApp through Infobip
+ * sends a code's template with the code's button, then a quick reply.
+ */
+export const defaultTemplateButtons = (
+    provider: EMessagingProvider,
+    purpose: EMessagePurpose
+): ITemplateButton[] =>
+    provider === EMessagingProvider.WHATSAPP_INFOBIP && purpose === EMessagePurpose.OTP
+        ? [
+              {type: ETemplateButtonType.URL, parameter: TEMPLATE_BUTTON_CODE},
+              {type: ETemplateButtonType.QUICK_REPLY, parameter: "NA"},
+          ]
+        : []
 
 /**
  * What an account can do on `channel`. SES reports deliveries only when a
@@ -665,6 +684,16 @@ export const validateEventMessagingConfig = (
                     channel,
                     purpose,
                     blockers: readiness.blockers,
+                })
+            }
+        }
+        for (const binding of channelConfig.templates) {
+            if ((binding.buttons ?? []).some((button) => !button.parameter.trim())) {
+                errors.push({
+                    kind: "TEMPLATE_BUTTON_WITHOUT_VALUE",
+                    channel,
+                    purpose: binding.purpose,
+                    language: binding.language,
                 })
             }
         }

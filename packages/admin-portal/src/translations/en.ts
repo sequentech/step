@@ -6753,6 +6753,8 @@ const englishTranslation = {
                     "{{channel}} cannot send {{purpose}} yet. Missing: {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "The {{channel}} template for {{purpose}} in {{language}} is not approved by the provider.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "A {{channel}} template button for {{purpose}} in {{language}} has no value.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} cannot send outside a conversation window with this account: it has no conversation window, or its notices already need a template.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -6844,6 +6846,24 @@ const englishTranslation = {
                 REPORT_PASSWORD: "Report password",
             },
             deliveryUnavailable: "Delivery unavailable",
+            templateButtons: {
+                title: "Template buttons",
+                help: "The values the template's buttons are sent with, in the order they appear in the template. {{code}} becomes the code being sent.",
+                choice: {
+                    DEFAULT: "Default for the purpose",
+                    CUSTOM: "Set for this template",
+                },
+                type: "Button type",
+                parameter: "Value",
+                add: "Add button",
+                remove: "Remove button",
+                none: "No buttons",
+                required: "Enter a value",
+                types: {
+                    URL: "URL (copy code or link)",
+                    QUICK_REPLY: "Quick reply",
+                },
+            },
             templates: {
                 noMethod: "Choose at least one method for the template.",
                 parameters: "Template parameters",
@@ -6875,6 +6895,8 @@ const englishTranslation = {
                 approvedWording: "Approved wording",
                 approvedWordingHelp:
                     "A copy of the approved template, used as a preview. Changing it here does not change what the provider sends.",
+                buttonsHelp:
+                    "Used by WhatsApp through Infobip with the provider template above. Without one, the event's template and its buttons are used.",
                 viberWording: "Wording",
                 viberWordingHelp:
                     "An account that sends free text sends this wording as written. With approved templates it is a copy of the template, used as a preview, and does not change what is sent.",

@@ -761,6 +761,65 @@ pub enum ViberContentMode {
     FREE_TEXT,
 }
 
+/// The kind of a template button that takes a value when sent.
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+)]
+pub enum TemplateButtonType {
+    /// A URL button: the value completes its address. An authentication
+    /// template's copy-code button is sent as one, with the code.
+    URL,
+    /// A quick reply: the value is the payload returned when it is pressed.
+    QUICK_REPLY,
+}
+
+/// A value [`TEMPLATE_BUTTON_CODE`] in a button's parameter becomes the
+/// code being sent.
+pub const TEMPLATE_BUTTON_CODE: &str = "{{code}}";
+
+/// One button of an approved template, as it is sent.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct TemplateButton {
+    #[serde(rename = "type")]
+    pub kind: TemplateButtonType,
+    /// The value; [`TEMPLATE_BUTTON_CODE`] is replaced with the code.
+    pub parameter: String,
+}
+
+impl MessagingProvider {
+    /// The buttons a template is sent with when its binding or message sets
+    /// none. WhatsApp through Infobip sends a code's template with its
+    /// copy-code button, carrying the code, then a quick reply; everything
+    /// else sends none.
+    pub fn default_template_buttons(
+        &self,
+        purpose: MessagePurpose,
+    ) -> Vec<TemplateButton> {
+        match (self, purpose) {
+            (MessagingProvider::WHATSAPP_INFOBIP, MessagePurpose::OTP) => vec![
+                TemplateButton {
+                    kind: TemplateButtonType::URL,
+                    parameter: TEMPLATE_BUTTON_CODE.to_string(),
+                },
+                TemplateButton {
+                    kind: TemplateButtonType::QUICK_REPLY,
+                    parameter: "NA".to_string(),
+                },
+            ],
+            _ => vec![],
+        }
+    }
+}
+
 /// Why a purpose cannot be enabled on an account, most fundamental first.
 #[allow(non_camel_case_types)]
 #[derive(
@@ -1201,6 +1260,11 @@ pub struct TemplateBinding {
     /// `en_US` for `en`.
     #[serde(default)]
     pub provider_language: Option<String>,
+    /// The values of the template's buttons, in its button order. `None`:
+    /// the provider's default for the purpose
+    /// ([`MessagingProvider::default_template_buttons`]); empty: none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub buttons: Option<Vec<TemplateButton>>,
 }
 
 impl TemplateBinding {
@@ -1283,6 +1347,12 @@ pub enum MessagingConfigError {
     },
     OUT_OF_WINDOW_NOT_SUPPORTED {
         channel: MessageChannel,
+    },
+    /// A binding's template button has no value.
+    TEMPLATE_BUTTON_WITHOUT_VALUE {
+        channel: MessageChannel,
+        purpose: MessagePurpose,
+        language: String,
     },
     /// Messenger notices reach voters outside the 24-hour window only as
     /// an approved utility template: bind one for notices.
@@ -1470,6 +1540,22 @@ impl EventMessagingConfig {
                         purpose: *purpose,
                         blockers: readiness.blockers,
                     });
+                }
+            }
+            for binding in &channel_config.templates {
+                if binding
+                    .buttons
+                    .iter()
+                    .flatten()
+                    .any(|button| button.parameter.trim().is_empty())
+                {
+                    errors.push(
+                        MessagingConfigError::TEMPLATE_BUTTON_WITHOUT_VALUE {
+                            channel,
+                            purpose: binding.purpose,
+                            language: binding.language.clone(),
+                        },
+                    );
                 }
             }
             let template_purposes = &account.capabilities.template_required_for;
@@ -2482,6 +2568,7 @@ mod tests {
             language: language.to_string(),
             provider_template: template.to_string(),
             provider_language: None,
+            buttons: None,
         }
     }
 
@@ -2913,6 +3000,99 @@ mod tests {
         // Neither the mode nor the templates are part of the identity: a
         // switch keeps the account's last check.
         assert_eq!(free_text.identity(), stored.identity());
+    }
+
+    #[test]
+    fn a_templates_buttons_are_set_on_its_binding_else_the_providers_default() {
+        let button = |kind, parameter: &str| TemplateButton {
+            kind,
+            parameter: parameter.to_string(),
+        };
+        // Out of the box, WhatsApp through Infobip sends a code's template
+        // with the code's button and a quick reply; nothing else has any.
+        assert_eq!(
+            MessagingProvider::WHATSAPP_INFOBIP
+                .default_template_buttons(MessagePurpose::OTP),
+            vec![
+                button(TemplateButtonType::URL, TEMPLATE_BUTTON_CODE),
+                button(TemplateButtonType::QUICK_REPLY, "NA"),
+            ]
+        );
+        for (provider, purpose) in [
+            (MessagingProvider::WHATSAPP_INFOBIP, MessagePurpose::NOTICE),
+            (MessagingProvider::WHATSAPP_CLOUD_API, MessagePurpose::OTP),
+            (MessagingProvider::VIBER_INFOBIP, MessagePurpose::OTP),
+        ] {
+            assert!(provider.default_template_buttons(purpose).is_empty());
+        }
+        // Bindings saved before buttons existed load, and save as they were.
+        let stored = serde_json::json!({"purpose": "OTP", "language": "en",
+            "provider_template": "authentication"});
+        let binding: TemplateBinding =
+            serde_json::from_value(stored.clone()).expect("binding");
+        assert_eq!(binding.buttons, None);
+        assert_eq!(
+            serde_json::to_value(&binding).expect("json").get("buttons"),
+            None
+        );
+        let configured = serde_json::json!({"purpose": "NOTICE",
+            "language": "en", "provider_template": "polls_close",
+            "buttons": [{"type": "URL", "parameter": "vote"},
+                        {"type": "QUICK_REPLY", "parameter": "STOP"}]});
+        let binding: TemplateBinding =
+            serde_json::from_value(configured.clone()).expect("binding");
+        assert_eq!(
+            serde_json::to_value(&binding).expect("json")["buttons"],
+            configured["buttons"]
+        );
+        let mut unknown = configured;
+        unknown["buttons"][0]["type"] = "CALL".into();
+        assert!(serde_json::from_value::<TemplateBinding>(unknown).is_err());
+    }
+
+    #[test]
+    fn a_bound_template_button_needs_a_value() {
+        let accounts = vec![account(
+            "wa-1",
+            MessageChannel::WHATSAPP,
+            MessagingProvider::WHATSAPP_INFOBIP,
+            ready_check(&[
+                (MessagePurpose::OTP, "en"),
+                (MessagePurpose::NOTICE, "en"),
+            ]),
+        )];
+        let config = EventMessagingConfig {
+            channels: vec![EventChannelConfig {
+                templates: vec![
+                    TemplateBinding {
+                        purpose: MessagePurpose::OTP,
+                        buttons: Some(vec![]),
+                        ..binding(None, "en", "authentication")
+                    },
+                    TemplateBinding {
+                        buttons: Some(vec![TemplateButton {
+                            kind: TemplateButtonType::QUICK_REPLY,
+                            parameter: " ".to_string(),
+                        }]),
+                        ..binding(None, "en", "polls_close")
+                    },
+                ],
+                ..channel_config(
+                    MessageChannel::WHATSAPP,
+                    "wa-1",
+                    &[MessagePurpose::OTP, MessagePurpose::NOTICE],
+                )
+            }],
+            ..Default::default()
+        };
+        assert_eq!(
+            config.validate(TENANT, &accounts, &[]),
+            Err(vec![MessagingConfigError::TEMPLATE_BUTTON_WITHOUT_VALUE {
+                channel: MessageChannel::WHATSAPP,
+                purpose: MessagePurpose::NOTICE,
+                language: "en".to_string(),
+            }])
+        );
     }
 
     #[test]

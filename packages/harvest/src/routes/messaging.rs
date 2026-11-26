@@ -1567,6 +1567,9 @@ pub async fn test_messaging_account(
             .map(|name| ProviderTemplate {
                 name,
                 language: input.language.clone(),
+                // A test sends the template with the provider's default
+                // buttons for the purpose.
+                buttons: None,
             });
     let code =
         (input.purpose == MessagePurpose::OTP).then(|| "000000".to_string());

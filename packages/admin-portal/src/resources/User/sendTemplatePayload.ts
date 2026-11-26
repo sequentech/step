@@ -70,6 +70,9 @@ const instantMessage = (
         parameters: config.parameters,
         ...(providerTemplate ? {provider_template: providerTemplate} : {}),
         ...(providerLanguage ? {provider_language: providerLanguage} : {}),
+        // Buttons go with the message's own template; without one, the
+        // event's binding and its buttons are used.
+        ...(providerTemplate && config.buttons ? {buttons: config.buttons} : {}),
     }
 }
 

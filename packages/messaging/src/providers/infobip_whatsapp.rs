@@ -23,7 +23,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use sequent_core::types::messaging::{
     AccountCheck, AccountCheckDetails, AccountSender, CredentialName, MessageChannel,
-    MessagePurpose, PartnerLogin, ProviderCapabilities,
+    MessagePurpose, MessagingProvider, PartnerLogin, ProviderCapabilities, TEMPLATE_BUTTON_CODE,
 };
 use serde_json::{json, Value};
 
@@ -52,24 +52,41 @@ impl InfobipWhatsAppSender {
         })
     }
 
-    /// The template's content. A code fills the authentication template's
-    /// body and its copy-code button, which Infobip takes as a URL button;
-    /// a notice's parameters fill the body's placeholders in order.
+    /// The template's content. A code fills the body's placeholder; a
+    /// notice's parameters fill the body's placeholders in order. The
+    /// template's buttons follow, in order, with the code in place of
+    /// [`TEMPLATE_BUTTON_CODE`]: those its binding or message sets, else the
+    /// provider's default for the purpose. A template without buttons
+    /// sends none.
     fn template_content(message: &OutboundMessage, template: &str) -> Value {
         let language = message.language.clone().unwrap_or_else(|| "en".to_string());
-        let template_data = if message.purpose == MessagePurpose::OTP {
-            let code = message.content.code.clone().unwrap_or_default();
-            json!({
-                "body": {"placeholders": [code]},
-                "buttons": [{"type": "URL", "parameter": code}],
-            })
+        let code = message.content.code.clone().unwrap_or_default();
+        let placeholders: Vec<String> = if message.purpose == MessagePurpose::OTP {
+            vec![code.clone()]
         } else {
-            let placeholders: Vec<String> = parse_all(&message.content.template_parameters)
+            parse_all(&message.content.template_parameters)
                 .iter()
                 .map(|parameter| parameter.value().to_string())
-                .collect();
-            json!({"body": {"placeholders": placeholders}})
+                .collect()
         };
+        let mut template_data = json!({"body": {"placeholders": placeholders}});
+        let buttons: Vec<Value> = message
+            .template_buttons
+            .clone()
+            .unwrap_or_else(|| {
+                MessagingProvider::WHATSAPP_INFOBIP.default_template_buttons(message.purpose)
+            })
+            .iter()
+            .map(|button| {
+                json!({
+                    "type": button.kind.to_string(),
+                    "parameter": button.parameter.replace(TEMPLATE_BUTTON_CODE, &code),
+                })
+            })
+            .collect();
+        if !buttons.is_empty() {
+            template_data["buttons"] = Value::Array(buttons);
+        }
         json!({
             "templateName": template,
             "templateData": template_data,
@@ -202,6 +219,7 @@ mod tests {
     use chrono::{Duration, Utc};
     use sequent_core::types::messaging::{
         AccountLimits, CredentialName, MessageContent, MessagePurpose, OutOfWindowPolicy,
+        TemplateButton, TemplateButtonType,
     };
     use serde_json::json;
     use std::collections::BTreeMap;
@@ -235,6 +253,7 @@ mod tests {
                 code: Some("123456".to_string()),
             },
             provider_template: Some("comelec_otp".to_string()),
+            template_buttons: None,
             idempotency_key: "logical-1:1".to_string(),
             expires_at: Some(Utc::now() + Duration::minutes(5)),
             last_inbound_at: None,
@@ -272,9 +291,14 @@ mod tests {
                 "messageId": "logical-1:1",
                 "content": {
                     "templateName": "comelec_otp",
+                    // The default buttons: the copy-code button, then a quick
+                    // reply.
                     "templateData": {
                         "body": {"placeholders": ["123456"]},
-                        "buttons": [{"type": "URL", "parameter": "123456"}],
+                        "buttons": [
+                            {"type": "URL", "parameter": "123456"},
+                            {"type": "QUICK_REPLY", "parameter": "NA"},
+                        ],
                     },
                     "language": "en_GB",
                 },
@@ -307,6 +331,63 @@ mod tests {
                 "templateData": {"body": {"placeholders": ["Ana", "8 pm"]}},
                 "language": "en",
             })
+        );
+    }
+
+    #[tokio::test]
+    async fn the_templates_buttons_are_sent_in_order_with_the_code_filled_in() {
+        let server =
+            TestServer::start(vec![accepted("logical-1:1"), accepted("logical-2:1")]).await;
+        let sender =
+            InfobipWhatsAppSender::new(account(&server.base_url), reqwest::Client::new()).unwrap();
+        let button = |kind, parameter: &str| TemplateButton {
+            kind,
+            parameter: parameter.to_string(),
+        };
+        let mut otp = code();
+        otp.template_buttons = Some(vec![
+            button(TemplateButtonType::QUICK_REPLY, "code-{{code}}"),
+            button(TemplateButtonType::URL, "{{code}}"),
+        ]);
+        let mut notice = code();
+        notice.purpose = MessagePurpose::NOTICE;
+        notice.idempotency_key = "logical-2:1".to_string();
+        notice.content.code = None;
+        notice.template_buttons = Some(vec![button(TemplateButtonType::QUICK_REPLY, "STOP")]);
+        for message in [otp, notice] {
+            assert!(matches!(
+                sender.send(&message).await,
+                SendOutcome::Accepted { .. }
+            ));
+        }
+        let requests = server.requests();
+        assert_eq!(
+            requests[0].json()["messages"][0]["content"]["templateData"]["buttons"],
+            json!([
+                {"type": "QUICK_REPLY", "parameter": "code-123456"},
+                {"type": "URL", "parameter": "123456"},
+            ])
+        );
+        assert_eq!(
+            requests[1].json()["messages"][0]["content"]["templateData"]["buttons"],
+            json!([{"type": "QUICK_REPLY", "parameter": "STOP"}])
+        );
+    }
+
+    #[tokio::test]
+    async fn a_template_set_to_no_buttons_sends_none() {
+        let server = TestServer::start(vec![accepted("logical-1:1")]).await;
+        let sender =
+            InfobipWhatsAppSender::new(account(&server.base_url), reqwest::Client::new()).unwrap();
+        let mut message = code();
+        message.template_buttons = Some(vec![]);
+        assert!(matches!(
+            sender.send(&message).await,
+            SendOutcome::Accepted { .. }
+        ));
+        assert_eq!(
+            server.requests()[0].json()["messages"][0]["content"]["templateData"],
+            json!({"body": {"placeholders": ["123456"]}})
         );
     }
 
