@@ -2896,6 +2896,113 @@ fn defaulted() -> HistoricalOptions {
     }
 }
 
+fn postqual_mail_voters(sql: Vec<u8>, rows: &str) -> Vec<u8> {
+    with_voters(
+        sql,
+        &format!(
+            "CREATE TABLE `voters` (`ID` text, `FIRSTNAME` text, `LASTNAME` text, `MAILCOUNTRY` text, `MAILEMBASSY` text); INSERT INTO `voters` VALUES {rows};"
+        ),
+    )
+}
+
+fn postqual_ambiguous_mail_location(voters: &str) -> Vec<u8> {
+    let sql = String::from_utf8(post_qualification_overseas())
+        .unwrap()
+        // Register the disagreeing area first, followed by two agreeing rows.
+        // The last row must not clear the recorded ambiguity.
+        .replace(
+            "('B06','P01','90','06','001','0001A')",
+            "('B07','P01','90','06','004','0003A'),('B06','P01','90','06','001','0001A')",
+        )
+        + "INSERT INTO `allbgy` VALUES ('B07','EXAMPLE AREA');"
+        + "INSERT INTO `trans_routes` VALUES ('90060004','DESTD');";
+    postqual_mail_voters(sql.into_bytes(), voters)
+}
+
+#[test]
+fn post_qualification_unused_mail_ambiguity_does_not_block_a_unique_voter() {
+    let sql = postqual_ambiguous_mail_location(
+        "('safe','Example','Voter','90','02')",
+    );
+    let xlsx = defaults_workbook();
+    let adapted = adapt(&sql, &xlsx, &defaulted()).unwrap();
+    assert_eq!(
+        adapted.summary.source_schema,
+        SourceSchema::PostQualification
+    );
+    assert_eq!(adapted.summary.preserved_voters, 1);
+    assert_eq!(adapted.workbook.rows("areas").len(), 4);
+    let voters = adapted.workbook.rows("voters");
+    assert_eq!(voters.len(), 1);
+    assert_eq!(voters[0].text("area.external_id"), Some("barangay:B02"));
+}
+
+#[test]
+fn post_qualification_reports_ambiguous_and_unmatched_mail_voters_together() {
+    let sql = postqual_ambiguous_mail_location(
+        "('ambiguous','Example','Voter','90','06'),('missing','Example','Voter','99','99'),('safe','Example','Voter','90','02')",
+    );
+    let refused = adapt(&sql, &defaults_workbook(), &defaulted()).unwrap_err();
+    let problems: Vec<_> = refused
+        .report
+        .problems
+        .iter()
+        .map(|problem| (problem.code, problem.path.as_str()))
+        .collect();
+    assert_eq!(
+        problems,
+        [
+            (
+                Code::DuplicateId,
+                "SQL table voters row 1 column MAILEMBASSY"
+            ),
+            (
+                Code::DanglingReference,
+                "SQL table voters row 2 column MAILEMBASSY"
+            ),
+        ],
+    );
+    assert!(refused.summary.generated_rows.is_empty());
+    assert_eq!(refused.summary.preserved_voters, 0);
+}
+
+#[test]
+fn post_qualification_mail_conflict_between_in_scope_and_excluded_rows_is_refused(
+) {
+    let (sql, xlsx) = post_qualification_route_source();
+    let sql = sql
+        + "INSERT INTO `polling_centers` VALUES ('P02','Excluded Post');"
+        + "INSERT INTO `pop` VALUES ('001002003','P02','001','002','003','17','0017','0017B','0010020030017B');";
+    let sql = postqual_mail_voters(
+        sql.into_bytes(),
+        "('ambiguous','Example','Voter','001','002')",
+    );
+    let options = HistoricalOptions {
+        post_coverage: PostCoverage::WorkbookPostsOnly,
+        source_digests: bound_options(&sql, &xlsx).source_digests,
+        ..defaulted()
+    };
+    let refused = adapt(&sql, &xlsx, &options).unwrap_err();
+    assert_eq!(refused.summary.excluded_precinct_rows, 1);
+    assert!(refused.summary.generated_rows.is_empty());
+    assert_eq!(refused.report.problems.len(), 1);
+    assert_eq!(refused.report.problems[0].code, Code::DuplicateId);
+    assert_eq!(
+        refused.report.problems[0].path,
+        "SQL table voters row 1 column MAILEMBASSY"
+    );
+}
+
+#[test]
+fn post_qualification_precinct_tuple_join_retains_strict_source_checks() {
+    let (sql, xlsx) =
+        overseas_voter_fixture(",('B02','P01','90','06','001','0001A')", "");
+    let sql = post_qualification(&sql);
+    let problem =
+        refused_code(sql.as_bytes(), &xlsx, &preserving(), Code::DuplicateId);
+    assert!(problem.path.ends_with("pop row 5 column PRECINCT"));
+}
+
 /// A defaults workbook: without an `Elections` sheet, the elections and areas
 /// come from the SQL. A schedule without an alias is every election's, and an
 /// area row without a name is every area's.
