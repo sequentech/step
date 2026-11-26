@@ -1,13 +1,14 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import React from "react"
+import React, {useId} from "react"
 import {useTranslation} from "react-i18next"
 import {
     Box,
     Button,
     FormControl,
     FormControlLabel,
+    FormHelperText,
     FormLabel,
     IconButton,
     MenuItem,
@@ -47,6 +48,7 @@ export const TemplateButtonsInput: React.FC<ITemplateButtonsInputProps> = ({
     onChange,
 }) => {
     const {t} = useTranslation()
+    const id = useId()
     const choice = buttons ? ETemplateButtonsChoice.CUSTOM : ETemplateButtonsChoice.DEFAULT
     const describe = (list: ITemplateButton[]) =>
         list.length
@@ -104,16 +106,19 @@ export const TemplateButtonsInput: React.FC<ITemplateButtonsInputProps> = ({
             ) : null}
             {(buttons ?? []).map((button, index) => {
                 const blank = !button.parameter.trim()
+                const helperId = `${id}-value-${index}-helper`
                 return (
                     <Box
                         key={index}
                         sx={{
                             "display": "grid",
                             "gridTemplateColumns": "minmax(0, 1fr) auto",
-                            "gap": 1,
+                            "gridTemplateAreas": '"type ." "value remove" "helper ."',
+                            "columnGap": 1,
                             "alignItems": "start",
                             "@container (min-width: 440px)": {
                                 gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.4fr) auto",
+                                gridTemplateAreas: '"type value remove" ". helper ."',
                             },
                         }}
                     >
@@ -127,6 +132,11 @@ export const TemplateButtonsInput: React.FC<ITemplateButtonsInputProps> = ({
                                 update(index, {type: event.target.value as ETemplateButtonType})
                             }
                             fullWidth
+                            sx={{
+                                "gridArea": "type",
+                                "mb": 1,
+                                "@container (min-width: 440px)": {mb: 0},
+                            }}
                         >
                             {Object.values(ETemplateButtonType).map((type) => (
                                 <MenuItem key={type} value={type}>
@@ -140,36 +150,33 @@ export const TemplateButtonsInput: React.FC<ITemplateButtonsInputProps> = ({
                             value={button.parameter}
                             disabled={disabled}
                             error={blank}
-                            helperText={blank ? t("messaging.templateButtons.required") : undefined}
+                            slotProps={{
+                                htmlInput: {"aria-describedby": blank ? helperId : undefined},
+                            }}
                             onChange={(event) => update(index, {parameter: event.target.value})}
                             fullWidth
-                            sx={{
-                                "gridColumn": "1 / 2",
-                                "gridRow": 2,
-                                "@container (min-width: 440px)": {
-                                    gridColumn: "auto",
-                                    gridRow: "auto",
-                                },
-                            }}
+                            sx={{gridArea: "value"}}
                         />
                         {!disabled && (
                             <IconButton
                                 aria-label={t("messaging.templateButtons.remove")}
-                                sx={{
-                                    "gridColumn": 2,
-                                    "gridRow": "1 / 3",
-                                    "alignSelf": "start",
-                                    "@container (min-width: 440px)": {
-                                        gridColumn: "auto",
-                                        gridRow: "auto",
-                                    },
-                                }}
+                                sx={{gridArea: "remove", alignSelf: "center"}}
                                 onClick={() =>
                                     onChange((buttons ?? []).filter((_, i) => i !== index))
                                 }
                             >
                                 <DeleteOutlineIcon />
                             </IconButton>
+                        )}
+                        {blank && (
+                            <FormHelperText
+                                id={helperId}
+                                variant="outlined"
+                                error
+                                sx={{gridArea: "helper"}}
+                            >
+                                {t("messaging.templateButtons.required")}
+                            </FormHelperText>
                         )}
                     </Box>
                 )

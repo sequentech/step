@@ -55,6 +55,7 @@ export const DefaultThenOwn: Story = {
         const quickReply = canvas.getAllByRole("textbox", {name: "Value"})[1]
         await userEvent.clear(quickReply)
         await expect(canvas.getByText("Enter a value")).toBeVisible()
+        await expect(quickReply).toHaveAccessibleDescription("Enter a value")
         await userEvent.type(quickReply, "SKIP")
         await userEvent.click(canvas.getAllByRole("button", {name: "Remove button"})[0])
         await expect(values(canvasElement)).toEqual(["SKIP"])
@@ -63,10 +64,13 @@ export const DefaultThenOwn: Story = {
     },
 }
 
-/** The rows stay inside a narrow drawer or phone. */
+/** The rows fit their container and align each remove button with its value field. */
 export const Responsive: Story = {
-    args: {initial: DEFAULTS},
+    args: {initial: [DEFAULTS[0], {type: ETemplateButtonType.QUICK_REPLY, parameter: ""}]},
     play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const valueInputs = canvas.getAllByRole("textbox", {name: "Value"})
+        const removeButtons = canvas.getAllByRole("button", {name: "Remove button"})
         const control = canvasElement.querySelector(".MuiFormControl-root") as HTMLElement
         const originalWidth = control.style.width
         try {
@@ -82,6 +86,13 @@ export const Responsive: Story = {
                         expect(rect.left).toBeGreaterThanOrEqual(bounds.left)
                         expect(rect.right).toBeLessThanOrEqual(bounds.right + 1)
                     }
+                    valueInputs.forEach((input, index) => {
+                        const value = input.getBoundingClientRect()
+                        const remove = removeButtons[index].getBoundingClientRect()
+                        const valueCenter = value.top + value.height / 2
+                        const removeCenter = remove.top + remove.height / 2
+                        expect(Math.abs(removeCenter - valueCenter)).toBeLessThanOrEqual(1)
+                    })
                 })
             }
         } finally {
