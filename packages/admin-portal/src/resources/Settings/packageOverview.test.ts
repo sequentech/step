@@ -187,7 +187,7 @@ describe("lastAppliedReceipt: what is applied on this tenant", () => {
         ]
         expect(lastAppliedReceipt(rows)).toEqual({
             taskId: "applied-1",
-            appliedAt: rows[2].created_at,
+            startedAt: rows[2].created_at,
             appliedBy: "ops.lead",
             packageSha256: "abcdef0123456789abcdef",
         })

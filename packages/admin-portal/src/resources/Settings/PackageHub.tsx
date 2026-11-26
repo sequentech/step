@@ -11,6 +11,7 @@ import React, {useId, useState} from "react"
 import {
     Box,
     Button,
+    ButtonBase,
     Checkbox,
     Chip,
     Divider,
@@ -128,19 +129,30 @@ export const PackageStatusHeader: React.FC<{
                 </Typography>
             </Box>
             <Divider orientation="vertical" flexItem sx={{display: {xs: "none", md: "block"}}} />
-            <Button
-                variant="text"
+            {/* A neutral outlined tile, not a themed Button: the admin theme fills those navy. */}
+            <ButtonBase
                 onClick={onTrust}
                 data-testid="package-trust-summary"
                 aria-label={`${t("configurationPackage.hub.trustLabel")}: ${trust.label}`}
                 sx={{
-                    flex: "0 0 auto",
-                    display: {xs: "none", md: "flex"},
-                    flexDirection: "column",
-                    alignItems: "flex-start",
-                    textTransform: "none",
-                    textAlign: "start",
-                    minWidth: 200,
+                    "flex": "0 0 auto",
+                    "display": {xs: "none", md: "flex"},
+                    "flexDirection": "column",
+                    "alignItems": "flex-start",
+                    "textAlign": "start",
+                    "minWidth": 200,
+                    "px": 1.5,
+                    "py": 0.75,
+                    "border": 1,
+                    "borderColor": "divider",
+                    "borderRadius": 1,
+                    "bgcolor": "background.paper",
+                    "color": "text.primary",
+                    "&:hover": {bgcolor: "action.hover"},
+                    "&.Mui-focusVisible": {
+                        outline: (theme) => `2px solid ${theme.palette.primary.main}`,
+                        outlineOffset: 2,
+                    },
                 }}
             >
                 <Typography variant="overline" color="text.secondary" sx={{lineHeight: 1.6}}>
@@ -158,7 +170,7 @@ export const PackageStatusHeader: React.FC<{
                         {trust.detail}
                     </Typography>
                 )}
-            </Button>
+            </ButtonBase>
             <Divider orientation="vertical" flexItem sx={{display: {xs: "none", md: "block"}}} />
             <Stack
                 direction="row"
@@ -266,9 +278,12 @@ export const PackageRail: React.FC<{
             data-testid="package-rail"
             sx={{
                 flex: {md: "0 0 248px"},
-                alignSelf: "start",
+                // Stretched on phones, so its own horizontal scroll applies instead of
+                // the strip widening the page; top-aligned beside the panels on wide screens.
+                alignSelf: {xs: "stretch", md: "start"},
                 p: 0.75,
                 minWidth: 0,
+                maxWidth: "100%",
                 overflowX: {xs: "auto", md: "visible"},
             }}
         >
@@ -424,7 +439,8 @@ export const TenantReceipt: React.FC<{
                   receipt.packageSha256 ?? "?",
                   true,
               ],
-              [String(t("configurationPackage.hub.receipt.applied")), receipt.appliedAt],
+              // The task row's created_at: when the run started, not when it finished.
+              [String(t("configurationPackage.hub.historyStarted")), receipt.startedAt],
               ...(receipt.appliedBy
                   ? ([[String(t("configurationPackage.hub.receipt.by")), receipt.appliedBy]] as [
                         string,

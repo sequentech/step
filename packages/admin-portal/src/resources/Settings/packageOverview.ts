@@ -210,7 +210,7 @@ export interface HistoryRow {
 
 export interface AppliedReceipt {
     taskId: string
-    appliedAt: string
+    startedAt: string
     appliedBy?: string
     packageSha256?: string
 }
@@ -229,7 +229,7 @@ export const lastAppliedReceipt = (
         if (view && isConfirmedApply(view, row.execution_status)) {
             return {
                 taskId: row.id,
-                appliedAt: row.created_at,
+                startedAt: row.created_at,
                 ...(row.executed_by_user ? {appliedBy: row.executed_by_user} : {}),
                 ...(typeof view.packageSha256 === "string" && view.packageSha256
                     ? {packageSha256: view.packageSha256}

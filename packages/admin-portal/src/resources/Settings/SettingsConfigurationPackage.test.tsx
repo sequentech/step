@@ -409,6 +409,9 @@ it("shows a partial failure, and a refusal with what earlier runs applied", asyn
     )
     expect(screen.getByTestId("section-tenant-configuration").textContent).toContain("applied")
     expect(screen.getByTestId("section-election-event").textContent).toContain("import failed")
+    expect(screen.getByTestId("section-state-tenant-configuration").className).toContain(
+        "MuiChip-colorSuccess"
+    )
     expect(screen.getByTestId("section-election-event").textContent).toContain("task-ev")
 
     // The task row of a refused application is FAILED, as windmill writes it.
@@ -1769,6 +1772,13 @@ describe("configuration package hub layout", () => {
                 .querySelector("[data-badge]")
                 ?.getAttribute("data-badge")
         ).toBe("notConfirmed")
+        const detailsChip = screen.getByTestId("section-state-tenant-configuration")
+        expect(detailsChip.className).not.toContain("MuiChip-colorSuccess")
+        expect(detailsChip.textContent).toContain("configurationPackage.hub.badge.notConfirmed")
+        // One line, whatever the column width.
+        expect(
+            window.getComputedStyle(detailsChip.querySelector(".MuiChip-label")!).whiteSpace
+        ).toBe("nowrap")
         mockTask = task("task-a", "SUCCESS", record("applied"))
         rerender(<SettingsConfigurationPackage />)
         expect(screen.getByTestId("package-workflow").getAttribute("data-phase")).toBe("complete")
@@ -1812,5 +1822,58 @@ describe("configuration package hub layout", () => {
         expect(
             screen.getByTestId("package-history-detail").querySelector('[data-badge="applied"]')
         ).toBeTruthy()
+    })
+
+    it("labels the receipt's task time as when the run started", () => {
+        mockHistory = [
+            {
+                id: "task-applied",
+                created_at: "2026-11-24T14:02:00Z",
+                execution_status: "SUCCESS",
+                executed_by_user: "ops.lead",
+                annotations: record("applied"),
+            },
+        ]
+        render(<SettingsConfigurationPackage />)
+        const receipt = screen.getByTestId("package-receipt").textContent
+        expect(receipt).toContain("configurationPackage.hub.historyStarted")
+        expect(receipt).not.toContain("configurationPackage.hub.receipt.applied")
+    })
+
+    it("brings a run started from another tab, and its error, forward on Overview", async () => {
+        mockApply.mockResolvedValueOnce(accepted("task-p"))
+        render(<SettingsConfigurationPackage />)
+        fireEvent.click(screen.getByTestId("package-rail-history"))
+        await upload()
+        expect(screen.getByTestId("package-rail-overview").getAttribute("aria-current")).toBe(
+            "page"
+        )
+        expect(screen.getByTestId("package-run")).toBeTruthy()
+
+        fireEvent.click(screen.getByTestId("package-stop-following"))
+        fireEvent.click(screen.getByTestId("package-rail-trustees"))
+        mockApply.mockRejectedValueOnce(new Error("network down"))
+        await upload()
+        expect(screen.getByTestId("package-rail-overview").getAttribute("aria-current")).toBe(
+            "page"
+        )
+        expect(screen.getByTestId("package-error").textContent).toContain("network down")
+    })
+
+    it("shows signing trust as a neutral outlined tile, not a filled themed button", () => {
+        render(
+            <ThemeProvider theme={adminTheme}>
+                <SettingsConfigurationPackage />
+            </ThemeProvider>
+        )
+        const tile = screen.getByTestId("package-trust-summary")
+        expect(tile.tagName).toBe("BUTTON")
+        expect(tile.className).not.toContain("MuiButton-")
+        // The same surface as the header it sits in.
+        expect(window.getComputedStyle(tile).backgroundColor).toBe(
+            window.getComputedStyle(screen.getByTestId("package-workflow")).backgroundColor
+        )
+        fireEvent.click(tile)
+        expect(screen.getByTestId("package-trust-panel")).toBeTruthy()
     })
 })

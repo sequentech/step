@@ -175,7 +175,12 @@ it("sends exact bytes and activates only on an explicit fresh confirmation, once
     await select()
     fireEvent.click(button("review"))
     await screen.findByText(name("candidate"))
-    expect(current()).toContain("configurationPackage.roster.steps.verify")
+    // Verification done: Activate is the current step and Verify is marked done.
+    expect(current()).toContain("configurationPackage.roster.steps.activate")
+    const verify = Array.from(
+        screen.getByTestId("signer-roster-steps").querySelectorAll("li")
+    ).find((step) => step.textContent?.includes("configurationPackage.roster.steps.verify"))
+    expect(verify?.textContent?.startsWith("✓")).toBe(true)
     expect(mockQuery).toHaveBeenCalledWith(
         expect.objectContaining({
             variables: {tenantId: "tenant", roster: source, sha},

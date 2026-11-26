@@ -511,7 +511,12 @@ const RosterSetup: React.FC<{
                         }}
                     >
                         {(["choose", "verify", "activate"] as const).map((step, index) => {
-                            const current = candidate ? 1 : 0
+                            // Verified: the receiver returned the candidate, so Activate is next.
+                            const current = candidate
+                                ? 2
+                                : busy && operation.current === "review"
+                                  ? 1
+                                  : 0
                             return (
                                 <Box
                                     component="li"

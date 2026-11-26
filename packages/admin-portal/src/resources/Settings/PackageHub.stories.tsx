@@ -10,7 +10,7 @@ import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, within} from "storybook/test"
 import {Box, Button, Stack} from "@mui/material"
 import {i18n} from "@sequentech/ui-core"
-import {AdminStoryProvider} from "@/__stories__/AdminStoryProvider"
+import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {atViewport} from "../../../../test-support/storybook/viewport"
 import {
@@ -58,6 +58,9 @@ const HISTORY = [
     },
 ]
 
+// These pieces make no GraphQL calls; an empty boundary records any that happen.
+let boundary: ReturnType<typeof graphqlBoundary>
+
 const Hub: React.FC<Scenario> = ({phase, run, mode, trustLabel}) => {
     const [tab, setTab] = useState<HubTab>("overview")
     // The task status the platform writes with each record: FAILED for refused or failed.
@@ -69,7 +72,7 @@ const Hub: React.FC<Scenario> = ({phase, run, mode, trustLabel}) => {
     const actions = headerActions(phase)
     const label = (action: string) => i18n.t(`configurationPackage.hub.actions.${action}`)
     return (
-        <AdminStoryProvider>
+        <AdminStoryProvider boundary={boundary}>
             <Stack spacing={1.5} sx={{p: 1}}>
                 <PackageStatusHeader
                     phase={phase}
@@ -158,6 +161,9 @@ const meta = {
             "SectionBadgeChip",
             "TenantReceipt",
         ],
+    },
+    beforeEach: () => {
+        boundary = graphqlBoundary({})
     },
     render: (args) => <Hub {...args} />,
 } satisfies WidgetMeta<Scenario>
@@ -252,7 +258,7 @@ export const PhoneBlocked: Story = {
 const RequirementsStep: React.FC = () => {
     const [requirements, setRequirements] = useState<PackageRequirements>(COMPLETE_DELIVERY)
     return (
-        <AdminStoryProvider>
+        <AdminStoryProvider boundary={boundary}>
             <Stack spacing={2} sx={{p: 2, maxWidth: 640}}>
                 <WizardSteps current={0} />
                 <span data-testid="story-requirements-summary">

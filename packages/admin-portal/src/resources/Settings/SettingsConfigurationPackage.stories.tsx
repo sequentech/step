@@ -430,7 +430,10 @@ export const StalePreviewAgain: Story = {
             expect(
                 graphql.calls
                     .filter(({name}) => name === "ApplyConfigurationPackage")
-                    .map(({variables}) => [variables.mode, variables.requirements?.census])
+                    .map(({variables}) => [
+                        variables.mode,
+                        (variables.requirements as {census?: unknown} | undefined)?.census,
+                    ])
             ).toEqual([
                 ["preview", "required"],
                 ["preview", "optional"],

@@ -183,6 +183,11 @@ const SettingsConfigurationPackageForScope: React.FC<{
     const [error, setError] = useState<string | null>(null)
     const [submitting, setSubmitting] = useState(false)
     const [tab, setTab] = useState<HubTab>("overview")
+    // The run card on Overview carries progress, errors and recovery: an error
+    // raised from the header, a drawer or a dialog on another tab brings it forward.
+    useEffect(() => {
+        if (error) setTab("overview")
+    }, [error])
     const [drawerRequirements, setDrawerRequirements] = useState(false)
     // "Change requirements" and the document-ID menu item open the options in place.
     const [openAdvanced, setOpenAdvanced] = useState(false)
@@ -424,6 +429,8 @@ const SettingsConfigurationPackageForScope: React.FC<{
         )
             return
         packageRequest.current = true
+        // Whatever tab it was started from, the run is followed on Overview.
+        setTab("overview")
         // Synchronously consume the selected preview before any await. A reload,
         // tenant change or missing server reply may not make this Apply reusable.
         forgetSubmission(forTenant)
@@ -1112,7 +1119,10 @@ const SettingsConfigurationPackageForScope: React.FC<{
                         )}
                         {view && (
                             <Box sx={{my: 1.5}}>
-                                <ApplicationTable view={view} />
+                                <ApplicationTable
+                                    view={view}
+                                    executionStatus={task?.execution_status}
+                                />
                             </Box>
                         )}
                         <Typography variant="body2" data-testid="package-task">
@@ -1286,6 +1296,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
                         sections: shownView.sections.filter((s) => s.section === tab),
                         members: shownView.members.filter((m) => m.section === tab),
                     }}
+                    executionStatus={task?.execution_status}
                 />
             ) : (
                 <Typography variant="body2" color="text.secondary">
@@ -1709,8 +1720,15 @@ const ProposedChanges: React.FC<{view: ApplicationView}> = ({view}) => {
     )
 }
 
-const ApplicationTable: React.FC<{view: ApplicationView}> = ({view}) => {
+const ApplicationTable: React.FC<{
+    view: ApplicationView
+    /** The run's task execution_status, for the confirmed-apply rule. */
+    executionStatus: string | null | undefined
+}> = ({view, executionStatus}) => {
     const {t} = useTranslation()
+    // A record that claims an applied run its task row does not confirm shows no
+    // section as applied; a partially failed run keeps its genuinely applied ones.
+    const unconfirmed = isUnconfirmedApplied(view, executionStatus)
     const namedSections: readonly string[] = PACKAGE_SECTIONS
     const rowLabelSx = {
         position: "sticky",
@@ -1753,26 +1771,32 @@ const ApplicationTable: React.FC<{view: ApplicationView}> = ({view}) => {
                                           )
                                         : section.section}
                                 </TableCell>
-                                <TableCell>
-                                    {/* Only a stored applied state is green; anything else stays neutral. */}
+                                {/* One line per state: the table scrolls in its own region on phones. */}
+                                <TableCell sx={{whiteSpace: "nowrap", minInlineSize: "max-content"}}>
+                                    {/* Only a confirmed applied state is green; anything else stays neutral. */}
                                     <Chip
                                         size="small"
                                         variant={
-                                            section.state === "applied" ? "filled" : "outlined"
+                                            section.state === "applied" && !unconfirmed
+                                                ? "filled"
+                                                : "outlined"
                                         }
-                                        color={section.state === "applied" ? "success" : "default"}
+                                        color={
+                                            section.state === "applied" && !unconfirmed
+                                                ? "success"
+                                                : "default"
+                                        }
                                         label={`${section.state}${
                                             section.reconciled
                                                 ? ` (${t("configurationPackage.reconciled")})`
                                                 : ""
+                                        }${
+                                            section.state === "applied" && unconfirmed
+                                                ? ` · ${t("configurationPackage.hub.badge.notConfirmed")}`
+                                                : ""
                                         }`}
-                                        sx={{
-                                            "blockSize": "auto",
-                                            "& .MuiChip-label": {
-                                                whiteSpace: "normal",
-                                                overflowWrap: "anywhere",
-                                            },
-                                        }}
+                                        data-testid={`section-state-${section.section}`}
+                                        sx={{"& .MuiChip-label": {whiteSpace: "nowrap"}}}
                                     />
                                 </TableCell>
                                 <TableCell sx={{fontFamily: "monospace", overflowWrap: "anywhere"}}>
