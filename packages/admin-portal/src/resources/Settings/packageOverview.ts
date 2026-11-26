@@ -16,6 +16,8 @@ import {
     readApplication,
     type ApplicationView,
     type ApplyMode,
+    type CensusRequirement,
+    type PackageRequirements,
     type PackageSection,
     type SectionView,
 } from "./configurationPackage"
@@ -134,6 +136,7 @@ export const runStages = (phase: PackageImportPhase, mode?: ApplyMode): RunStage
 
 export type HeaderAction =
     | "upload"
+    | "previewAgain"
     | "reviewAndApply"
     | "importFixed"
     | "changeRequirements"
@@ -147,6 +150,9 @@ export const headerActions = (
             return {primary: "reviewAndApply", secondary: "upload"}
         case "previewBlocked":
             return {primary: "importFixed", secondary: "changeRequirements"}
+        case "previewAgain":
+            // The page falls back to Import package when it cannot preview the same document.
+            return {primary: "previewAgain", secondary: "upload"}
         default:
             return {primary: "upload"}
     }
@@ -204,3 +210,63 @@ export const missingPackagePermissions = (
     tenantId
         ? PACKAGE_PERMISSIONS.filter((permission) => !isAuthorized(false, tenantId, permission))
         : []
+
+/** Sections a finished preview would change, in the order Apply would run them. */
+export const changingSections = (view: ApplicationView | null | undefined): PackageSection[] =>
+    PACKAGE_SECTIONS.filter(
+        (section) => view?.sections.find((s) => s.section === section)?.preview?.needsApply
+    )
+
+export interface RunIdentity {
+    packageSha256?: string
+    /** The requirements the receiver bound to the run, when it recorded them. */
+    requirements?: PackageRequirements
+    /** The signer roster the receiver bound to the run, when it recorded it. */
+    roster?: {sha256: string; generation: number; requiredApprovals: number}
+}
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+    value && typeof value === "object" ? (value as Record<string, unknown>) : {}
+
+/**
+ * What a run's saved record says it was bound to: the package digest, and the
+ * requirements and signer roster when the receiver recorded them. A field the
+ * run did not record, or recorded in a shape this portal does not accept, is
+ * left out rather than filled in.
+ */
+export const readRunIdentity = (annotations: unknown): RunIdentity | null => {
+    const view = readApplication(annotations)
+    if (!view) return null
+    const record = asRecord(asRecord(annotations).application)
+    const identity: RunIdentity = {}
+    if (typeof view.packageSha256 === "string" && view.packageSha256) {
+        identity.packageSha256 = view.packageSha256
+    }
+    const plan = asRecord(record.managedRequirements)
+    const sections = plan.sections
+    if (
+        Array.isArray(sections) &&
+        sections.every((section) => (PACKAGE_SECTIONS as readonly unknown[]).includes(section)) &&
+        new Set(sections).size === sections.length &&
+        (plan.census === "required" || plan.census === "optional")
+    ) {
+        identity.requirements = {
+            sections: PACKAGE_SECTIONS.filter((section) => sections.includes(section)),
+            census: plan.census as CensusRequirement,
+        }
+    }
+    const binding = asRecord(record.managedRosterBinding)
+    if (
+        typeof binding.sha256 === "string" &&
+        /^[0-9a-f]{64}$/.test(binding.sha256) &&
+        Number.isSafeInteger(binding.generation) &&
+        Number.isSafeInteger(binding.requiredApprovals)
+    ) {
+        identity.roster = {
+            sha256: binding.sha256,
+            generation: binding.generation as number,
+            requiredApprovals: binding.requiredApprovals as number,
+        }
+    }
+    return identity
+}

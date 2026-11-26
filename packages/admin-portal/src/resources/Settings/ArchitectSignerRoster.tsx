@@ -495,6 +495,32 @@ const RosterSetup: React.FC<{
                     <Typography component="h2" variant="h5" id={dialogId} sx={{mb: 2}}>
                         {t("configurationPackage.roster.manage")}
                     </Typography>
+                    {/* Choose file, Verify, Activate: where this drawer is, never a gate. */}
+                    <Box
+                        component="ol"
+                        aria-label={String(t("configurationPackage.roster.steps.label"))}
+                        data-testid="signer-roster-steps"
+                        sx={{display: "flex", flexWrap: "wrap", gap: 2, listStyle: "none", m: 0, mb: 2, p: 0}}
+                    >
+                        {(["choose", "verify", "activate"] as const).map((step, index) => {
+                            const current = candidate ? 1 : 0
+                            return (
+                                <Box
+                                    component="li"
+                                    key={step}
+                                    aria-current={index === current ? "step" : undefined}
+                                    sx={{
+                                        typography: "body2",
+                                        fontWeight: index === current ? 500 : 400,
+                                        color: index === current ? "text.primary" : "text.secondary",
+                                    }}
+                                >
+                                    {index < current ? "✓ " : `${index + 1}. `}
+                                    {t(`configurationPackage.roster.steps.${step}`)}
+                                </Box>
+                            )
+                        })}
+                    </Box>
                     <Typography variant="body2" paragraph>
                         {t("configurationPackage.roster.independent")}
                     </Typography>

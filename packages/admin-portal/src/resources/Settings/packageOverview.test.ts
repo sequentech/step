@@ -6,8 +6,10 @@ import {IPermissions} from "@/types/keycloak"
 import {record, refusedPreview} from "./configurationPackage.fixture"
 import {PACKAGE_SECTIONS, readApplication, type SectionView} from "./configurationPackage"
 import {
+    changingSections,
     headerActions,
     lastAppliedReceipt,
+    readRunIdentity,
     missingPackagePermissions,
     orderedSectionBadges,
     runStages,
@@ -120,11 +122,13 @@ describe("headerActions", () => {
         expect(actions).toEqual({primary: "importFixed", secondary: "changeRequirements"})
         expect(Object.values(actions)).not.toContain("reviewAndApply")
     })
+    it("offers Preview again for an out-of-date preview, never Apply", () => {
+        expect(headerActions("previewAgain")).toEqual({primary: "previewAgain", secondary: "upload"})
+    })
     it.each([
         "choose",
         "complete",
         "attention",
-        "previewAgain",
         "trustBlocked",
         "waitingForTrust",
         "starting",
@@ -179,4 +183,38 @@ it("names exactly the grants the operator lacks on the tenant", () => {
         "election-event-create",
     ])
     expect(missingPackagePermissions(null, isAuthorized)).toEqual([])
+})
+
+describe("readRunIdentity: only what the platform persisted on the run", () => {
+    it("reads the bound requirements and signer roster generation", () => {
+        const annotations = record("previewed")
+        Object.assign(annotations.application, {
+            managedRequirements: {sections: ["trustees", "tenant-configuration"], census: "required"},
+            managedRosterBinding: {sha256: "ab".repeat(32), generation: 3, requiredApprovals: 2},
+        })
+        expect(readRunIdentity(annotations)).toEqual({
+            packageSha256: "abcdef0123456789abcdef",
+            requirements: {sections: ["tenant-configuration", "trustees"], census: "required"},
+            roster: {sha256: "ab".repeat(32), generation: 3, requiredApprovals: 2},
+        })
+    })
+    it("omits what a run did not record instead of guessing", () => {
+        expect(readRunIdentity(record("applied"))).toEqual({packageSha256: "abcdef0123456789abcdef"})
+        expect(readRunIdentity({})).toBeNull()
+    })
+    it("ignores malformed bindings and unknown sections", () => {
+        const annotations = record("previewed")
+        Object.assign(annotations.application, {
+            managedRequirements: {sections: ["tenant-configuration", "bogus"], census: "required"},
+            managedRosterBinding: {sha256: "not-a-digest", generation: 3, requiredApprovals: 2},
+        })
+        expect(readRunIdentity(annotations)).toEqual({packageSha256: "abcdef0123456789abcdef"})
+    })
+})
+
+it("lists the sections a preview would change, in apply order", () => {
+    const view = readApplication(record("previewed"))
+    const reversed = view && {...view, sections: [...view.sections].reverse()}
+    expect(changingSections(reversed)).toEqual(["tenant-configuration"])
+    expect(changingSections(null)).toEqual([])
 })

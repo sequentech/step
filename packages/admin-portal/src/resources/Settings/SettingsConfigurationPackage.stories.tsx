@@ -7,6 +7,7 @@ import {i18n} from "@sequentech/ui-core"
 import {AdminStoryProvider, TENANT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import {resourceBoundary} from "@/__stories__/resourceBoundary"
 import {storyId} from "@/__stories__/fixtures"
+import {atViewport} from "../../../../test-support/storybook/viewport"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {SettingsConfigurationPackage} from "./SettingsConfigurationPackage"
 import {COMPLETE_DELIVERY, PACKAGE_PERMISSIONS} from "./configurationPackage"
@@ -402,5 +403,50 @@ export const AppliedReceipt: Story = {
         )
         await userEvent.click(canvas.getByTestId("package-rail-history"))
         await expect(canvas.getByTestId("package-history")).toHaveTextContent(storyId(41, 3))
+    },
+}
+
+export const PhoneBlockedPreview: Story = {
+    ...atViewport(390),
+    args: {blocked: true},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await preview(canvasElement)
+        await expect(await canvas.findByTestId("package-change-requirements")).toBeVisible()
+        await expect(canvas.getByTestId("package-upload")).toHaveTextContent(
+            i18n.t("configurationPackage.hub.actions.importFixed")
+        )
+        await expect(canvas.getByTestId("package-apply")).not.toBeVisible()
+        // Nothing wider than the phone: the rail and columns stack.
+        await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390)
+        await userEvent.click(canvas.getByTestId("package-change-requirements"))
+        await expect(
+            within(document.body).getByTestId("package-requirements-picker")
+        ).toBeVisible()
+        expect(graphql.calls.filter(({name}) => name === "ApplyConfigurationPackage")).toHaveLength(
+            1
+        )
+    },
+}
+
+export const StalePreviewAgain: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await preview(canvasElement)
+        await waitFor(() => expect(canvas.getByTestId("package-apply")).toBeEnabled())
+        await userEvent.click(canvas.getByRole("checkbox", {name: "census"}))
+        await expect(canvas.getByTestId("package-apply")).toBeDisabled()
+        await userEvent.click(await canvas.findByTestId("package-preview-again"))
+        await waitFor(() =>
+            expect(
+                graphql.calls
+                    .filter(({name}) => name === "ApplyConfigurationPackage")
+                    .map(({variables}) => [variables.mode, variables.requirements?.census])
+            ).toEqual([
+                ["preview", "required"],
+                ["preview", "optional"],
+            ])
+        )
+        expect(graphql.unexpected).toEqual([])
     },
 }

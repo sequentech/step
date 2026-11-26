@@ -160,9 +160,14 @@ it("never claims absent, unavailable, or pending trust is active", () => {
 it("sends exact bytes and activates only on an explicit fresh confirmation, once", async () => {
     render(mode(pending))
     fireEvent.click(button("manage"))
+    const current = () =>
+        screen.getByTestId("signer-roster-steps").querySelector('[aria-current="step"]')
+            ?.textContent
+    expect(current()).toContain("configurationPackage.roster.steps.choose")
     await select()
     fireEvent.click(button("review"))
     await screen.findByText(name("candidate"))
+    expect(current()).toContain("configurationPackage.roster.steps.verify")
     expect(mockQuery).toHaveBeenCalledWith(
         expect.objectContaining({
             variables: {tenantId: "tenant", roster: source, sha},

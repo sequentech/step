@@ -11,8 +11,10 @@ import React, {useId, useState} from "react"
 import {
     Box,
     Button,
+    Checkbox,
     Chip,
     Divider,
+    FormControlLabel,
     IconButton,
     List,
     ListItemButton,
@@ -26,7 +28,11 @@ import {
 import type {ChipProps} from "@mui/material"
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz"
 import {useTranslation} from "react-i18next"
-import {PACKAGE_SECTIONS, type PackageSection} from "./configurationPackage"
+import {
+    PACKAGE_SECTIONS,
+    type PackageRequirements,
+    type PackageSection,
+} from "./configurationPackage"
 import type {PackageImportPhase} from "./PackageImportWorkflow"
 import type {AppliedReceipt, RunStage, SectionBadge, SectionRow} from "./packageOverview"
 
@@ -489,5 +495,127 @@ export const TenantReceipt: React.FC<{
                 </Box>
             )}
         </Paper>
+    )
+}
+
+/** One line summary of the requirements, e.g. "6 of 7 sections required · Census required". */
+export const RequirementsSummary: React.FC<{requirements: PackageRequirements}> = ({
+    requirements,
+}) => {
+    const {t} = useTranslation()
+    return (
+        <>
+            {t("configurationPackage.workflow.optionsSummary", {
+                selected: requirements.sections.length,
+                available: PACKAGE_SECTIONS.length,
+            })}
+            {" · "}
+            {t(
+                requirements.census === "required"
+                    ? "configurationPackage.workflow.censusRequired"
+                    : "configurationPackage.workflow.censusOptional"
+            )}
+        </>
+    )
+}
+
+/**
+ * The required sections, in apply order, and the census. Changing them is the
+ * page's changeRequirements, which also clears the current preview.
+ */
+export const RequirementsPicker: React.FC<{
+    requirements: PackageRequirements
+    onToggleSection: (section: PackageSection) => void
+    onCensus: (census: PackageRequirements["census"]) => void
+    disabled?: boolean
+    testId?: string
+}> = ({requirements, onToggleSection, onCensus, disabled, testId}) => {
+    const {t} = useTranslation()
+    const headingId = useId()
+    return (
+        <Box role="group" aria-labelledby={headingId} data-testid={testId} sx={{display: "grid"}}>
+            <Typography id={headingId} variant="subtitle1" component="h4">
+                {t("configurationPackage.requirements")}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{mb: 0.5}}>
+                {t("configurationPackage.hub.requirementsHelp")}
+            </Typography>
+            {PACKAGE_SECTIONS.map((section, index) => (
+                <FormControlLabel
+                    key={section}
+                    disabled={disabled}
+                    control={
+                        <Checkbox
+                            checked={requirements.sections.includes(section)}
+                            onChange={() => onToggleSection(section)}
+                            inputProps={{"aria-label": section}}
+                        />
+                    }
+                    label={`${index + 1}. ${t(`configurationPackage.sections.${section}`)}`}
+                />
+            ))}
+            <FormControlLabel
+                disabled={disabled}
+                control={
+                    <Checkbox
+                        checked={requirements.census === "required"}
+                        onChange={(event) => onCensus(event.target.checked ? "required" : "optional")}
+                        inputProps={{"aria-label": "census"}}
+                    />
+                }
+                label={String(t("configurationPackage.censusRequired"))}
+            />
+        </Box>
+    )
+}
+
+/** Upload → Preview → Review → Apply, with the current step marked. */
+export const WizardSteps: React.FC<{current: number}> = ({current}) => {
+    const {t} = useTranslation()
+    const steps = ["package", "preview", "review", "apply"] as const
+    return (
+        <Box
+            component="ol"
+            aria-label={String(t("configurationPackage.hub.stagesLabel"))}
+            data-testid="package-wizard-steps"
+            sx={{display: "flex", flexWrap: "wrap", gap: 2, listStyle: "none", m: 0, p: 0}}
+        >
+            {steps.map((step, index) => (
+                <Box
+                    component="li"
+                    key={step}
+                    aria-current={index === current ? "step" : undefined}
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 0.75,
+                        typography: "body2",
+                        fontWeight: index === current ? 500 : 400,
+                        color: index === current ? "text.primary" : "text.secondary",
+                    }}
+                >
+                    <Box
+                        component="span"
+                        aria-hidden="true"
+                        sx={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: "50%",
+                            border: 1,
+                            borderColor: index === current ? "primary.main" : "divider",
+                            bgcolor: index === current ? "primary.main" : "transparent",
+                            color: index === current ? "primary.contrastText" : "text.secondary",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            typography: "caption",
+                        }}
+                    >
+                        {index < current ? "✓" : index + 1}
+                    </Box>
+                    {t(`configurationPackage.hub.stages.${step}`)}
+                </Box>
+            ))}
+        </Box>
     )
 }

@@ -101,6 +101,15 @@ const spanishTranslation: TranslationType = {
                 sectionsHeading: "Secciones · en orden de aplicación",
                 sectionOf: "Sección {{n}} de {{total}}",
                 sectionNotInRun: "La ejecución mostrada no tiene registro de esta sección.",
+                requirementsHelp:
+                    "Lo que debe contener este paquete. Una sección obligatoria que falte bloquea la previsualización; una opcional se aplica si está presente. Cambiar esto descarta la previsualización actual.",
+                signerRoster: "Lista de firmantes",
+                rosterBinding: "Generación {{generation}} · {{approvals}} aprobaciones",
+                confirmOrder: "Estas secciones cambian, una a una, en este orden:",
+                confirmPartial:
+                    "Si una sección falla, las anteriores quedan aplicadas y las siguientes no empiezan.",
+                historyOutcome: "Resultado",
+                historyStarted: "Inicio",
                 noAccess: {
                     title: "No puedes importar paquetes de configuración en este inquilino.",
                     missing: "Permisos que faltan: {{permissions}}. Pídeselos a un administrador del inquilino.",
@@ -151,6 +160,8 @@ const spanishTranslation: TranslationType = {
                     reviewAndApply: "Revisar y aplicar",
                     importFixed: "Importar paquete corregido",
                     changeRequirements: "Cambiar requisitos",
+                    previewAgain: "Previsualizar de nuevo",
+                    doneRequirements: "Hecho",
                     more: "Más acciones",
                     documentId: "Previsualizar un documento subido por ID",
                     stopFollowing: "Dejar de seguir esta ejecución",
@@ -223,6 +234,12 @@ const spanishTranslation: TranslationType = {
                 result: "Resultado de esta ejecución",
             },
             roster: {
+                steps: {
+                    label: "Pasos de importación de la lista",
+                    choose: "Elegir archivo",
+                    verify: "Verificar",
+                    activate: "Activar",
+                },
                 activeSummary:
                     "Activo. Cada paquete necesita al menos {{approvals}} aprobaciones distintas, más un firmante final independiente.",
                 fingerprint: "Mostrar la huella del lista de firmantes (SHA-256)",

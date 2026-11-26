@@ -94,6 +94,15 @@ const englishTranslation = {
                 sectionsHeading: "Sections · in apply order",
                 sectionOf: "Section {{n}} of {{total}}",
                 sectionNotInRun: "The run being shown has no record for this section.",
+                requirementsHelp:
+                    "What this package must carry. A required section that is missing blocks the preview; an optional one is applied if present. Changing these clears the current preview.",
+                signerRoster: "Signer roster",
+                rosterBinding: "Generation {{generation}} · {{approvals}} approvals",
+                confirmOrder: "These sections change, one at a time, in this order:",
+                confirmPartial:
+                    "If a section fails, the ones before it stay applied and the rest do not start.",
+                historyOutcome: "Outcome",
+                historyStarted: "Started",
                 noAccess: {
                     title: "You can't import configuration packages on this tenant.",
                     missing: "Missing grants: {{permissions}}. Ask a tenant administrator.",
@@ -144,6 +153,8 @@ const englishTranslation = {
                     reviewAndApply: "Review and apply",
                     importFixed: "Import fixed package",
                     changeRequirements: "Change requirements",
+                    previewAgain: "Preview again",
+                    doneRequirements: "Done",
                     more: "More actions",
                     documentId: "Preview an uploaded document by ID",
                     stopFollowing: "Stop following this run",
@@ -216,6 +227,12 @@ const englishTranslation = {
                 result: "Result of this run",
             },
             roster: {
+                steps: {
+                    label: "Roster import steps",
+                    choose: "Choose file",
+                    verify: "Verify",
+                    activate: "Activate",
+                },
                 activeSummary:
                     "Active. Each package needs at least {{approvals}} distinct approvals, plus a separate final signer.",
                 fingerprint: "Show roster fingerprint (SHA-256)",

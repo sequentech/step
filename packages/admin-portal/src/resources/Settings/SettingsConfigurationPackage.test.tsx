@@ -1461,9 +1461,24 @@ describe("configuration package hub layout", () => {
             ).map((stage) => stage.getAttribute("data-state"))
         ).toEqual(["done", "blocked", "pending", "pending"])
         fireEvent.click(screen.getByTestId("package-change-requirements"))
-        expect((screen.getByTestId("package-advanced-details") as HTMLDetailsElement).open).toBe(
-            true
-        )
+        const picker = screen.getByTestId("package-requirements-picker")
+        expect(within(screen.getByTestId("package-upload-drawer")).getByTestId(
+            "package-requirements-picker"
+        )).toBe(picker)
+        expect(
+            Array.from(picker.querySelectorAll("input[type=checkbox]")).map((box) =>
+                box.getAttribute("aria-label")
+            )
+        ).toEqual([
+            "tenant-configuration",
+            "tenant-settings",
+            "role-permissions",
+            "admin-accounts",
+            "trustees",
+            "messaging-accounts",
+            "election-event",
+            "census",
+        ])
         expect(mockApply).toHaveBeenCalledTimes(1)
     })
 
@@ -1497,5 +1512,80 @@ describe("configuration package hub layout", () => {
         expect(screen.getByTestId("package-receipt").textContent).toContain(
             "configurationPackage.hub.receipt.none"
         )
+    })
+
+    it("previews the same followed document again, with the new requirements, once clicked", async () => {
+        await previewed()
+        showAdvanced()
+        fireEvent.click(screen.getByRole("checkbox", {name: "census"}))
+        expect(applyButton().disabled).toBe(true)
+        mockApply.mockResolvedValueOnce(accepted("task-p2"))
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("package-preview-again"))
+        })
+        expect(mockApply.mock.calls.map(([options]) => options.variables)).toEqual([
+            expect.objectContaining({documentId: "doc-1", mode: "preview"}),
+            expect.objectContaining({
+                documentId: "doc-1",
+                mode: "preview",
+                requirements: {...COMPLETE_DELIVERY, census: "optional"},
+            }),
+        ])
+        expect(mockManagedApply).not.toHaveBeenCalled()
+    })
+
+    it("offers no Preview again when the platform read other bytes than the entered SHA-256", async () => {
+        mockSha = "f".repeat(64)
+        await previewed()
+        expect(screen.getByTestId("package-sha-mismatch")).toBeTruthy()
+        expect(screen.queryByTestId("package-preview-again")).toBeNull()
+        expect(screen.getAllByTestId("package-upload")).toHaveLength(1)
+    })
+
+    it("names the previewed package and the sections that change, in order, before Apply", async () => {
+        await previewed()
+        fireEvent.click(applyButton())
+        const identity = screen.getByTestId("package-confirm-identity")
+        expect(identity.textContent).toContain("abcdef0123456789abcdef")
+        expect(
+            Array.from(screen.getByTestId("package-confirm-order").querySelectorAll("li")).map(
+                (item) => item.textContent
+            )
+        ).toEqual(["configurationPackage.sections.tenant-configuration"])
+        expect(mockApply.mock.calls.map(([options]) => options.variables.mode)).toEqual([
+            "preview",
+        ])
+    })
+
+    it("shows a selected run's recorded identity and section results in History", () => {
+        const applied = record("applied")
+        Object.assign(applied.application, {
+            managedRosterBinding: {sha256: "ab".repeat(32), generation: 3, requiredApprovals: 2},
+        })
+        mockHistory = [
+            {
+                id: "task-refused",
+                created_at: "2026-11-25T10:00:00Z",
+                execution_status: "FAILED",
+                executed_by_user: "ops.backup",
+                annotations: refusedPreview(["unknown role x"]),
+            },
+            {
+                id: "task-applied",
+                created_at: "2026-11-24T14:02:00Z",
+                execution_status: "SUCCESS",
+                executed_by_user: "ops.lead",
+                annotations: applied,
+            },
+        ]
+        render(<SettingsConfigurationPackage />)
+        fireEvent.click(screen.getByTestId("package-rail-history"))
+        expect(screen.getByTestId("package-history-detail").textContent).toContain("refused")
+        fireEvent.click(screen.getByTestId("package-history-row-task-applied"))
+        const detail = screen.getByTestId("package-history-detail")
+        expect(detail.textContent).toContain("ops.lead")
+        expect(detail.textContent).toContain("task-applied")
+        expect(detail.textContent).toContain('"generation":3')
+        expect(detail.querySelector('[data-badge="applied"]')).toBeTruthy()
     })
 })

@@ -17,7 +17,6 @@ import {
     Alert,
     Box,
     Button,
-    Checkbox,
     Dialog,
     DialogActions,
     DialogContent,
@@ -26,7 +25,6 @@ import {
     Paper,
     Stack,
     Drawer,
-    FormControlLabel,
     List,
     ListItem,
     ListItemButton,
@@ -68,17 +66,22 @@ import {
     type HubTab,
     PackageRail,
     PackageStatusHeader,
+    RequirementsPicker,
+    RequirementsSummary,
     RunStages,
     SectionBadgeChip,
     TenantReceipt,
+    WizardSteps,
     isSectionTab,
 } from "./PackageHub"
 import {
     type HeaderAction,
+    changingSections,
     headerActions,
     lastAppliedReceipt,
     missingPackagePermissions,
     orderedSectionBadges,
+    readRunIdentity,
     runStages,
 } from "./packageOverview"
 import {
@@ -176,6 +179,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
     const [error, setError] = useState<string | null>(null)
     const [submitting, setSubmitting] = useState(false)
     const [tab, setTab] = useState<HubTab>("overview")
+    const [drawerRequirements, setDrawerRequirements] = useState(false)
     // "Change requirements" and the document-ID menu item open the options in place.
     const [openAdvanced, setOpenAdvanced] = useState(false)
     const advancedRef = useRef<HTMLDetailsElement | null>(null)
@@ -561,6 +565,9 @@ const SettingsConfigurationPackageForScope: React.FC<{
         )
     }
 
+    const setCensus = (census: PackageRequirements["census"]) =>
+        changeRequirements({...requirements, census})
+
     const toggleSection = (section: PackageSection) =>
         changeRequirements({
             ...requirements,
@@ -615,15 +622,48 @@ const SettingsConfigurationPackageForScope: React.FC<{
                 ? `${applyReasonId}-trust`
                 : undefined
 
-    const openRequirements = () => {
+    const openDocumentId = () => {
         setTab("overview")
         setOpenAdvanced(true)
     }
-    const actionFor = (action: HeaderAction, primary: boolean) => {
+    const openRequirements = () => {
+        if (running || !permitsImport) return
+        setDrawerRequirements(true)
+        setOpenUpload(true)
+    }
+    // The same uploaded document this operator previewed, with the current
+    // requirements: a new Preview the platform verifies from scratch. Not offered
+    // when the platform read different bytes than the entered SHA-256.
+    const canPreviewAgain =
+        phase === "previewAgain" &&
+        !running &&
+        permitsImport &&
+        !shaMismatch &&
+        submitted?.mode === "preview" &&
+        submitted.actor === authContext.userId &&
+        !!documentId &&
+        submitted.documentId === documentId
+    const previewAgain = () => {
+        if (!canPreviewAgain || !submitted || !documentId) return
+        setConfirming(false)
+        void submit("preview", documentId, expectedSha, submitted.encryptedPayloadSha256)
+    }
+    const actionFor = (wanted: HeaderAction, primary: boolean) => {
         const variant = primary ? "contained" : "outlined"
-        switch (action) {
+        switch (wanted) {
             case "reviewAndApply":
                 return null // The Apply button below is the one Review and apply control.
+            case "previewAgain":
+                return (
+                    <Button
+                        key="previewAgain"
+                        variant={variant}
+                        data-testid="package-preview-again"
+                        onClick={previewAgain}
+                    >
+                        {t("configurationPackage.hub.actions.previewAgain")}
+                    </Button>
+                )
             case "changeRequirements":
                 return (
                     <Button
@@ -645,11 +685,13 @@ const SettingsConfigurationPackageForScope: React.FC<{
                         data-testid="package-upload"
                         sx={{"&&.Mui-disabled": disabledButtonStyle}}
                         onClick={() => {
-                            if (!running && permitsImport) setOpenUpload(true)
+                            if (running || !permitsImport) return
+                            setDrawerRequirements(false)
+                            setOpenUpload(true)
                         }}
                     >
                         {t(
-                            action === "importFixed"
+                            wanted === "importFixed"
                                 ? "configurationPackage.hub.actions.importFixed"
                                 : phase === "review"
                                   ? "configurationPackage.hub.actions.importAnother"
@@ -659,7 +701,10 @@ const SettingsConfigurationPackageForScope: React.FC<{
                 )
         }
     }
-    const actions = headerActions(phase)
+    // Without the same followed document to preview again, the way on is a new import.
+    const suggested = headerActions(phase)
+    const actions: {primary: HeaderAction; secondary?: HeaderAction} =
+        suggested.primary === "previewAgain" && !canPreviewAgain ? {primary: "upload"} : suggested
     const trustSummary =
         phase === "waitingForTrust"
             ? {label: String(t("configurationPackage.hub.trustChecking"))}
@@ -1016,53 +1061,14 @@ const SettingsConfigurationPackageForScope: React.FC<{
                                     color="text.secondary"
                                     sx={{display: "block"}}
                                 >
-                                    {t("configurationPackage.workflow.optionsSummary", {
-                                        selected: requirements.sections.length,
-                                        available: PACKAGE_SECTIONS.length,
-                                    })}
-                                    {" · "}
-                                    {t(
-                                        requirements.census === "required"
-                                            ? "configurationPackage.workflow.censusRequired"
-                                            : "configurationPackage.workflow.censusOptional"
-                                    )}
+                                    <RequirementsSummary requirements={requirements} />
                                 </Typography>
                             </Box>
-                            <Box sx={{my: 2, display: "grid"}}>
-                                <Typography variant="subtitle1" component="h4">
-                                    {t("configurationPackage.requirements")}
-                                </Typography>
-                                {PACKAGE_SECTIONS.map((section) => (
-                                    <FormControlLabel
-                                        key={section}
-                                        control={
-                                            <Checkbox
-                                                checked={requirements.sections.includes(section)}
-                                                onChange={() => toggleSection(section)}
-                                                inputProps={{"aria-label": section}}
-                                            />
-                                        }
-                                        label={String(
-                                            t(`configurationPackage.sections.${section}`)
-                                        )}
-                                    />
-                                ))}
-                                <FormControlLabel
-                                    control={
-                                        <Checkbox
-                                            checked={requirements.census === "required"}
-                                            onChange={(event) =>
-                                                changeRequirements({
-                                                    ...requirements,
-                                                    census: event.target.checked
-                                                        ? "required"
-                                                        : "optional",
-                                                })
-                                            }
-                                            inputProps={{"aria-label": "census"}}
-                                        />
-                                    }
-                                    label={String(t("configurationPackage.censusRequired"))}
+                            <Box sx={{my: 2}}>
+                                <RequirementsPicker
+                                    requirements={requirements}
+                                    onToggleSection={toggleSection}
+                                    onCensus={setCensus}
                                 />
                             </Box>
                             {showManualEntry && (
@@ -1280,7 +1286,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
                 menu={[
                     {
                         label: String(t("configurationPackage.hub.actions.documentId")),
-                        onClick: openRequirements,
+                        onClick: openDocumentId,
                         disabled: running || !permitsImport || !showManualEntry,
                     },
                     {
@@ -1323,7 +1329,10 @@ const SettingsConfigurationPackageForScope: React.FC<{
             <Drawer
                 anchor="right"
                 open={openUpload && permitsImport}
-                onClose={() => setOpenUpload(false)}
+                onClose={() => {
+                    setOpenUpload(false)
+                    setDrawerRequirements(false)
+                }}
                 PaperProps={{
                     "aria-label": String(t("configurationPackage.uploadTitle")),
                 }}
@@ -1338,9 +1347,50 @@ const SettingsConfigurationPackageForScope: React.FC<{
                         title="configurationPackage.uploadTitle"
                         subtitle="configurationPackage.uploadSubtitle"
                     />
+                    <Box sx={{mb: 2}}>
+                        <WizardSteps current={0} />
+                    </Box>
                     <Typography variant="body2" paragraph>
                         {t("configurationPackage.uploadParagraph")}
                     </Typography>
+                    <Paper
+                        variant="outlined"
+                        sx={{p: 1.5, mb: 2}}
+                        data-testid="package-drawer-requirements"
+                    >
+                        <Stack
+                            direction="row"
+                            spacing={1}
+                            sx={{alignItems: "center", justifyContent: "space-between"}}
+                        >
+                            <Typography variant="body2">
+                                <RequirementsSummary requirements={requirements} />
+                            </Typography>
+                            <Button
+                                size="small"
+                                aria-expanded={drawerRequirements}
+                                onClick={() => setDrawerRequirements(!drawerRequirements)}
+                                data-testid="package-drawer-requirements-toggle"
+                            >
+                                {t(
+                                    drawerRequirements
+                                        ? "configurationPackage.hub.actions.doneRequirements"
+                                        : "configurationPackage.hub.actions.changeRequirements"
+                                )}
+                            </Button>
+                        </Stack>
+                        {drawerRequirements && (
+                            <Box sx={{mt: 1}}>
+                                <RequirementsPicker
+                                    requirements={requirements}
+                                    onToggleSection={toggleSection}
+                                    onCensus={setCensus}
+                                    disabled={running}
+                                    testId="package-requirements-picker"
+                                />
+                            </Box>
+                        )}
+                    </Paper>
                     {openUpload && permitsImport && (
                         <ImportScreen
                             key={JSON.stringify([tenantId, authContext.userId])}
@@ -1398,6 +1448,72 @@ const SettingsConfigurationPackageForScope: React.FC<{
                     <Typography variant="body2" paragraph>
                         {t("configurationPackage.confirmBody", {tenantId})}
                     </Typography>
+                    {previewed && (
+                        <Box data-testid="package-confirm-identity" sx={{mb: 2}}>
+                            <Box
+                                component="dl"
+                                sx={{
+                                    display: "grid",
+                                    gridTemplateColumns: "max-content minmax(0, 1fr)",
+                                    columnGap: 2,
+                                    rowGap: 0.5,
+                                    m: 0,
+                                    mb: 1.5,
+                                    typography: "body2",
+                                }}
+                            >
+                                <Box component="dt" sx={{color: "text.secondary"}}>
+                                    {t("configurationPackage.hub.receipt.sha")}
+                                </Box>
+                                <Box
+                                    component="dd"
+                                    sx={{m: 0, fontFamily: "monospace", overflowWrap: "anywhere"}}
+                                >
+                                    {previewed.view.packageSha256 ?? "?"}
+                                </Box>
+                                <Box component="dt" sx={{color: "text.secondary"}}>
+                                    {t("configurationPackage.requirements")}
+                                </Box>
+                                <Box component="dd" sx={{m: 0}}>
+                                    <RequirementsSummary requirements={previewed.requirements} />
+                                </Box>
+                                {previewed.managedBinding && (
+                                    <>
+                                        <Box component="dt" sx={{color: "text.secondary"}}>
+                                            {t("configurationPackage.hub.signerRoster")}
+                                        </Box>
+                                        <Box component="dd" sx={{m: 0}}>
+                                            {t("configurationPackage.hub.rosterBinding", {
+                                                generation: previewed.managedBinding.generation,
+                                                approvals: previewed.managedBinding.requiredApprovals,
+                                            })}
+                                        </Box>
+                                    </>
+                                )}
+                            </Box>
+                            {changingSections(previewed.view).length > 0 && (
+                                <>
+                                    <Typography variant="body2">
+                                        {t("configurationPackage.hub.confirmOrder")}
+                                    </Typography>
+                                    <Box
+                                        component="ol"
+                                        data-testid="package-confirm-order"
+                                        sx={{mt: 0.5, mb: 1, pl: 3, typography: "body2"}}
+                                    >
+                                        {changingSections(previewed.view).map((section) => (
+                                            <li key={section}>
+                                                {t(`configurationPackage.sections.${section}`)}
+                                            </li>
+                                        ))}
+                                    </Box>
+                                </>
+                            )}
+                            <Typography variant="body2" color="text.secondary">
+                                {t("configurationPackage.hub.confirmPartial")}
+                            </Typography>
+                        </Box>
+                    )}
                     {previewed && <ProposedChanges view={previewed.view} />}
                 </DialogContent>
                 <DialogActions>
@@ -1673,95 +1789,219 @@ const ApplicationHistory: React.FC<{
               created_at: string
               annotations?: unknown
               execution_status?: string | null
+              executed_by_user?: string | null
           }[]
         | undefined
 }> = ({rows}) => {
     const {t} = useTranslation()
+    const [selectedId, setSelectedId] = useState<string | null>(null)
+    const list = rows ?? []
+    const selected = list.find((row) => row.id === selectedId) ?? list[0]
+    const record = selected ? readApplication(selected.annotations) : null
+    const identity = selected ? readRunIdentity(selected.annotations) : null
+    const modeLabel = (mode: unknown) =>
+        mode === "preview" || mode === "apply"
+            ? String(t(`configurationPackage.mode.${mode}`))
+            : typeof mode === "string" && mode
+              ? mode
+              : "?"
+    const detail: [string, string, boolean?][] = selected
+        ? [
+              [
+                  String(t("configurationPackage.hub.historyOutcome")),
+                  String(record?.outcome ?? selected.execution_status ?? "?"),
+              ],
+              [String(t("configurationPackage.hub.historyStarted")), selected.created_at],
+              ...(selected.executed_by_user
+                  ? ([
+                        [String(t("configurationPackage.hub.receipt.by")), selected.executed_by_user],
+                    ] as [string, string][])
+                  : []),
+              ...(identity?.packageSha256
+                  ? ([
+                        [
+                            String(t("configurationPackage.hub.receipt.sha")),
+                            identity.packageSha256,
+                            true,
+                        ],
+                    ] as [string, string, boolean][])
+                  : []),
+              ...(identity?.roster
+                  ? ([
+                        [
+                            String(t("configurationPackage.hub.signerRoster")),
+                            String(
+                                t("configurationPackage.hub.rosterBinding", {
+                                    generation: identity.roster.generation,
+                                    approvals: identity.roster.requiredApprovals,
+                                })
+                            ),
+                        ],
+                    ] as [string, string][])
+                  : []),
+              [String(t("configurationPackage.hub.receipt.task")), selected.id, true],
+          ]
+        : []
     return (
         <>
-            <List
-                dense
-                data-testid="package-history"
-                aria-label={String(t("configurationPackage.history"))}
-            >
-                {(rows ?? []).map((row, index) => {
-                    const record = readApplication(row.annotations)
-                    const mode: unknown = record?.mode
-                    const outcome = record?.outcome ?? row.execution_status
-                    return (
-                        <ListItem
-                            key={`${row.id}:${index}`}
-                            divider
-                            disableGutters
-                            sx={(theme) => ({
-                                display: "flex",
-                                flexWrap: "wrap",
-                                alignItems: "center",
-                                columnGap: theme.spacing(1.5),
-                                rowGap: theme.spacing(0.5),
-                            })}
-                        >
-                            {/* The stored timestamp as-is: no locale is guessed. */}
-                            <Typography
-                                variant="body2"
-                                component="time"
-                                dateTime={row.created_at}
-                                color="text.secondary"
-                            >
-                                {row.created_at}
-                            </Typography>
-                            <Typography
-                                variant="body2"
-                                component="span"
-                                sx={{fontFamily: "monospace", overflowWrap: "anywhere"}}
-                            >
-                                {t("configurationPackage.task", {taskId: row.id})}
-                            </Typography>
-                            <Typography
-                                variant="body2"
-                                component="span"
-                                sx={(theme) => ({fontWeight: theme.typography.fontWeightMedium})}
-                            >
-                                {mode === "preview" || mode === "apply"
-                                    ? String(t(`configurationPackage.mode.${mode}`))
-                                    : typeof mode === "string" && mode
-                                      ? mode
-                                      : "?"}
-                            </Typography>
-                            {/* Only a stored applied outcome is green; a bare execution status stays neutral. */}
-                            <Chip
-                                size="small"
-                                variant={record?.outcome === "applied" ? "filled" : "outlined"}
-                                color={record?.outcome === "applied" ? "success" : "default"}
-                                label={String(outcome ?? "?")}
-                                sx={{
-                                    "blockSize": "auto",
-                                    "& .MuiChip-label": {
-                                        whiteSpace: "normal",
-                                        overflowWrap: "anywhere",
-                                    },
-                                }}
-                            />
-                            {typeof record?.packageSha256 === "string" && record.packageSha256 ? (
-                                <Typography
-                                    variant="body2"
-                                    component="span"
-                                    color="text.secondary"
-                                    sx={{fontFamily: "monospace"}}
-                                >
-                                    {record.packageSha256.slice(0, 12)}
-                                </Typography>
-                            ) : null}
-                        </ListItem>
-                    )
-                })}
-            </List>
             {/* Empty only once the query has answered; undefined rows say nothing. */}
             {rows && rows.length === 0 ? (
                 <Typography variant="body2" color="text.secondary">
                     {t("configurationPackage.workflow.noHistory")}
                 </Typography>
             ) : null}
+            <Box
+                sx={{
+                    display: "grid",
+                    gridTemplateColumns: {xs: "minmax(0, 1fr)", md: "280px minmax(0, 1fr)"},
+                    gap: 1.5,
+                    alignItems: "start",
+                }}
+            >
+                <List
+                    dense
+                    data-testid="package-history"
+                    aria-label={String(t("configurationPackage.history"))}
+                >
+                    {list.map((row, index) => {
+                        const rowRecord = readApplication(row.annotations)
+                        const outcome = rowRecord?.outcome ?? row.execution_status
+                        const isSelected = row.id === selected?.id
+                        return (
+                            <ListItemButton
+                                key={`${row.id}:${index}`}
+                                selected={isSelected}
+                                aria-current={isSelected ? "true" : undefined}
+                                onClick={() => setSelectedId(row.id)}
+                                data-testid={`package-history-row-${row.id}`}
+                                sx={{
+                                    borderRadius: 1,
+                                    display: "flex",
+                                    flexWrap: "wrap",
+                                    alignItems: "center",
+                                    columnGap: 1.5,
+                                    rowGap: 0.5,
+                                }}
+                            >
+                                <Box sx={{flex: "1 1 auto", minWidth: 0}}>
+                                    <Typography
+                                        variant="body2"
+                                        component="span"
+                                        sx={{display: "block", fontWeight: 500}}
+                                    >
+                                        {modeLabel(rowRecord?.mode)}
+                                    </Typography>
+                                    {/* The stored timestamp as-is: no locale is guessed. */}
+                                    <Typography
+                                        variant="caption"
+                                        component="time"
+                                        dateTime={row.created_at}
+                                        color="text.secondary"
+                                    >
+                                        {row.created_at}
+                                    </Typography>
+                                    <Typography
+                                        variant="caption"
+                                        component="span"
+                                        color="text.secondary"
+                                        sx={{
+                                            display: "block",
+                                            fontFamily: "monospace",
+                                            overflowWrap: "anywhere",
+                                        }}
+                                    >
+                                        {t("configurationPackage.task", {taskId: row.id})}
+                                    </Typography>
+                                </Box>
+                                {/* Only a stored applied outcome is green; a bare execution status stays neutral. */}
+                                <Chip
+                                    size="small"
+                                    variant={rowRecord?.outcome === "applied" ? "filled" : "outlined"}
+                                    color={rowRecord?.outcome === "applied" ? "success" : "default"}
+                                    label={String(outcome ?? "?")}
+                                    sx={{
+                                        "blockSize": "auto",
+                                        "& .MuiChip-label": {
+                                            whiteSpace: "normal",
+                                            overflowWrap: "anywhere",
+                                        },
+                                    }}
+                                />
+                            </ListItemButton>
+                        )
+                    })}
+                </List>
+                {selected && (
+                    <Paper
+                        variant="outlined"
+                        sx={{p: 2, minWidth: 0}}
+                        data-testid="package-history-detail"
+                    >
+                        <Typography variant="subtitle2" component="h4" sx={{mb: 1}}>
+                            {modeLabel(record?.mode)}
+                        </Typography>
+                        <Box
+                            component="dl"
+                            sx={{
+                                display: "grid",
+                                gridTemplateColumns: "max-content minmax(0, 1fr)",
+                                columnGap: 2,
+                                rowGap: 0.5,
+                                m: 0,
+                                typography: "body2",
+                            }}
+                        >
+                            {detail.map(([label, value, mono]) => (
+                                <React.Fragment key={label}>
+                                    <Box component="dt" sx={{color: "text.secondary"}}>
+                                        {label}
+                                    </Box>
+                                    <Box
+                                        component="dd"
+                                        sx={{
+                                            m: 0,
+                                            minWidth: 0,
+                                            overflowWrap: "anywhere",
+                                            fontFamily: mono ? "monospace" : undefined,
+                                        }}
+                                    >
+                                        {value}
+                                    </Box>
+                                </React.Fragment>
+                            ))}
+                            {identity?.requirements && (
+                                <>
+                                    <Box component="dt" sx={{color: "text.secondary"}}>
+                                        {t("configurationPackage.requirements")}
+                                    </Box>
+                                    <Box component="dd" sx={{m: 0}}>
+                                        <RequirementsSummary requirements={identity.requirements} />
+                                    </Box>
+                                </>
+                            )}
+                        </Box>
+                        {record && (
+                            <List dense disablePadding sx={{mt: 1}}>
+                                {orderedSectionBadges(record, false).map(
+                                    ({section, badge}, index) => (
+                                        <ListItem
+                                            key={section}
+                                            disableGutters
+                                            sx={{gap: 1, justifyContent: "space-between"}}
+                                        >
+                                            <Typography variant="body2">
+                                                {index + 1}.{" "}
+                                                {t(`configurationPackage.sections.${section}`)}
+                                            </Typography>
+                                            <SectionBadgeChip badge={badge} />
+                                        </ListItem>
+                                    )
+                                )}
+                            </List>
+                        )}
+                    </Paper>
+                )}
+            </Box>
         </>
     )
 }
