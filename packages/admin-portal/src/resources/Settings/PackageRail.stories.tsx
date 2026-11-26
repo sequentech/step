@@ -16,7 +16,12 @@ const meta = {
     component: PackageRail,
     render: () => (
         <AdminStoryProvider boundary={graphqlBoundary({})}>
-            <PackageRail tab="overview" onTab={() => undefined} sections={rows} trustBlocked={false} />
+            <PackageRail
+                tab="overview"
+                onTab={() => undefined}
+                sections={rows}
+                trustBlocked={false}
+            />
         </AdminStoryProvider>
     ),
 } satisfies WidgetMeta<Record<string, never>>
@@ -25,6 +30,8 @@ export default meta
 export const Default: StoryObj = {
     parameters: {widgets: ["BadgeDot"]},
     play: async ({canvasElement}) => {
-        await expect(within(canvasElement).getByTestId("package-rail-tenant-configuration")).toBeVisible()
+        await expect(
+            within(canvasElement).getByTestId("package-rail-tenant-configuration")
+        ).toBeVisible()
     },
 }

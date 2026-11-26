@@ -9,7 +9,6 @@ import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvi
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {WizardSteps} from "./PackageHub"
 
-
 const meta = {
     title: "Admin/Settings/WizardSteps",
     component: WizardSteps,
@@ -23,6 +22,10 @@ export default meta
 
 export const Default: StoryObj = {
     play: async ({canvasElement}) => {
-        await expect(within(canvasElement).getByTestId("package-wizard-steps").querySelector('[aria-current="step"]')).toBeVisible()
+        await expect(
+            within(canvasElement)
+                .getByTestId("package-wizard-steps")
+                .querySelector('[aria-current="step"]')
+        ).toBeVisible()
     },
 }

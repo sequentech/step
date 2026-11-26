@@ -15,7 +15,9 @@ const meta = {
     component: RequirementsSummary,
     render: () => (
         <AdminStoryProvider boundary={graphqlBoundary({})}>
-            <span data-testid="package-requirements-summary-example"><RequirementsSummary requirements={COMPLETE_DELIVERY} /></span>
+            <span data-testid="package-requirements-summary-example">
+                <RequirementsSummary requirements={COMPLETE_DELIVERY} />
+            </span>
         </AdminStoryProvider>
     ),
 } satisfies WidgetMeta<Record<string, never>>
@@ -23,6 +25,8 @@ export default meta
 
 export const Default: StoryObj = {
     play: async ({canvasElement}) => {
-        await expect(within(canvasElement).getByTestId("package-requirements-summary-example")).toHaveTextContent("6")
+        await expect(
+            within(canvasElement).getByTestId("package-requirements-summary-example")
+        ).toHaveTextContent("6")
     },
 }

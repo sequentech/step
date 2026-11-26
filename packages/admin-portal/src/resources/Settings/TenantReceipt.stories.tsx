@@ -9,7 +9,6 @@ import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvi
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {TenantReceipt} from "./PackageHub"
 
-
 const meta = {
     title: "Admin/Settings/TenantReceipt",
     component: TenantReceipt,
