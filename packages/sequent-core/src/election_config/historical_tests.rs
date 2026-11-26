@@ -5260,7 +5260,10 @@ fn mixed_mysql_hex_picture_formats_survive_xlsx_and_the_ballot_preview() {
         ("0009", "Synthetic WebP", Some(webp.as_slice())),
         ("0010", "Synthetic no photo", None),
     ] {
-        let literal = photo.map_or_else(|| "NULL".to_string(), |p| format!("0x{}", hex::encode(p)));
+        let literal = photo.map_or_else(
+            || "NULL".to_string(),
+            |p| format!("0x{}", hex::encode(p)),
+        );
         sql.push_str(&format!(
             "INSERT INTO `candidate` VALUES ('{code}','{title}','C01','S01','PR01',{literal});\n"
         ));
@@ -5272,7 +5275,8 @@ fn mixed_mysql_hex_picture_formats_survive_xlsx_and_the_ballot_preview() {
     let roundtrip = plan_from_workbook(&reopened).unwrap().plan;
     let candidates = &roundtrip.elections[0].contests[0].candidates;
     assert_eq!(candidates.len(), 4);
-    let normalized: Vec<_> = candidates.iter().filter_map(|c| c.image.as_ref()).collect();
+    let normalized: Vec<_> =
+        candidates.iter().filter_map(|c| c.image.as_ref()).collect();
     assert_eq!(normalized.len(), 3);
     assert!(candidates[3].image.is_none());
     for (before, after) in original.elections[0].contests[0]
@@ -5289,7 +5293,8 @@ fn mixed_mysql_hex_picture_formats_survive_xlsx_and_the_ballot_preview() {
         &Sources::default(),
     )
     .unwrap();
-    let preview = preview_publication(&bundle, &PreviewOptions::default()).unwrap();
+    let preview =
+        preview_publication(&bundle, &PreviewOptions::default()).unwrap();
     let ballot = serde_json::to_string(&preview.ballot_styles).unwrap();
     for image in normalized {
         assert!(image.file_name.ends_with(".png"));
@@ -5322,7 +5327,10 @@ fn excel_photo_remains_the_fallback_for_empty_sql_with_unchanged_formats() {
                         ("source_candidate_id", json!("0007")),
                         (
                             "image_data_url",
-                            json!(format!("data:{mime};base64,{}", STANDARD.encode(raw))),
+                            json!(format!(
+                                "data:{mime};base64,{}",
+                                STANDARD.encode(raw)
+                            )),
                         ),
                     ],
                 )],
