@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 use anyhow::{bail, Context, Result};
-use aws_sdk_s3::{presigning::PresigningConfig, primitives::ByteStream, Client};
+use aws_sdk_s3::{
+    presigning::PresigningConfig, primitives::ByteStream, types::ChecksumAlgorithm, Client,
+};
 use deadpool_postgres::{Pool, Transaction};
 use futures::{stream, StreamExt, TryStreamExt};
 use sequent_core::services::s3::{
@@ -14,6 +16,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
     collections::{HashMap, HashSet},
+    future::Future,
     time::Duration,
 };
 use uuid::Uuid;
@@ -24,8 +27,11 @@ use crate::services::pg_lock::PgLock;
 
 pub const FILES_ANNOTATION: &str = "ballot_files_v1";
 pub const GENERATION_LEASE_SECONDS: i64 = 300;
-const STYLE_PAGE_SIZE: i64 = 8;
-const UPLOAD_CONCURRENCY: usize = 4;
+/// Ballot styles read per database page; each one becomes two objects.
+const STYLE_PAGE_SIZE: i64 = 64;
+/// Objects uploaded at once. Each upload is a network round trip, so a large
+/// publication (thousands of areas) is bound by this, not by bandwidth.
+const UPLOAD_CONCURRENCY: usize = 32;
 
 pub struct PublicationData {
     pub(crate) event: Value,
@@ -199,6 +205,10 @@ pub(crate) fn share_event_presentation(
     Ok(parsed)
 }
 
+/// Writes `value` at `key` once. S3 checks the body against its SHA-256 and
+/// refuses to overwrite, so a successful PUT stored exactly these bytes. Only
+/// an object that was already there (a retry after a lost PUT response, or
+/// anything else) is read back, and it must hold the same bytes.
 pub(crate) async fn upload(client: &Client, bucket: &str, key: &str, value: &Value) -> Result<()> {
     tokio::time::timeout(Duration::from_secs(60), async {
         let bytes = serde_json::to_vec(value)?;
@@ -209,18 +219,19 @@ pub(crate) async fn upload(client: &Client, bucket: &str, key: &str, value: &Val
             .content_type("application/json")
             .cache_control("private, max-age=300")
             .if_none_match("*")
+            .checksum_algorithm(ChecksumAlgorithm::Sha256)
             .body(ByteStream::from(bytes.clone()))
             .send()
             .await;
-        if let Err(error) = result {
-            // A retry after a lost PUT response can find the immutable object already there.
-            if error
-                .raw_response()
-                .map(|response| response.status().as_u16())
-                != Some(412)
-            {
-                return Err(error).context("Cannot upload ballot publication object");
-            }
+        let Err(error) = result else {
+            return Ok(());
+        };
+        if error
+            .raw_response()
+            .map(|response| response.status().as_u16())
+            != Some(412)
+        {
+            return Err(error).context("Cannot upload ballot publication object");
         }
         let stored = client
             .get_object()
@@ -242,13 +253,26 @@ pub(crate) async fn upload(client: &Client, bucket: &str, key: &str, value: &Val
     .context("Ballot publication upload timed out")?
 }
 
-async fn upload_batch(client: &Client, bucket: &str, objects: Vec<(String, Value)>) -> Result<()> {
+/// Runs `upload` for every object, `UPLOAD_CONCURRENCY` at a time, and fails
+/// on the first error.
+async fn upload_all<F, Fut>(objects: Vec<(String, Value)>, upload: F) -> Result<()>
+where
+    F: Fn(String, Value) -> Fut,
+    Fut: Future<Output = Result<()>>,
+{
     stream::iter(objects)
-        .map(|(key, value)| async move { upload(client, bucket, &key, &value).await })
+        .map(|(key, value)| upload(key, value))
         .buffer_unordered(UPLOAD_CONCURRENCY)
         .try_collect::<Vec<_>>()
         .await?;
     Ok(())
+}
+
+async fn upload_batch(client: &Client, bucket: &str, objects: Vec<(String, Value)>) -> Result<()> {
+    upload_all(objects, |key, value| async move {
+        upload(client, bucket, &key, &value).await
+    })
+    .await
 }
 
 /// Upload generation metadata and paged styles without retaining a database connection.
