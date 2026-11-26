@@ -54,6 +54,7 @@ import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
 import org.keycloak.userprofile.UserProfileProvider;
 import org.keycloak.userprofile.ValidationException;
+import sequent.keycloak.authenticator.EnrollmentDocumentPolicy;
 import sequent.keycloak.authenticator.messaging.ContactDetails;
 import sequent.keycloak.authenticator.messaging.MessageChannel;
 import sequent.keycloak.authenticator.messaging.MessagingAttributes;
@@ -678,6 +679,15 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
     final String formMode = configMap.get(FORM_MODE);
+    if (FormMode.REGISTRATION.getValue().equals(formMode)) {
+      // Keycloak renders the registration HTML after FormActions build the page. Append our
+      // directive without replacing any existing Permissions-Policy field on that response.
+      context
+          .getSession()
+          .getContext()
+          .getHttpResponse()
+          .addHeader(EnrollmentDocumentPolicy.HEADER, EnrollmentDocumentPolicy.NO_DISPLAY_CAPTURE);
+    }
     final boolean passwordRequired =
         Boolean.parseBoolean(Optional.ofNullable(configMap.get(PASSWORD_REQUIRED)).orElse("true"));
 

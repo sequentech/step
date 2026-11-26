@@ -891,7 +891,7 @@ public class MessageOTPAuthenticator
           .setAttribute("codeLength", configMap.get(Utils.CODE_LENGTH))
           .setAttribute("codeRequest", codeProgress.map(CodeProgress::request).orElse(null))
           .setAttribute("codeRequests", codeProgress.map(CodeProgress::requests).orElse(null));
-      return form.createForm(TPL_CODE);
+      return EnrollmentDocumentPolicy.forRegistrationRoute(context, form.createForm(TPL_CODE));
     }
     form.setAttribute(
             "address",
@@ -909,7 +909,7 @@ public class MessageOTPAuthenticator
       // A step that names no channel says a failed send too, never "We sent a code".
       form.setAttribute("deliveryState", MessageAttemptState.FAILED.name());
     }
-    return form.createForm(TPL_CODE);
+    return EnrollmentDocumentPolicy.forRegistrationRoute(context, form.createForm(TPL_CODE));
   }
 
   /**

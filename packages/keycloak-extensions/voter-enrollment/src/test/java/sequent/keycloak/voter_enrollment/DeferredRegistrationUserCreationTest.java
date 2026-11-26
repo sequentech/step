@@ -41,7 +41,9 @@ import org.keycloak.credential.hash.PasswordHashProvider;
 import org.keycloak.events.EventBuilder;
 import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.http.HttpRequest;
+import org.keycloak.http.HttpResponse;
 import org.keycloak.models.AuthenticatorConfigModel;
+import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
 import org.keycloak.models.PasswordPolicy;
 import org.keycloak.models.RealmModel;
@@ -782,6 +784,7 @@ class DeferredRegistrationUserCreationTest {
     when(attributes.getMetadata("username")).thenReturn(metadata);
     when(attributes.getMetadata(UserModel.LOCALE)).thenReturn(metadata);
 
+    responseFor(context);
     action.buildPage(context, form);
     verify(form, never()).setFormData(any());
 
@@ -824,6 +827,7 @@ class DeferredRegistrationUserCreationTest {
     when(authenticationSession.getAuthNote(anyString()))
         .thenAnswer(i -> notes.get(i.getArgument(0)));
 
+    responseFor(context);
     when(request.getHttpMethod()).thenReturn("POST");
     action.buildPage(context, form);
     verify(form, never()).setFormData(any());
@@ -838,7 +842,7 @@ class DeferredRegistrationUserCreationTest {
   }
 
   @Test
-  void aFirstVisitHasNothingEntered() {
+  void aFirstVisitHasNothingEnteredAndDisallowsDisplayCapture() {
     DeferredRegistrationUserCreation action = new DeferredRegistrationUserCreation();
     FormContext context = mock(FormContext.class);
     LoginFormsProvider form = mock(LoginFormsProvider.class);
@@ -854,8 +858,29 @@ class DeferredRegistrationUserCreationTest {
     when(request.getHttpMethod()).thenReturn("GET");
     when(context.getAuthenticationSession()).thenReturn(authenticationSession);
 
+    HttpResponse response = responseFor(context);
     action.buildPage(context, form);
     verify(form, never()).setFormData(any());
+    verify(response).addHeader("Permissions-Policy", "display-capture=()");
+    verify(response, never()).setHeader(eq("Permissions-Policy"), anyString());
+  }
+
+  @Test
+  void theSameDeferredFormInLoginModeDoesNotChangePermissionsPolicy() {
+    DeferredRegistrationUserCreation action = new DeferredRegistrationUserCreation();
+    FormContext context = mock(FormContext.class);
+    LoginFormsProvider form = mock(LoginFormsProvider.class);
+    AuthenticatorConfigModel config = mock(AuthenticatorConfigModel.class);
+    when(context.getAuthenticatorConfig()).thenReturn(config);
+    when(config.getConfig())
+        .thenReturn(Map.of(DeferredRegistrationUserCreation.FORM_MODE, "LOGIN"));
+    when(context.getAuthenticationSession()).thenReturn(mock(AuthenticationSessionModel.class));
+
+    HttpResponse response = responseFor(context);
+    action.buildPage(context, form);
+
+    verify(response, never()).addHeader(eq("Permissions-Policy"), anyString());
+    verify(response, never()).setHeader(eq("Permissions-Policy"), anyString());
   }
 
   @Test
@@ -877,6 +902,7 @@ class DeferredRegistrationUserCreationTest {
                 clientNote("username"), "voter@example.com",
                 clientNote("invalid field"), "value"));
 
+    responseFor(context);
     action.buildPage(context, form);
     verify(form, never()).setError(LoginHintAuthorizationRequestFilter.INVALID_REQUEST_DESCRIPTION);
 
@@ -892,6 +918,19 @@ class DeferredRegistrationUserCreationTest {
         assertThrows(AuthenticationFlowException.class, () -> action.buildPage(context, form));
 
     assertEquals(response, failure.getResponse());
+  }
+
+  private static HttpResponse responseFor(FormContext context) {
+    KeycloakSession session = context.getSession();
+    if (session == null) {
+      session = mock(KeycloakSession.class);
+      when(context.getSession()).thenReturn(session);
+    }
+    KeycloakContext requestContext = mock(KeycloakContext.class);
+    HttpResponse response = mock(HttpResponse.class);
+    when(session.getContext()).thenReturn(requestContext);
+    when(requestContext.getHttpResponse()).thenReturn(response);
+    return response;
   }
 
   private static String clientNote(String attributeName) {

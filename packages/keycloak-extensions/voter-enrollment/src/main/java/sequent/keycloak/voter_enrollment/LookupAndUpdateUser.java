@@ -67,6 +67,7 @@ import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.services.resources.LoginActionsService;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.theme.Theme;
+import sequent.keycloak.authenticator.EnrollmentDocumentPolicy;
 import sequent.keycloak.authenticator.MessageOTPAuthenticator;
 import sequent.keycloak.authenticator.Utils.MessageCourier;
 import sequent.keycloak.authenticator.credential.MessageOTPCredentialModel;
@@ -262,7 +263,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                   EnrollmentWindows.dateTimeZoneMessageKey(
                       context.getRealm(), context.getSession().getContext().resolveLocale(null)))
               .createForm(template);
-      context.challenge(form);
+      context.challenge(EnrollmentDocumentPolicy.protectHtml(form));
 
       return;
     }
@@ -487,7 +488,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                           context.getRealm(),
                           context.getSession().getContext().resolveLocale(null)))
                   .createForm("registration-manual-finish.ftl");
-          context.challenge(form);
+          context.challenge(EnrollmentDocumentPolicy.protectHtml(form));
           context.getEvent().success();
 
           sendManualCommunication(
@@ -517,7 +518,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                   .setAttribute("rejectReason", rejectionReason)
                   .createForm("registration-rejected-finish.ftl");
 
-          context.challenge(form);
+          context.challenge(EnrollmentDocumentPolicy.protectHtml(form));
           context
               .getEvent()
               .error(
@@ -717,7 +718,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       // Clear the user and show the finish form.
       context.clearUser();
       Response form = context.form().createForm("registration-finish.ftl");
-      context.challenge(form);
+      context.challenge(EnrollmentDocumentPolicy.protectHtml(form));
     }
   }
 
@@ -996,10 +997,11 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     authSession.removeAuthNote(EMAIL_IN_USE_REJECTION_NOTE);
 
     context.challenge(
-        context
-            .form()
-            .setAttribute("rejectReason", reason)
-            .createForm("registration-rejected-finish.ftl"));
+        EnrollmentDocumentPolicy.protectHtml(
+            context
+                .form()
+                .setAttribute("rejectReason", reason)
+                .createForm("registration-rejected-finish.ftl")));
     context.getEvent().error(reason);
 
     try {
