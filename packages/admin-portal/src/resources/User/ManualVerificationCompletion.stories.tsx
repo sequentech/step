@@ -9,7 +9,7 @@ import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvi
 import {SigningRequestStatus} from "@/lib/signing/types"
 import {IPermissions} from "@/types/keycloak"
 import {ManualVerificationCompletion} from "./ManualVerification"
-import {ACTOR, OTHER_ACTOR, panel} from "./manualVerificationStoryFixture"
+import {ACTOR, OTHER_ACTOR, panel} from "./__stories__/manualVerificationStoryFixture"
 
 let boundary: ReturnType<typeof graphqlBoundary>
 const meta = {
