@@ -6446,6 +6446,8 @@ const catalanTranslation: TranslationType = {
                     "{{channel}} encara no pot enviar {{purpose}}. Falta: {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "La plantilla de {{channel}} per a {{purpose}} en {{language}} no està aprovada pel proveïdor.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "Un botó de la plantilla de {{channel}} per a {{purpose}} en {{language}} no té valor.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} no pot enviar fora d'una finestra de conversa amb aquest compte: no té finestra de conversa o els seus avisos ja necessiten una plantilla.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -6475,6 +6477,7 @@ const catalanTranslation: TranslationType = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                WHATSAPP_INFOBIP: "WhatsApp Business (Infobip)",
                 CONSOLE: "Consola (ja no és compatible)",
                 HTTP_API: "API HTTP personalitzada (ja no és compatible)",
             },
@@ -6536,6 +6539,24 @@ const catalanTranslation: TranslationType = {
                 REPORT_PASSWORD: "Contrasenya d'informes",
             },
             deliveryUnavailable: "Lliurament no disponible",
+            templateButtons: {
+                title: "Botons de la plantilla",
+                help: "Els valors amb què s'envien els botons de la plantilla, en l'ordre en què hi apareixen. {{code}} se substitueix pel codi que s'envia.",
+                choice: {
+                    DEFAULT: "Predeterminats per al propòsit",
+                    CUSTOM: "Definits per a aquesta plantilla",
+                },
+                type: "Tipus de botó",
+                parameter: "Valor",
+                add: "Afegeix un botó",
+                remove: "Treu el botó",
+                none: "Sense botons",
+                required: "Introduïu un valor",
+                types: {
+                    URL: "URL (copiar el codi o enllaç)",
+                    QUICK_REPLY: "Resposta ràpida",
+                },
+            },
             templates: {
                 noMethod: "Tria almenys un mètode per a la plantilla.",
                 parameters: "Paràmetres de la plantilla",
@@ -6567,6 +6588,8 @@ const catalanTranslation: TranslationType = {
                 approvedWording: "Text aprovat",
                 approvedWordingHelp:
                     "Una còpia de la plantilla aprovada, feta servir com a previsualització. Canviar-la aquí no canvia el que envia el proveïdor.",
+                buttonsHelp:
+                    "Els fa servir WhatsApp a través d'Infobip amb la plantilla del proveïdor de dalt. Sense aquesta, s'usen la plantilla de l'esdeveniment i els seus botons.",
                 viberWording: "Text",
                 viberWordingHelp:
                     "Un compte que envia text lliure envia aquest text tal qual. Amb plantilles aprovades és una còpia de la plantilla, usada com a vista prèvia, i no canvia el que s'envia.",
@@ -6930,6 +6953,7 @@ const catalanTranslation: TranslationType = {
                 page_name: "Nom de la pàgina",
                 page_username: "Nom d'usuari de la pàgina",
                 base_url: "URL base de l'API",
+                sender_number: "Número del remitent",
                 sender: "Nom del remitent",
                 provider_approval: "Aprovació del proveïdor",
                 is_default:
@@ -6950,6 +6974,8 @@ const catalanTranslation: TranslationType = {
                     "S'utilitza a l'enllaç m.me que els votants obren per obtenir el codi.",
                 api_version: "Per exemple, v23.0.",
                 base_url: "L'URL base de l'API d'Infobip del compte.",
+                sender_number:
+                    "El número de WhatsApp registrat a Infobip, en format internacional, com ara 447796344125.",
                 sender: "El remitent aprovat que veuen els votants.",
                 provider_approval:
                     "Meta només permet missatges de WhatsApp de governs mitjançant un acord aprovat. Trieu Aprovació del proveïdor confirmada quan Meta l'hagi aprovat per a aquest compte; fins aleshores no s'hi poden activar codis ni avisos.",
@@ -7054,6 +7080,10 @@ const catalanTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "La clau d'API d'Infobip.",
                 },
+                WHATSAPP_INFOBIP: {
+                    API_KEY:
+                        "La clau d'API d'Infobip, amb els àmbits whatsapp:manage i whatsapp:message:send.",
+                },
             },
             webhook: {
                 title: "Informes de lliurament",
@@ -7064,6 +7094,8 @@ const catalanTranslation: TranslationType = {
                         "Introduïu aquest URL de retorn a la configuració de webhooks de Meta. Els informes de lliurament i el toc del votant a Comença hi arriben i es comproven amb el secret de l'aplicació.",
                     VIBER_INFOBIP:
                         "Infobip envia els informes de lliurament de Viber a aquest URL de retorn mitjançant una subscripció amb autenticació Basic.",
+                    WHATSAPP_INFOBIP:
+                        "Infobip envia els informes de lliurament de WhatsApp a aquest URL de retorn mitjançant una subscripció amb autenticació Basic.",
                     AWS_SES:
                         "Subscriviu aquest URL de retorn (HTTPS) al tema de notificacions de lliurament. Els esdeveniments de lliurament i de rebot hi arriben i es comproven amb la signatura d'Amazon.",
                 },
@@ -7130,13 +7162,13 @@ const catalanTranslation: TranslationType = {
                 error: "No s'han pogut generar les credencials d'informes.",
                 step: {
                     subscription:
-                        "A Infobip, creeu una subscripció per als informes de lliurament de Viber.",
+                        "A Infobip, creeu una subscripció per als informes de lliurament de {{channel}}.",
                     url: "Poseu com a URL l'URL de retorn d'aquest compte.",
                     auth: "Trieu l'autenticació Basic i introduïu l'usuari i la contrasenya d'informes.",
                 },
                 confirmTitle: "Voleu substituir les credencials d'informes?",
                 confirmBody:
-                    "L'usuari i la contrasenya d'informes actuals deixen de funcionar immediatament. Fins que la subscripció d'Infobip no tingui els nous, els informes de lliurament de Viber es rebutgen i els missatges es queden com a Acceptat.",
+                    "L'usuari i la contrasenya d'informes actuals deixen de funcionar immediatament. Fins que la subscripció d'Infobip no tingui els nous, els informes de lliurament de {{channel}} es rebutgen i els missatges es queden com a Acceptat.",
                 confirm: "Substitueix",
             },
         },

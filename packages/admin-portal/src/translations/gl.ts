@@ -6409,6 +6409,8 @@ const galegoTranslation: TranslationType = {
                     "{{channel}} aínda non pode enviar {{purpose}}. Falta: {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "O modelo de {{channel}} para {{purpose}} en {{language}} non está aprobado polo provedor.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "Un botón do modelo de {{channel}} para {{purpose}} en {{language}} non ten valor.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} non pode enviar fóra dunha xanela de conversa con esta conta: non ten xanela de conversa ou os seus avisos xa precisan un modelo.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -6438,6 +6440,7 @@ const galegoTranslation: TranslationType = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                WHATSAPP_INFOBIP: "WhatsApp Business (Infobip)",
                 CONSOLE: "Consola (xa non é compatible)",
                 HTTP_API: "API HTTP personalizada (xa non é compatible)",
             },
@@ -6499,6 +6502,24 @@ const galegoTranslation: TranslationType = {
                 REPORT_PASSWORD: "Contrasinal de informes",
             },
             deliveryUnavailable: "Entrega non dispoñible",
+            templateButtons: {
+                title: "Botóns do modelo",
+                help: "Os valores cos que se envían os botóns do modelo, na orde en que aparecen nel. {{code}} substitúese polo código que se envía.",
+                choice: {
+                    DEFAULT: "Predeterminados para o propósito",
+                    CUSTOM: "Definidos para este modelo",
+                },
+                type: "Tipo de botón",
+                parameter: "Valor",
+                add: "Engadir botón",
+                remove: "Quitar botón",
+                none: "Sen botóns",
+                required: "Introduza un valor",
+                types: {
+                    URL: "URL (copiar código ou ligazón)",
+                    QUICK_REPLY: "Resposta rápida",
+                },
+            },
             templates: {
                 noMethod: "Escolle polo menos un método para o modelo.",
                 parameters: "Parámetros do modelo",
@@ -6530,6 +6551,8 @@ const galegoTranslation: TranslationType = {
                 approvedWording: "Texto aprobado",
                 approvedWordingHelp:
                     "Unha copia do modelo aprobado, usada como vista previa. Cambiala aquí non cambia o que envía o provedor.",
+                buttonsHelp:
+                    "Úsaos WhatsApp a través de Infobip co modelo do provedor de arriba. Sen el, úsanse o modelo do evento e os seus botóns.",
                 viberWording: "Texto",
                 viberWordingHelp:
                     "Unha conta que envía texto libre envía este texto tal cal. Con modelos aprobados é unha copia do modelo, usada como vista previa, e non cambia o que se envía.",
@@ -6885,6 +6908,7 @@ const galegoTranslation: TranslationType = {
                 page_name: "Nome da páxina",
                 page_username: "Nome de usuario da páxina",
                 base_url: "URL base da API",
+                sender_number: "Número do remitente",
                 sender: "Nome do remitente",
                 provider_approval: "Aprobación do provedor",
                 is_default: "Conta de {{channel}} predeterminada para novos eventos electorais",
@@ -6904,6 +6928,8 @@ const galegoTranslation: TranslationType = {
                     "Úsase na ligazón m.me que os votantes abren para obter o seu código.",
                 api_version: "Por exemplo, v23.0.",
                 base_url: "A URL base da API de Infobip da conta.",
+                sender_number:
+                    "O número de WhatsApp rexistrado en Infobip, en formato internacional, como 447796344125.",
                 sender: "O remitente aprobado que ven os votantes.",
                 provider_approval:
                     "Meta só permite mensaxes de WhatsApp de gobernos mediante un acordo aprobado. Escolla Aprobación do provedor confirmada cando Meta o aprobase para esta conta; ata entón non se poden activar códigos nin avisos nela.",
@@ -7004,6 +7030,10 @@ const galegoTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "A clave de API de Infobip.",
                 },
+                WHATSAPP_INFOBIP: {
+                    API_KEY:
+                        "A clave de API de Infobip, cos ámbitos whatsapp:manage e whatsapp:message:send.",
+                },
             },
             webhook: {
                 title: "Informes de entrega",
@@ -7014,6 +7044,8 @@ const galegoTranslation: TranslationType = {
                         "Introduza este URL de retorno na configuración de webhooks de Meta. Os informes de entrega e o toque do votante en Comezar chegan aquí e compróbanse co segredo da aplicación.",
                     VIBER_INFOBIP:
                         "Infobip envía os informes de entrega de Viber a este URL de retorno mediante unha subscrición con autenticación Basic.",
+                    WHATSAPP_INFOBIP:
+                        "Infobip envía os informes de entrega de WhatsApp a este URL de retorno mediante unha subscrición con autenticación Basic.",
                     AWS_SES:
                         "Subscriba este URL de retorno (HTTPS) ao tema de notificacións de entrega. Os eventos de entrega e rebote chegan aquí e compróbanse coa sinatura de Amazon.",
                 },
@@ -7080,13 +7112,13 @@ const galegoTranslation: TranslationType = {
                 error: "Non se puideron xerar as credenciais de informes.",
                 step: {
                     subscription:
-                        "En Infobip, cree unha subscrición para os informes de entrega de Viber.",
+                        "En Infobip, cree unha subscrición para os informes de entrega de {{channel}}.",
                     url: "Poña como URL o URL de retorno desta conta.",
                     auth: "Escolla a autenticación Basic e introduza o usuario e o contrasinal de informes.",
                 },
                 confirmTitle: "Substituír as credenciais de informes?",
                 confirmBody:
-                    "O usuario e o contrasinal de informes actuais deixan de funcionar de inmediato. Ata que a subscrición de Infobip teña os novos, os informes de entrega de Viber rexéitanse e as mensaxes quedan en Aceptado.",
+                    "O usuario e o contrasinal de informes actuais deixan de funcionar de inmediato. Ata que a subscrición de Infobip teña os novos, os informes de entrega de {{channel}} rexéitanse e as mensaxes quedan en Aceptado.",
                 confirm: "Substituír",
             },
         },

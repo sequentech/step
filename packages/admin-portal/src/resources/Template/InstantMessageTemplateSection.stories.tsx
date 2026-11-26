@@ -14,6 +14,7 @@ import {
     EMessagePurpose,
     EMessagingProvider,
     EReadinessPolicy,
+    ETemplateButtonType,
 } from "@/types/messaging"
 import {InstantMessageChannel, InstantMessageTemplateSection} from "./InstantMessageTemplateSection"
 
@@ -162,7 +163,7 @@ export const EditParameters: Story = {
 }
 
 export const ProviderTemplate: Story = {
-    parameters: {widgets: ["ProviderTemplateInputs", "ParametersInput"]},
+    parameters: {widgets: ["ProviderTemplateInputs", "ProviderTemplateButtons", "ParametersInput"]},
     play: async ({args, canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(
@@ -174,6 +175,9 @@ export const ProviderTemplate: Story = {
             "vote_reminder"
         )
         await userEvent.type(canvas.getByRole("textbox", {name: "Provider language code"}), "en_US")
+        await userEvent.click(canvas.getByRole("radio", {name: "Set for this template"}))
+        await userEvent.click(canvas.getByRole("button", {name: "Add button"}))
+        await userEvent.type(canvas.getByRole("textbox", {name: "Value"}), "ACKNOWLEDGE")
         await userEvent.click(canvas.getByRole("button", {name: "Save"}))
         await waitFor(() => expect(args.onSubmit).toHaveBeenCalled())
         expect(args.onSubmit.mock.calls[0][0]).toMatchObject({
@@ -182,6 +186,7 @@ export const ProviderTemplate: Story = {
                     message: record.template.whatsapp.message,
                     provider_template: "vote_reminder",
                     provider_language: "en_US",
+                    buttons: [{type: ETemplateButtonType.QUICK_REPLY, parameter: "ACKNOWLEDGE"}],
                 },
             },
         })

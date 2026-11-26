@@ -81,10 +81,12 @@ import {
     accountDeliveryFeedback,
     accountIdentity,
     accountSummary,
+    defaultTemplateButtons,
     deliverySummary,
     purposeReadiness,
     validateEventMessagingConfig,
 } from "@/services/messaging"
+import {TemplateButtonsInput} from "@/components/TemplateButtonsInput"
 import {
     EBindingApproval,
     EMessagingErrorArea,
@@ -620,194 +622,238 @@ export const MessagingTemplateBindings: React.FC<MessagingTemplateBindingsProps>
                                                                 <Box
                                                                     sx={{
                                                                         display: "flex",
-                                                                        gap: 1,
-                                                                        flexWrap: "wrap",
-                                                                        alignItems: "center",
+                                                                        flexDirection: "column",
+                                                                        gap: 2,
                                                                     }}
                                                                 >
-                                                                    <TextField
-                                                                        select
-                                                                        size="small"
-                                                                        label={t(
-                                                                            "messagingEvent.column.purpose"
-                                                                        )}
-                                                                        value={binding.purpose}
-                                                                        disabled={!canEdit}
-                                                                        onChange={(event) =>
-                                                                            update({
-                                                                                purpose: event
-                                                                                    .target
-                                                                                    .value as EMessagePurpose,
-                                                                            })
-                                                                        }
-                                                                        sx={{width: 130}}
-                                                                    >
-                                                                        {MESSAGE_PURPOSES.map(
-                                                                            (purpose) => (
-                                                                                <MenuItem
-                                                                                    key={purpose}
-                                                                                    value={purpose}
-                                                                                >
-                                                                                    {t(
-                                                                                        `messaging.purpose.${purpose}`
-                                                                                    )}
-                                                                                </MenuItem>
-                                                                            )
-                                                                        )}
-                                                                    </TextField>
-                                                                    <Autocomplete
-                                                                        freeSolo
-                                                                        size="small"
-                                                                        disabled={!canEdit}
-                                                                        options={keyOptions(
-                                                                            binding.purpose
-                                                                        )}
-                                                                        inputValue={messageLabel(
-                                                                            binding.key ?? ""
-                                                                        )}
-                                                                        value={binding.key || null}
-                                                                        getOptionLabel={
-                                                                            messageLabel
-                                                                        }
-                                                                        onChange={(_event, value) =>
-                                                                            update({
-                                                                                key: value ?? "",
-                                                                            })
-                                                                        }
-                                                                        onInputChange={(
-                                                                            _event,
-                                                                            value,
-                                                                            reason
-                                                                        ) => {
-                                                                            if (
-                                                                                reason ===
-                                                                                    "input" ||
-                                                                                reason === "clear"
-                                                                            ) {
-                                                                                update({key: value})
-                                                                            }
+                                                                    <Box
+                                                                        sx={{
+                                                                            display: "flex",
+                                                                            gap: 1,
+                                                                            flexWrap: "wrap",
+                                                                            alignItems: "center",
                                                                         }}
-                                                                        renderInput={(params) => (
-                                                                            <TextField
-                                                                                {...params}
-                                                                                label={t(
-                                                                                    "messagingEvent.column.key"
-                                                                                )}
-                                                                                placeholder={t(
-                                                                                    "messagingEvent.templates.keyDefault"
-                                                                                )}
-                                                                            />
-                                                                        )}
-                                                                        sx={{width: 220}}
-                                                                    />
-                                                                    <Autocomplete
-                                                                        freeSolo
-                                                                        size="small"
-                                                                        disabled={!canEdit}
-                                                                        options={languages}
-                                                                        inputValue={
-                                                                            binding.language
-                                                                        }
-                                                                        onInputChange={(
-                                                                            _event,
-                                                                            value
-                                                                        ) =>
-                                                                            update({
-                                                                                language: value,
-                                                                            })
-                                                                        }
-                                                                        renderInput={(params) => (
-                                                                            <TextField
-                                                                                {...params}
-                                                                                required
-                                                                                error={
-                                                                                    missing &&
-                                                                                    !binding.language.trim()
-                                                                                }
-                                                                                label={t(
-                                                                                    "messagingEvent.column.language"
-                                                                                )}
-                                                                            />
-                                                                        )}
-                                                                        sx={{width: 150}}
-                                                                    />
-                                                                    <Autocomplete
-                                                                        freeSolo
-                                                                        size="small"
-                                                                        disabled={!canEdit}
-                                                                        options={templateOptions(
-                                                                            binding.purpose
-                                                                        )}
-                                                                        inputValue={
-                                                                            binding.provider_template
-                                                                        }
-                                                                        onInputChange={(
-                                                                            _event,
-                                                                            value
-                                                                        ) =>
-                                                                            update({
-                                                                                provider_template:
-                                                                                    value,
-                                                                            })
-                                                                        }
-                                                                        renderInput={(params) => (
-                                                                            <TextField
-                                                                                {...params}
-                                                                                required
-                                                                                error={
-                                                                                    missing &&
-                                                                                    !binding.provider_template.trim()
-                                                                                }
-                                                                                label={t(
-                                                                                    "messagingEvent.column.template"
-                                                                                )}
-                                                                            />
-                                                                        )}
-                                                                        sx={{width: 240}}
-                                                                    />
-                                                                    <TextField
-                                                                        size="small"
-                                                                        label={t(
-                                                                            "messagingEvent.column.providerLanguage"
-                                                                        )}
-                                                                        value={
-                                                                            binding.provider_language ??
-                                                                            ""
-                                                                        }
-                                                                        disabled={!canEdit}
-                                                                        onChange={(event) =>
-                                                                            update({
-                                                                                provider_language:
-                                                                                    event.target
-                                                                                        .value,
-                                                                            })
-                                                                        }
-                                                                        sx={{width: 190}}
-                                                                    />
-
-                                                                    {canEdit ? (
-                                                                        <IconButton
-                                                                            aria-label={t(
-                                                                                "messagingEvent.templates.remove",
-                                                                                {
-                                                                                    channel:
-                                                                                        channelName,
-                                                                                    position:
-                                                                                        index + 1,
-                                                                                }
+                                                                    >
+                                                                        <TextField
+                                                                            select
+                                                                            size="small"
+                                                                            label={t(
+                                                                                "messagingEvent.column.purpose"
                                                                             )}
-                                                                            onClick={() =>
-                                                                                onChange(
-                                                                                    removeTemplateBinding(
-                                                                                        config,
-                                                                                        channel,
-                                                                                        index
-                                                                                    )
-                                                                                )
+                                                                            value={binding.purpose}
+                                                                            disabled={!canEdit}
+                                                                            onChange={(event) =>
+                                                                                update({
+                                                                                    purpose: event
+                                                                                        .target
+                                                                                        .value as EMessagePurpose,
+                                                                                })
                                                                             }
+                                                                            sx={{width: 130}}
                                                                         >
-                                                                            <DeleteOutlineIcon />
-                                                                        </IconButton>
+                                                                            {MESSAGE_PURPOSES.map(
+                                                                                (purpose) => (
+                                                                                    <MenuItem
+                                                                                        key={
+                                                                                            purpose
+                                                                                        }
+                                                                                        value={
+                                                                                            purpose
+                                                                                        }
+                                                                                    >
+                                                                                        {t(
+                                                                                            `messaging.purpose.${purpose}`
+                                                                                        )}
+                                                                                    </MenuItem>
+                                                                                )
+                                                                            )}
+                                                                        </TextField>
+                                                                        <Autocomplete
+                                                                            freeSolo
+                                                                            size="small"
+                                                                            disabled={!canEdit}
+                                                                            options={keyOptions(
+                                                                                binding.purpose
+                                                                            )}
+                                                                            inputValue={messageLabel(
+                                                                                binding.key ?? ""
+                                                                            )}
+                                                                            value={
+                                                                                binding.key || null
+                                                                            }
+                                                                            getOptionLabel={
+                                                                                messageLabel
+                                                                            }
+                                                                            onChange={(
+                                                                                _event,
+                                                                                value
+                                                                            ) =>
+                                                                                update({
+                                                                                    key:
+                                                                                        value ?? "",
+                                                                                })
+                                                                            }
+                                                                            onInputChange={(
+                                                                                _event,
+                                                                                value,
+                                                                                reason
+                                                                            ) => {
+                                                                                if (
+                                                                                    reason ===
+                                                                                        "input" ||
+                                                                                    reason ===
+                                                                                        "clear"
+                                                                                ) {
+                                                                                    update({
+                                                                                        key: value,
+                                                                                    })
+                                                                                }
+                                                                            }}
+                                                                            renderInput={(
+                                                                                params
+                                                                            ) => (
+                                                                                <TextField
+                                                                                    {...params}
+                                                                                    label={t(
+                                                                                        "messagingEvent.column.key"
+                                                                                    )}
+                                                                                    placeholder={t(
+                                                                                        "messagingEvent.templates.keyDefault"
+                                                                                    )}
+                                                                                />
+                                                                            )}
+                                                                            sx={{width: 220}}
+                                                                        />
+                                                                        <Autocomplete
+                                                                            freeSolo
+                                                                            size="small"
+                                                                            disabled={!canEdit}
+                                                                            options={languages}
+                                                                            inputValue={
+                                                                                binding.language
+                                                                            }
+                                                                            onInputChange={(
+                                                                                _event,
+                                                                                value
+                                                                            ) =>
+                                                                                update({
+                                                                                    language: value,
+                                                                                })
+                                                                            }
+                                                                            renderInput={(
+                                                                                params
+                                                                            ) => (
+                                                                                <TextField
+                                                                                    {...params}
+                                                                                    required
+                                                                                    error={
+                                                                                        missing &&
+                                                                                        !binding.language.trim()
+                                                                                    }
+                                                                                    label={t(
+                                                                                        "messagingEvent.column.language"
+                                                                                    )}
+                                                                                />
+                                                                            )}
+                                                                            sx={{width: 150}}
+                                                                        />
+                                                                        <Autocomplete
+                                                                            freeSolo
+                                                                            size="small"
+                                                                            disabled={!canEdit}
+                                                                            options={templateOptions(
+                                                                                binding.purpose
+                                                                            )}
+                                                                            inputValue={
+                                                                                binding.provider_template
+                                                                            }
+                                                                            onInputChange={(
+                                                                                _event,
+                                                                                value
+                                                                            ) =>
+                                                                                update({
+                                                                                    provider_template:
+                                                                                        value,
+                                                                                })
+                                                                            }
+                                                                            renderInput={(
+                                                                                params
+                                                                            ) => (
+                                                                                <TextField
+                                                                                    {...params}
+                                                                                    required
+                                                                                    error={
+                                                                                        missing &&
+                                                                                        !binding.provider_template.trim()
+                                                                                    }
+                                                                                    label={t(
+                                                                                        "messagingEvent.column.template"
+                                                                                    )}
+                                                                                />
+                                                                            )}
+                                                                            sx={{width: 240}}
+                                                                        />
+                                                                        <TextField
+                                                                            size="small"
+                                                                            label={t(
+                                                                                "messagingEvent.column.providerLanguage"
+                                                                            )}
+                                                                            value={
+                                                                                binding.provider_language ??
+                                                                                ""
+                                                                            }
+                                                                            disabled={!canEdit}
+                                                                            onChange={(event) =>
+                                                                                update({
+                                                                                    provider_language:
+                                                                                        event.target
+                                                                                            .value,
+                                                                                })
+                                                                            }
+                                                                            sx={{width: 190}}
+                                                                        />
+
+                                                                        {canEdit ? (
+                                                                            <IconButton
+                                                                                aria-label={t(
+                                                                                    "messagingEvent.templates.remove",
+                                                                                    {
+                                                                                        channel:
+                                                                                            channelName,
+                                                                                        position:
+                                                                                            index +
+                                                                                            1,
+                                                                                    }
+                                                                                )}
+                                                                                onClick={() =>
+                                                                                    onChange(
+                                                                                        removeTemplateBinding(
+                                                                                            config,
+                                                                                            channel,
+                                                                                            index
+                                                                                        )
+                                                                                    )
+                                                                                }
+                                                                            >
+                                                                                <DeleteOutlineIcon />
+                                                                            </IconButton>
+                                                                        ) : null}
+                                                                    </Box>
+                                                                    {sender?.provider ===
+                                                                    EMessagingProvider.WHATSAPP_INFOBIP ? (
+                                                                        <TemplateButtonsInput
+                                                                            buttons={
+                                                                                binding.buttons
+                                                                            }
+                                                                            defaults={defaultTemplateButtons(
+                                                                                sender.provider,
+                                                                                binding.purpose
+                                                                            )}
+                                                                            disabled={!canEdit}
+                                                                            onChange={(buttons) =>
+                                                                                update({buttons})
+                                                                            }
+                                                                        />
                                                                     ) : null}
                                                                 </Box>
                                                             ) : null}

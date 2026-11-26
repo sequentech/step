@@ -385,6 +385,9 @@ pub(crate) fn explain(error: &MessagingConfigError) -> String {
         TEMPLATE_NOT_APPROVED {
             channel, purpose, ..
         } => format!("{channel} {purpose}: a required template is not approved"),
+        TEMPLATE_BUTTON_WITHOUT_VALUE {
+            channel, purpose, ..
+        } => format!("{channel} {purpose}: a template button has no value"),
         OUT_OF_WINDOW_NOT_SUPPORTED { channel } => {
             format!("{channel}: the out-of-window setting is not supported")
         }
