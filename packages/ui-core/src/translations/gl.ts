@@ -1094,6 +1094,10 @@ const galegoTranslation: TranslationType = {
                         lead: "Confianza de certificados non conservada",
                         text: "Confianza de certificados non conservada — o arquivo aberto tiña '{{member}}', que o Architect non conserva. As sinaturas que dependan diso poden fallar ata que se restaure coa configuración de certificados autorizada da plataforma.",
                     },
+                    "manual-verification-profile-conflict": {
+                        lead: "Perfil de sinatura en conflito",
+                        text: "Perfil de sinatura en conflito — este perfil substituiría «{{action}}». A regra non se modificou. Abre o plan sen o perfil en conflito para seguir editándoo.",
+                    },
                     "manual-verification-receiver-required": {
                         lead: "Precísase un receptor compatible",
                         text: "Precísase un receptor compatible — este receptor non pode aplicar «{{action}}». A regra mantense no libro e no plan. Para xerar unha entrega, utiliza un Architect e un receptor que admitan a sinatura da verificación manual.",

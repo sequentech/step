@@ -1095,6 +1095,10 @@ const tagalogTranslation: TranslationType = {
                         lead: "Hindi dinala ang certificate trust",
                         text: "Hindi dinala ang certificate trust — may '{{member}}' ang binuksang archive, na hindi dinadala ng Architect. Maaaring pumalya ang mga pirmang umaasa rito hanggang maibalik ito sa awtorisadong certificate setup ng platform.",
                     },
+                    "manual-verification-profile-conflict": {
+                        lead: "Salungat na signing profile",
+                        text: "Salungat na signing profile — papalitan ng profile na ito ang ‘{{action}}’. Hindi binago ang patakaran. Buksan ang plano nang walang salungat na profile para magpatuloy sa pag-edit.",
+                    },
                     "manual-verification-receiver-required": {
                         lead: "Kailangan ang katugmang receiver",
                         text: "Kailangan ang katugmang receiver — hindi maipapatupad ng receiver na ito ang ‘{{action}}’. Nananatili ang patakaran sa workbook at plano. Para gumawa ng delivery, gumamit ng Architect at receiver na sumusuporta sa pagpirma para sa manual na beripikasyon.",

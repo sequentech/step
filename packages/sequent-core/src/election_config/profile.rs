@@ -733,7 +733,7 @@ pub fn apply_profile(
         }
     }
 
-    serde_json::from_value(document).map_err(|error| {
+    let applied: Blueprint = serde_json::from_value(document).map_err(|error| {
         one(Problem::error(
             Code::InvalidValue,
             "profile.defaults",
@@ -743,7 +743,11 @@ pub fn apply_profile(
                  {error}"
             ),
         ))
-    })
+    })?;
+    plan.signing
+        .check_manual_rule_preserved(&applied.signing)
+        .map_err(one)?;
+    Ok(applied)
 }
 
 /// Start a new plan: the profile's seeds where the plan says nothing, then

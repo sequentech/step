@@ -1096,6 +1096,10 @@ const frenchTranslation: TranslationType = {
                         lead: "Confiance de certificats non conservée",
                         text: "Confiance de certificats non conservée — l'archive ouverte contenait '{{member}}', que l'Architect ne conserve pas. Les signatures qui en dépendent peuvent échouer jusqu'à sa restauration par la configuration de certificats autorisée de la plateforme.",
                     },
+                    "manual-verification-profile-conflict": {
+                        lead: "Profil de signature en conflit",
+                        text: "Profil de signature en conflit — ce profil remplacerait « {{action}} ». La règle n’a pas été modifiée. Ouvrez le plan sans le profil en conflit pour continuer à le modifier.",
+                    },
                     "manual-verification-receiver-required": {
                         lead: "Un récepteur compatible est requis",
                         text: "Un récepteur compatible est requis — ce récepteur ne peut pas appliquer « {{action}} ». La règle reste dans le classeur et le plan. Pour générer une livraison, utilisez un Architect et un récepteur qui prennent en charge la signature de la vérification manuelle.",

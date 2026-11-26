@@ -1093,6 +1093,10 @@ const spanishTranslation: TranslationType = {
                         lead: "Confianza de certificados no conservada",
                         text: "Confianza de certificados no conservada — el archivo abierto tenía '{{member}}', que el Architect no conserva. Las firmas que dependan de ello pueden fallar hasta que se restaure con la configuración de certificados autorizada de la plataforma.",
                     },
+                    "manual-verification-profile-conflict": {
+                        lead: "Perfil de firma en conflicto",
+                        text: "Perfil de firma en conflicto — este perfil sustituiría «{{action}}». La regla no se ha modificado. Abre el plan sin el perfil en conflicto para seguir editándolo.",
+                    },
                     "manual-verification-receiver-required": {
                         lead: "Se necesita un receptor compatible",
                         text: "Se necesita un receptor compatible — este receptor no puede aplicar «{{action}}». La regla se conserva en el libro y en el plan. Para generar una entrega, usa un Architect y un receptor que admitan la firma de la verificación manual.",

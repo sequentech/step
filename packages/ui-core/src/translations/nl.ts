@@ -1091,6 +1091,10 @@ const dutchTranslation: TranslationType = {
                         lead: "Certificaatvertrouwen niet meegenomen",
                         text: "Certificaatvertrouwen niet meegenomen — het geopende archief bevatte '{{member}}', dat de Architect niet meeneemt. Handtekeningen die ervan afhangen kunnen mislukken tot het via de geautoriseerde certificaatconfiguratie van het platform is hersteld.",
                     },
+                    "manual-verification-profile-conflict": {
+                        lead: "Conflicterend ondertekeningsprofiel",
+                        text: "Conflicterend ondertekeningsprofiel — dit profiel zou ‘{{action}}’ vervangen. De regel is niet gewijzigd. Open het plan zonder het conflicterende profiel om verder te bewerken.",
+                    },
                     "manual-verification-receiver-required": {
                         lead: "Compatibele ontvanger vereist",
                         text: "Compatibele ontvanger vereist — deze ontvanger kan ‘{{action}}’ niet afdwingen. De regel blijft in de werkmap en het plan staan. Gebruik een Architect en ontvanger die ondertekening van handmatige verificatie ondersteunen om een levering te maken.",

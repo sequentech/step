@@ -1091,6 +1091,10 @@ const catalanTranslation: TranslationType = {
                         lead: "Confiança de certificats no conservada",
                         text: "Confiança de certificats no conservada — l'arxiu obert tenia '{{member}}', que l'Architect no conserva. Les signatures que en depenguin poden fallar fins que es restauri amb la configuració de certificats autoritzada de la plataforma.",
                     },
+                    "manual-verification-profile-conflict": {
+                        lead: "Perfil de signatura en conflicte",
+                        text: "Perfil de signatura en conflicte — aquest perfil substituiria «{{action}}». La regla no s’ha modificat. Obre el pla sense el perfil en conflicte per continuar editant-lo.",
+                    },
                     "manual-verification-receiver-required": {
                         lead: "Cal un receptor compatible",
                         text: "Cal un receptor compatible — aquest receptor no pot aplicar «{{action}}». La regla es conserva al llibre i al pla. Per generar un lliurament, fes servir un Architect i un receptor que admetin la signatura de la verificació manual.",

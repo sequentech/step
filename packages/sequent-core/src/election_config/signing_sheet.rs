@@ -206,6 +206,33 @@ impl PlannedSigning {
         Some(problem)
     }
 
+    /// A fixed client profile may override ordinary supported rules, but it
+    /// cannot turn a preserved rule it does not enforce into a deliverable
+    /// plan by replacing or removing it on open or on build.
+    pub(super) fn check_manual_rule_preserved(
+        &self,
+        applied: &Self,
+    ) -> Result<(), Problem> {
+        if self.manual_rules().next().is_some()
+            && !self.manual_rules().eq(applied.manual_rules())
+        {
+            return Err(Problem::error(
+                Code::IncompatibleVersion,
+                "profile.defaults.signing.rules",
+                "This profile would replace the 'authorize-manual-verification' rule. The rule was not changed. Open without the conflicting profile to keep editing.",
+            )
+            .id("signing.manual-verification-profile-conflict")
+            .detail("action", MANUAL_VERIFICATION_ACTION));
+        }
+        Ok(())
+    }
+
+    fn manual_rules(&self) -> impl Iterator<Item = &PlannedSigningRule> {
+        self.rules.iter().flatten().filter(|rule| {
+            rule.action == PlannedSigningAction::AuthorizeManualVerification
+        })
+    }
+
     /// The configuration a bundle carries, field by field.
     pub fn from_export(document: &Value) -> Result<Self, Problem> {
         let rules = match document.get("signing_rules") {

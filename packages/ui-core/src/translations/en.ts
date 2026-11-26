@@ -1093,6 +1093,10 @@ const englishTranslation = {
                         lead: "Certificate trust not carried",
                         text: "Certificate trust not carried — the opened archive had '{{member}}', which the Architect does not carry. Signatures relying on it may fail until it is restored through the platform's authorized certificate setup.",
                     },
+                    "manual-verification-profile-conflict": {
+                        lead: "Conflicting signing profile",
+                        text: "Conflicting signing profile — this profile would replace '{{action}}'. The rule was not changed. Open without the conflicting profile to keep editing.",
+                    },
                     "manual-verification-receiver-required": {
                         lead: "Compatible receiver required",
                         text: "Compatible receiver required — this receiver cannot enforce '{{action}}'. The rule stays in the workbook and plan. Use an Architect and receiver with manual-verification signing to build a delivery.",
