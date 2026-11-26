@@ -102,6 +102,10 @@ pub enum EventRole {
     Tested,
     /// A difference between the two events.
     Both,
+    /// The early readiness test event of a read-only rehearsal comparison.
+    Ert,
+    /// The selected-voter test event of a read-only rehearsal comparison.
+    Stl,
 }
 
 /// The failed predicate, a stable language-independent contract.
@@ -136,6 +140,61 @@ pub enum FindingCode {
     SealAtCloseOff,
     NoExpectedBoxes,
     BoxesUnsealed,
+    /// Rehearsal comparisons only: both events carry the same package revision.
+    RevisionNotDistinct,
+    /// Rehearsal comparisons only: an area of the STL census has more voters
+    /// than the official certified census, so it cannot be a subset.
+    SubsetAreaExceeds,
+    /// Rehearsal comparisons only: no evidence can prove the STL census is a
+    /// subset of the official certified census.
+    SubsetNotVerified,
+}
+
+/// The requested comparison. Absent on the wire means the strict production
+/// check, the only comparison that can record `ReadinessVerified`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ComparisonMode {
+    #[default]
+    Production,
+    RehearsalErtStl,
+    RehearsalOfficialErt,
+    RehearsalOfficialStl,
+}
+
+/// A read-only rehearsal comparison. It has no production variant, so a
+/// rehearsal report can never claim to be the strict signed check.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RehearsalComparison {
+    #[serde(rename = "rehearsal_ert_stl")]
+    ErtStl,
+    #[serde(rename = "rehearsal_official_ert")]
+    OfficialErt,
+    #[serde(rename = "rehearsal_official_stl")]
+    OfficialStl,
+}
+
+impl ComparisonMode {
+    pub fn rehearsal(self) -> Option<RehearsalComparison> {
+        match self {
+            ComparisonMode::Production => None,
+            ComparisonMode::RehearsalErtStl => Some(RehearsalComparison::ErtStl),
+            ComparisonMode::RehearsalOfficialErt => Some(RehearsalComparison::OfficialErt),
+            ComparisonMode::RehearsalOfficialStl => Some(RehearsalComparison::OfficialStl),
+        }
+    }
+}
+
+impl RehearsalComparison {
+    /// The roles of the first (`official_event_id`) and second
+    /// (`tested_event_id`) request positions, in that order.
+    pub fn roles(self) -> (EventRole, EventRole) {
+        match self {
+            RehearsalComparison::ErtStl => (EventRole::Ert, EventRole::Stl),
+            RehearsalComparison::OfficialErt => (EventRole::Official, EventRole::Ert),
+            RehearsalComparison::OfficialStl => (EventRole::Official, EventRole::Stl),
+        }
+    }
 }
 
 /// Why a check failed, derived only from the evaluated evidence. It carries
@@ -155,7 +214,7 @@ pub struct ReadinessFinding {
 }
 
 impl ReadinessFinding {
-    fn new(code: FindingCode, event: EventRole, message: impl Into<String>) -> Self {
+    pub(crate) fn new(code: FindingCode, event: EventRole, message: impl Into<String>) -> Self {
         ReadinessFinding {
             code,
             event,
@@ -166,7 +225,7 @@ impl ReadinessFinding {
         }
     }
 
-    fn area(mut self, area: &str) -> Self {
+    pub(crate) fn area(mut self, area: &str) -> Self {
         self.area = Some(area.into());
         self
     }
@@ -176,7 +235,7 @@ impl ReadinessFinding {
         self
     }
 
-    fn value(mut self, name: &str, value: impl ToString) -> Self {
+    pub(crate) fn value(mut self, name: &str, value: impl ToString) -> Self {
         self.values.insert(name.into(), value.to_string());
         self
     }
@@ -214,15 +273,17 @@ pub fn never_started(status: &ElectionStatus) -> bool {
     })
 }
 
-fn role_name(role: EventRole) -> &'static str {
+pub(crate) fn role_name(role: EventRole) -> &'static str {
     match role {
         EventRole::Official => "official",
         EventRole::Tested => "tested",
         EventRole::Both => "both",
+        EventRole::Ert => "ERT",
+        EventRole::Stl => "STL",
     }
 }
 
-fn area_label(area: &str) -> String {
+pub(crate) fn area_label(area: &str) -> String {
     if area.trim().is_empty() {
         "no or an unknown area".into()
     } else {
@@ -347,7 +408,7 @@ fn configuration_findings(
     findings
 }
 
-fn certification_findings(event: &EventEvidence, role: EventRole) -> Vec<ReadinessFinding> {
+pub(crate) fn certification_findings(event: &EventEvidence, role: EventRole) -> Vec<ReadinessFinding> {
     use FindingCode::*;
     let name = role_name(role);
     let mut findings = Vec::new();
@@ -550,7 +611,7 @@ fn started_channels(
         .collect()
 }
 
-fn official_zero_findings(official: &EventEvidence) -> Vec<ReadinessFinding> {
+pub(crate) fn official_zero_findings(official: &EventEvidence) -> Vec<ReadinessFinding> {
     use FindingCode::*;
     let role = EventRole::Official;
     let mut findings = Vec::new();
@@ -648,35 +709,42 @@ fn publication_findings(event: &EventEvidence, role: EventRole) -> Vec<Readiness
 }
 
 fn tested_finished_findings(tested: &EventEvidence) -> Vec<ReadinessFinding> {
+    finished_findings(tested, EventRole::Tested)
+}
+
+/// A rehearsal event's own close and seal proof: its complete publication
+/// against its own signed manifest, every channel closed and every expected
+/// box sealed. It compares nothing with another event.
+pub(crate) fn finished_findings(tested: &EventEvidence, role: EventRole) -> Vec<ReadinessFinding> {
     use FindingCode::*;
-    let role = EventRole::Tested;
+    let name = role_name(role);
     let mut findings = publication_findings(tested, role);
     if tested.elections.is_empty() {
         findings.push(ReadinessFinding::new(
             NoElections,
             role,
-            "The tested event has no elections",
+            format!("The {name} event has no elections"),
         ));
     }
     if !tested.all_channels_closed {
         findings.push(ReadinessFinding::new(
             ChannelsOpen,
             role,
-            "The tested event has an election whose voting channels have not all closed",
+            format!("The {name} event has an election whose voting channels have not all closed"),
         ));
     }
     if !tested.seal_at_close {
         findings.push(ReadinessFinding::new(
             SealAtCloseOff,
             role,
-            "The tested event does not seal ballot boxes at close",
+            format!("The {name} event does not seal ballot boxes at close"),
         ));
     }
     if tested.expected_boxes.is_empty() {
         findings.push(ReadinessFinding::new(
             NoExpectedBoxes,
             role,
-            "The tested event's publication expects no ballot boxes",
+            format!("The {name} event's publication expects no ballot boxes"),
         ));
     }
     let mut unsealed: BTreeMap<&str, usize> = BTreeMap::new();
@@ -688,9 +756,7 @@ fn tested_finished_findings(tested: &EventEvidence) -> Vec<ReadinessFinding> {
             ReadinessFinding::new(
                 BoxesUnsealed,
                 role,
-                format!(
-                    "Election {election} of the tested event has {count} unsealed ballot boxes"
-                ),
+                format!("Election {election} of the {name} event has {count} unsealed ballot boxes"),
             )
             .election(election)
             .value("unsealed", count),

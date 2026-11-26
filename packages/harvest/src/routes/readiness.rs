@@ -14,13 +14,28 @@ use sequent_core::services::jwt::JwtClaims;
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::permissions::Permissions;
 use serde::{Deserialize, Serialize};
-use windmill::domain::readiness::ReadinessReport;
+use windmill::domain::readiness::{ComparisonMode, ReadinessReport};
+use windmill::domain::readiness_rehearsal::RehearsalReport;
 use windmill::services::readiness::ReadinessStage;
 
+/// In rehearsal modes the first position holds the first role the mode
+/// names (ERT, or the official event) and the second the other one.
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ReadinessInput {
     official_event_id: String,
     tested_event_id: String,
+    /// Absent or null is the strict production check.
+    #[serde(default)]
+    comparison: Option<ComparisonMode>,
+}
+
+/// The production report keeps its signed shape; a rehearsal report always
+/// names its read-only comparison.
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum ReadinessResponse {
+    Production(ReadinessReport),
+    Rehearsal(RehearsalReport),
 }
 
 fn invalid(message: &str) -> JsonError {
@@ -72,12 +87,38 @@ fn validate(input: &ReadinessInput) -> Result<(), JsonError> {
     Ok(())
 }
 
+/// Check both events' tenant and permission labels before any lock or read.
+async fn authorize_events(
+    tx: &deadpool_postgres::Transaction<'_>,
+    claims: &JwtClaims,
+    input: &ReadinessInput,
+) -> Result<(), JsonError> {
+    let tenant = &claims.hasura_claims.tenant_id;
+    for event in [&input.official_event_id, &input.tested_event_id] {
+        let row = windmill::postgres::election_event::get_election_event_by_id_if_exist(tx, tenant, event)
+            .await.map_err(internal)?;
+        if row.is_none() {
+            return Err(ErrorResponse::new(
+                Status::NotFound,
+                "Election event not found",
+                ErrorCode::ElectionEventNotFound,
+            ));
+        }
+        authorize_election_permission_labels(tx, claims, event, None)
+            .await
+            .map_err(|(status, message)| {
+                ErrorResponse::new(status, &message, ErrorCode::Unauthorized)
+            })?;
+    }
+    Ok(())
+}
+
 #[post("/readiness-check", format = "json", data = "<input>")]
 pub async fn readiness_check(
     claims: JwtClaims,
     input: Json<ReadinessInput>,
     services: &State<HarvestServices>,
-) -> Result<Json<ReadinessReport>, JsonError> {
+) -> Result<Json<ReadinessResponse>, JsonError> {
     let input = input.into_inner();
     authorize(
         &claims,
@@ -97,24 +138,39 @@ pub async fn readiness_check(
         .get()
         .await
         .map_err(internal)?;
-    let tx = client.transaction().await.map_err(internal)?;
-    // Check both tenants before acquiring event locks or inspecting evidence.
-    for event in [&input.official_event_id, &input.tested_event_id] {
-        let row = windmill::postgres::election_event::get_election_event_by_id_if_exist(&tx, tenant, event)
-            .await.map_err(internal)?;
-        if row.is_none() {
-            return Err(ErrorResponse::new(
-                Status::NotFound,
-                "Election event not found",
-                ErrorCode::ElectionEventNotFound,
-            ));
-        }
-        authorize_election_permission_labels(&tx, &claims, event, None)
+    if let Some(comparison) = input.comparison.unwrap_or_default().rehearsal() {
+        // The database enforces the no-write path: a read-only repeatable
+        // read snapshot, always rolled back, with no recorder at all.
+        let tx = client
+            .build_transaction()
+            .isolation_level(tokio_postgres::IsolationLevel::RepeatableRead)
+            .read_only(true)
+            .start()
             .await
-            .map_err(|(status, message)| {
-                ErrorResponse::new(status, &message, ErrorCode::Unauthorized)
-            })?;
+            .map_err(internal)?;
+        authorize_events(&tx, &claims, &input).await?;
+        windmill::services::readiness::lock_events_read_only(
+            &tx,
+            tenant,
+            &input.official_event_id,
+            &input.tested_event_id,
+        )
+        .await
+        .map_err(incomplete)?;
+        let report = windmill::services::readiness::compare_rehearsal(
+            &tx,
+            tenant,
+            comparison,
+            &input.official_event_id,
+            &input.tested_event_id,
+        )
+        .await
+        .map_err(incomplete)?;
+        tx.rollback().await.map_err(internal)?;
+        return Ok(Json(ReadinessResponse::Rehearsal(report)));
     }
+    let tx = client.transaction().await.map_err(internal)?;
+    authorize_events(&tx, &claims, &input).await?;
     windmill::services::readiness::lock_events(
         &tx,
         tenant,
@@ -136,7 +192,7 @@ pub async fn readiness_check(
     // This transaction only holds observation locks. The signed event entry
     // has its own durable append and exists before a passing response returns.
     tx.commit().await.map_err(internal)?;
-    Ok(Json(report))
+    Ok(Json(ReadinessResponse::Production(report)))
 }
 
 #[cfg(test)]
@@ -186,18 +242,54 @@ mod tests {
         let tested = uuid::Uuid::new_v4().to_string();
         assert!(validate(&ReadinessInput {
             official_event_id: official.clone(),
-            tested_event_id: tested
+            tested_event_id: tested,
+            comparison: None,
         })
         .is_ok());
         assert!(validate(&ReadinessInput {
             official_event_id: official.clone(),
-            tested_event_id: official
+            tested_event_id: official,
+            comparison: Some(ComparisonMode::RehearsalErtStl),
         })
         .is_err());
         assert!(validate(&ReadinessInput {
             official_event_id: "not-an-id".into(),
-            tested_event_id: uuid::Uuid::new_v4().to_string()
+            tested_event_id: uuid::Uuid::new_v4().to_string(),
+            comparison: None,
         })
+        .is_err());
+    }
+
+    #[test]
+    fn an_absent_or_null_mode_is_the_strict_production_check() {
+        let (official, tested) =
+            (uuid::Uuid::new_v4(), uuid::Uuid::new_v4());
+        for body in [
+            serde_json::json!({"official_event_id": official, "tested_event_id": tested}),
+            serde_json::json!({"official_event_id": official, "tested_event_id": tested, "comparison": null}),
+            serde_json::json!({"official_event_id": official, "tested_event_id": tested, "comparison": "production"}),
+        ] {
+            let input: ReadinessInput = serde_json::from_value(body).unwrap();
+            assert_eq!(input.comparison.unwrap_or_default().rehearsal(), None);
+        }
+        for (wire, rehearsal) in [
+            ("rehearsal_ert_stl", true),
+            ("rehearsal_official_ert", true),
+            ("rehearsal_official_stl", true),
+        ] {
+            let input: ReadinessInput = serde_json::from_value(serde_json::json!({
+                "official_event_id": official, "tested_event_id": tested, "comparison": wire
+            }))
+            .unwrap();
+            assert_eq!(
+                input.comparison.unwrap_or_default().rehearsal().is_some(),
+                rehearsal
+            );
+        }
+        // An unknown mode is refused, never read as production.
+        assert!(serde_json::from_value::<ReadinessInput>(serde_json::json!({
+            "official_event_id": official, "tested_event_id": tested, "comparison": "rehearsal"
+        }))
         .is_err());
     }
 }

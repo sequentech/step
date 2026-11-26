@@ -4,9 +4,10 @@
 //! Compare authoritative event snapshots and record a successful readiness check.
 
 use crate::domain::readiness::{
-    self, ConfigurationEvidence, ElectionEvidence, EventEvidence, PublicationEvidence,
-    ReadinessEvidence, ReadinessReport,
+    self, ConfigurationEvidence, ElectionEvidence, EventEvidence, EventRole, PublicationEvidence,
+    ReadinessEvidence, ReadinessReport, RehearsalComparison,
 };
+use crate::domain::readiness_rehearsal::{evaluate_rehearsal, RehearsalReport};
 use crate::postgres::{
     area, ballot_box_seal, ballot_publication, ballot_style, configuration_packages, election,
     election_event, signing, voter_import,
@@ -42,6 +43,10 @@ pub enum ReadinessStage {
     OfficialEvidence,
     TestedEvidence,
     SignedAppend,
+    /// Rehearsal comparisons: the event in the first request position.
+    ReferenceEvidence,
+    /// Rehearsal comparisons: the event in the second request position.
+    ComparedEvidence,
 }
 
 impl std::fmt::Display for ReadinessStage {
@@ -51,6 +56,8 @@ impl std::fmt::Display for ReadinessStage {
             ReadinessStage::OfficialEvidence => "the official event's evidence could not be read",
             ReadinessStage::TestedEvidence => "the tested event's evidence could not be read",
             ReadinessStage::SignedAppend => "every check passed but the signed entry could not be confirmed on the official event's log; check its Logs before running it again",
+            ReadinessStage::ReferenceEvidence => "the first compared event's evidence could not be read",
+            ReadinessStage::ComparedEvidence => "the second compared event's evidence could not be read",
         })
     }
 }
@@ -480,6 +487,86 @@ pub async fn verify(
     .context(ReadinessStage::SignedAppend)
 }
 
+/// Advisory locks only. A rehearsal runs in a read-only transaction, which
+/// refuses row locks as well as every write; imports and signing still wait.
+pub async fn lock_events_read_only(
+    tx: &Transaction<'_>,
+    tenant: &str,
+    reference: &str,
+    compared: &str,
+) -> Result<()> {
+    lock_read_only(tx, tenant, reference, compared)
+        .await
+        .context(ReadinessStage::Locks)
+}
+
+async fn lock_read_only(
+    tx: &Transaction<'_>,
+    tenant: &str,
+    reference: &str,
+    compared: &str,
+) -> Result<()> {
+    ensure!(reference != compared, "The compared events must differ");
+    let tenant_uuid = Uuid::parse_str(tenant)?;
+    let mut events = [Uuid::parse_str(reference)?, Uuid::parse_str(compared)?];
+    events.sort();
+    for event in events {
+        signing::lock_signing_event(tx, tenant_uuid, event).await?;
+        voter_import::lock_voter_imports(tx, tenant, &event.to_string()).await?;
+        let row = tx
+            .query_opt(
+                "SELECT id FROM sequent_backend.election_event WHERE tenant_id = $1 AND id = $2",
+                &[&tenant_uuid, &event],
+            )
+            .await?;
+        ensure!(
+            row.is_some(),
+            "Election event not found in the authenticated tenant"
+        );
+    }
+    Ok(())
+}
+
+fn rehearsal_scope(role: EventRole) -> SnapshotScope {
+    match role {
+        EventRole::Official => SnapshotScope::Official,
+        _ => SnapshotScope::Tested,
+    }
+}
+
+/// A read-only rehearsal comparison. It refuses to run unless the database
+/// itself enforces read-only, and it has no recorder: its report type cannot
+/// reach `record_if_passed` or the signed `ReadinessVerified` writer.
+pub async fn compare_rehearsal(
+    tx: &Transaction<'_>,
+    tenant: &str,
+    comparison: RehearsalComparison,
+    reference: &str,
+    compared: &str,
+) -> Result<RehearsalReport> {
+    let read_only: String = tx
+        .query_one("SHOW transaction_read_only", &[])
+        .await?
+        .try_get(0)?;
+    ensure!(
+        read_only == "on",
+        "A rehearsal comparison runs only in a read-only transaction"
+    );
+    let (left, right) = comparison.roles();
+    let reference_evidence = snapshot_for(tx, tenant, reference, rehearsal_scope(left))
+        .await
+        .context(ReadinessStage::ReferenceEvidence)?;
+    let compared_evidence = snapshot_for(tx, tenant, compared, rehearsal_scope(right))
+        .await
+        .context(ReadinessStage::ComparedEvidence)?;
+    Ok(evaluate_rehearsal(
+        comparison,
+        reference_evidence,
+        compared_evidence,
+        chrono::Utc::now().to_rfc3339(),
+    ))
+}
+
 struct EventRecorder<'a, 'tx> {
     tx: &'a Transaction<'tx>,
     tenant: &'a str,
@@ -633,6 +720,8 @@ mod tests {
             ReadinessStage::OfficialEvidence,
             ReadinessStage::TestedEvidence,
             ReadinessStage::SignedAppend,
+            ReadinessStage::ReferenceEvidence,
+            ReadinessStage::ComparedEvidence,
         ];
         let texts: BTreeSet<String> = stages.iter().map(ToString::to_string).collect();
         assert_eq!(texts.len(), stages.len());
