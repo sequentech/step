@@ -20,7 +20,7 @@ use windmill::services::external::datafix_types::{
 // Reuse Core's bounded HTTP protocol fixture, not its client implementation.
 #[path = "../../../sequent-core/tests/support/http.rs"]
 #[allow(dead_code)]
-mod http;
+pub(crate) mod http;
 
 #[path = "route_permissions.rs"]
 mod route_permissions;

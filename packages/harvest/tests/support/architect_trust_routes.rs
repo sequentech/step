@@ -5,7 +5,7 @@
 //! Exercise signed requests and committed state on a migrated disposable database.
 
 use crate::request_boundaries::{
-    is_isolated_child, run_isolated_with_postgres,
+    http, is_isolated_child, run_isolated_with_postgres,
 };
 use crate::route_services::{json, post, rows, text, Services};
 use crate::routes::apply_configuration_package::PACKAGE_PERMISSIONS;
@@ -29,7 +29,10 @@ use windmill::{
 
 const RP: &str = "architect.example.test";
 const ORIGIN: &str = "https://architect.example.test:1443";
-const KEEPER: &str = "fixture-roster-keeper";
+const KEEPER: &str = "0490df33-69ca-42cd-927d-178341a0ad92";
+const SECOND_ADMIN: &str = "edfc7aed-0ef3-4c54-a155-db2bb9c54d70";
+const VIEWER: &str = "6de1d9e0-fc80-45b0-8c33-13dfa2e64c18";
+const MACHINE: &str = "service-reader-fixture";
 const STATUS: &str = "/get-architect-signer-roster-status";
 const PREVIEW: &str = "/preview-architect-signer-roster";
 const ACTIVATE: &str = "/activate-architect-signer-roster";
@@ -79,6 +82,49 @@ async fn fixture() -> Services {
 
 fn claims(tenant: &str, subject: &str) -> Claims {
     Claims::new(tenant, subject).roles(PACKAGE_PERMISSIONS)
+}
+
+fn roster_directory(tenant: &str) -> http::HttpServer {
+    let mut replies = vec![http::Exchange::json(
+        "POST",
+        "/realms/master/protocol/openid-connect/token",
+        200,
+        http::token_json(),
+    )];
+    // A bounded number of read-only answers for normal, rechecked and rejected operations.
+    for (subject, path) in [
+        (KEEPER, "/admin"),
+        (SECOND_ADMIN, "/admin"),
+        (VIEWER, "/elsewhere/admin"),
+        (MACHINE, "/admin"),
+    ] {
+        for _ in 0..32 {
+            let url = format!("/admin/realms/tenant-{tenant}/users/{subject}");
+            replies.push(http::Exchange::json(
+                "GET",
+                &url,
+                200,
+                json!({"id":subject,"enabled":true,"username":subject}),
+            ));
+            replies.push(http::Exchange::json(
+                "GET",
+                &format!("{url}/groups"),
+                200,
+                json!([{"name":"admin","path":path}]),
+            ));
+        }
+    }
+    // The single-user endpoint omits the service-account indicator, even
+    // with enabled and root-admin membership. Normal search excludes it.
+    for _ in 0..32 {
+        replies.push(http::Exchange::json(
+            "GET",
+            &format!("/admin/realms/tenant-{tenant}/users"),
+            200,
+            json!([{"id":KEEPER},{"id":SECOND_ADMIN}]),
+        ));
+    }
+    http::HttpServer::start(replies)
 }
 
 fn roster(tenant: &str) -> Value {
@@ -182,15 +228,23 @@ fn managed_roster_preview_activation_and_rotation_are_authenticated_and_atomic()
         std::env::set_var(browser::TENANT, &tenant);
         std::env::set_var(managed::EXPECTED_RP_ID, RP);
         std::env::set_var(managed::EXPECTED_ORIGIN, ORIGIN);
-        std::env::set_var(managed::ADMIN_SUBJECTS, KEEPER);
+        const LEGACY_ALLOWLIST: &str =
+            "WINDMILL_WEBAUTHN_PACKAGES_ROSTER_ADMIN_SUBJECTS";
+        std::env::remove_var(LEGACY_ALLOWLIST);
+        let directory = roster_directory(&tenant);
+        std::env::set_var("KEYCLOAK_URL", &directory.url);
         let client = services.client().await;
         let status_input = json!({"tenant_id": tenant});
         let keeper =
             claims(&tenant, KEEPER).auth_time(chrono::Utc::now().timestamp());
         let stale_login = claims(&tenant, KEEPER)
             .auth_time(chrono::Utc::now().timestamp() - 301);
-        let viewer = claims(&tenant, "fixture-viewer")
+        let viewer =
+            claims(&tenant, VIEWER).auth_time(chrono::Utc::now().timestamp());
+        let second_admin = claims(&tenant, SECOND_ADMIN)
             .auth_time(chrono::Utc::now().timestamp());
+        let machine =
+            claims(&tenant, MACHINE).auth_time(chrono::Utc::now().timestamp());
         let foreign = claims(&other, KEEPER);
         let a_doc = roster(&tenant);
         let a_raw = a_doc.to_string();
@@ -206,6 +260,26 @@ fn managed_roster_preview_activation_and_rotation_are_authenticated_and_atomic()
         let reader =
             request(&client, STATUS, &viewer, &status_input, Status::Ok).await;
         assert_eq!(reader["can_manage"], false);
+        assert_eq!(
+            request(&client, STATUS, &second_admin, &status_input, Status::Ok)
+                .await["can_manage"],
+            true
+        );
+        assert_eq!(
+            request(&client, STATUS, &machine, &status_input, Status::Ok).await
+                ["can_manage"],
+            false
+        );
+        let without_package_permissions = Claims::new(&tenant, SECOND_ADMIN);
+        error(
+            &client,
+            PREVIEW,
+            &without_package_permissions,
+            &a,
+            Status::Unauthorized,
+            "Unauthorized",
+        )
+        .await;
         let foreign_status = request(
             &client,
             STATUS,
@@ -226,6 +300,19 @@ fn managed_roster_preview_activation_and_rotation_are_authenticated_and_atomic()
             "architect-roster-management-forbidden",
         )
         .await;
+        for (path, input) in
+            [(PREVIEW, a.clone()), (ACTIVATE, activation(&a, "0"))]
+        {
+            error(
+                &client,
+                path,
+                &machine,
+                &input,
+                Status::Forbidden,
+                "architect-roster-management-forbidden",
+            )
+            .await;
+        }
         error(
             &client,
             PREVIEW,
@@ -315,8 +402,16 @@ fn managed_roster_preview_activation_and_rotation_are_authenticated_and_atomic()
             request(&client, STATUS, &keeper, &status_input, Status::Ok).await,
             activated
         );
+        // A prior installation may name only the first administrator. It
+        // must not change status, preview or activation for an eligible second one.
+        std::env::set_var(LEGACY_ALLOWLIST, KEEPER);
+        assert_eq!(
+            request(&client, STATUS, &second_admin, &status_input, Status::Ok)
+                .await["can_manage"],
+            true
+        );
         let b_preview =
-            request(&client, PREVIEW, &keeper, &b, Status::Ok).await;
+            request(&client, PREVIEW, &second_admin, &b, Status::Ok).await;
         assert_eq!(b_preview["generation"], "1");
         assert_eq!(
             request(
@@ -341,7 +436,7 @@ fn managed_roster_preview_activation_and_rotation_are_authenticated_and_atomic()
         let rotated = request(
             &client,
             ACTIVATE,
-            &keeper,
+            &second_admin,
             &activation(&b, "1"),
             Status::Ok,
         )
@@ -355,7 +450,7 @@ fn managed_roster_preview_activation_and_rotation_are_authenticated_and_atomic()
         ).await;
         assert_eq!(stored.len(), 1);
         assert_eq!(stored[0].get::<_, String>(0), b_raw);
-        assert_eq!(stored[0].get::<_, String>(1), KEEPER);
+        assert_eq!(stored[0].get::<_, String>(1), SECOND_ADMIN);
         assert_eq!(stored[0].get::<_, i64>(2), 2);
         let entries =
             audit(&services, &tenant, "architect_signer_roster").await;
@@ -367,7 +462,14 @@ fn managed_roster_preview_activation_and_rotation_are_authenticated_and_atomic()
                 .iter()
                 .find(|(_, d)| d["extra"]["generation"] == generation)
                 .unwrap();
-            assert_eq!(user, KEEPER);
+            assert_eq!(
+                user,
+                if generation == 1 {
+                    KEEPER
+                } else {
+                    SECOND_ADMIN
+                }
+            );
             assert_eq!(
                 details["extra"],
                 json!({"generation":generation,"previous_generation":previous,"fingerprint_confirmation":"operator_supplied"})
@@ -435,7 +537,6 @@ fn managed_roster_preview_activation_and_rotation_are_authenticated_and_atomic()
         std::env::set_var(browser::TENANT, &tenant);
         std::env::set_var(managed::EXPECTED_RP_ID, RP);
         std::env::set_var(managed::EXPECTED_ORIGIN, ORIGIN);
-        std::env::set_var(managed::ADMIN_SUBJECTS, KEEPER);
 
         // Corrupt trust only in the synthetic fixture. No edit may replace it
         // blindly, and reads must never advertise it as an active authority.
