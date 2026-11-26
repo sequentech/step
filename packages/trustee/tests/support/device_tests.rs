@@ -109,8 +109,7 @@ fn poll(
 /// A machine whose challenge `login` settled at `at(5)`.
 fn approved_with(login: VerifiedLogin) -> (DeviceLogin, ChallengeId) {
     let (mut machine, challenge) = pending_at(0);
-    let status =
-        poll(&mut machine, 5, challenge, PollOutcome::Approved(login));
+    let status = poll(&mut machine, 5, challenge, PollOutcome::Approved(login));
     assert!(matches!(status, Ok(DeviceStatus::Approved { .. })));
     (machine, challenge)
 }
@@ -123,8 +122,7 @@ fn approved() -> (DeviceLogin, ChallengeId) {
 fn settle_login(login: VerifiedLogin) -> DeviceStatus {
     let (mut machine, challenge) = pending_at(0);
     let status =
-        poll(&mut machine, 5, challenge, PollOutcome::Approved(login))
-            .unwrap();
+        poll(&mut machine, 5, challenge, PollOutcome::Approved(login)).unwrap();
     assert_eq!(machine.authorize(at(5)), Err(DeviceError::NoGrant));
     status
 }
@@ -157,7 +155,10 @@ fn approves_an_exact_scope_with_fresh_totp_exactly_once() {
         machine.start_poll(mono(10), challenge).err(),
         Some(DeviceError::AlreadySettled)
     );
-    assert_eq!(machine.begin(at(10), LIFETIME, None), Err(DeviceError::Busy));
+    assert_eq!(
+        machine.begin(at(10), LIFETIME, None),
+        Err(DeviceError::Busy)
+    );
     assert_eq!(machine.authorize(at(303)), Err(DeviceError::NoGrant));
     assert_eq!(
         machine.status(at(303)),
@@ -177,10 +178,7 @@ fn discards_each_scope_mismatch_distinctly() {
         edited(|l| l.audiences = vec!["synthetic-other-audience".into()]);
     assert_eq!(settle_login(audience), discarded(DiscardReason::Audience));
     let azp = edited(|l| l.authorized_party = "synthetic-other-client".into());
-    assert_eq!(
-        settle_login(azp),
-        discarded(DiscardReason::AuthorizedParty)
-    );
+    assert_eq!(settle_login(azp), discarded(DiscardReason::AuthorizedParty));
     let subject = edited(|l| l.subject = OTHER_SUBJECT.into());
     assert_eq!(settle_login(subject), discarded(DiscardReason::Subject));
     let tenant = edited(|l| l.tenant = "synthetic-other-tenant".into());
@@ -257,10 +255,7 @@ fn fails_closed_on_malformed_and_expired_claims() {
 fn caps_the_session_at_auth_time_plus_ten_hours_or_upstream() {
     let (mut machine, _) =
         approved_with(edited(|l| l.expires_at = T0 + 100_000));
-    assert_eq!(
-        machine.authorize(at(5)),
-        Ok(mono(3 + MAX_GRANT_LIFETIME))
-    );
+    assert_eq!(machine.authorize(at(5)), Ok(mono(3 + MAX_GRANT_LIFETIME)));
 
     let (mut machine, _) = approved_with(edited(|l| {
         l.expires_at = T0 + 100_000;
@@ -323,10 +318,7 @@ fn a_wall_clock_rollback_after_approval_closes_the_grant() {
 fn a_monotonic_regression_never_resurrects_or_extends_a_grant() {
     let (mut machine, challenge) = approved();
     assert_eq!(machine.authorize(at(303)), Err(DeviceError::NoGrant));
-    assert_eq!(
-        machine.authorize(at(100)),
-        Err(DeviceError::ClockRegressed)
-    );
+    assert_eq!(machine.authorize(at(100)), Err(DeviceError::ClockRegressed));
     assert_eq!(
         machine.status(at(100)),
         DeviceStatus::Closed {
@@ -337,10 +329,7 @@ fn a_monotonic_regression_never_resurrects_or_extends_a_grant() {
 
     let (mut machine, challenge) = approved();
     assert_eq!(machine.authorize(at(100)), Ok(mono(303)));
-    assert_eq!(
-        machine.authorize(at(50)),
-        Err(DeviceError::ClockRegressed)
-    );
+    assert_eq!(machine.authorize(at(50)), Err(DeviceError::ClockRegressed));
     assert_eq!(
         machine.status(at(150)),
         DeviceStatus::Closed {
@@ -370,10 +359,7 @@ fn renews_the_short_token_only_up_to_the_original_session_deadline() {
         l.expires_at = T0 + 100_000;
     });
     machine.renew(at(450), long).unwrap();
-    assert_eq!(
-        machine.authorize(at(450)),
-        Ok(mono(3 + MAX_GRANT_LIFETIME))
-    );
+    assert_eq!(machine.authorize(at(450)), Ok(mono(3 + MAX_GRANT_LIFETIME)));
 
     // An upstream session end known now brings the deadline closer...
     let shorter = renewed(|l| {
@@ -554,7 +540,12 @@ fn authorization_pending_waits_the_interval() {
         Some(DeviceError::TooEarly { wait: 1 })
     );
     assert_eq!(
-        poll(&mut machine, 5, challenge, PollOutcome::AuthorizationPending),
+        poll(
+            &mut machine,
+            5,
+            challenge,
+            PollOutcome::AuthorizationPending
+        ),
         Ok(DeviceStatus::Pending {
             challenge,
             poll_in: 5,
@@ -587,7 +578,12 @@ fn slow_down_adds_five_seconds_and_abandons_past_the_cap() {
     );
     // The slower interval holds for later pending answers too.
     assert_eq!(
-        poll(&mut machine, 15, challenge, PollOutcome::AuthorizationPending),
+        poll(
+            &mut machine,
+            15,
+            challenge,
+            PollOutcome::AuthorizationPending
+        ),
         Ok(DeviceStatus::Pending {
             challenge,
             poll_in: 10,
@@ -759,11 +755,7 @@ fn a_restarted_machine_refuses_the_old_machines_ticket() {
     assert_eq!(fresh, challenge);
     let live = restarted.start_poll(mono(15), fresh).unwrap();
     assert_eq!(
-        restarted.settle(
-            at(15),
-            &stale,
-            PollOutcome::Approved(login(T0 + 12))
-        ),
+        restarted.settle(at(15), &stale, PollOutcome::Approved(login(T0 + 12))),
         Err(DeviceError::ForeignTicket)
     );
     assert_eq!(
@@ -826,10 +818,7 @@ fn expiry_closes_the_challenge_however_it_is_reached() {
         ),
         Ok(expired(challenge))
     );
-    assert_eq!(
-        machine.authorize(at(LIFETIME)),
-        Err(DeviceError::NoGrant)
-    );
+    assert_eq!(machine.authorize(at(LIFETIME)), Err(DeviceError::NoGrant));
 }
 
 #[test]
@@ -867,11 +856,7 @@ fn refuses_out_of_order_repeated_and_earlier_challenge_tickets() {
         .unwrap();
     let current = machine.start_poll(mono(16), second).unwrap();
     assert_eq!(
-        machine.settle(
-            at(16),
-            &earlier,
-            PollOutcome::Approved(login(T0 + 7))
-        ),
+        machine.settle(at(16), &earlier, PollOutcome::Approved(login(T0 + 7))),
         Err(DeviceError::OutOfOrder)
     );
     assert_eq!(
@@ -883,7 +868,10 @@ fn refuses_out_of_order_repeated_and_earlier_challenge_tickets() {
             expires_in: LIFETIME - 10,
         })
     );
-    assert_eq!(machine.begin(at(16), LIFETIME, None), Err(DeviceError::Busy));
+    assert_eq!(
+        machine.begin(at(16), LIFETIME, None),
+        Err(DeviceError::Busy)
+    );
 }
 
 #[test]
@@ -960,7 +948,12 @@ fn status_and_errors_show_no_identity_or_claim() {
     let mut shown = vec![format!("{:?}", machine.status(at(0)))];
     shown.push(format!(
         "{:?}",
-        poll(&mut machine, 5, challenge, PollOutcome::Approved(login(T0 + 3)))
+        poll(
+            &mut machine,
+            5,
+            challenge,
+            PollOutcome::Approved(login(T0 + 3))
+        )
     ));
     shown.push(format!("{:?}", machine.renew(at(200), renewed(|_| {}))));
     shown.push(format!("{:?}", machine.status(at(600))));

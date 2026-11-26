@@ -63,16 +63,31 @@
 //! evidence to the verifier, which alone decides.
 //!
 //! A reply stamped in the tokens' own whole second is not yet after them:
-//! it is never admitted, but [`settle_observed`] keeps the poll pending
-//! ([`Observed::Retained`]) instead of closing an otherwise legitimate
-//! challenge, and a fresh request answered in a later second decides. Every
-//! other outcome settles at once, and the challenge's expiry still ends it.
+//! it is never admitted, but for tokens of this transaction (this device
+//! request's signed `nonce` and matching `at_hash`, checked first)
+//! [`settle_observed`] keeps the poll pending ([`Observed::Retained`])
+//! instead of closing an otherwise legitimate challenge, and a fresh
+//! request answered in a later second decides. Tokens of another device
+//! request are denied at once, never retained. Every other outcome settles
+//! at once, and the challenge's expiry still ends it.
 //!
 //! # Still to be measured or built
 //!
-//! - Whether a real fresh device login's Keycloak user session lists the
-//!   device client alone must still be measured on the stock V5 fixture;
-//!   if it lists another client, every admission is refused.
+//! - The stock fixture showed a device login after an ordinary SSO login
+//!   reuses that SSO session's `sid`, so a session is not evidence and is
+//!   not read. The tokens are bound to this device request instead (see
+//!   the verifier): the pinned stock Keycloak 26.7.5 fixture measured the
+//!   ID token's signed `nonce` exactly equal to the device request's, no
+//!   access token `nonce`, and a signed `at_hash` matching the exact access
+//!   token bytes. That is the transaction's identity, not factor evidence.
+//! - Before any runtime use, the pending device grant (its device code,
+//!   PKCE verifier and nonce) must also be bound to the machine's pending
+//!   challenge and ticket, so a grant can only settle its own challenge's
+//!   poll; today the caller pairs them. That binding is not built.
+//! - Which executions approved this device code is not recorded per device
+//!   in stock Keycloak: approval stores only the user session's id, and
+//!   `amr`/`auth_time` belong to that user session. Binding the executions
+//!   to the device code needs a server extension; none is built.
 //! - No live collector, and no realm or interval lock between the two
 //!   readbacks, exists yet.
 //!
@@ -96,11 +111,12 @@ use aws_lc_rs::rand::{SecureRandom, SystemRandom};
 use super::{
     is_uuid, is_visible_ascii, Admission, AmrMapperShape, ChallengeId,
     ClaimPolicy, ClientAccess, ClientShape, Clock, DeviceError, DeviceLogin,
-    DeviceStatus, DriftEvidence, ExecutionShape, FlowProvider, FlowReceipt,
-    FlowShape, Grant, MapperHost, MapperProvider, NativeVerifier, OtpAlgorithm,
-    OtpCredentialShape, OtpKind, OtpPolicyShape, Phase, PollTicket, Readback,
-    RequestBinding, Requirement, RequiredActionShape, SessionShape, State,
-    Step, SubjectFactors, UnixSeconds, PASSWORD_REFERENCE, TOTP_REFERENCE,
+    DeviceNonce, DeviceStatus, DriftEvidence, ExecutionShape, FlowProvider,
+    FlowReceipt, FlowShape, Grant, MapperHost, MapperProvider, NativeVerifier,
+    OtpAlgorithm, OtpCredentialShape, OtpKind, OtpPolicyShape, Phase,
+    PollTicket, Readback, RequestBinding, RequiredActionShape, Requirement,
+    State, Step, SubjectFactors, UnixSeconds, PASSWORD_REFERENCE,
+    TOTP_REFERENCE,
 };
 
 const SCHEMA: &str = "sequent.keycloak-device-policy-observation.v1";
@@ -177,7 +193,10 @@ impl ObservationRequest {
     /// A request for `phase` of `challenge`, with a nonce of 32 bytes from
     /// the system's random source. In this test-only module that source is
     /// AWS-LC; a runtime one needs a reviewed dependency.
-    fn new(phase: Phase, challenge: ChallengeId) -> Result<Self, ObservationError> {
+    fn new(
+        phase: Phase,
+        challenge: ChallengeId,
+    ) -> Result<Self, ObservationError> {
         let mut bytes = [0u8; 32];
         SystemRandom::new()
             .fill(&mut bytes)
@@ -272,8 +291,9 @@ struct CredentialWire {
     created_at: UnixSeconds,
 }
 
-/// The trustee's own factors: OTP credentials, pending required actions,
-/// and user sessions.
+/// The trustee's own factors: OTP credentials and pending required actions.
+/// User sessions are not read: the stock device login reuses an earlier SSO
+/// session, so a session's shape proves nothing about this device request.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct SubjectWire {
@@ -281,16 +301,6 @@ struct SubjectWire {
     user_id: String,
     otp_credentials: Vec<CredentialWire>,
     pending_required_actions: Vec<String>,
-    sessions: Vec<SessionWire>,
-}
-
-/// One user session: its id, start and the client ids in it.
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct SessionWire {
-    id: String,
-    start: UnixSeconds,
-    clients: Vec<String>,
 }
 
 #[derive(Clone, Copy, Deserialize, PartialEq, Eq)]
@@ -393,7 +403,10 @@ impl<'de> Deserialize<'de> for ConfigWire {
         struct Entries;
         impl<'de> serde::de::Visitor<'de> for Entries {
             type Value = ConfigWire;
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+            fn expecting(
+                &self,
+                f: &mut std::fmt::Formatter,
+            ) -> std::fmt::Result {
                 f.write_str("an authenticator config of string entries")
             }
             fn visit_map<A: serde::de::MapAccess<'de>>(
@@ -401,7 +414,9 @@ impl<'de> Deserialize<'de> for ConfigWire {
                 mut map: A,
             ) -> Result<ConfigWire, A::Error> {
                 let mut entries = BTreeMap::new();
-                while let Some((key, value)) = map.next_entry::<String, String>()? {
+                while let Some((key, value)) =
+                    map.next_entry::<String, String>()?
+                {
                     if entries.len() >= MAX_CONFIG_ENTRIES
                         || entries.insert(key, value).is_some()
                     {
@@ -458,7 +473,10 @@ struct MapperWire {
     access_token: bool,
 }
 
-fn section<T>(section: &Section<T>, limit: usize) -> Result<&[T], ObservationError> {
+fn section<T>(
+    section: &Section<T>,
+    limit: usize,
+) -> Result<&[T], ObservationError> {
     match section.completeness {
         Completeness::Complete => {}
         Completeness::Partial => return Err(ObservationError::Incomplete),
@@ -546,7 +564,8 @@ fn execution(wire: &ExecutionWire) -> Result<ExecutionShape, ObservationError> {
             {
                 return Err(ObservationError::Malformed);
             }
-            let age = max_age.parse().map_err(|_| ObservationError::Malformed)?;
+            let age =
+                max_age.parse().map_err(|_| ObservationError::Malformed)?;
             (Some(reference.clone()), Some(age))
         }
     };
@@ -606,7 +625,9 @@ fn envelope(
     }
     if !is_uuid(&realm.id)
         || realm.id != expected.realm_id
-        || !realm.issuer.ends_with(&format!("/realms/{}", name(&realm.name)?))
+        || !realm
+            .issuer
+            .ends_with(&format!("/realms/{}", name(&realm.name)?))
     {
         return Err(ObservationError::Realm);
     }
@@ -622,7 +643,10 @@ pub(crate) fn observe_subject(
     request: &ObservationRequest,
 ) -> Result<SubjectFactors, ObservationError> {
     let envelope = envelope(expected, observation, request)?;
-    let wire = envelope.subject.as_ref().ok_or(ObservationError::Inventory)?;
+    let wire = envelope
+        .subject
+        .as_ref()
+        .ok_or(ObservationError::Inventory)?;
     match wire.completeness {
         Completeness::Complete => {}
         Completeness::Partial => return Err(ObservationError::Incomplete),
@@ -647,7 +671,10 @@ pub(crate) fn observe_subject(
         })
         .collect::<Result<Vec<_>, ObservationError>>()?;
     otp_credentials.sort_by(|a, b| a.id.cmp(&b.id));
-    if otp_credentials.windows(2).any(|pair| pair[0].id == pair[1].id) {
+    if otp_credentials
+        .windows(2)
+        .any(|pair| pair[0].id == pair[1].id)
+    {
         return Err(ObservationError::Malformed);
     }
     let mut pending_actions = wire
@@ -657,38 +684,11 @@ pub(crate) fn observe_subject(
         .collect::<Result<Vec<_>, _>>()?;
     pending_actions.sort();
     pending_actions.dedup();
-    if wire.sessions.len() > MAX_CREDENTIALS {
-        return Err(ObservationError::TooLarge);
-    }
-    let mut sessions = Vec::new();
-    let mut session_ids = HashSet::new();
-    for session in &wire.sessions {
-        if !session_ids.insert(name(&session.id)?) {
-            return Err(ObservationError::Malformed);
-        }
-        let mut clients = session
-            .clients
-            .iter()
-            .map(|client| name(client).map(str::to_owned))
-            .collect::<Result<Vec<_>, _>>()?;
-        clients.sort();
-        let distinct = clients.len();
-        clients.dedup();
-        if clients.len() != distinct || distinct > MAX_CLIENTS {
-            return Err(ObservationError::Malformed);
-        }
-        sessions.push(SessionShape {
-            id: session.id.clone(),
-            started_at: session.start,
-            clients,
-        });
-    }
     Ok(SubjectFactors {
         binding: request.binding.clone(),
         subject: wire.user_id.clone(),
         otp_credentials,
         pending_actions,
-        sessions,
         observed_at: envelope.collector.observed_at,
     })
 }
@@ -744,7 +744,8 @@ pub(crate) fn observe(
         (false, true) => ClientAccess::BearerOnly,
         (true, true) => return Err(ObservationError::Malformed),
     };
-    let mut grants: Vec<Grant> = device.grants.iter().copied().map(grant).collect();
+    let mut grants: Vec<Grant> =
+        device.grants.iter().copied().map(grant).collect();
     grants.sort();
     let distinct = grants.len();
     grants.dedup();
@@ -784,11 +785,9 @@ pub(crate) fn observe(
     if flow.executions.len() > MAX_EXECUTIONS {
         return Err(ObservationError::TooLarge);
     }
-    if !flow
-        .executions
-        .windows(2)
-        .all(|pair| pair.first().map(|e| e.priority) < pair.last().map(|e| e.priority))
-    {
+    if !flow.executions.windows(2).all(|pair| {
+        pair.first().map(|e| e.priority) < pair.last().map(|e| e.priority)
+    }) {
         return Err(ObservationError::Priority);
     }
     let executions = flow
@@ -817,7 +816,8 @@ pub(crate) fn observe(
         let collides = other.executions.iter().any(|execution| {
             execution.config.as_ref().is_some_and(|ConfigWire(config)| {
                 config.get(REFERENCE_VALUE).is_some_and(|reference| {
-                    reference == PASSWORD_REFERENCE || reference == TOTP_REFERENCE
+                    reference == PASSWORD_REFERENCE
+                        || reference == TOTP_REFERENCE
                 })
             })
         });
@@ -912,7 +912,10 @@ pub(crate) fn observe(
 /// Nothing implements it outside the tests: no such channel exists yet.
 pub(crate) trait AuthenticatedCollector {
     /// The collector's reply to `request`, or none when it cannot answer.
-    fn collect(&self, request: &ObservationRequest) -> Option<AuthenticatedObservation>;
+    fn collect(
+        &self,
+        request: &ObservationRequest,
+    ) -> Option<AuthenticatedObservation>;
 }
 
 /// The challenge a machine has pending.
@@ -932,8 +935,10 @@ pub(crate) fn observe_before(
     verifier: &NativeVerifier,
     machine: &DeviceLogin,
 ) -> Result<SubjectFactors, ObservationError> {
-    let challenge = pending_challenge(machine).ok_or(ObservationError::Binding)?;
-    let request = ObservationRequest::new(Phase::BeforeAuthentication, challenge)?;
+    let challenge =
+        pending_challenge(machine).ok_or(ObservationError::Binding)?;
+    let request =
+        ObservationRequest::new(Phase::BeforeAuthentication, challenge)?;
     let observation = collector
         .collect(&request)
         .ok_or(ObservationError::ReadDenied)?;
@@ -959,6 +964,8 @@ pub(crate) enum Observed {
 /// the tokens, and settles with that evidence, unless the reply lands in
 /// the tokens' own second, when the poll is retained instead. Without any
 /// evidence the poll is settled with none, which never proves a factor.
+/// `device_nonce` is the nonce of this challenge's own pending device
+/// request; every settlement, admitted or not, checks the tokens against it.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn settle_observed(
     verifier: &NativeVerifier,
@@ -969,10 +976,12 @@ pub(crate) fn settle_observed(
     expected: &ExpectedInstall,
     collector: &dyn AuthenticatedCollector,
     before: Option<&SubjectFactors>,
+    device_nonce: &DeviceNonce,
 ) -> Result<Observed, DeviceError> {
     let after_tokens = || -> Option<(DriftEvidence, SubjectFactors)> {
         let challenge = pending_challenge(machine)?;
-        let request = ObservationRequest::new(Phase::AfterTokens, challenge).ok()?;
+        let request =
+            ObservationRequest::new(Phase::AfterTokens, challenge).ok()?;
         let observation = collector.collect(&request)?;
         let readback = observe(expected, &observation, &request).ok()?;
         let after = observe_subject(
@@ -994,14 +1003,28 @@ pub(crate) fn settle_observed(
             };
             // Only the reply's own second is retained: every other outcome,
             // admitted or not, is settled at once.
-            if verifier.try_admission(machine, clock, tokens, &admission)
-                == Err(super::VerifyError::ReadbackSameSecond)
+            if verifier.try_admission(
+                machine,
+                clock,
+                tokens,
+                device_nonce,
+                &admission,
+            ) == Err(super::VerifyError::ReadbackSameSecond)
             {
                 return Ok(Observed::Retained);
             }
-            verifier.settle_pair_admitted(machine, clock, ticket, tokens, &admission)
+            verifier.settle_pair_admitted(
+                machine,
+                clock,
+                ticket,
+                tokens,
+                device_nonce,
+                &admission,
+            )
         }
-        None => verifier.settle_pair(machine, clock, ticket, tokens.0, tokens.1),
+        None => {
+            verifier.settle_pair(machine, clock, ticket, tokens, device_nonce)
+        }
     };
     status.map(Observed::Settled)
 }
@@ -1041,5 +1064,5 @@ fn facts(
 }
 
 #[cfg(test)]
-#[path = "device_policy_keycloak_tests.rs"]
+#[path = "../tests/support/device_policy_keycloak_tests.rs"]
 mod tests;

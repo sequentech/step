@@ -22,6 +22,13 @@
 //!   even when null, is refused, and none is ever followed.
 //! - Every claim is checked after the signature, against an explicit wall
 //!   time and the trusted challenge start, with no leeway.
+//! - Every settlement checks the transaction's identity: the ID token's
+//!   signed `nonce` is exactly the single-use [`DeviceNonce`] sent with
+//!   this pending device request, and its signed `at_hash` is that of these
+//!   exact access token bytes (as the stock Keycloak 26.7.5 fixture shows:
+//!   ID nonce exact, no access nonce, at_hash matching, same reused SSO
+//!   `sid`). That says which device request the tokens answer; it is not
+//!   evidence of any factor, which stays the admission's alone.
 //! - No generic claim proves a fresh second factor: `acr` is never read,
 //!   and [`NativeVerifier::for_machine`] is `Unproven`, so every login it
 //!   returns carries [`MfaEvidence::Absent`], which the model discards.
@@ -57,8 +64,7 @@ use serde::Deserialize;
 
 use super::{
     ChallengeId, Clock, DeviceError, DeviceLogin, DeviceScope, DeviceStatus,
-    FreshMfa,
-    MfaEvidence, Owner, PollOutcome, PollTicket, SecondFactor, State,
+    FreshMfa, MfaEvidence, Owner, PollOutcome, PollTicket, SecondFactor, State,
     UnixSeconds, VerifiedLogin, MAX_GRANT_LIFETIME,
 };
 
@@ -149,9 +155,12 @@ pub(crate) enum VerifyError {
     /// The evidence is not bound to this challenge by its own requests'
     /// nonces and phases.
     Binding,
-    /// The tokens' session is not a fresh session of this challenge used
-    /// by the device client alone.
-    SessionNotFresh,
+    /// The ID token's signed `nonce` is not this device request's: the
+    /// tokens were not issued for this challenge's device code.
+    DeviceNonce,
+    /// The ID token's signed `at_hash` is missing, or not that of the
+    /// access token given with it.
+    AccessHash,
 }
 
 /// What proves the trustee's second factor.
@@ -370,7 +379,14 @@ impl FlowReceipt {
             push_field(&mut out, &action.alias);
             push_field(&mut out, &action.provider_id);
             push_field(&mut out, if action.enabled { "enabled" } else { "-" });
-            push_field(&mut out, if action.default_action { "default" } else { "-" });
+            push_field(
+                &mut out,
+                if action.default_action {
+                    "default"
+                } else {
+                    "-"
+                },
+            );
             push_field(&mut out, &action.priority.to_string());
         }
         let otp = &self.otp_policy;
@@ -429,7 +445,9 @@ impl FlowReceipt {
         push_field(&mut out, &self.amr_mappers.len().to_string());
         for mapper in &self.amr_mappers {
             match &mapper.provider {
-                MapperProvider::OidcAmr => push_field(&mut out, "oidc-amr-mapper"),
+                MapperProvider::OidcAmr => {
+                    push_field(&mut out, "oidc-amr-mapper")
+                }
                 MapperProvider::Other(provider) => {
                     push_field(&mut out, "other");
                     push_field(&mut out, provider);
@@ -443,7 +461,10 @@ impl FlowReceipt {
                 }
             }
             push_field(&mut out, if mapper.id_token { "id" } else { "-" });
-            push_field(&mut out, if mapper.access_token { "access" } else { "-" });
+            push_field(
+                &mut out,
+                if mapper.access_token { "access" } else { "-" },
+            );
         }
         out
     }
@@ -513,15 +534,14 @@ impl FlowReceipt {
         let realm_ok = is_visible_ascii(&self.realm_browser_flow, 255)
             && self.realm_browser_flow != flow.alias;
         let actions = &self.required_actions;
-        let actions_ok = actions
-            .windows(2)
-            .all(|pair| pair[0].alias < pair[1].alias)
-            && actions.iter().all(|action| !action.default_action)
-            && actions.iter().any(|action| {
-                action.alias == CONFIGURE_TOTP
-                    && action.provider_id == CONFIGURE_TOTP
-                    && action.enabled
-            });
+        let actions_ok =
+            actions.windows(2).all(|pair| pair[0].alias < pair[1].alias)
+                && actions.iter().all(|action| !action.default_action)
+                && actions.iter().any(|action| {
+                    action.alias == CONFIGURE_TOTP
+                        && action.provider_id == CONFIGURE_TOTP
+                        && action.enabled
+                });
         (self.idp_release == PINNED_IDP_RELEASE
             && self.issuer == policy.issuer
             && realm_ok
@@ -595,13 +615,65 @@ fn is_request_nonce(nonce: &str) -> bool {
     nonce.len() == 43 && is_base64url(nonce)
 }
 
-/// One user session of the trustee: its id, start and the clients in it.
-#[derive(Clone, PartialEq, Eq)]
-struct SessionShape {
-    id: String,
-    started_at: UnixSeconds,
-    /// Client ids, sorted.
-    clients: Vec<String>,
+/// Unpadded base64url.
+fn encode_base64url(bytes: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] =
+        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    let mut out = String::new();
+    for chunk in bytes.chunks(3) {
+        let mut buf = [0u8; 3];
+        buf[..chunk.len()].copy_from_slice(chunk);
+        let n = (u32::from(buf[0]) << 16)
+            | (u32::from(buf[1]) << 8)
+            | u32::from(buf[2]);
+        for i in 0..=chunk.len() {
+            let index = (n >> (18 - 6 * i)) & 63;
+            out.push(char::from(ALPHABET[index as usize]));
+        }
+    }
+    out
+}
+
+/// The single-use nonce of one device authorization request: 32 bytes from
+/// the system's random source, made for exactly one pending device request
+/// and sent only in its form. Keycloak keeps it with that device code and
+/// signs it back as the ID token's `nonce` for the token issued for that
+/// code. It identifies the transaction; it proves no factor. No `Display`;
+/// its `Debug` shows nothing. In this test-only module the random source is
+/// AWS-LC; a runtime one needs a reviewed dependency.
+#[derive(Clone)]
+pub(crate) struct DeviceNonce(String);
+
+impl DeviceNonce {
+    pub(crate) fn generate() -> Result<DeviceNonce, VerifyError> {
+        use aws_lc_rs::rand::{SecureRandom, SystemRandom};
+        let mut bytes = [0u8; 32];
+        SystemRandom::new()
+            .fill(&mut bytes)
+            .map_err(|_| VerifyError::DeviceNonce)?;
+        Ok(DeviceNonce(encode_base64url(&bytes)))
+    }
+
+    /// The value for the device authorization form's `nonce` field.
+    pub(crate) fn form_value(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Debug for DeviceNonce {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("DeviceNonce(<redacted>)")
+    }
+}
+
+/// The OIDC `at_hash` of an access token signed with RS256: the left half
+/// of the SHA-256 of its exact ASCII bytes, unpadded base64url.
+fn rs256_access_hash(access_token: &str) -> String {
+    let digest = aws_lc_rs::digest::digest(
+        &aws_lc_rs::digest::SHA256,
+        access_token.as_bytes(),
+    );
+    encode_base64url(&digest.as_ref()[..16])
 }
 
 /// One OTP credential of the trustee: its id and creation time.
@@ -619,20 +691,19 @@ struct SubjectFactors {
     subject: String,
     otp_credentials: Vec<OtpCredentialShape>,
     pending_actions: Vec<String>,
-    sessions: Vec<SessionShape>,
     observed_at: UnixSeconds,
 }
 
 /// What the tokens themselves say that the admission checks against.
-struct IssuedPair<'a> {
+struct IssuedPair {
     issued: [UnixSeconds; 2],
     auth_time: UnixSeconds,
-    session_id: &'a str,
 }
 
 /// What a proven admission needs besides the tokens: a flow readback made
 /// after both tokens were issued, and the trustee's factors observed before
-/// the challenge and again after the tokens.
+/// the challenge and again after the tokens. This is factor evidence; the
+/// transaction's identity is checked apart, for every settlement.
 struct Admission<'a> {
     readback: &'a DriftEvidence,
     before: &'a SubjectFactors,
@@ -897,6 +968,10 @@ struct Claims {
     hasura: Option<HasuraClaims>,
     /// Read only under a flow proof, and only from signed tokens.
     amr: Option<serde_json::Value>,
+    /// The device request's nonce, as the IdP signed it back.
+    nonce: Option<String>,
+    /// The ID token's hash of its access token.
+    at_hash: Option<String>,
 }
 
 /// Verifies device grant token pairs for one machine's trustee.
@@ -946,15 +1021,24 @@ impl NativeVerifier {
     /// fetched: approved with the verified login, which the model then
     /// judges, or denied when any check fails. A verifier made for another
     /// machine verifies nothing and denies.
+    /// `device_nonce` is the nonce of the pending device request this poll
+    /// belongs to; tokens not issued for it are denied.
     pub(crate) fn settle_pair(
         &self,
         machine: &mut DeviceLogin,
         clock: Clock,
         ticket: &PollTicket,
-        access_token: &str,
-        id_token: &str,
+        tokens: (&str, &str),
+        device_nonce: &DeviceNonce,
     ) -> Result<DeviceStatus, DeviceError> {
-        self.settle_pair_with(machine, clock, ticket, access_token, id_token, None)
+        self.settle_pair_with(
+            machine,
+            clock,
+            ticket,
+            tokens,
+            device_nonce,
+            None,
+        )
     }
 
     /// As `settle_pair`, with the evidence a proven admission needs. Private
@@ -965,15 +1049,15 @@ impl NativeVerifier {
         clock: Clock,
         ticket: &PollTicket,
         tokens: (&str, &str),
+        device_nonce: &DeviceNonce,
         admission: &Admission,
     ) -> Result<DeviceStatus, DeviceError> {
-        let (access_token, id_token) = tokens;
         self.settle_pair_with(
             machine,
             clock,
             ticket,
-            access_token,
-            id_token,
+            tokens,
+            device_nonce,
             Some(admission),
         )
     }
@@ -986,10 +1070,13 @@ impl NativeVerifier {
         machine: &DeviceLogin,
         clock: Clock,
         tokens: (&str, &str),
+        device_nonce: &DeviceNonce,
         admission: &Admission,
     ) -> Result<(), VerifyError> {
         let (started, challenge) = match &machine.state {
-            State::Pending(pending) => (pending.started_wall, pending.challenge),
+            State::Pending(pending) => {
+                (pending.started_wall, pending.challenge)
+            }
             _ => return Err(VerifyError::Binding),
         };
         if !Arc::ptr_eq(&self.owner.0, &machine.owner.0) {
@@ -1000,6 +1087,7 @@ impl NativeVerifier {
             tokens.1,
             started,
             clock.wall,
+            device_nonce,
             Some((admission, challenge)),
         )
         .map(|_| ())
@@ -1010,13 +1098,16 @@ impl NativeVerifier {
         machine: &mut DeviceLogin,
         clock: Clock,
         ticket: &PollTicket,
-        access_token: &str,
-        id_token: &str,
+        tokens: (&str, &str),
+        device_nonce: &DeviceNonce,
         admission: Option<&Admission>,
     ) -> Result<DeviceStatus, DeviceError> {
+        let (access_token, id_token) = tokens;
         machine.claim(ticket)?;
         let (started, challenge) = match &machine.state {
-            State::Pending(pending) => (pending.started_wall, pending.challenge),
+            State::Pending(pending) => {
+                (pending.started_wall, pending.challenge)
+            }
             _ => return Err(DeviceError::NoChallenge),
         };
         let verified = if Arc::ptr_eq(&self.owner.0, &machine.owner.0) {
@@ -1026,6 +1117,7 @@ impl NativeVerifier {
                 id_token,
                 started,
                 clock.wall,
+                device_nonce,
                 admission.map(|admission| (admission, challenge)),
             )
         } else {
@@ -1047,8 +1139,16 @@ impl NativeVerifier {
         id_token: &str,
         challenge_started: UnixSeconds,
         now: UnixSeconds,
+        device_nonce: &DeviceNonce,
     ) -> Result<VerifiedLogin, VerifyError> {
-        self.verify_pair_with(access_token, id_token, challenge_started, now, None)
+        self.verify_pair_with(
+            access_token,
+            id_token,
+            challenge_started,
+            now,
+            device_nonce,
+            None,
+        )
     }
 
     /// The admission checks of a proven factor, after the tokens' own:
@@ -1064,9 +1164,10 @@ impl NativeVerifier {
     ///   created before the challenge, and no pending required action, so
     ///   an enrollment inside this run never counts;
     /// - the later factors, observed strictly after both `iat`: the same
-    ///   credential, still no pending action, and the tokens' session, one
-    ///   that started with this challenge, not before, and was used by the
-    ///   device client alone, so no earlier or shared SSO session counts.
+    ///   credential, still no pending action.
+    ///
+    /// The transaction's identity (signed `nonce` and `at_hash`) is checked
+    /// before, for every settlement; it is no factor evidence.
     fn check_admission(
         &self,
         bound: &BoundFlowProof,
@@ -1099,7 +1200,12 @@ impl NativeVerifier {
         {
             return Err(VerifyError::FlowDrift);
         }
-        let latest = pair.issued.iter().copied().max().unwrap_or(UnixSeconds::MAX);
+        let latest = pair
+            .issued
+            .iter()
+            .copied()
+            .max()
+            .unwrap_or(UnixSeconds::MAX);
         if readback.checked_at < latest {
             return Err(VerifyError::ReadbackBeforeTokens);
         }
@@ -1140,16 +1246,35 @@ impl NativeVerifier {
         {
             return Err(VerifyError::FactorChanged);
         }
-        let mut sessions =
-            after.sessions.iter().filter(|session| session.id == pair.session_id);
-        let (Some(session), None) = (sessions.next(), sessions.next()) else {
-            return Err(VerifyError::SessionNotFresh);
-        };
-        if session.started_at < challenge_started
-            || session.started_at > pair.auth_time
-            || session.clients != [self.policy.client_id.as_str()]
+        Ok(())
+    }
+
+    /// The transaction's identity, for every settlement, proven or not: the
+    /// tokens were issued for this pending device request and belong
+    /// together. The ID token carries, signed, exactly the nonce sent with
+    /// that request (and so does the access token if it carries one; stock
+    /// Keycloak's does not), and its signed `at_hash` is that of these exact
+    /// access token bytes, so no other signed access token can stand in.
+    /// The user session may be an earlier SSO session the device login
+    /// reused, so the session proves nothing here. This identifies the
+    /// transaction; it is not evidence of any factor.
+    fn check_transaction(
+        access_token: &str,
+        access: &Claims,
+        id: &Claims,
+        device_nonce: &DeviceNonce,
+    ) -> Result<(), VerifyError> {
+        let nonce = device_nonce.0.as_str();
+        if !is_request_nonce(nonce)
+            || id.nonce.as_deref() != Some(nonce)
+            || access.nonce.as_deref().is_some_and(|other| other != nonce)
         {
-            return Err(VerifyError::SessionNotFresh);
+            return Err(VerifyError::DeviceNonce);
+        }
+        if id.at_hash.as_deref()
+            != Some(rs256_access_hash(access_token).as_str())
+        {
+            return Err(VerifyError::AccessHash);
         }
         Ok(())
     }
@@ -1160,12 +1285,14 @@ impl NativeVerifier {
         id_token: &str,
         challenge_started: UnixSeconds,
         now: UnixSeconds,
+        device_nonce: &DeviceNonce,
         admission: Option<(&Admission, ChallengeId)>,
     ) -> Result<VerifiedLogin, VerifyError> {
         let access = self.verified_claims(access_token)?;
         let id = self.verified_claims(id_token)?;
         self.check_common(&access, now)?;
         self.check_common(&id, now)?;
+        Self::check_transaction(access_token, &access, &id, device_nonce)?;
         if access.typ != ACCESS_TYPE || id.typ != ID_TYPE {
             return Err(VerifyError::TokenType);
         }
@@ -1180,7 +1307,8 @@ impl NativeVerifier {
         }
         let session_id = match (&access.sid, &id.sid) {
             (Some(access_sid), Some(id_sid))
-                if access_sid == id_sid && is_visible_ascii(access_sid, 255) =>
+                if access_sid == id_sid
+                    && is_visible_ascii(access_sid, 255) =>
             {
                 access_sid.clone()
             }
@@ -1227,7 +1355,6 @@ impl NativeVerifier {
                 let pair = IssuedPair {
                     issued: [access.iat, id.iat],
                     auth_time,
-                    session_id: &session_id,
                 };
                 self.check_admission(
                     bound,
@@ -1376,7 +1503,7 @@ impl NativeVerifier {
 }
 
 #[cfg(test)]
-#[path = "device_verify_tests.rs"]
+#[path = "../tests/support/device_verify_tests.rs"]
 pub(crate) mod tests;
 
 /// The inert Keycloak policy observation seam: a child, so it alone can

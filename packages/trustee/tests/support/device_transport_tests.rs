@@ -181,8 +181,8 @@ fn accepts_only_the_realms_own_verification_page() {
         assert!(!endpoints.accepts_verification_uri(wrong), "{wrong}");
     }
 
-    let on_port = IdpEndpoints::new("https://idp.synthetic.invalid:8443", REALM)
-        .unwrap();
+    let on_port =
+        IdpEndpoints::new("https://idp.synthetic.invalid:8443", REALM).unwrap();
     assert!(!on_port.accepts_verification_uri(VERIFICATION));
 }
 
@@ -297,8 +297,7 @@ fn shows_only_the_locally_derived_verification_address() {
     // Configured with an explicit default port: the derived address drops
     // it, and only that spelling is accepted and shown.
     let endpoints =
-        IdpEndpoints::new("https://idp.synthetic.invalid:443/", REALM)
-            .unwrap();
+        IdpEndpoints::new("https://idp.synthetic.invalid:443/", REALM).unwrap();
     assert_eq!(endpoints.verification_uri(), VERIFICATION);
     let spelled = device_body(|r| {
         r.insert(
@@ -307,8 +306,7 @@ fn shows_only_the_locally_derived_verification_address() {
         );
     });
     assert_eq!(
-        parse_device_authorization(&endpoints, 200, Some(JSON), &spelled)
-            .err(),
+        parse_device_authorization(&endpoints, 200, Some(JSON), &spelled).err(),
         Some(TransportError::VerificationUriMismatch)
     );
     let authorization = parse_device_authorization(
@@ -318,7 +316,10 @@ fn shows_only_the_locally_derived_verification_address() {
         &device_body(|_| {}),
     )
     .unwrap();
-    assert_eq!(authorization.verification_uri(), endpoints.verification_uri());
+    assert_eq!(
+        authorization.verification_uri(),
+        endpoints.verification_uri()
+    );
 }
 
 /// A model machine for the synthetic scope, with a challenge begun at 0.
@@ -353,7 +354,11 @@ fn polled(
     reply: PollReply,
 ) -> Polled {
     let ticket = machine.start_poll(at(offset).mono, challenge).unwrap();
-    Polled { ticket, reply }
+    Polled {
+        ticket,
+        reply,
+        nonce: DeviceNonce::generate().unwrap(),
+    }
 }
 
 #[test]
@@ -442,6 +447,7 @@ fn awaiting_pair(
     let polled = Polled {
         ticket: fixture.ticket(),
         reply,
+        nonce: fixture.device_nonce.clone(),
     };
     let Ok(Settled::AwaitingVerification(waiting)) =
         polled.settle(&mut fixture.machine, signed::clock(5, signed::NOW))
@@ -462,7 +468,11 @@ fn a_signed_pair_settles_its_own_ticket_and_is_discarded_unproven() {
     );
     let clock = signed::clock(6, signed::NOW);
     assert_eq!(
-        waiting.verify_and_settle(&mut fixture.machine, clock, &fixture.verifier),
+        waiting.verify_and_settle(
+            &mut fixture.machine,
+            clock,
+            &fixture.verifier
+        ),
         Ok(DeviceStatus::Closed {
             challenge,
             closure: crate::device::Closure::Discarded(
@@ -471,6 +481,38 @@ fn a_signed_pair_settles_its_own_ticket_and_is_discarded_unproven() {
         })
     );
     assert_eq!(fixture.machine.authorize(clock), Err(DeviceError::NoGrant));
+}
+
+#[test]
+fn a_pair_of_another_device_request_closes_this_ticket_as_denied() {
+    // The poll belongs to one device request's nonce; the tokens were
+    // issued for another (stock: same reused session, other device code).
+    let mut fixture = signed::fixture();
+    let challenge = fixture.challenge;
+    let body =
+        fixture.token_reply(&signed::access_claims(), &signed::id_claims());
+    let polled = Polled {
+        ticket: fixture.ticket(),
+        reply: parse_poll(200, Some(JSON), &body),
+        nonce: DeviceNonce::generate().unwrap(),
+    };
+    let clock = signed::clock(5, signed::NOW);
+    let Ok(Settled::AwaitingVerification(waiting)) =
+        polled.settle(&mut fixture.machine, clock)
+    else {
+        panic!("expected a reply awaiting verification");
+    };
+    assert_eq!(
+        waiting.verify_and_settle(
+            &mut fixture.machine,
+            clock,
+            &fixture.verifier
+        ),
+        Ok(DeviceStatus::Closed {
+            challenge,
+            closure: crate::device::Closure::Denied,
+        })
+    );
 }
 
 #[test]
@@ -488,10 +530,13 @@ fn an_unverifiable_pair_closes_its_own_ticket_as_denied() {
     let challenge = fixture.challenge;
     let mut other = signed::access_claims();
     signed::set(&mut other, "sub", json!(signed::OTHER_UUID));
-    let waiting =
-        awaiting_pair(&mut fixture, &other, &signed::id_claims());
+    let waiting = awaiting_pair(&mut fixture, &other, &signed::id_claims());
     assert_eq!(
-        waiting.verify_and_settle(&mut fixture.machine, clock, &fixture.verifier),
+        waiting.verify_and_settle(
+            &mut fixture.machine,
+            clock,
+            &fixture.verifier
+        ),
         denied(challenge)
     );
     assert_eq!(fixture.machine.authorize(clock), Err(DeviceError::NoGrant));
@@ -524,7 +569,11 @@ fn an_unverifiable_pair_closes_its_own_ticket_as_denied() {
     );
     let late = signed::clock(6, signed::NOW + 280);
     assert_eq!(
-        waiting.verify_and_settle(&mut fixture.machine, late, &fixture.verifier),
+        waiting.verify_and_settle(
+            &mut fixture.machine,
+            late,
+            &fixture.verifier
+        ),
         denied(challenge)
     );
 }
@@ -540,7 +589,10 @@ fn classifies_device_authorization_statuses_and_media() {
         parse(200, Some("text/html"), &body),
         Some(TransportError::WrongContentType)
     );
-    assert_eq!(parse(200, None, &body), Some(TransportError::WrongContentType));
+    assert_eq!(
+        parse(200, None, &body),
+        Some(TransportError::WrongContentType)
+    );
     let oversized = vec![b' '; DEVICE_RESPONSE_LIMIT + 1];
     assert_eq!(
         parse(200, Some(JSON), &oversized),
@@ -726,6 +778,17 @@ fn requires_an_explicit_s256_pair_used_once() {
     let mut ledger = ChallengeLedger::default();
     ledger.register(&pkce()).unwrap();
     assert_eq!(ledger.register(&pkce()), Err(TransportError::PkceReused));
+
+    // Each device request's nonce is single-use too.
+    let nonce = DeviceNonce::generate().unwrap();
+    ledger.register_nonce(&nonce).unwrap();
+    assert_eq!(
+        ledger.register_nonce(&nonce.clone()),
+        Err(TransportError::NonceReused)
+    );
+    ledger
+        .register_nonce(&DeviceNonce::generate().unwrap())
+        .unwrap();
 }
 
 #[test]
@@ -735,7 +798,9 @@ fn sends_each_secret_only_where_keycloak_expects_it() {
         ClientSecret::new(SECRET.to_owned()).unwrap(),
     );
     let pkce = pkce();
-    let authorization = authorization_form(&client_id, &auth, &pkce);
+    let nonce = DeviceNonce::generate().unwrap();
+    let authorization = authorization_form(&client_id, &auth, &pkce, &nonce);
+    // The request's own nonce goes in its own stock form, and nowhere else.
     assert_eq!(
         authorization,
         vec![
@@ -744,12 +809,14 @@ fn sends_each_secret_only_where_keycloak_expects_it() {
             ("scope", "openid"),
             ("code_challenge", challenge().as_str()),
             ("code_challenge_method", "S256"),
+            ("nonce", nonce.form_value()),
         ]
     );
 
     let grant = PendingDeviceGrant {
         authorization: parse_device(&device_body(|_| {})).unwrap(),
         pkce,
+        nonce,
     };
     let code = device_code();
     let verifier = verifier();
@@ -771,9 +838,12 @@ fn shows_no_secret_in_debug() {
     let auth = ClientAuthentication::SecretPost(
         ClientSecret::new(SECRET.to_owned()).unwrap(),
     );
+    let nonce = DeviceNonce::generate().unwrap();
+    let nonce_value = nonce.form_value().to_owned();
     let grant = PendingDeviceGrant {
         authorization: parse_device(&device_body(|_| {})).unwrap(),
         pkce: pkce(),
+        nonce,
     };
     let shown = format!("{auth:?} {grant:?} {:?}", grant.authorization());
     for secret in [
@@ -782,6 +852,7 @@ fn shows_no_secret_in_debug() {
         device_code(),
         verifier(),
         challenge(),
+        nonce_value,
     ] {
         assert!(!shown.contains(&secret), "{shown}");
     }
@@ -801,9 +872,6 @@ fn refuses_bad_client_credentials_and_ca_bundles() {
     let garbage =
         b"-----BEGIN CERTIFICATE-----\nsynthetic\n-----END CERTIFICATE-----\n";
     for pem in [b"".as_slice(), b"synthetic".as_slice(), garbage.as_slice()] {
-        assert_eq!(
-            build_client(pem).err(),
-            Some(TransportError::BadCaBundle)
-        );
+        assert_eq!(build_client(pem).err(), Some(TransportError::BadCaBundle));
     }
 }

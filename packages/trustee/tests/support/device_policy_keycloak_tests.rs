@@ -5,12 +5,12 @@
 //! Synthetic tests of the Keycloak policy observation seam. Every envelope
 //! is synthetic, built here; nothing is read from a live realm.
 
-use super::*;
 use super::super::tests::{fixture, ISSUER, START, SUBJECT, TENANT};
 use super::super::{
     FlowPolicyProof, SecondFactorPolicy, MAX_MFA_AGE, PASSWORD_REFERENCE,
     TOTP_REFERENCE,
 };
+use super::*;
 use crate::device::{DeviceScope, ScopeInput};
 use serde_json::{json, Value};
 
@@ -23,8 +23,11 @@ const OBSERVED_AT: UnixSeconds = 1_800_000_070;
 const OTHER_SUBJECT: &str = "00000000-0000-4000-8000-0000000000e6";
 /// The nonce of the synthetic after-tokens request the template answers.
 const NONCE: &str = "synthetic-observation-request-nonce-0000000";
-const SESSION: &str = "synthetic-session-0001";
-const SESSION_START: UnixSeconds = START + 8;
+/// The fixture tokens' session: an earlier ordinary SSO session the device
+/// login reused, as the stock fixture showed.
+const SESSION: &str = "synthetic-ordinary-sso-session";
+/// The nonce this runner sent with the challenge's device request.
+const DEVICE_NONCE: &str = "synthetic-device-request-nonce-000000000000";
 
 /// The request the template answers: after the tokens, challenge 1.
 fn request() -> ObservationRequest {
@@ -115,9 +118,6 @@ fn envelope() -> Value {
                 { "id": "synthetic-otp-credential-1", "created_at": OBSERVED_AT - 86_400 },
             ],
             "pending_required_actions": [],
-            "sessions": [
-                { "id": SESSION, "start": SESSION_START, "clients": [CLIENT] },
-            ],
         },
         "clients": {
             "completeness": "complete",
@@ -211,7 +211,9 @@ fn authenticated(body: Vec<u8>) -> AuthenticatedObservation {
     }
 }
 
-fn observed(edit: impl FnOnce(&mut Value)) -> Result<DriftEvidence, ObservationError> {
+fn observed(
+    edit: impl FnOnce(&mut Value),
+) -> Result<DriftEvidence, ObservationError> {
     let mut value = envelope();
     edit(&mut value);
     observe(
@@ -234,7 +236,9 @@ fn case(name: &'static str, edit: impl FnOnce(&mut Value) + 'static) -> Edit {
 
 /// The dedicated flow's executions.
 fn executions(value: &mut Value) -> &mut Vec<Value> {
-    value["flows"]["items"][1]["executions"].as_array_mut().unwrap()
+    value["flows"]["items"][1]["executions"]
+        .as_array_mut()
+        .unwrap()
 }
 
 #[test]
@@ -254,7 +258,10 @@ fn an_exact_complete_observation_is_the_qualifying_installed_shape() {
         receipt: evidence.observed.clone(),
         drift: evidence,
     };
-    assert_eq!(proof.bind(&policy()).map(|bound| bound.max_age).ok(), Some(MAX_MFA_AGE));
+    assert_eq!(
+        proof.bind(&policy()).map(|bound| bound.max_age).ok(),
+        Some(MAX_MFA_AGE)
+    );
 
     // The order the collector lists things in never matters.
     let reordered = observed(|v| {
@@ -265,7 +272,10 @@ fn an_exact_complete_observation_is_the_qualifying_installed_shape() {
     .unwrap();
     let exact = observed(|_| {}).unwrap();
     assert!(reordered.observed == exact.observed);
-    assert_eq!(reordered.observed.fingerprint(), exact.observed.fingerprint());
+    assert_eq!(
+        reordered.observed.fingerprint(),
+        exact.observed.fingerprint()
+    );
 }
 
 #[test]
@@ -287,7 +297,9 @@ fn a_partial_or_unreadable_section_is_no_evidence() {
             "{section}"
         );
         assert_eq!(
-            refusal(|v| drop(v[section].as_object_mut().unwrap().remove("completeness"))),
+            refusal(|v| drop(
+                v[section].as_object_mut().unwrap().remove("completeness")
+            )),
             Some(ObservationError::Schema),
             "{section}"
         );
@@ -303,23 +315,33 @@ fn refuses_anything_but_the_closed_schema() {
         case("collector missing", |v| {
             v.as_object_mut().unwrap().remove("collector");
         }),
-        case("client extra", |v| v["clients"]["items"][0]["secret"] = json!("x")),
+        case("client extra", |v| {
+            v["clients"]["items"][0]["secret"] = json!("x")
+        }),
         case("unknown grant", |v| {
             v["clients"]["items"][0]["grants"] = json!(["password"]);
         }),
-        case("execution extra", |v| executions(v)[0]["flow_id"] = json!("x")),
+        case("execution extra", |v| {
+            executions(v)[0]["flow_id"] = json!("x")
+        }),
         case("unknown requirement", |v| {
             executions(v)[1]["requirement"] = json!("OPTIONAL");
         }),
         case("numeric age", |v| {
             executions(v)[1]["config"]["default.reference.maxAge"] = json!(60);
         }),
-        case("unknown host", |v| v["mappers"]["items"][0]["host"] = json!("realm")),
-        case("mapper extra", |v| v["mappers"]["items"][0]["config"] = json!({})),
+        case("unknown host", |v| {
+            v["mappers"]["items"][0]["host"] = json!("realm")
+        }),
+        case("mapper extra", |v| {
+            v["mappers"]["items"][0]["config"] = json!({})
+        }),
         case("unknown otp algorithm", |v| {
             v["realm"]["otp_policy"]["algorithm"] = json!("HmacMD5");
         }),
-        case("unknown otp kind", |v| v["realm"]["otp_policy"]["kind"] = json!("sms")),
+        case("unknown otp kind", |v| {
+            v["realm"]["otp_policy"]["kind"] = json!("sms")
+        }),
         case("otp policy extra", |v| {
             v["realm"]["otp_policy"]["initial_counter"] = json!(0);
         }),
@@ -349,16 +371,22 @@ fn refuses_anything_but_the_closed_schema() {
         );
     }
     assert_eq!(
-        observe(&expected(), &authenticated(vec![b' '; BODY_LIMIT + 1]), &request())
-            .err(),
+        observe(
+            &expected(),
+            &authenticated(vec![b' '; BODY_LIMIT + 1]),
+            &request()
+        )
+        .err(),
         Some(ObservationError::TooLarge)
     );
 }
 
 #[test]
 fn binds_the_observation_to_the_expected_issuer_and_realm() {
-    let other_issuer = format!("{ISSUER}-event-00000000-0000-4000-8000-0000000000e5");
-    let mut wrong_channel = authenticated(serde_json::to_vec(&envelope()).unwrap());
+    let other_issuer =
+        format!("{ISSUER}-event-00000000-0000-4000-8000-0000000000e5");
+    let mut wrong_channel =
+        authenticated(serde_json::to_vec(&envelope()).unwrap());
     wrong_channel.issuer_binding = other_issuer.clone();
     assert_eq!(
         observe(&expected(), &wrong_channel, &request()).err(),
@@ -414,7 +442,9 @@ fn requires_the_device_client_and_flow_exactly_once() {
 fn requires_the_installed_priorities_in_order() {
     let edits: Vec<Edit> = vec![
         case("moved otp", |v| executions(v)[1]["priority"] = json!(30)),
-        case("moved password", |v| executions(v)[0]["priority"] = json!(5)),
+        case("moved password", |v| {
+            executions(v)[0]["priority"] = json!(5)
+        }),
         case("equal", |v| executions(v)[1]["priority"] = json!(10)),
         case("reversed", |v| {
             executions(v)[0]["priority"] = json!(20);
@@ -441,7 +471,10 @@ fn refuses_contradictory_or_out_of_range_values() {
             executions(v)[0]["subflow_alias"] = json!("browser forms");
         }),
         case("neither", |v| {
-            executions(v)[0].as_object_mut().unwrap().remove("authenticator");
+            executions(v)[0]
+                .as_object_mut()
+                .unwrap()
+                .remove("authenticator");
         }),
         case("age not digits", |v| {
             executions(v)[1]["config"] = amr_config(TOTP_REFERENCE, "6o");
@@ -463,7 +496,8 @@ fn refuses_contradictory_or_out_of_range_values() {
             executions(v)[1]["config"]["default.reference.extra"] = json!("x");
         }),
         case("dedicated config without age", |v| {
-            executions(v)[1]["config"] = json!({ "default.reference.value": TOTP_REFERENCE });
+            executions(v)[1]["config"] =
+                json!({ "default.reference.value": TOTP_REFERENCE });
         }),
     ];
     for (name, edit) in edits {
@@ -497,13 +531,18 @@ fn observes_installed_shapes_that_do_not_qualify() {
         case("client flow", |v| {
             v["flows"]["items"][1]["provider_id"] = json!("client-flow");
         }),
-        case("nested", |v| v["flows"]["items"][1]["top_level"] = json!(false)),
+        case("nested", |v| {
+            v["flows"]["items"][1]["top_level"] = json!(false)
+        }),
         case("cookie first", |v| {
-            executions(v).insert(0, json!({
-                "priority": 5,
-                "requirement": "ALTERNATIVE",
-                "authenticator": "auth-cookie",
-            }));
+            executions(v).insert(
+                0,
+                json!({
+                    "priority": 5,
+                    "requirement": "ALTERNATIVE",
+                    "authenticator": "auth-cookie",
+                }),
+            );
         }),
         case("disabled cookie last", |v| {
             executions(v).push(json!({
@@ -536,7 +575,8 @@ fn observes_installed_shapes_that_do_not_qualify() {
             executions(v)[1]["requirement"] = json!("CONDITIONAL");
         }),
         case("unknown authenticator", |v| {
-            executions(v)[1]["authenticator"] = json!("synthetic-authenticator");
+            executions(v)[1]["authenticator"] =
+                json!("synthetic-authenticator");
         }),
         case("no otp reference", |v| {
             executions(v)[1].as_object_mut().unwrap().remove("config");
@@ -570,17 +610,24 @@ fn observes_installed_shapes_that_do_not_qualify() {
             v["required_actions"]["items"][1]["enabled"] = json!(false);
         }),
         case("no configure otp", |v| {
-            v["required_actions"]["items"].as_array_mut().unwrap().remove(1);
+            v["required_actions"]["items"]
+                .as_array_mut()
+                .unwrap()
+                .remove(1);
         }),
         case("update password a default action", |v| {
             v["required_actions"]["items"][0]["default_action"] = json!(true);
         }),
-        case("eight-digit otp", |v| v["realm"]["otp_policy"]["digits"] = json!(8)),
+        case("eight-digit otp", |v| {
+            v["realm"]["otp_policy"]["digits"] = json!(8)
+        }),
         case("hotp", |v| v["realm"]["otp_policy"]["kind"] = json!("hotp")),
         case("sha-256 otp", |v| {
             v["realm"]["otp_policy"]["algorithm"] = json!("HmacSHA256");
         }),
-        case("long otp period", |v| v["realm"]["otp_policy"]["period"] = json!(60)),
+        case("long otp period", |v| {
+            v["realm"]["otp_policy"]["period"] = json!(60)
+        }),
         case("wide look-ahead", |v| {
             v["realm"]["otp_policy"]["look_ahead_window"] = json!(5);
         }),
@@ -592,10 +639,15 @@ fn observes_installed_shapes_that_do_not_qualify() {
         let mut value = envelope();
         edit(&mut value);
         let observation = authenticated(serde_json::to_vec(&value).unwrap());
-        let evidence = observe(&expected(), &observation, &request()).unwrap_or_else(|err| {
-            panic!("{name}: {err:?}");
-        });
-        assert_eq!(evidence.observed.qualifying_max_age(&policy()), None, "{name}");
+        let evidence = observe(&expected(), &observation, &request())
+            .unwrap_or_else(|err| {
+                panic!("{name}: {err:?}");
+            });
+        assert_eq!(
+            evidence.observed.qualifying_max_age(&policy()),
+            None,
+            "{name}"
+        );
         assert_eq!(
             facts(&expected(), &observation, &request(), &policy(), &receipt),
             PolicyFacts {
@@ -621,10 +673,14 @@ fn knows_the_amr_mapper_by_provider_id_alone() {
         v["mappers"]["items"][0]["claim_name"] = json!("synthetic-label");
     })
     .unwrap();
-    assert_eq!(relabelled.observed.qualifying_max_age(&policy()), Some(MAX_MFA_AGE));
+    assert_eq!(
+        relabelled.observed.qualifying_max_age(&policy()),
+        Some(MAX_MFA_AGE)
+    );
     // Another provider labelled `amr` is a foreign writer, never the mapper.
     let impostor = observed(|v| {
-        v["mappers"]["items"][0]["provider_id"] = json!("oidc-hardcoded-claim-mapper");
+        v["mappers"]["items"][0]["provider_id"] =
+            json!("oidc-hardcoded-claim-mapper");
     })
     .unwrap();
     assert!(impostor.observed.amr_mappers.is_empty());
@@ -648,13 +704,18 @@ fn records_required_actions_by_unique_alias() {
     assert_eq!(
         refusal(|v| {
             let again = v["required_actions"]["items"][1].clone();
-            v["required_actions"]["items"].as_array_mut().unwrap().push(again);
+            v["required_actions"]["items"]
+                .as_array_mut()
+                .unwrap()
+                .push(again);
         }),
         Some(ObservationError::Inventory)
     );
 }
 
-fn subject_of(edit: impl FnOnce(&mut Value)) -> Result<SubjectFactors, ObservationError> {
+fn subject_of(
+    edit: impl FnOnce(&mut Value),
+) -> Result<SubjectFactors, ObservationError> {
     let mut value = envelope();
     edit(&mut value);
     let observation = authenticated(serde_json::to_vec(&value).unwrap());
@@ -690,7 +751,9 @@ fn observes_the_trustees_own_factors_for_that_subject_only() {
             ObservationError::Inventory,
         ),
         (
-            case("partial", |v| v["subject"]["completeness"] = json!("partial")),
+            case("partial", |v| {
+                v["subject"]["completeness"] = json!("partial")
+            }),
             ObservationError::Incomplete,
         ),
         (
@@ -728,8 +791,10 @@ fn observes_stock_aliases_with_inner_spaces() {
         }));
     })
     .unwrap();
-    assert!(inherited.observed.flow.executions.last().unwrap().step
-        == Step::Subflow("browser forms".to_owned()));
+    assert!(
+        inherited.observed.flow.executions.last().unwrap().step
+            == Step::Subflow("browser forms".to_owned())
+    );
     assert_eq!(inherited.observed.qualifying_max_age(&policy()), None);
 
     let nested_flow = observed(|v| {
@@ -741,11 +806,21 @@ fn observes_stock_aliases_with_inner_spaces() {
         }));
     })
     .unwrap();
-    assert_eq!(nested_flow.observed.qualifying_max_age(&policy()), Some(MAX_MFA_AGE));
+    assert_eq!(
+        nested_flow.observed.qualifying_max_age(&policy()),
+        Some(MAX_MFA_AGE)
+    );
 
     // Spaces only inside, single, and nothing unprintable: anything else is
     // refused as malformed, deliberately, not classified.
-    for bad in [" browser forms", "browser forms ", "browser  forms", "browser\tforms", "browser\u{b7}forms", ""] {
+    for bad in [
+        " browser forms",
+        "browser forms ",
+        "browser  forms",
+        "browser\tforms",
+        "browser\u{b7}forms",
+        "",
+    ] {
         assert_eq!(
             refusal(|v| {
                 executions(v).push(json!({
@@ -786,7 +861,8 @@ fn records_another_flow_reusing_a_dedicated_reference() {
         assert_eq!(evidence.observed.qualifying_max_age(&policy()), None);
     }
     // Another reference value in another flow is no collision.
-    let other = observed(collision("https://synthetic.invalid/amr/other")).unwrap();
+    let other =
+        observed(collision("https://synthetic.invalid/amr/other")).unwrap();
     assert!(other.observed.reference_collisions.is_empty());
 }
 
@@ -794,7 +870,8 @@ fn records_another_flow_reusing_a_dedicated_reference() {
 fn accepts_only_the_reply_to_this_request() {
     let edits: Vec<Edit> = vec![
         case("other nonce", |v| {
-            v["request"]["nonce"] = json!("synthetic-observation-request-nonce-0000001");
+            v["request"]["nonce"] =
+                json!("synthetic-observation-request-nonce-0000001");
         }),
         case("other phase", |v| {
             v["request"]["phase"] = json!("before_authentication");
@@ -820,25 +897,13 @@ fn accepts_only_the_reply_to_this_request() {
 }
 
 #[test]
-fn observes_the_trustees_sessions() {
-    let factors = subject_of(|_| {}).unwrap();
-    assert!(factors.sessions == vec![SessionShape {
-        id: SESSION.to_owned(),
-        started_at: SESSION_START,
-        clients: vec![CLIENT.to_owned()],
-    }]);
-    let edits: Vec<Edit> = vec![
-        case("repeated session", |v| {
-            let again = v["subject"]["sessions"][0].clone();
-            v["subject"]["sessions"].as_array_mut().unwrap().push(again);
-        }),
-        case("repeated client", |v| {
-            v["subject"]["sessions"][0]["clients"] = json!([CLIENT, CLIENT]);
-        }),
-    ];
-    for (name, edit) in edits {
-        assert_eq!(subject_of(edit).err(), Some(ObservationError::Malformed), "{name}");
-    }
+fn reads_no_user_sessions() {
+    // A session's shape is no evidence (the device login reuses an SSO
+    // session), so the subject section has no sessions member at all.
+    assert_eq!(
+        subject_of(|v| v["subject"]["sessions"] = json!([])).err(),
+        Some(ObservationError::Schema)
+    );
 }
 
 #[test]
@@ -851,7 +916,10 @@ fn observes_stock_configs_in_other_flows() {
         });
     })
     .unwrap();
-    assert_eq!(stock.observed.qualifying_max_age(&policy()), Some(MAX_MFA_AGE));
+    assert_eq!(
+        stock.observed.qualifying_max_age(&policy()),
+        Some(MAX_MFA_AGE)
+    );
     assert!(stock.observed.reference_collisions.is_empty());
 
     // A repeated config key, anywhere, is refused.
@@ -863,7 +931,12 @@ fn observes_stock_configs_in_other_flows() {
     );
     assert_ne!(repeated, body);
     assert_eq!(
-        observe(&expected(), &authenticated(repeated.into_bytes()), &request()).err(),
+        observe(
+            &expected(),
+            &authenticated(repeated.into_bytes()),
+            &request()
+        )
+        .err(),
         Some(ObservationError::Schema)
     );
 }
@@ -886,20 +959,24 @@ struct SyntheticCollector {
 }
 
 impl AuthenticatedCollector for SyntheticCollector {
-    fn collect(&self, request: &ObservationRequest) -> Option<AuthenticatedObservation> {
+    fn collect(
+        &self,
+        request: &ObservationRequest,
+    ) -> Option<AuthenticatedObservation> {
         let asked = &request.binding;
         let nonce = match self.answer {
             Answer::Silent => return None,
             Answer::Echo => asked.nonce.clone(),
-            Answer::WrongNonce => "synthetic-observation-request-nonce-0000009".to_owned(),
+            Answer::WrongNonce => {
+                "synthetic-observation-request-nonce-0000009".to_owned()
+            }
         };
         let (phase, observed_at) = match asked.phase {
             Phase::BeforeAuthentication => ("before_authentication", START + 5),
             Phase::AfterTokens => ("after_tokens", self.after_at),
         };
         let mut value = self.template.clone();
-        value["request"] =
-            json!({ "nonce": nonce, "phase": phase, "challenge": asked.challenge.0 });
+        value["request"] = json!({ "nonce": nonce, "phase": phase, "challenge": asked.challenge.0 });
         value["collector"]["observed_at"] = json!(observed_at);
         Some(authenticated(serde_json::to_vec(&value).unwrap()))
     }
@@ -907,7 +984,10 @@ impl AuthenticatedCollector for SyntheticCollector {
 
 /// A verifier for `machine` proven by the installed shape the template
 /// shows.
-fn proven(machine: &DeviceLogin, keys: super::super::TrustedKeyRing) -> NativeVerifier {
+fn proven(
+    machine: &DeviceLogin,
+    keys: super::super::TrustedKeyRing,
+) -> NativeVerifier {
     let receipt = observed(|_| {}).unwrap().observed;
     let proof = FlowPolicyProof {
         receipt: receipt.clone(),
@@ -938,7 +1018,20 @@ struct SeamRun {
 }
 
 impl SeamRun {
+    /// Tokens issued for this challenge's own device request.
     fn new(template: &Value, with_before: bool, prove: bool) -> SeamRun {
+        SeamRun::issued_for(template, with_before, prove, Some(DEVICE_NONCE))
+    }
+
+    /// Tokens whose ID token carries `token_nonce` (none if absent), for a
+    /// challenge whose device request sent `DEVICE_NONCE`. The tokens reuse
+    /// an earlier ordinary SSO session's `sid`, as stock Keycloak does.
+    fn issued_for(
+        template: &Value,
+        with_before: bool,
+        prove: bool,
+        token_nonce: Option<&str>,
+    ) -> SeamRun {
         use super::super::tests::{access_claims, id_claims, set, Fixture};
         let mut fixture = fixture();
         let ticket = fixture.ticket();
@@ -961,19 +1054,36 @@ impl SeamRun {
             after_at: LATER,
         };
         let before = with_before.then(|| {
-            observe_before(&echo, &expected(), &verifier, &machine).expect("before")
+            observe_before(&echo, &expected(), &verifier, &machine)
+                .expect("before")
         });
         let dedicated = |mut claims: super::super::tests::ClaimSet| {
-            set(&mut claims, "amr", json!([PASSWORD_REFERENCE, TOTP_REFERENCE]));
+            set(
+                &mut claims,
+                "amr",
+                json!([PASSWORD_REFERENCE, TOTP_REFERENCE]),
+            );
             set(&mut claims, "iat", json!(ISSUED));
             if claims.contains_key("nbf") {
                 set(&mut claims, "nbf", json!(ISSUED));
             }
             set(&mut claims, "sid", json!(SESSION));
-            signer.sign(&claims)
+            claims
         };
+        // As stock Keycloak issues them: the access token, then the ID token
+        // with the request's nonce and the access token's `at_hash`.
+        let access = signer.sign(&dedicated(access_claims()));
+        let mut id = dedicated(id_claims());
+        if let Some(nonce) = token_nonce {
+            set(&mut id, "nonce", json!(nonce));
+        }
+        set(
+            &mut id,
+            "at_hash",
+            json!(super::super::rs256_access_hash(&access)),
+        );
         SeamRun {
-            tokens: (dedicated(access_claims()), dedicated(id_claims())),
+            tokens: (access, signer.sign(&id)),
             machine,
             verifier,
             ticket,
@@ -1005,6 +1115,7 @@ impl SeamRun {
             &expected(),
             &collector,
             self.before.as_ref(),
+            &DeviceNonce(DEVICE_NONCE.to_owned()),
         )
     }
 }
@@ -1021,14 +1132,19 @@ fn seam_run(
     (status, run.challenge)
 }
 
-fn denied(challenge: crate::device::ChallengeId) -> Result<Observed, DeviceError> {
+fn denied(
+    challenge: crate::device::ChallengeId,
+) -> Result<Observed, DeviceError> {
     Ok(Observed::Settled(DeviceStatus::Closed {
         challenge,
         closure: crate::device::Closure::Denied,
     }))
 }
 
-fn approved(status: &Result<Observed, DeviceError>, challenge: crate::device::ChallengeId) -> bool {
+fn approved(
+    status: &Result<Observed, DeviceError>,
+    challenge: crate::device::ChallengeId,
+) -> bool {
     matches!(
         status,
         Ok(Observed::Settled(DeviceStatus::Approved { challenge: admitted, .. }))
@@ -1048,37 +1164,42 @@ fn the_seam_admits_with_bound_fresh_evidence_only() {
         (Answer::WrongNonce, true),
         (Answer::Echo, false),
     ] {
-        let (status, challenge) = seam_run(envelope(), after, with_before, true);
+        let (status, challenge) =
+            seam_run(envelope(), after, with_before, true);
         assert_eq!(status, denied(challenge));
     }
 
-    // A session the device login joined from an earlier SSO login.
-    let mut joined = envelope();
-    joined["subject"]["sessions"][0]["start"] = json!(START - 100);
-    let (status, challenge) = seam_run(joined, Answer::Echo, true, true);
-    assert_eq!(status, denied(challenge));
-
-    // A session the ordinary client shares.
-    let mut shared = envelope();
-    shared["subject"]["sessions"][0]["clients"] =
-        json!(["fixture-ordinary-sso", CLIENT]);
-    let (status, challenge) = seam_run(shared, Answer::Echo, true, true);
-    assert_eq!(status, denied(challenge));
+    // The approved run above reused an earlier SSO session's `sid`; what
+    // binds its tokens to this challenge is the ID token's signed nonce.
+    // Tokens issued for another device request, or with no nonce, are not
+    // this challenge's, whatever else they prove.
+    for token_nonce in
+        [Some("synthetic-other-device-request-nonce-000000"), None]
+    {
+        let mut run = SeamRun::issued_for(&envelope(), true, true, token_nonce);
+        assert_eq!(
+            run.settle(&envelope(), Answer::Echo, LATER),
+            denied(run.challenge)
+        );
+    }
 
     // Another flow reusing a dedicated reference, read back after the
     // tokens: no longer the installed shape.
     let mut collided = envelope();
-    collided["flows"]["items"].as_array_mut().unwrap().push(json!({
-        "alias": "browser forms",
-        "top_level": false,
-        "provider_id": "basic-flow",
-        "executions": [{
-            "priority": 10,
-            "requirement": "REQUIRED",
-            "authenticator": "auth-otp-form",
-            "config": amr_config(TOTP_REFERENCE, "60"),
-        }],
-    }));
+    collided["flows"]["items"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({
+            "alias": "browser forms",
+            "top_level": false,
+            "provider_id": "basic-flow",
+            "executions": [{
+                "priority": 10,
+                "requirement": "REQUIRED",
+                "authenticator": "auth-otp-form",
+                "config": amr_config(TOTP_REFERENCE, "60"),
+            }],
+        }));
     let (status, challenge) = seam_run(collided, Answer::Echo, true, true);
     assert_eq!(status, denied(challenge));
 }
@@ -1097,7 +1218,10 @@ fn the_seam_proves_nothing_for_the_unproven_verifier() {
     assert_eq!(status, discarded(challenge));
     // Nor is anything retained for it: a same-second reply settles too.
     let mut run = SeamRun::new(&envelope(), true, false);
-    assert_eq!(run.settle(&envelope(), Answer::Echo, ISSUED), discarded(run.challenge));
+    assert_eq!(
+        run.settle(&envelope(), Answer::Echo, ISSUED),
+        discarded(run.challenge)
+    );
 }
 
 /// Finding A: a collector asked at once after the tokens usually replies in
@@ -1107,8 +1231,14 @@ fn the_seam_proves_nothing_for_the_unproven_verifier() {
 #[test]
 fn a_same_second_reply_retains_the_poll_until_a_later_one() {
     let mut run = SeamRun::new(&envelope(), true, true);
-    assert_eq!(run.settle(&envelope(), Answer::Echo, ISSUED), Ok(Observed::Retained));
-    assert_eq!(run.settle(&envelope(), Answer::Echo, ISSUED), Ok(Observed::Retained));
+    assert_eq!(
+        run.settle(&envelope(), Answer::Echo, ISSUED),
+        Ok(Observed::Retained)
+    );
+    assert_eq!(
+        run.settle(&envelope(), Answer::Echo, ISSUED),
+        Ok(Observed::Retained)
+    );
     // Still pending, the ticket in flight, no grant.
     assert!(matches!(
         run.machine.status(super::super::tests::clock(5, LATER)),
@@ -1126,20 +1256,36 @@ fn a_same_second_reply_retains_the_poll_until_a_later_one() {
 fn only_the_tokens_own_second_is_retained() {
     // Earlier than the tokens: genuinely before them, denied at once.
     let mut run = SeamRun::new(&envelope(), true, true);
-    assert_eq!(run.settle(&envelope(), Answer::Echo, ISSUED - 1), denied(run.challenge));
+    assert_eq!(
+        run.settle(&envelope(), Answer::Echo, ISSUED - 1),
+        denied(run.challenge)
+    );
 
-    // A same-second reply that also fails another check still retains
-    // only until it is decided; the later reply is denied, never admitted.
-    let mut joined = envelope();
-    joined["subject"]["sessions"][0]["start"] = json!(START - 100);
-    let mut run = SeamRun::new(&joined, true, true);
-    assert_eq!(run.settle(&joined, Answer::Echo, ISSUED), Ok(Observed::Retained));
-    assert_eq!(run.settle(&joined, Answer::Echo, LATER), denied(run.challenge));
+    // Tokens of another device request are not this transaction's: they
+    // are denied at once, even with a same-second reply, never retained,
+    // and the settled ticket cannot be tried again.
+    let mut run = SeamRun::issued_for(
+        &envelope(),
+        true,
+        true,
+        Some("synthetic-other-device-request-nonce-000000"),
+    );
+    assert_eq!(
+        run.settle(&envelope(), Answer::Echo, ISSUED),
+        denied(run.challenge)
+    );
+    assert_eq!(
+        run.settle(&envelope(), Answer::Echo, LATER),
+        Err(DeviceError::AlreadySettled)
+    );
 
     // A retained poll is no oracle: a reply to another request, even in a
     // later second, is never evidence and settles denied.
     let mut run = SeamRun::new(&envelope(), true, true);
-    assert_eq!(run.settle(&envelope(), Answer::Echo, ISSUED), Ok(Observed::Retained));
+    assert_eq!(
+        run.settle(&envelope(), Answer::Echo, ISSUED),
+        Ok(Observed::Retained)
+    );
     assert_eq!(
         run.settle(&envelope(), Answer::WrongNonce, LATER),
         denied(run.challenge)
@@ -1182,5 +1328,8 @@ fn the_verifier_made_for_a_machine_stays_unproven() {
     // nothing here builds a proof outside the tests.
     assert!(observed(|_| {}).is_ok());
     let fixture = fixture();
-    assert!(matches!(fixture.verifier.second_factor, SecondFactorPolicy::Unproven));
+    assert!(matches!(
+        fixture.verifier.second_factor,
+        SecondFactorPolicy::Unproven
+    ));
 }

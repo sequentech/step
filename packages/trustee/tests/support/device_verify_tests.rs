@@ -166,6 +166,8 @@ pub(crate) struct Fixture {
     pub(crate) machine: DeviceLogin,
     pub(crate) challenge: ChallengeId,
     pub(crate) verifier: NativeVerifier,
+    /// The nonce of the challenge's own device request.
+    pub(crate) device_nonce: DeviceNonce,
     /// The admission evidence proven fixtures verify with.
     admission: Option<AdmissionEvidence>,
 }
@@ -188,6 +190,14 @@ impl AdmissionEvidence {
     }
 }
 
+/// The nonce sent with the fixture challenge's device authorization
+/// request, which stock Keycloak signs back into the ID token.
+const DEVICE_NONCE: &str = "synthetic-device-request-nonce-000000000000";
+
+fn device_nonce() -> DeviceNonce {
+    DeviceNonce(DEVICE_NONCE.to_owned())
+}
+
 fn fixture_started(started: UnixSeconds) -> Fixture {
     let signer = Signer::new(KID);
     let mut machine = DeviceLogin::new(scope(|_| {}));
@@ -203,6 +213,7 @@ fn fixture_started(started: UnixSeconds) -> Fixture {
         machine,
         challenge,
         verifier,
+        device_nonce: device_nonce(),
         admission: None,
     }
 }
@@ -265,15 +276,37 @@ pub(crate) fn set(claims: &mut ClaimSet, name: &str, value: Value) {
 }
 
 impl Fixture {
-    /// Keycloak's token reply carrying these claims, signed by this key.
+    /// The pair as stock Keycloak issues it for this challenge's device
+    /// request: the access token signed first, then the ID token carrying
+    /// this request's `nonce` and the access token's `at_hash`, unless the
+    /// ID claims already name them (a test sets them, or `null` to omit).
+    pub(crate) fn pair(
+        &self,
+        access: &ClaimSet,
+        id: &ClaimSet,
+    ) -> (String, String) {
+        let access_token = self.signer.sign(access);
+        let mut id = id.clone();
+        if !id.contains_key("nonce") {
+            set(&mut id, "nonce", json!(self.device_nonce.form_value()));
+        }
+        if !id.contains_key("at_hash") {
+            set(&mut id, "at_hash", json!(rs256_access_hash(&access_token)));
+        }
+        let id_token = self.signer.sign(&id);
+        (access_token, id_token)
+    }
+
+    /// Keycloak's token reply carrying these claims as one bound pair.
     pub(crate) fn token_reply(
         &self,
         access: &ClaimSet,
         id: &ClaimSet,
     ) -> Vec<u8> {
+        let (access_token, id_token) = self.pair(access, id);
         serde_json::to_vec(&json!({
-            "access_token": self.signer.sign(access),
-            "id_token": self.signer.sign(id),
+            "access_token": access_token,
+            "id_token": id_token,
             "refresh_token": "synthetic.refresh.token",
             "token_type": "Bearer",
             "expires_in": 280,
@@ -295,13 +328,18 @@ impl Fixture {
         access: &ClaimSet,
         id: &ClaimSet,
     ) -> Result<VerifiedLogin, VerifyError> {
-        let admission = self.admission.as_ref().map(AdmissionEvidence::admission);
+        let admission =
+            self.admission.as_ref().map(AdmissionEvidence::admission);
+        let (access_token, id_token) = self.pair(access, id);
         self.verifier.verify_pair_with(
-            &self.signer.sign(access),
-            &self.signer.sign(id),
+            &access_token,
+            &id_token,
             START,
             NOW,
-            admission.as_ref().map(|admission| (admission, self.challenge)),
+            &self.device_nonce,
+            admission
+                .as_ref()
+                .map(|admission| (admission, self.challenge)),
         )
     }
 
@@ -312,7 +350,7 @@ impl Fixture {
         access: &ClaimSet,
         id: &ClaimSet,
     ) -> Result<DeviceStatus, DeviceError> {
-        let (access, id) = (self.signer.sign(access), self.signer.sign(id));
+        let (access, id) = self.pair(access, id);
         let ticket = self.ticket();
         match &self.admission {
             Some(evidence) => self.verifier.settle_pair_admitted(
@@ -320,14 +358,15 @@ impl Fixture {
                 clock(5, NOW),
                 &ticket,
                 (&access, &id),
+                &self.device_nonce,
                 &evidence.admission(),
             ),
             None => self.verifier.settle_pair(
                 &mut self.machine,
                 clock(5, NOW),
                 &ticket,
-                &access,
-                &id,
+                (&access, &id),
+                &self.device_nonce,
             ),
         }
     }
@@ -351,11 +390,17 @@ impl Fixture {
         self.refusal(edit, |_| {})
     }
 
-    fn id_refusal(&self, edit: impl FnOnce(&mut ClaimSet)) -> Option<VerifyError> {
+    fn id_refusal(
+        &self,
+        edit: impl FnOnce(&mut ClaimSet),
+    ) -> Option<VerifyError> {
         self.refusal(|_| {}, edit)
     }
 
-    fn both_refusal(&self, edit: impl Fn(&mut ClaimSet)) -> Option<VerifyError> {
+    fn both_refusal(
+        &self,
+        edit: impl Fn(&mut ClaimSet),
+    ) -> Option<VerifyError> {
         self.refusal(&edit, &edit)
     }
 
@@ -364,7 +409,9 @@ impl Fixture {
         let claims = serde_json::to_vec(&access_claims()).unwrap();
         let token = self.signer.sign_raw(header, &claims);
         let id = self.signer.sign(&id_claims());
-        self.verifier.verify_pair(&token, &id, START, NOW).err()
+        self.verifier
+            .verify_pair(&token, &id, START, NOW, &self.device_nonce)
+            .err()
     }
 }
 
@@ -400,17 +447,14 @@ fn a_valid_pair_settles_its_poll_and_is_discarded_without_a_factor() {
     let mut fixture = fixture();
     let challenge = fixture.challenge;
     let ticket = fixture.ticket();
-    let (access, id) = (
-        fixture.signer.sign(&access_claims()),
-        fixture.signer.sign(&id_claims()),
-    );
+    let (access, id) = fixture.pair(&access_claims(), &id_claims());
     assert_eq!(
         fixture.verifier.settle_pair(
             &mut fixture.machine,
             clock(5, NOW),
             &ticket,
-            &access,
-            &id
+            (&access, &id),
+            &fixture.device_nonce,
         ),
         Ok(DeviceStatus::Closed {
             challenge,
@@ -421,14 +465,14 @@ fn a_valid_pair_settles_its_poll_and_is_discarded_without_a_factor() {
         fixture.machine.authorize(clock(6, NOW)),
         Err(DeviceError::NoGrant)
     );
-    // The same ticket settles nothing twice.
+    // The same ticket, and the same pair, settle nothing twice.
     assert_eq!(
         fixture.verifier.settle_pair(
             &mut fixture.machine,
             clock(6, NOW),
             &ticket,
-            &access,
-            &id
+            (&access, &id),
+            &fixture.device_nonce,
         ),
         Err(DeviceError::AlreadySettled)
     );
@@ -458,8 +502,8 @@ fn an_invalid_pair_closes_its_poll_as_denied() {
             &mut untrusted.machine,
             clock(5, NOW),
             &ticket,
-            &access,
-            &id
+            (&access, &id),
+            &untrusted.device_nonce,
         ),
         denied(challenge)
     );
@@ -482,10 +526,7 @@ fn a_verifier_settles_only_its_own_machine() {
     let mut other = fixture();
     let challenge = other.challenge;
     let ticket = other.ticket();
-    let (access, id) = (
-        other.signer.sign(&access_claims()),
-        other.signer.sign(&id_claims()),
-    );
+    let (access, id) = other.pair(&access_claims(), &id_claims());
     // `own.verifier` was made for `own.machine`: it verifies nothing for
     // `other.machine` and denies the poll.
     assert_eq!(
@@ -493,8 +534,8 @@ fn a_verifier_settles_only_its_own_machine() {
             &mut other.machine,
             clock(5, NOW),
             &ticket,
-            &access,
-            &id
+            (&access, &id),
+            &other.device_nonce,
         ),
         denied(challenge)
     );
@@ -508,8 +549,8 @@ fn a_verifier_settles_only_its_own_machine() {
             &mut other.machine,
             clock(5, NOW),
             &own_ticket,
-            &access,
-            &id
+            (&access, &id),
+            &own.device_nonce,
         ),
         Err(DeviceError::ForeignTicket)
     );
@@ -734,7 +775,10 @@ fn refuses_missing_mistyped_or_duplicate_claims() {
     );
     let id = fixture.signer.sign(&id_claims());
     assert_eq!(
-        fixture.verifier.verify_pair(&token, &id, START, NOW).err(),
+        fixture
+            .verifier
+            .verify_pair(&token, &id, START, NOW, &fixture.device_nonce)
+            .err(),
         Some(VerifyError::Malformed)
     );
 }
@@ -742,9 +786,8 @@ fn refuses_missing_mistyped_or_duplicate_claims() {
 #[test]
 fn refuses_any_header_beyond_alg_kid_and_typ() {
     let fixture = fixture();
-    let refusal = |header: Value| {
-        fixture.header_refusal(header.to_string().as_bytes())
-    };
+    let refusal =
+        |header: Value| fixture.header_refusal(header.to_string().as_bytes());
     for alg in ["HS256", "RS512", "PS256", "ES256", "none"] {
         assert_eq!(
             refusal(json!({ "alg": alg, "typ": "JWT", "kid": KID })),
@@ -785,8 +828,7 @@ fn refuses_any_header_beyond_alg_kid_and_typ() {
     header["typ"] = json!("at+jwt");
     assert_eq!(refusal(header), Some(VerifyError::Header));
     // A duplicate member.
-    let duplicate =
-        format!(r#"{{"alg":"RS256","alg":"RS256","kid":"{KID}"}}"#);
+    let duplicate = format!(r#"{{"alg":"RS256","alg":"RS256","kid":"{KID}"}}"#);
     assert_eq!(
         fixture.header_refusal(duplicate.as_bytes()),
         Some(VerifyError::Header)
@@ -820,7 +862,10 @@ fn refuses_a_signature_no_trusted_key_made() {
     // Another synthetic key claiming the trusted key id.
     let impostor = Signer::new(KID).sign(&access_claims());
     assert_eq!(
-        fixture.verifier.verify_pair(&impostor, &id, START, NOW).err(),
+        fixture
+            .verifier
+            .verify_pair(&impostor, &id, START, NOW, &fixture.device_nonce)
+            .err(),
         Some(VerifyError::Signature)
     );
     // A trusted signature over different claims.
@@ -829,12 +874,18 @@ fn refuses_a_signature_no_trusted_key_made() {
     let id_parts: Vec<&str> = id.split('.').collect();
     let spliced = format!("{}.{}.{}", parts[0], id_parts[1], parts[2]);
     assert_eq!(
-        fixture.verifier.verify_pair(&spliced, &id, START, NOW).err(),
+        fixture
+            .verifier
+            .verify_pair(&spliced, &id, START, NOW, &fixture.device_nonce)
+            .err(),
         Some(VerifyError::Signature)
     );
     let truncated = &access[..access.len() - 4];
     assert_eq!(
-        fixture.verifier.verify_pair(truncated, &id, START, NOW).err(),
+        fixture
+            .verifier
+            .verify_pair(truncated, &id, START, NOW, &fixture.device_nonce)
+            .err(),
         Some(VerifyError::Signature)
     );
 }
@@ -853,7 +904,10 @@ fn refuses_tokens_that_are_not_bounded_compact_jws() {
         "synthetic".to_owned(),
     ] {
         assert_eq!(
-            fixture.verifier.verify_pair(&token, &id, START, NOW).err(),
+            fixture
+                .verifier
+                .verify_pair(&token, &id, START, NOW, &fixture.device_nonce)
+                .err(),
             Some(VerifyError::TokenShape)
         );
     }
@@ -865,8 +919,12 @@ fn takes_its_expectations_from_the_machine_scope_only() {
     let ring = || TrustedKeyRing::new(ISSUER, vec![signer.trusted()]).unwrap();
     let edits: [fn(&mut ScopeInput<'static>); 6] = [
         // A neighbouring event realm of the same tenant.
-        |i| i.issuer = "https://idp.synthetic.invalid/realms/tenant-00000000-0000-4000-8000-00000000000a-event-00000000-0000-4000-8000-0000000000c2",
-        |i| i.issuer = "http://idp.synthetic.invalid/realms/tenant-00000000-0000-4000-8000-00000000000a",
+        |i| {
+            i.issuer = "https://idp.synthetic.invalid/realms/tenant-00000000-0000-4000-8000-00000000000a-event-00000000-0000-4000-8000-0000000000c2"
+        },
+        |i| {
+            i.issuer = "http://idp.synthetic.invalid/realms/tenant-00000000-0000-4000-8000-00000000000a"
+        },
         // The tenant disagrees with the issuer's realm.
         |i| i.tenant = OTHER_UUID,
         |i| i.subject = "synthetic-subject",
@@ -927,7 +985,11 @@ fn amr_mapper() -> AmrMapperShape {
 }
 
 /// A registered required action that is not a default action.
-fn required_action(alias: &str, enabled: bool, priority: i64) -> RequiredActionShape {
+fn required_action(
+    alias: &str,
+    enabled: bool,
+    priority: i64,
+) -> RequiredActionShape {
     RequiredActionShape {
         alias: alias.to_owned(),
         provider_id: alias.to_owned(),
@@ -962,7 +1024,11 @@ fn receipt() -> FlowReceipt {
             top_level: true,
             provider: FlowProvider::BasicFlow,
             executions: vec![
-                execution(Step::UsernamePasswordForm, PASSWORD_REFERENCE, MAX_MFA_AGE),
+                execution(
+                    Step::UsernamePasswordForm,
+                    PASSWORD_REFERENCE,
+                    MAX_MFA_AGE,
+                ),
                 execution(Step::OtpForm, TOTP_REFERENCE, MAX_MFA_AGE),
             ],
         },
@@ -989,9 +1055,6 @@ const OTP_CREDENTIAL: &str = "synthetic-otp-credential-1";
 /// The synthetic nonces of the two requests of the fixture's challenge.
 const BEFORE_NONCE: &str = "synthetic-before-request-nonce-000000000000";
 const AFTER_NONCE: &str = "synthetic-after--request-nonce-000000000000";
-/// When the fixture's own session started: after the challenge, before the
-/// authentication completed.
-const SESSION_STARTED: UnixSeconds = START + 8;
 
 fn binding(nonce: &str, phase: Phase) -> RequestBinding {
     RequestBinding {
@@ -1001,19 +1064,12 @@ fn binding(nonce: &str, phase: Phase) -> RequestBinding {
     }
 }
 
-/// The tokens' session: started with this challenge, used by the device
-/// client alone.
-fn device_session() -> SessionShape {
-    SessionShape {
-        id: SID.to_owned(),
-        started_at: SESSION_STARTED,
-        clients: vec![CLIENT.to_owned()],
-    }
-}
-
 /// The trustee's factors: one TOTP enrolled a day before the challenge, no
 /// pending required action, observed at `observed_at` for `binding`.
-fn subject_factors(binding: RequestBinding, observed_at: UnixSeconds) -> SubjectFactors {
+fn subject_factors(
+    binding: RequestBinding,
+    observed_at: UnixSeconds,
+) -> SubjectFactors {
     SubjectFactors {
         binding,
         subject: SUBJECT.to_owned(),
@@ -1022,7 +1078,6 @@ fn subject_factors(binding: RequestBinding, observed_at: UnixSeconds) -> Subject
             created_at: START - 86_400,
         }],
         pending_actions: Vec::new(),
-        sessions: vec![device_session()],
         observed_at,
     }
 }
@@ -1070,6 +1125,7 @@ fn admitted_fixture_with(
         machine,
         challenge,
         verifier,
+        device_nonce: device_nonce(),
         admission: Some(admission),
     })
 }
@@ -1092,7 +1148,11 @@ fn proven_fixture() -> Fixture {
 /// Claims as the dedicated flow signs them: both references, issued
 /// within the maximum age of the authentication.
 fn dedicated(mut claims: ClaimSet) -> ClaimSet {
-    set(&mut claims, "amr", json!([PASSWORD_REFERENCE, TOTP_REFERENCE]));
+    set(
+        &mut claims,
+        "amr",
+        json!([PASSWORD_REFERENCE, TOTP_REFERENCE]),
+    );
     set(&mut claims, "iat", json!(SIGNED_AT));
     if claims.contains_key("nbf") {
         set(&mut claims, "nbf", json!(SIGNED_AT));
@@ -1136,11 +1196,17 @@ fn fresh_totp(login: &VerifiedLogin) -> bool {
 #[test]
 fn a_proven_flow_turns_the_exact_signed_amr_into_a_fresh_totp() {
     let mut fixture = proven_fixture();
-    let login = fixture.verify(&dedicated_access(), &dedicated_id()).unwrap();
+    let login = fixture
+        .verify(&dedicated_access(), &dedicated_id())
+        .unwrap();
     assert!(fresh_totp(&login));
     // In either order.
     let mut swapped = dedicated_id();
-    set(&mut swapped, "amr", json!([TOTP_REFERENCE, PASSWORD_REFERENCE]));
+    set(
+        &mut swapped,
+        "amr",
+        json!([TOTP_REFERENCE, PASSWORD_REFERENCE]),
+    );
     let login = fixture.verify(&dedicated_access(), &swapped).unwrap();
     assert!(fresh_totp(&login));
     // Exactly at the maximum age.
@@ -1162,7 +1228,9 @@ fn a_proven_flow_turns_the_exact_signed_amr_into_a_fresh_totp() {
 #[test]
 fn the_production_verifier_stays_unproven_even_for_the_exact_amr() {
     let mut fixture = fixture();
-    let login = fixture.verify(&dedicated_access(), &dedicated_id()).unwrap();
+    let login = fixture
+        .verify(&dedicated_access(), &dedicated_id())
+        .unwrap();
     assert!(matches!(login.mfa, MfaEvidence::Absent));
     let challenge = fixture.challenge;
     assert_eq!(
@@ -1259,7 +1327,10 @@ fn refuses_a_proven_login_outside_its_age_or_challenge() {
     );
     // The two tokens disagree on the authentication.
     assert_eq!(
-        fixture.dedicated_refusal(|c| set(c, "auth_time", json!(AUTH + 1)), |_| {}),
+        fixture.dedicated_refusal(
+            |c| set(c, "auth_time", json!(AUTH + 1)),
+            |_| {}
+        ),
         Some(VerifyError::Mismatch)
     );
 }
@@ -1287,7 +1358,10 @@ fn refuses_a_proven_pair_of_another_session_subject_or_member() {
         Some(VerifyError::Member)
     );
     assert_eq!(
-        fixture.dedicated_refusal(|c| set(c, "azp", json!("synthetic-other")), |_| {}),
+        fixture.dedicated_refusal(
+            |c| set(c, "azp", json!("synthetic-other")),
+            |_| {}
+        ),
         Some(VerifyError::AuthorizedParty)
     );
 }
@@ -1298,21 +1372,41 @@ fn disqualifying() -> Vec<(&'static str, fn(&mut FlowReceipt))> {
     let cases: &[(&str, fn(&mut FlowReceipt))] = &[
         // Release, issuer, client.
         ("other release", |r| r.idp_release = "26.7.4".to_owned()),
-        ("event realm", |r| r.issuer = format!("{ISSUER}-event-{OTHER_UUID}")),
-        ("other client", |r| r.client.client_id = "synthetic-other".to_owned()),
+        ("event realm", |r| {
+            r.issuer = format!("{ISSUER}-event-{OTHER_UUID}")
+        }),
+        ("other client", |r| {
+            r.client.client_id = "synthetic-other".to_owned()
+        }),
         ("public client", |r| r.client.access = ClientAccess::Public),
-        ("bearer-only client", |r| r.client.access = ClientAccess::BearerOnly),
+        ("bearer-only client", |r| {
+            r.client.access = ClientAccess::BearerOnly
+        }),
         ("no grant", |r| r.client.grants.clear()),
-        ("repeated grant", |r| r.client.grants.push(Grant::DeviceAuthorization)),
-        ("standard flow too", |r| r.client.grants.push(Grant::StandardFlow)),
-        ("direct grant too", |r| r.client.grants.push(Grant::DirectAccess)),
+        ("repeated grant", |r| {
+            r.client.grants.push(Grant::DeviceAuthorization)
+        }),
+        ("standard flow too", |r| {
+            r.client.grants.push(Grant::StandardFlow)
+        }),
+        ("direct grant too", |r| {
+            r.client.grants.push(Grant::DirectAccess)
+        }),
         ("implicit too", |r| r.client.grants.push(Grant::Implicit)),
-        ("service accounts too", |r| r.client.grants.push(Grant::ServiceAccounts)),
-        ("token exchange too", |r| r.client.grants.push(Grant::TokenExchange)),
-        ("stock browser flow", |r| r.client.browser_flow = "browser".to_owned()),
+        ("service accounts too", |r| {
+            r.client.grants.push(Grant::ServiceAccounts)
+        }),
+        ("token exchange too", |r| {
+            r.client.grants.push(Grant::TokenExchange)
+        }),
+        ("stock browser flow", |r| {
+            r.client.browser_flow = "browser".to_owned()
+        }),
         // Another client accepting logins through the dedicated flow.
         ("extra bound client", |r| {
-            r.client.flow_bound_clients.push("synthetic-portal".to_owned());
+            r.client
+                .flow_bound_clients
+                .push("synthetic-portal".to_owned());
         }),
         ("no bound client", |r| r.client.flow_bound_clients.clear()),
         // The flow itself.
@@ -1321,17 +1415,24 @@ fn disqualifying() -> Vec<(&'static str, fn(&mut FlowReceipt))> {
             r.client.browser_flow = String::new();
         }),
         ("nested flow", |r| r.flow.top_level = false),
-        ("client flow", |r| r.flow.provider = FlowProvider::ClientFlow),
+        ("client flow", |r| {
+            r.flow.provider = FlowProvider::ClientFlow
+        }),
         ("cookie first", |r| {
-            r.flow.executions.insert(0, bare(Step::Cookie, Requirement::Alternative));
-        }),
-        ("disabled cookie", |r| {
-            r.flow.executions.push(bare(Step::Cookie, Requirement::Disabled));
-        }),
-        ("identity provider", |r| {
             r.flow
                 .executions
-                .push(bare(Step::IdentityProviderRedirector, Requirement::Alternative));
+                .insert(0, bare(Step::Cookie, Requirement::Alternative));
+        }),
+        ("disabled cookie", |r| {
+            r.flow
+                .executions
+                .push(bare(Step::Cookie, Requirement::Disabled));
+        }),
+        ("identity provider", |r| {
+            r.flow.executions.push(bare(
+                Step::IdentityProviderRedirector,
+                Requirement::Alternative,
+            ));
         }),
         ("inherited subflow", |r| {
             r.flow.executions.push(bare(
@@ -1357,15 +1458,23 @@ fn disqualifying() -> Vec<(&'static str, fn(&mut FlowReceipt))> {
         }),
         ("otp before password", |r| r.flow.executions.swap(0, 1)),
         ("references swapped", |r| {
-            r.flow.executions[0].amr_reference = Some(TOTP_REFERENCE.to_owned());
-            r.flow.executions[1].amr_reference = Some(PASSWORD_REFERENCE.to_owned());
+            r.flow.executions[0].amr_reference =
+                Some(TOTP_REFERENCE.to_owned());
+            r.flow.executions[1].amr_reference =
+                Some(PASSWORD_REFERENCE.to_owned());
         }),
         ("generic reference", |r| {
             r.flow.executions[0].amr_reference = Some("pwd".to_owned());
         }),
-        ("no reference", |r| r.flow.executions[1].amr_reference = None),
-        ("no maximum age", |r| r.flow.executions[0].amr_max_age = None),
-        ("unequal ages", |r| r.flow.executions[1].amr_max_age = Some(59)),
+        ("no reference", |r| {
+            r.flow.executions[1].amr_reference = None
+        }),
+        ("no maximum age", |r| {
+            r.flow.executions[0].amr_max_age = None
+        }),
+        ("unequal ages", |r| {
+            r.flow.executions[1].amr_max_age = Some(59)
+        }),
         ("age zero", |r| {
             r.flow.executions[0].amr_max_age = Some(0);
             r.flow.executions[1].amr_max_age = Some(0);
@@ -1385,9 +1494,12 @@ fn disqualifying() -> Vec<(&'static str, fn(&mut FlowReceipt))> {
             r.amr_mappers[0].host = MapperHost::ClientScope("acr".to_owned());
         }),
         ("not in ID token", |r| r.amr_mappers[0].id_token = false),
-        ("not in access token", |r| r.amr_mappers[0].access_token = false),
+        ("not in access token", |r| {
+            r.amr_mappers[0].access_token = false
+        }),
         ("foreign amr writer", |r| {
-            r.foreign_amr_writers.push("oidc-hardcoded-claim-mapper".to_owned());
+            r.foreign_amr_writers
+                .push("oidc-hardcoded-claim-mapper".to_owned());
         }),
         ("reference reused by another flow", |r| {
             r.reference_collisions.push("browser forms".to_owned());
@@ -1401,7 +1513,9 @@ fn disqualifying() -> Vec<(&'static str, fn(&mut FlowReceipt))> {
         ("configure otp by default", |r| {
             r.required_actions[0].default_action = true;
         }),
-        ("configure otp disabled", |r| r.required_actions[0].enabled = false),
+        ("configure otp disabled", |r| {
+            r.required_actions[0].enabled = false
+        }),
         ("no configure otp", |r| {
             r.required_actions.remove(0);
         }),
@@ -1414,8 +1528,12 @@ fn disqualifying() -> Vec<(&'static str, fn(&mut FlowReceipt))> {
         ("unsorted actions", |r| r.required_actions.swap(0, 1)),
         // The OTP policy.
         ("hotp", |r| r.otp_policy.kind = OtpKind::Hotp),
-        ("sha-256", |r| r.otp_policy.algorithm = OtpAlgorithm::HmacSha256),
-        ("sha-512", |r| r.otp_policy.algorithm = OtpAlgorithm::HmacSha512),
+        ("sha-256", |r| {
+            r.otp_policy.algorithm = OtpAlgorithm::HmacSha256
+        }),
+        ("sha-512", |r| {
+            r.otp_policy.algorithm = OtpAlgorithm::HmacSha512
+        }),
         ("eight digits", |r| r.otp_policy.digits = 8),
         ("sixty-second period", |r| r.otp_policy.period = 60),
         ("wide look-ahead", |r| r.otp_policy.look_ahead = 3),
@@ -1469,9 +1587,14 @@ fn fingerprints_every_field_of_the_installed_shape() {
     }
     // Field boundaries are encoded: moving text between fields differs.
     let mut left = receipt();
-    left.flow.executions.push(bare(Step::Subflow("a;b".to_owned()), Requirement::Disabled));
+    left.flow
+        .executions
+        .push(bare(Step::Subflow("a;b".to_owned()), Requirement::Disabled));
     let mut right = receipt();
-    right.flow.executions.push(bare(Step::Subflow("a".to_owned()), Requirement::Disabled));
+    right
+        .flow
+        .executions
+        .push(bare(Step::Subflow("a".to_owned()), Requirement::Disabled));
     assert_ne!(left.canonical(), right.canonical());
 }
 
@@ -1526,14 +1649,18 @@ fn refuses_a_drifted_unavailable_or_future_readback() {
 #[test]
 fn admits_a_fresh_totp_only_with_a_readback_after_both_tokens() {
     let fixture = admitted_fixture(|_| {});
-    let login = fixture.verify(&dedicated_access(), &dedicated_id()).unwrap();
+    let login = fixture
+        .verify(&dedicated_access(), &dedicated_id())
+        .unwrap();
     assert!(fresh_totp(&login));
     // The second after the tokens' issue is the first that is after it.
     let next_second = admitted_fixture(|a| {
         a.readback.checked_at = SIGNED_AT + 1;
         a.after.observed_at = SIGNED_AT + 1;
     });
-    assert!(next_second.verify(&dedicated_access(), &dedicated_id()).is_ok());
+    assert!(next_second
+        .verify(&dedicated_access(), &dedicated_id())
+        .is_ok());
     // In the same second it is not yet after the issue: never admitted,
     // and told apart from a readback that is truly earlier.
     let same_second = admitted_fixture(|a| a.readback.checked_at = SIGNED_AT);
@@ -1556,7 +1683,10 @@ fn admits_a_fresh_totp_only_with_a_readback_after_both_tokens() {
     // After the access token, but before the ID token.
     let between = admitted_fixture(|a| a.readback.checked_at = SIGNED_AT + 5);
     assert_eq!(
-        between.dedicated_refusal(|_| {}, |c| set(c, "iat", json!(SIGNED_AT + 10))),
+        between.dedicated_refusal(
+            |_| {},
+            |c| set(c, "iat", json!(SIGNED_AT + 10))
+        ),
         Some(VerifyError::ReadbackBeforeTokens)
     );
     // The trustee's factors, observed again only before the tokens.
@@ -1573,12 +1703,12 @@ fn admits_a_fresh_totp_only_with_a_readback_after_both_tokens() {
 
     // No evidence at all: the plain path never proves a factor.
     let mut plain = admitted_fixture(|_| {});
-    let (access, id) = (
-        plain.signer.sign(&dedicated_access()),
-        plain.signer.sign(&dedicated_id()),
-    );
+    let (access, id) = plain.pair(&dedicated_access(), &dedicated_id());
     assert_eq!(
-        plain.verifier.verify_pair(&access, &id, START, NOW).err(),
+        plain
+            .verifier
+            .verify_pair(&access, &id, START, NOW, &plain.device_nonce)
+            .err(),
         Some(VerifyError::NoAdmissionEvidence)
     );
     let challenge = plain.challenge;
@@ -1588,8 +1718,8 @@ fn admits_a_fresh_totp_only_with_a_readback_after_both_tokens() {
             &mut plain.machine,
             clock(5, NOW),
             &ticket,
-            &access,
-            &id
+            (&access, &id),
+            &plain.device_nonce,
         ),
         denied(challenge)
     );
@@ -1614,8 +1744,12 @@ fn never_takes_an_enrollment_in_this_run_for_a_preexisting_factor() {
         }),
         // A snapshot from before this challenge, or not before the
         // authentication, does not show the state at its start.
-        ("observed before the challenge", |a| a.before.observed_at = START - 1),
-        ("observed at the authentication", |a| a.before.observed_at = AUTH),
+        ("observed before the challenge", |a| {
+            a.before.observed_at = START - 1
+        }),
+        ("observed at the authentication", |a| {
+            a.before.observed_at = AUTH
+        }),
         ("two credentials", |a| {
             a.before.otp_credentials.push(OtpCredentialShape {
                 id: "synthetic-otp-credential-2".to_owned(),
@@ -1644,7 +1778,8 @@ fn never_takes_an_enrollment_in_this_run_for_a_preexisting_factor() {
 fn refuses_factors_that_changed_by_the_time_of_the_tokens() {
     let refusals: [(&str, fn(&mut AdmissionEvidence)); 5] = [
         ("other credential", |a| {
-            a.after.otp_credentials[0].id = "synthetic-otp-credential-2".to_owned();
+            a.after.otp_credentials[0].id =
+                "synthetic-otp-credential-2".to_owned();
         }),
         ("re-created credential", |a| {
             a.after.otp_credentials[0].created_at = SIGNED_AT;
@@ -1732,41 +1867,171 @@ fn binds_every_piece_of_evidence_to_this_challenges_requests() {
 }
 
 #[test]
-fn requires_the_tokens_own_fresh_device_only_session() {
-    let refusals: [(&str, fn(&mut AdmissionEvidence)); 6] = [
-        ("no session", |a| a.after.sessions.clear()),
-        ("another session only", |a| {
-            a.after.sessions[0].id = "synthetic-session-0002".to_owned();
-        }),
-        // A prior SSO session the device login joined.
-        ("started before the challenge", |a| {
-            a.after.sessions[0].started_at = START - 1;
-        }),
-        ("started after the authentication", |a| {
-            a.after.sessions[0].started_at = AUTH + 1;
-        }),
-        ("shared with an ordinary client", |a| {
-            a.after.sessions[0].clients =
-                vec!["fixture-ordinary-sso".to_owned(), CLIENT.to_owned()];
-        }),
-        ("no client", |a| a.after.sessions[0].clients.clear()),
-    ];
-    for (name, refusal) in refusals {
+fn binds_the_tokens_to_this_device_request_by_their_signed_nonce() {
+    let fixture = admitted_fixture(|_| {});
+    // The stock device login reuses an earlier SSO session's `sid`: a
+    // reused session is no reason to refuse.
+    let reused = |c: &mut ClaimSet| {
+        set(c, "sid", json!("synthetic-ordinary-sso-session"))
+    };
+    assert!(fresh_totp(
+        &fixture
+            .verify(
+                &{
+                    let mut access = dedicated_access();
+                    reused(&mut access);
+                    access
+                },
+                &{
+                    let mut id = dedicated_id();
+                    reused(&mut id);
+                    id
+                },
+            )
+            .unwrap()
+    ));
+    // An access token carrying the same nonce is fine too.
+    assert!(fixture
+        .verify(
+            &{
+                let mut access = dedicated_access();
+                set(&mut access, "nonce", json!(DEVICE_NONCE));
+                access
+            },
+            &dedicated_id(),
+        )
+        .is_ok());
+
+    // Tokens issued for another device request (same reused `sid`), or for
+    // none, or ordinary tokens with no device nonce.
+    let other = json!("synthetic-other-device-request-nonce-000000");
+    assert_eq!(
+        fixture.dedicated_refusal(|_| {}, |c| set(c, "nonce", Value::Null)),
+        Some(VerifyError::DeviceNonce)
+    );
+    assert_eq!(
+        fixture.dedicated_refusal(|_| {}, |c| set(c, "nonce", other.clone())),
+        Some(VerifyError::DeviceNonce)
+    );
+    assert_eq!(
+        fixture.dedicated_refusal(|c| set(c, "nonce", other.clone()), |_| {}),
+        Some(VerifyError::DeviceNonce)
+    );
+    // A nonce that is not one this runner could have sent.
+    let mut unsent = admitted_fixture(|_| {});
+    unsent.device_nonce = DeviceNonce("synthetic-short".to_owned());
+    assert_eq!(
+        unsent.dedicated_refusal(|_| {}, |_| {}),
+        Some(VerifyError::DeviceNonce)
+    );
+    // Through the ticket, another device request's tokens are denied.
+    let mut stray = admitted_fixture(|_| {});
+    let challenge = stray.challenge;
+    let mut id = dedicated_id();
+    set(&mut id, "nonce", other);
+    assert_eq!(stray.settle(&dedicated_access(), &id), denied(challenge));
+}
+
+/// Another validly signed access token of the same trustee, from another
+/// issuance: everything but its bytes alike.
+fn second_access(fixture: &Fixture) -> String {
+    let mut access = access_claims();
+    set(&mut access, "jti", json!("synthetic-jti-access-2"));
+    fixture.signer.sign(&access)
+}
+
+#[test]
+fn binds_the_id_token_to_its_exact_access_token_by_at_hash() {
+    let fixture = fixture();
+    let verify = |access: &str, id: &str| {
+        fixture
+            .verifier
+            .verify_pair(access, id, START, NOW, &fixture.device_nonce)
+            .map(|_| ())
+    };
+    let (access, id) = fixture.pair(&access_claims(), &id_claims());
+    assert_eq!(verify(&access, &id), Ok(()));
+
+    // A swapped access token: validly signed, same trustee, other bytes.
+    let swapped = second_access(&fixture);
+    assert_ne!(swapped, access);
+    assert_eq!(verify(&swapped, &id), Err(VerifyError::AccessHash));
+
+    // No at_hash, an at_hash of the other token, or a malformed one.
+    for at_hash in [
+        Value::Null,
+        json!(rs256_access_hash(&swapped)),
+        json!(format!("{}=", rs256_access_hash(&access))),
+        json!(""),
+    ] {
+        let mut bound = id_claims();
+        set(&mut bound, "at_hash", at_hash.clone());
+        let (access, id) = fixture.pair(&access_claims(), &bound);
         assert_eq!(
-            admitted_fixture(refusal).dedicated_refusal(|_| {}, |_| {}),
-            Some(VerifyError::SessionNotFresh),
-            "{name}"
+            verify(&access, &id),
+            Err(VerifyError::AccessHash),
+            "{at_hash}"
         );
     }
-    // Other sessions of the trustee may exist; the tokens' own decides.
-    let with_other = admitted_fixture(|a| {
-        a.after.sessions.push(SessionShape {
-            id: "synthetic-session-0002".to_owned(),
-            started_at: START - 3_600,
-            clients: vec!["fixture-ordinary-sso".to_owned()],
-        });
-    });
-    assert!(with_other.verify(&dedicated_access(), &dedicated_id()).is_ok());
+    // The hash is of the exact bytes: stock RS256 at_hash is 22 characters.
+    assert_eq!(rs256_access_hash(&access).len(), 22);
+}
+
+#[test]
+fn the_transaction_identity_is_checked_for_every_settlement() {
+    // The unproven verifier too: a pair of another device request is
+    // denied, not merely discarded for want of a factor.
+    let mut fixture = fixture();
+    let challenge = fixture.challenge;
+    let mut id = id_claims();
+    set(
+        &mut id,
+        "nonce",
+        json!("synthetic-other-device-request-nonce-000000"),
+    );
+    assert_eq!(fixture.settle(&access_claims(), &id), denied(challenge));
+
+    // Ordinary tokens of another client carry no device nonce either way.
+    let ordinary =
+        |c: &mut ClaimSet| set(c, "azp", json!("fixture-ordinary-sso"));
+    let fixture = self::fixture();
+    assert_eq!(
+        fixture.refusal(ordinary, ordinary),
+        Some(VerifyError::AuthorizedParty)
+    );
+    // The device client's own tokens without the nonce: not this request.
+    assert_eq!(
+        fixture.id_refusal(|c| set(c, "nonce", Value::Null)),
+        Some(VerifyError::DeviceNonce)
+    );
+    // Another trustee, with this request's nonce: still refused.
+    let other = |c: &mut ClaimSet| set(c, "sub", json!(OTHER_UUID));
+    assert_eq!(fixture.refusal(other, other), Some(VerifyError::Subject));
+
+    // Replay: the tokens of an earlier challenge's request, offered to a
+    // new challenge with its own nonce, are not this request's.
+    let mut earlier = self::fixture();
+    let (access, id) = earlier.pair(&access_claims(), &id_claims());
+    earlier.device_nonce = DeviceNonce::generate().unwrap();
+    assert_eq!(
+        earlier
+            .verifier
+            .verify_pair(&access, &id, START, NOW, &earlier.device_nonce)
+            .err(),
+        Some(VerifyError::DeviceNonce)
+    );
+}
+
+#[test]
+fn device_nonces_are_fresh_and_never_shown() {
+    let (first, second) = (
+        DeviceNonce::generate().unwrap(),
+        DeviceNonce::generate().unwrap(),
+    );
+    assert_ne!(first.form_value(), second.form_value());
+    assert!(is_request_nonce(first.form_value()));
+    let shown = format!("{first:?}");
+    assert!(!shown.contains(first.form_value()), "{shown}");
 }
 
 #[test]
@@ -1795,7 +2060,9 @@ fn refuses_a_post_token_readback_of_a_changed_policy() {
 fn the_unproven_verifier_ignores_any_admission_evidence() {
     let mut unproven = fixture();
     unproven.admission = Some(admission_for(&receipt()));
-    let login = unproven.verify(&dedicated_access(), &dedicated_id()).unwrap();
+    let login = unproven
+        .verify(&dedicated_access(), &dedicated_id())
+        .unwrap();
     assert!(matches!(login.mfa, MfaEvidence::Absent));
     let challenge = unproven.challenge;
     assert_eq!(

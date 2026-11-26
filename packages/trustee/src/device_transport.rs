@@ -40,7 +40,7 @@ use reqwest::header::{ACCEPT, CONTENT_TYPE};
 use reqwest::Url;
 use serde::Deserialize;
 
-use crate::device::verify::NativeVerifier;
+use crate::device::verify::{DeviceNonce, NativeVerifier};
 use crate::device::{
     Clock, DeviceError, DeviceLogin, DeviceStatus, PollOutcome, PollTicket,
 };
@@ -68,6 +68,10 @@ pub(crate) enum TransportError {
     BadPkce,
     /// The PKCE challenge was already used by this transport.
     PkceReused,
+    /// No device request nonce could be made.
+    Nonce,
+    /// The device request nonce was already used by this transport.
+    NonceReused,
     BadCaBundle,
     ClientBuild,
     /// Network failure, timeout, HTTP 429 or 5xx: try again later.
@@ -305,9 +309,10 @@ impl fmt::Debug for PkceS256 {
     }
 }
 
-/// The challenges this transport has sent, so that none is used twice.
+/// The PKCE challenges and device request nonces this transport has sent,
+/// so that none is used twice.
 #[derive(Default)]
-pub(crate) struct ChallengeLedger(HashSet<String>);
+pub(crate) struct ChallengeLedger(HashSet<String>, HashSet<String>);
 
 impl ChallengeLedger {
     fn register(&mut self, pkce: &PkceS256) -> Result<(), TransportError> {
@@ -315,6 +320,17 @@ impl ChallengeLedger {
             Ok(())
         } else {
             Err(TransportError::PkceReused)
+        }
+    }
+
+    fn register_nonce(
+        &mut self,
+        nonce: &DeviceNonce,
+    ) -> Result<(), TransportError> {
+        if self.1.insert(nonce.form_value().to_owned()) {
+            Ok(())
+        } else {
+            Err(TransportError::NonceReused)
         }
     }
 }
@@ -364,11 +380,14 @@ impl fmt::Debug for DeviceAuthorization {
     }
 }
 
-/// What the trustee keeps to poll: the device code and the PKCE verifier.
+/// What the trustee keeps to poll: the device code, the PKCE verifier, and
+/// the single-use nonce sent with exactly this device request, which the
+/// tokens issued for it must carry back signed.
 #[derive(Debug)]
 pub(crate) struct PendingDeviceGrant {
     authorization: DeviceAuthorization,
     pkce: PkceS256,
+    nonce: DeviceNonce,
 }
 
 impl PendingDeviceGrant {
@@ -443,6 +462,8 @@ impl PollReply {
 pub(crate) struct Polled {
     ticket: PollTicket,
     reply: PollReply,
+    /// The nonce of the device request this poll belongs to.
+    nonce: DeviceNonce,
 }
 
 /// What settling a [`Polled`] left.
@@ -458,6 +479,7 @@ pub(crate) enum Settled {
 pub(crate) struct AwaitingVerification {
     ticket: PollTicket,
     reply: UnverifiedTokenReply,
+    nonce: DeviceNonce,
 }
 
 impl Polled {
@@ -471,20 +493,25 @@ impl Polled {
         machine: &mut DeviceLogin,
         clock: Clock,
     ) -> Result<Settled, DeviceError> {
-        let Polled { ticket, reply } = self;
+        let Polled {
+            ticket,
+            reply,
+            nonce,
+        } = self;
         match reply.into_model_step() {
-            ModelStep::Settle(outcome) => machine
-                .settle(clock, &ticket, outcome)
-                .map(Settled::Status),
+            ModelStep::Settle(outcome) => {
+                machine.settle(clock, &ticket, outcome).map(Settled::Status)
+            }
             ModelStep::PollFailed => machine
                 .poll_failed(clock.mono, &ticket)
                 .map(Settled::Status),
-            ModelStep::AwaitVerification(reply) => Ok(
-                Settled::AwaitingVerification(AwaitingVerification {
+            ModelStep::AwaitVerification(reply) => {
+                Ok(Settled::AwaitingVerification(AwaitingVerification {
                     ticket,
                     reply,
-                }),
-            ),
+                    nonce,
+                }))
+            }
         }
     }
 }
@@ -493,21 +520,28 @@ impl AwaitingVerification {
     /// Consumes this reply and its own ticket: the verifier made for
     /// `machine` checks the pair against that machine's scope and pending
     /// challenge, and settles that same poll. Any failed check closes the
-    /// challenge as denied. With the second factor unproven, a valid pair
-    /// is discarded by the model too: no grant can result.
+    /// challenge as denied. The pair must have been issued for this poll's
+    /// own device request (signed `nonce`) and belong together (signed
+    /// `at_hash`); that identifies the transaction, it proves no factor.
+    /// With the second factor unproven, a valid pair is discarded by the
+    /// model too: no grant can result.
     pub(crate) fn verify_and_settle(
         self,
         machine: &mut DeviceLogin,
         clock: Clock,
         verifier: &NativeVerifier,
     ) -> Result<DeviceStatus, DeviceError> {
-        let AwaitingVerification { ticket, reply } = self;
+        let AwaitingVerification {
+            ticket,
+            reply,
+            nonce,
+        } = self;
         verifier.settle_pair(
             machine,
             clock,
             &ticket,
-            &reply.access_token.0,
-            &reply.id_token.0,
+            (&reply.access_token.0, &reply.id_token.0),
+            &nonce,
         )
     }
 
@@ -517,7 +551,7 @@ impl AwaitingVerification {
         machine: &mut DeviceLogin,
         clock: Clock,
     ) -> Result<DeviceStatus, DeviceError> {
-        let AwaitingVerification { ticket, reply } = self;
+        let AwaitingVerification { ticket, reply, .. } = self;
         drop(reply);
         machine.settle(clock, &ticket, PollOutcome::AccessDenied)
     }
@@ -573,8 +607,7 @@ fn parse_error(
     content_type: Option<&str>,
     body: &[u8],
 ) -> Result<OAuthErrorCode, TransportError> {
-    let wire: ErrorWire =
-        json_body(content_type, body, ERROR_RESPONSE_LIMIT)?;
+    let wire: ErrorWire = json_body(content_type, body, ERROR_RESPONSE_LIMIT)?;
     OAuthErrorCode::parse(&wire.error).ok_or(TransportError::Malformed)
 }
 
@@ -656,8 +689,7 @@ fn parse_tokens(
     content_type: Option<&str>,
     body: &[u8],
 ) -> Result<UnverifiedTokenReply, TransportError> {
-    let wire: TokenWire =
-        json_body(content_type, body, TOKEN_RESPONSE_LIMIT)?;
+    let wire: TokenWire = json_body(content_type, body, TOKEN_RESPONSE_LIMIT)?;
     let token = |value: String| {
         if is_visible_ascii(&value, TOKEN_LIMIT) {
             Ok(Secret(value))
@@ -703,10 +735,13 @@ pub(crate) fn parse_poll(
 }
 
 /// The device authorization request: never the verifier or a device code.
+/// Its `nonce` is this request's own; stock Keycloak keeps it with the
+/// device code and signs it back in the ID token issued for that code.
 fn authorization_form<'a>(
     client_id: &'a ClientId,
     auth: &'a ClientAuthentication,
     pkce: &'a PkceS256,
+    nonce: &'a DeviceNonce,
 ) -> Vec<(&'static str, &'a str)> {
     vec![
         ("client_id", client_id.0.as_str()),
@@ -714,6 +749,7 @@ fn authorization_form<'a>(
         ("scope", "openid"),
         ("code_challenge", pkce.challenge.as_str()),
         ("code_challenge_method", "S256"),
+        ("nonce", nonce.form_value()),
     ]
 }
 
@@ -784,13 +820,18 @@ impl DeviceTransport {
         })
     }
 
-    /// Starts a flow with a fresh PKCE pair.
+    /// Starts a flow with a fresh PKCE pair and a nonce made here for this
+    /// request alone; the caller never supplies it.
     pub(crate) async fn authorize(
         &mut self,
         pkce: PkceS256,
     ) -> Result<PendingDeviceGrant, TransportError> {
         self.ledger.register(&pkce)?;
-        let form = authorization_form(&self.client_id, &self.auth, &pkce);
+        let nonce =
+            DeviceNonce::generate().map_err(|_| TransportError::Nonce)?;
+        self.ledger.register_nonce(&nonce)?;
+        let form =
+            authorization_form(&self.client_id, &self.auth, &pkce, &nonce);
         let response = self
             .http
             .post(self.endpoints.device_authorization.clone())
@@ -810,6 +851,7 @@ impl DeviceTransport {
         Ok(PendingDeviceGrant {
             authorization,
             pkce,
+            nonce,
         })
     }
 
@@ -821,7 +863,11 @@ impl DeviceTransport {
         ticket: PollTicket,
     ) -> Polled {
         let reply = self.exchange(grant).await;
-        Polled { ticket, reply }
+        Polled {
+            ticket,
+            reply,
+            nonce: grant.nonce.clone(),
+        }
     }
 
     async fn exchange(&self, grant: &PendingDeviceGrant) -> PollReply {
@@ -873,5 +919,5 @@ async fn read_bounded(
 }
 
 #[cfg(test)]
-#[path = "device_transport_tests.rs"]
+#[path = "../tests/support/device_transport_tests.rs"]
 mod tests;

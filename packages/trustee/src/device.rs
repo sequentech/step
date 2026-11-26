@@ -478,14 +478,14 @@ impl DeviceLogin {
             PollOutcome::ExpiredToken => {
                 Some(closed(challenge, Closure::Expired))
             }
-            PollOutcome::Approved(login) => Some(
-                match approve(&self.scope, pending, clock, &login) {
+            PollOutcome::Approved(login) => {
+                Some(match approve(&self.scope, pending, clock, &login) {
                     Ok(grant) => State::Approved(grant),
                     Err(reason) => {
                         closed(challenge, Closure::Discarded(reason))
                     }
-                },
-            ),
+                })
+            }
         };
         if let Some(state) = next {
             self.state = state;
@@ -886,7 +886,7 @@ fn verify(
 }
 
 #[cfg(test)]
-#[path = "device_tests.rs"]
+#[path = "../tests/support/device_tests.rs"]
 mod tests;
 
 /// The token pair verifier: a child, so it alone can build a login.
