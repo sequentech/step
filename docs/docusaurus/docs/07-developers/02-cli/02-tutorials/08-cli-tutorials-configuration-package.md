@@ -54,8 +54,14 @@ counts as applied only when the tenant matches the package afterwards.
 Existing administrator accounts are never re-created or given credentials;
 trustee keys are never replaced; the event is imported once.
 
-If the run stops, run it again with the same file. It continues from what is
-already in place: a section whose import is still running is waited for, not
+If the run stops, first preview the same file with the same required sections
+and census setting. In the Admin Portal, **Preview with original requirements**
+restores those choices after a signed retry is refused for using different
+requirements. It starts a fresh Preview only. Complete any separate signing or
+receiver checks it reports, review the result, and confirm Apply yourself. Do
+not deselect sections just because an earlier run applied them.
+
+A confirmed retry continues from what is already in place: a section whose import is still running is waited for, not
 submitted again, and the sections already applied keep the task ids that
 applied them. Only one application of a package to a tenant runs at a time.
 
