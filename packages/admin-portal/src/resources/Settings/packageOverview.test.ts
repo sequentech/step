@@ -474,15 +474,25 @@ describe("readRecovery: continuing the same signed import", () => {
                 ...application,
                 sections: application.sections.map((section) => ({
                     ...section,
-                    status: section.section === "election-event" ? section.status : {state: "not-included"},
-                    history: section.section === "election-event" ? section.history : {
-                        submissions: [], inFlight: null, applied: false,
-                    },
+                    status:
+                        section.section === "election-event"
+                            ? section.status
+                            : {state: "not-included"},
+                    history:
+                        section.section === "election-event"
+                            ? section.history
+                            : {
+                                  submissions: [],
+                                  inFlight: null,
+                                  applied: false,
+                              },
                 })),
             },
         }
         expect(readRecovery([row(started)], "t1", legacy, null)).toMatchObject({
-            kind: "recoverable", applied: [], remaining: ["election-event"],
+            kind: "recoverable",
+            applied: [],
+            remaining: ["election-event"],
         })
     })
 
