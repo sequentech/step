@@ -401,7 +401,11 @@ describe("readRecovery: continuing the same signed import", () => {
                     history: {...section.history, submissions: [submission]},
                 }
             }
-            return {...section, status: {state: "unchanged"}, history: {submissions: [], applied: false}}
+            return {
+                ...section,
+                status: {state: "unchanged"},
+                history: {submissions: [], applied: false},
+            }
         })
         expect(
             readRecovery([row({application: {...application, sections}})], "t1", legacy, null)
