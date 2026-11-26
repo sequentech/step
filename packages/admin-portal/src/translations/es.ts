@@ -229,6 +229,15 @@ const spanishTranslation: TranslationType = {
             earlierApplied: "Aplicado por una ejecución anterior",
             earlierTasks: "Tareas iniciadas para esta sección: {{tasks}}",
             inFlight: "Hay un envío sin resolver (tarea {{taskId}})",
+            retryRequirements: {
+                refused:
+                    "Esta vista previa usó requisitos distintos a los de la importación original. Este intento no cambió nada.",
+                original: "Secciones requeridas al inicio: {{sections}}",
+                none: "Ninguna",
+                required: "Censo: obligatorio",
+                optional: "Censo: opcional",
+                preview: "Previsualizar con los requisitos originales",
+            },
             stoppedWithoutRecord:
                 "Detenido sin registro: esta ejecución o una anterior pueden haber aplicado secciones; previsualice de nuevo para ver el estado del cliente",
             lastLog: "Último mensaje: {{message}}",

@@ -83,6 +83,8 @@ fn legacy_requirements() -> Requirements {
 /// A target that holds one "applied" flag per section.
 #[derive(Default)]
 struct Fake {
+    managed_roster: Option<crate::services::managed_webauthn_roster::Binding>,
+    operator: Option<String>,
     applied: Mutex<BTreeSet<Section>>,
     submissions: Mutex<Vec<Section>>,
     fail: Option<Section>,
@@ -115,6 +117,14 @@ impl Drop for Release {
 
 #[async_trait]
 impl PackageTarget for Fake {
+    fn managed_roster_binding(&self) -> Option<&crate::services::managed_webauthn_roster::Binding> {
+        self.managed_roster.as_ref()
+    }
+
+    fn managed_preview_operator_binding(&self) -> Option<&str> {
+        self.operator.as_deref()
+    }
+
     async fn preview(&self, section: Section, files: &[Artifact]) -> Result<SectionPreview> {
         assert!(!files.is_empty(), "a section is previewed with its files");
         self.calls.lock().unwrap().push((
@@ -1584,4 +1594,161 @@ async fn format_1_keeps_its_same_event_resume() {
     .unwrap();
     assert_ne!(record.outcome, Outcome::Refused);
     assert!(target.fake.submissions.lock().unwrap().is_empty());
+}
+
+#[derive(Default)]
+struct RetrySaved {
+    records: Saved,
+    requirements: Mutex<Vec<(String, Requirements)>>,
+}
+
+#[async_trait]
+impl ProgressStore for RetrySaved {
+    async fn save(&self, record: &ApplicationRecord) -> Result<()> {
+        self.records.save(record).await
+    }
+
+    async fn remember_retry_requirements(
+        &self,
+        digest: &str,
+        requirements: &Requirements,
+    ) -> Result<()> {
+        self.requirements
+            .lock()
+            .unwrap()
+            .push((digest.into(), requirements.clone()));
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn a_refused_resume_preview_offers_original_requirements_without_changing_the_journal() {
+    let archive = delivery_with_messaging(true);
+    let mut original = legacy_requirements();
+    original
+        .sections
+        .retain(|section| *section != Section::Trustees);
+    original.sections.insert(4, Section::MessagingAccounts);
+    let original_plan = plan_package(&archive, &original).unwrap();
+    let altered = plan_package(
+        &archive,
+        &Requirements {
+            sections: vec![Section::ElectionEvent],
+            census: CensusRequirement::Optional,
+        },
+    )
+    .unwrap();
+    let mut target = Fake {
+        operator: Some("authorized-operator-stamp".into()),
+        managed_roster: Some(crate::services::managed_webauthn_roster::Binding {
+            sha256: "a".repeat(64),
+            generation: 1,
+            required_approvals: 2,
+        }),
+        fail: Some(Section::ElectionEvent),
+        ..Fake::default()
+    };
+
+    // First Apply confirms the exact choices and stops on ElectionEvent.
+    let preview = run(
+        &original_plan,
+        "tenant",
+        ApplyMode::Preview,
+        None,
+        &target,
+        &Saved::default(),
+    )
+    .await
+    .unwrap();
+    let prior = run(
+        &original_plan,
+        "tenant",
+        ApplyMode::Apply,
+        Some(&preview),
+        &target,
+        &Saved::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(prior.outcome, Outcome::Failed);
+    assert!(prior.history_of(Section::MessagingAccounts).applied);
+    let prior_copy = prior.clone();
+    let submitted_before = target.submissions.lock().unwrap().clone();
+    target.calls.lock().unwrap().clear();
+
+    let store = RetrySaved::default();
+    let error = run(
+        &altered,
+        "tenant",
+        ApplyMode::Preview,
+        Some(&prior),
+        &target,
+        &store,
+    )
+    .await
+    .unwrap_err();
+    assert!(error
+        .to_string()
+        .contains("This retry did not change the tenant"));
+    assert_eq!(
+        *store.requirements.lock().unwrap(),
+        [(original_plan.package_sha256.clone(), original)]
+    );
+    assert!(store.records.0.lock().unwrap().is_empty()); // no usable Preview/Apply record
+    assert!(target.calls.lock().unwrap().is_empty()); // no target reads or changes
+    assert_eq!(prior, prior_copy);
+
+    // Same choices may take a fresh Preview but don't start another Apply.
+    let restored = run(
+        &original_plan,
+        "tenant",
+        ApplyMode::Preview,
+        Some(&prior),
+        &target,
+        &Saved::default(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(restored.outcome, Outcome::Previewed);
+    assert!(restored.history_of(Section::MessagingAccounts).applied);
+    assert_eq!(*target.submissions.lock().unwrap(), submitted_before);
+
+    for (plan, tenant, mode) in [
+        (&altered, "other-tenant", ApplyMode::Preview),
+        (&plan(), "tenant", ApplyMode::Preview),
+        (&altered, "tenant", ApplyMode::Apply),
+    ] {
+        let denied = RetrySaved::default();
+        assert!(run(plan, tenant, mode, Some(&prior), &target, &denied)
+            .await
+            .is_err());
+        assert!(denied.requirements.lock().unwrap().is_empty());
+    }
+    let mut changed_coverage = original_plan.clone();
+    changed_coverage.coverage.census = SectionState::Missing;
+    let denied = RetrySaved::default();
+    assert!(run(
+        &changed_coverage,
+        "tenant",
+        ApplyMode::Preview,
+        Some(&prior),
+        &target,
+        &denied
+    )
+    .await
+    .is_err());
+    assert!(denied.requirements.lock().unwrap().is_empty());
+    target.managed_roster.as_mut().unwrap().generation = 2;
+    let denied = RetrySaved::default();
+    assert!(run(
+        &altered,
+        "tenant",
+        ApplyMode::Preview,
+        Some(&prior),
+        &target,
+        &denied
+    )
+    .await
+    .is_err());
+    assert!(denied.requirements.lock().unwrap().is_empty());
 }

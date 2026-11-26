@@ -219,6 +219,15 @@ const englishTranslation = {
             earlierApplied: "Applied by an earlier run",
             earlierTasks: "Tasks begun for this section: {{tasks}}",
             inFlight: "A submission is not settled yet (task {{taskId}})",
+            retryRequirements: {
+                refused:
+                    "This preview used different requirements from the original import. This retry changed nothing.",
+                original: "Originally required sections: {{sections}}",
+                none: "None",
+                required: "Census: required",
+                optional: "Census: optional",
+                preview: "Preview with original requirements",
+            },
             stoppedWithoutRecord:
                 "Stopped without a record: sections may have been applied by this or earlier runs; preview again to see the tenant's state",
             lastLog: "Last message: {{message}}",
