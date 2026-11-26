@@ -695,7 +695,14 @@ const SettingsConfigurationPackageForScope: React.FC<{
     const previewAgain = () => {
         if (!canPreviewAgain || !submitted || !documentId) return
         setConfirming(false)
-        void submit("preview", documentId, expectedSha, submitted.encryptedPayloadSha256)
+        void submit(
+            "preview",
+            documentId,
+            submitted.recoveryOf ? submitted.expectedSha : expectedSha,
+            submitted.encryptedPayloadSha256,
+            submitted.recoveryOf ? submitted.requirements : undefined,
+            submitted.recoveryOf
+        )
     }
     const actionFor = (wanted: HeaderAction, primary: boolean) => {
         const variant = primary ? "contained" : "outlined"

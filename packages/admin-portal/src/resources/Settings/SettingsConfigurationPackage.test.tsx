@@ -1959,7 +1959,21 @@ describe("configuration package hub layout", () => {
             // Nothing to apply until that new Preview succeeds.
             expect(applyButton().disabled).toBe(true)
 
-            mockTask = task("task-r", "SUCCESS", remainingPreview())
+            const retryPreview = refusedPreview(["default template still unavailable"])
+            retryPreview.application.packageSha256 = ORIGINAL_SHA
+            mockTask = task("task-r", "FAILED", retryPreview)
+            view.rerender(<SettingsConfigurationPackage />)
+            mockApply.mockResolvedValueOnce(accepted("task-r2"))
+            await act(async () => {
+                fireEvent.click(screen.getByTestId("package-preview-again"))
+            })
+            expect(mockApply.mock.calls[3][0].variables).toEqual({
+                tenantId: "t1",
+                documentId: "doc-1",
+                mode: "preview",
+                requirements: ORIGINAL_REQUIREMENTS,
+            })
+            mockTask = task("task-r2", "SUCCESS", remainingPreview())
             view.rerender(<SettingsConfigurationPackage />)
             expect(screen.queryByTestId("package-preview-remaining")).toBeNull()
             expect(applyButton().disabled).toBe(false)
@@ -1970,12 +1984,12 @@ describe("configuration package hub layout", () => {
                 )
             ).toEqual(["configurationPackage.sections.election-event"])
             expect(screen.getByTestId("package-confirm-recovery")).toBeTruthy()
-            expect(mockApply).toHaveBeenCalledTimes(3)
+            expect(mockApply).toHaveBeenCalledTimes(4)
             mockApply.mockResolvedValueOnce(accepted("task-a2"))
             await act(async () => {
                 fireEvent.click(screen.getByTestId("package-apply-confirm"))
             })
-            expect(mockApply.mock.calls[3][0].variables).toEqual({
+            expect(mockApply.mock.calls[4][0].variables).toEqual({
                 tenantId: "t1",
                 documentId: "doc-1",
                 mode: "apply",

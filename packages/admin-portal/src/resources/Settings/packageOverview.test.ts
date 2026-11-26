@@ -377,6 +377,37 @@ describe("readRecovery: continuing the same signed import", () => {
         })
     })
 
+    it("includes the latest failed section even if an earlier run applied it", () => {
+        const {application} = partialApply()
+        const sections = application.sections.map((section) =>
+            section.section === "election-event"
+                ? {...section, history: {...section.history, applied: true}}
+                : section
+        )
+        expect(
+            readRecovery([row({application: {...application, sections}})], "t1", legacy, null)
+        ).toMatchObject({kind: "recoverable", remaining: ["election-event"]})
+    })
+
+    it("does not report reused messaging accounts as a write", () => {
+        const {application} = partialApply()
+        const sections = application.sections.map((section) => {
+            if (section.section === "election-event") return section
+            if (section.section === "messaging-accounts") {
+                const submission = {taskId: "task-s6", detail: {changes: [{action: "reuse"}]}}
+                return {
+                    ...section,
+                    status: {state: "applied", submission},
+                    history: {...section.history, submissions: [submission]},
+                }
+            }
+            return {...section, status: {state: "unchanged"}, history: {submissions: [], applied: false}}
+        })
+        expect(
+            readRecovery([row({application: {...application, sections}})], "t1", legacy, null)
+        ).toMatchObject({kind: "recoverable", applied: [], remaining: ["election-event"]})
+    })
+
     it("reuses the same uploaded document only from the browser that followed that run", () => {
         const plain = readRecovery([row(partialApply())], "t1", legacy, local)
         expect(plain.kind === "recoverable" && plain.documentId).toBe("doc-1")

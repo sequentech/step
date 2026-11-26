@@ -72,6 +72,8 @@ export interface SectionView {
     taskId?: string
     reconciled?: boolean
     error?: string
+    /** True only when a saved messaging submission records a create or replace. */
+    messagingWrite?: boolean
     /** Whether any run so far confirmed the section applied. */
     earlierApplied: boolean
     /** Every task begun for the section, by any run, oldest first. */
@@ -127,6 +129,23 @@ export const readApplication = (annotations: unknown): ApplicationView | null =>
                 taskId: submission.taskId ?? status.task_id ?? undefined,
                 reconciled: typeof status.reconciled === "boolean" ? status.reconciled : undefined,
                 error: typeof status.error === "string" ? status.error : undefined,
+                ...(section.section === "messaging-accounts"
+                    ? {
+                          messagingWrite: [
+                              submission,
+                              ...(Array.isArray(history.submissions) ? history.submissions : []),
+                          ].some((entry: unknown) => {
+                              const changes = asObject(asObject(entry).detail).changes
+                              return (
+                                  Array.isArray(changes) &&
+                                  changes.some((item: unknown) => {
+                                      const action = asObject(item).action
+                                      return action === "create" || action === "replace"
+                                  })
+                              )
+                          }),
+                      }
+                    : {}),
                 earlierApplied: history.applied === true,
                 submissions: (Array.isArray(history.submissions) ? history.submissions : [])
                     .map((entry: unknown) => asObject(entry).taskId)

@@ -385,18 +385,21 @@ export const readRecovery = (
     ) {
         return {kind: "none"}
     }
-    const isApplied = (section: SectionView) =>
-        section.state === "applied" || section.earlierApplied
     const applied = PACKAGE_SECTIONS.filter((name) =>
-        view.sections.some((section) => section.section === name && isApplied(section))
+        view.sections.some(
+            (section) =>
+                section.section === name &&
+                (section.state === "applied" || section.earlierApplied) &&
+                (section.section !== "messaging-accounts" || section.messagingWrite === true)
+        )
     )
+    // Historical writes are not proof that a later failed or pending section
+    // is settled. The next Preview also checks already-converged sections for drift.
     const remaining = PACKAGE_SECTIONS.filter((name) =>
         view.sections.some(
             (section) =>
                 section.section === name &&
-                !isApplied(section) &&
-                section.state !== "not-included" &&
-                section.state !== "unchanged"
+                !["applied", "not-included", "unchanged"].includes(section.state)
         )
     )
     // A persisted submission proves Apply started even when no section completed.

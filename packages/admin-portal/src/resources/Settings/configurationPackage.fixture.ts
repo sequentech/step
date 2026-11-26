@@ -267,7 +267,17 @@ export const partialApply = ({
                 status: {state: "not-included"},
                 history: history(false),
             },
-            appliedSection("messaging-accounts", "task-s6"),
+            {
+                ...appliedSection("messaging-accounts", "task-s6"),
+                status: {
+                    state: "applied",
+                    submission: {
+                        taskId: "task-s6",
+                        detail: {changes: [{action: "create"}]},
+                    },
+                    reconciled: false,
+                },
+            },
             {
                 section: "election-event",
                 members: ["event.zip"],

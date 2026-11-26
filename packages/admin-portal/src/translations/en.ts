@@ -86,7 +86,7 @@ const englishTranslation = {
                     title: "This import stopped partway and can be continued",
                     remaining: "Left to apply: {{sections}}.",
                     explain:
-                        "Fix the cause, then Preview remaining changes: the same signed package is previewed again with its original requirements. Sections already applied stay applied and are not submitted again.",
+                        "Fix the cause, then Preview remaining changes: the same signed package is previewed again with its original requirements. Preview rechecks sections already applied; sections that still match are skipped.",
                     previewRemaining: "Preview remaining changes",
                     continue: "Continue this import",
                     chooseSame: "Choose the same file again. It must be the package this run used:",
@@ -94,7 +94,7 @@ const englishTranslation = {
                     wrongFile:
                         "This is not the package this run used, so nothing was submitted. Choose the same file again.",
                     confirmKeep:
-                        "Sections the earlier run applied stay applied; they are not submitted again.",
+                        "Apply skips sections that still match. Review any drift the new Preview found before continuing.",
                     partial: "Partly updated since by an unfinished run (task {{taskId}}).",
                     blocked: {
                         unsettled:
