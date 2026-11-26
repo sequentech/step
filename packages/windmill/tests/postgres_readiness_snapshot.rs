@@ -520,7 +520,7 @@ fn real_snapshot_requires_delivered_valid_receipt_and_current_full_census_withou
         assert!(report
             .checks
             .iter()
-            .any(|check| check.kind == CheckKind::Publication && !check.passed));
+            .any(|check| check.kind == CheckKind::TestedFinished && !check.passed));
         assert_eq!(
             db.store
                 .count(&db.board, &LogQuery::default())
@@ -698,6 +698,34 @@ fn real_snapshot_requires_delivered_valid_receipt_and_current_full_census_withou
             passed.evidence.tested.sealed_boxes
         );
         assert_signed_report(&db, &key, &passed).await;
+        // Real readiness entrypoint: the official event can be ready before
+        // publishing anything, and the separately tested event still must
+        // prove its own active publication and seals.
+        tx.batch_execute("SAVEPOINT official_unpublished")
+            .await
+            .unwrap();
+        tx.execute(
+            "UPDATE sequent_backend.ballot_publication SET deleted_at=clock_timestamp() WHERE tenant_id=$1 AND election_event_id=$2 AND published_at IS NOT NULL",
+            &[&tenant, &event],
+        ).await.unwrap();
+        let unpublished = verify(
+            &tx,
+            &tenant_id,
+            &event_id,
+            &tested_event.to_string(),
+            &actor,
+        )
+        .await
+        .unwrap();
+        tx.batch_execute("ROLLBACK TO SAVEPOINT official_unpublished")
+            .await
+            .unwrap();
+        assert!(unpublished.passed, "{:#?}", unpublished.checks);
+        assert_eq!(unpublished.checks.len(), 4);
+        assert!(unpublished.evidence.official.publication.is_none());
+        assert!(unpublished.evidence.tested.publication.is_some());
+        assert_signed_report(&db, &key, &unpublished).await;
+
         // Per-election publications remain supported: neither individual
         // publication contains every design, but together they cover both.
         tx.batch_execute("SAVEPOINT split_publications")
@@ -744,10 +772,13 @@ fn real_snapshot_requires_delivered_valid_receipt_and_current_full_census_withou
             "Separate published elections must compose: {:#?}",
             split.checks
         );
+        // The official scope never inspects publications; only the tested
+        // event's own publications and seals are evidence.
+        assert!(split.evidence.official.publication.is_none());
         assert_eq!(
             split
                 .evidence
-                .official
+                .tested
                 .publication
                 .as_ref()
                 .unwrap()
@@ -756,6 +787,10 @@ fn real_snapshot_requires_delivered_valid_receipt_and_current_full_census_withou
             2
         );
         assert_eq!(split.evidence.tested.expected_boxes.len(), 2);
+        assert_eq!(
+            split.evidence.tested.expected_boxes,
+            split.evidence.tested.sealed_boxes
+        );
         // A retained publication may also contain retired styles after a
         // partial replacement. Even unreadable retired content is irrelevant
         // to the current published design set.
@@ -850,16 +885,14 @@ fn real_snapshot_requires_delivered_valid_receipt_and_current_full_census_withou
             .unwrap();
         assert!(with_draft.passed && !missing.passed && missing_wrote_nothing,
             "Unpublished draft verdict: {:#?}; missing approved design verdict: {:#?}; missing design wrote nothing: {missing_wrote_nothing}", with_draft.checks, missing.checks);
-        for kind in [CheckKind::Publication, CheckKind::TestedFinished] {
-            assert!(
-                missing
-                    .checks
-                    .iter()
-                    .any(|check| check.kind == kind && !check.passed),
-                "{kind:?}: {:#?}",
-                missing.checks
-            );
-        }
+        assert!(
+            missing
+                .checks
+                .iter()
+                .any(|check| check.kind == CheckKind::TestedFinished && !check.passed),
+            "{:#?}",
+            missing.checks
+        );
 
         tx.batch_execute("SAVEPOINT pending_import").await.unwrap();
         tx.execute("INSERT INTO sequent_backend.tasks_execution (id, tenant_id, election_event_id, name, type, execution_status, executed_by_user) VALUES ($1, $2, $3, 'Pending import', 'IMPORT_USERS', 'IN_PROGRESS', 'ada')", &[&Uuid::new_v4(), &tenant, &event]).await.unwrap();

@@ -669,6 +669,8 @@ const dutchTranslation: TranslationType = {
             ambiguous:
                 "Meer dan één van uw stembiljetten komt overeen met {{ballotId}}. Gebruik de volledige stembiljet-ID.",
             contentDesc: "Dit is de inhoud van uw stembiljet: ",
+            contentSealed:
+                "Uw stembiljet is verzegeld opgeslagen, daarom wordt de inhoud hier niet getoond.",
             wrongFormatBallotId: "Verkeerd formaat voor Stembiljet ID",
             ballotIdNotFoundAtFilter:
                 "Niet gevonden, controleer dat uw Stembiljet ID correct is en behoort tot deze gebruiker.",

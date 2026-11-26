@@ -31,7 +31,14 @@ import {
     templateApprovalRows,
     templatePurpose,
 } from "@/services/templateApproval"
-import {EMessageChannel, EMessagePurpose} from "@/types/messaging"
+import {accountCapabilities, defaultTemplateButtons} from "@/services/messaging"
+import {
+    EMessageChannel,
+    EMessagePurpose,
+    EMessagingProvider,
+    ITemplateButton,
+} from "@/types/messaging"
+import {TemplateButtonsInput} from "@/components/TemplateButtonsInput"
 
 export type InstantMessageChannel =
     | EMessageChannel.WHATSAPP
@@ -130,6 +137,7 @@ const ApprovalStatus: React.FC<{channel: InstantMessageChannel}> = ({channel}) =
         )
     }
     const rows = templateApprovalRows(account.status, purpose, languages)
+    const sendsText = !accountCapabilities(account)?.template_required_for.includes(purpose)
     return (
         <Box sx={{display: "flex", flexDirection: "column", gap: 1}}>
             <TextField
@@ -146,7 +154,11 @@ const ApprovalStatus: React.FC<{channel: InstantMessageChannel}> = ({channel}) =
                     </MenuItem>
                 ))}
             </TextField>
-            <ApprovalTable rows={rows} purpose={purpose} />
+            {sendsText ? (
+                <Alert severity="info">{t("messaging.templates.sendsWrittenText")}</Alert>
+            ) : (
+                <ApprovalTable rows={rows} purpose={purpose} />
+            )}
         </Box>
     )
 }
@@ -219,6 +231,33 @@ export const ProviderTemplateInputs: React.FC<InstantMessageTemplateSectionProps
                 label={String(t("messaging.templates.providerLanguage"))}
                 helperText={String(t(`messaging.templates.providerLanguageHelp.${channel}`))}
             />
+            {channel === EMessageChannel.WHATSAPP ? <ProviderTemplateButtons /> : null}
+        </Box>
+    )
+}
+
+/**
+ * The buttons of the WhatsApp provider template this message names, as WhatsApp
+ * through Infobip sends them. Without one, the event's binding and its buttons
+ * are used.
+ */
+const ProviderTemplateButtons: React.FC = () => {
+    const {t} = useTranslation()
+    const {setValue} = useFormContext()
+    const source = "template.whatsapp.buttons"
+    const buttons = useWatch({name: source}) as ITemplateButton[] | null | undefined
+    const purpose = templatePurpose(useWatch({name: "type"}) as string | undefined)
+    return (
+        <Box sx={{display: "flex", flexDirection: "column", gap: 0.5}}>
+            <TemplateButtonsInput
+                buttons={buttons}
+                defaults={defaultTemplateButtons(EMessagingProvider.WHATSAPP_INFOBIP, purpose)}
+                disabled={false}
+                onChange={(next) => setValue(source, next, {shouldDirty: true})}
+            />
+            <Typography variant="caption" color="text.secondary">
+                {t("messaging.templates.buttonsHelp")}
+            </Typography>
         </Box>
     )
 }
@@ -258,8 +297,20 @@ export const InstantMessageTemplateSection: React.FC<InstantMessageTemplateSecti
                 minRows={3}
                 multiline={true}
                 source={`template.${key}.message`}
-                label={String(t("messaging.templates.approvedWording"))}
-                helperText={String(t("messaging.templates.approvedWordingHelp"))}
+                label={String(
+                    t(
+                        channel === EMessageChannel.VIBER
+                            ? "messaging.templates.viberWording"
+                            : "messaging.templates.approvedWording"
+                    )
+                )}
+                helperText={String(
+                    t(
+                        channel === EMessageChannel.VIBER
+                            ? "messaging.templates.viberWordingHelp"
+                            : "messaging.templates.approvedWordingHelp"
+                    )
+                )}
             />
             <ProviderTemplateInputs channel={channel} />
             <ParametersInput source={`template.${key}.parameters`} />

@@ -38,6 +38,7 @@ signing_enum! {
         GenerateReports,
         TransmitResults,
         ApproveVoter,
+        AuthorizeManualVerification,
         ApproveConfiguration,
         #[serde(rename = "key-ceremony")]
         #[strum(serialize = "key-ceremony")]
@@ -107,6 +108,9 @@ impl SigningAction {
                 Permissions::SIGN_TRANSMIT_RESULTS
             }
             SigningAction::ApproveVoter => Permissions::SIGN_APPROVE_VOTER,
+            SigningAction::AuthorizeManualVerification => {
+                Permissions::SIGN_AUTHORIZE_MANUAL_VERIFICATION
+            }
             SigningAction::ApproveConfiguration => {
                 Permissions::SIGN_APPROVE_CONFIGURATION
             }
@@ -124,7 +128,8 @@ impl SigningAction {
             SigningAction::OpenVoting
             | SigningAction::CloseVoting
             | SigningAction::GenerateReports
-            | SigningAction::ApproveVoter => SigningScope::Post,
+            | SigningAction::ApproveVoter
+            | SigningAction::AuthorizeManualVerification => SigningScope::Post,
             // A Post's initialization may go country by country
             // (initialization scope POST_AND_COUNTRY): such a request
             // carries the country, a whole-Post one doesn't.
@@ -169,7 +174,10 @@ impl SigningAction {
             | SigningAction::TransmitResults => {
                 SigningActionGroup::ResultsAndReports
             }
-            SigningAction::ApproveVoter => SigningActionGroup::Enrollment,
+            SigningAction::ApproveVoter
+            | SigningAction::AuthorizeManualVerification => {
+                SigningActionGroup::Enrollment
+            }
             SigningAction::ApproveConfiguration
             | SigningAction::ConfirmCustodyProof
             | SigningAction::ContributeCustodyProof => {
@@ -364,8 +372,8 @@ pub struct CertificateCheckResult {
 /// [`SigningRule::requester_signing_effective`], which apply the trustee
 /// override.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SigningRule {
-    pub action: SigningAction,
+pub struct SigningRule<Action = SigningAction> {
+    pub action: Action,
     pub requirement: SigningRequirement,
     /// How many different people must sign, as configured.
     pub signatures: u16,

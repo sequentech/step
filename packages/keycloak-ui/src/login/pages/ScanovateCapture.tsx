@@ -1,11 +1,19 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-import {useEffect, useReducer, useRef, useState, type Dispatch, type ReactNode} from "react"
+import {
+    useEffect,
+    useReducer,
+    useRef,
+    useState,
+    type Dispatch,
+    type ReactNode,
+    type RefObject,
+} from "react"
 import {kcSanitize} from "keycloakify/lib/kcSanitize"
 import Box from "@mui/material/Box"
 import Button from "@mui/material/Button"
 import {SymbolTone, TemplateLayout, type TemplateLabel} from "../Template"
-import {ArrowIcon, CameraOffIcon, CheckIcon, SwitchCameraIcon} from "../icons"
+import {ArrowIcon, CameraOffIcon, CheckIcon} from "../icons"
 import type {MessageKey} from "../i18n"
 import {
     acceptsMessage,
@@ -17,10 +25,12 @@ import {
 } from "../scanovate/capture"
 import {
     CameraFacing,
-    cameraCount,
     canChooseCamera,
+    frameDevices,
+    mostCameras,
     otherFacing,
     startingFacing,
+    deviceStorage,
     storeFacing,
     storedFacing,
     watchFrame,
@@ -28,9 +38,10 @@ import {
 import {ACTION_PARAM, CaptureAction} from "../scanovate/form"
 import type {ScanovatePageProps} from "../scanovate/pageProps"
 import {HoldingCamera} from "../scanovate/HoldingCamera"
-import {AttemptsLeft} from "../scanovate/parts"
+import {keepLaidOut} from "../scanovate/layout"
+import {AttemptsLeft, CameraSwitch} from "../scanovate/parts"
 import {EnrollmentStep, documentName, enrollmentFrame, textFor, type Text} from "../scanovate/text"
-import {CaptureProblem, CaptureStage} from "../scanovate/types"
+import {CaptureProblem, CaptureStage, ScanovateMessageKind} from "../scanovate/types"
 import {stepBack} from "../stepBack"
 
 const PROBLEMS: Record<CaptureProblem, [MessageKey, MessageKey]> = {
@@ -72,7 +83,8 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
     const [facing, setFacing] = useState(() =>
         storedFacing(deviceStorage(), startingFacing(scanovate.documentCamera))
     )
-    const cameras = useCameraCount(state.stage === CaptureStage.Document)
+    const frameRef = useRef<HTMLIFrameElement | null>(null)
+    const cameras = useCameraCount(state.stage === CaptureStage.Document, frameRef)
 
     // Keycloak has the results from Scanovate already: the form only moves the flow on.
     useEffect(() => {
@@ -169,10 +181,15 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
     const service = state.stage === CaptureStage.Document ? scanovate.ocr : scanovate.liveness
     const message = state.stage === CaptureStage.Document ? kcContext.message : undefined
     const attemptsUsed = scanovate.attemptsLeft < scanovate.maxAttempts
+    const ownOrigin = (url: string) => canChooseCamera(url, window.location.href)
     // Only the document scan picks a side, and only a page of this origin can
-    // be told which. The face check opens the front camera by itself.
-    const cameraChoice =
-        state.stage === CaptureStage.Document && canChooseCamera(service.url, window.location.href)
+    // be told which. The face check opens the front camera by itself, and its
+    // page is left as it is: it looks for changes to how the camera is opened.
+    const cameraChoice = state.stage === CaptureStage.Document && ownOrigin(service.url)
+    // Pages of this origin follow each other in one frame: Safari remembers
+    // that the voter allowed the camera for the frame that asked, and a new
+    // frame for the face check has it ask the voter again.
+    const oneFrame = ownOrigin(scanovate.ocr.url) && ownOrigin(scanovate.liveness.url)
     const switchLabel = text(
         facing === CameraFacing.Rear ? "scanovateUseFrontCamera" : "scanovateUseRearCamera"
     )
@@ -185,26 +202,29 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
             <ScanovateFrame
                 // A new mount opens a new Scanovate session with the same token.
                 // So does the other camera: the page opens its camera once.
-                key={`${state.stage}-${state.attempt}-${cameraChoice ? facing : ""}`}
+                key={
+                    oneFrame
+                        ? `${state.attempt}-${facing}`
+                        : `${state.stage}-${state.attempt}-${cameraChoice ? facing : ""}`
+                }
+                frameRef={frameRef}
                 url={service.url}
                 title={text(frame.frame)}
                 dispatch={dispatch}
                 facing={cameraChoice ? facing : undefined}
+                // The document page's layout does not always follow a turn of
+                // the device by itself. Only a page of this origin can be asked.
+                laidOutAgain={cameraChoice}
             />
             {cameraChoice && cameras > 1 && (
-                <button
-                    type="button"
-                    className="scanovate-camera-switch"
-                    lang={switchLabel.lang}
+                <CameraSwitch
+                    label={switchLabel}
                     onClick={() => {
                         const chosen = otherFacing(facing)
                         storeFacing(deviceStorage(), chosen)
                         setFacing(chosen)
                     }}
-                >
-                    <SwitchCameraIcon />
-                    <span>{switchLabel.text}</span>
-                </button>
+                />
             )}
             {(message !== undefined || attemptsUsed) && (
                 <div className="scanovate-window-note">
@@ -223,38 +243,33 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
     )
 }
 
-/** The browser's storage for this site, where there is one. */
-function deviceStorage(): Storage | undefined {
-    try {
-        return window.localStorage
-    } catch {
-        return undefined
-    }
-}
-
 /**
  * How many cameras the device has, while `watching`.
  *
  * A browser lists one camera until the voter has allowed the camera, which
  * happens inside Scanovate's page, so the count is taken again every second
- * until there is more than one.
+ * until there is more than one; and Safari goes on listing one to this page,
+ * so the count is also taken where the camera was allowed, in the frame. Once
+ * there is more than one the count stays: the switch is not taken away.
  */
-function useCameraCount(watching: boolean): number {
+function useCameraCount(watching: boolean, frame: RefObject<HTMLIFrameElement | null>): number {
     const [count, setCount] = useState(0)
     useEffect(() => {
         if (!watching || count > 1) return
         let stopped = false
         const look = () =>
-            void cameraCount(navigator.mediaDevices).then((found) => {
-                if (!stopped) setCount(found)
-            })
+            void mostCameras([navigator.mediaDevices, frameDevices(frame.current)]).then(
+                (found) => {
+                    if (!stopped) setCount(found)
+                }
+            )
         look()
         const timer = window.setInterval(look, 1000)
         return () => {
             stopped = true
             window.clearInterval(timer)
         }
-    }, [watching, count])
+    }, [watching, count, frame])
     return count
 }
 
@@ -300,25 +315,56 @@ function CaptureWindow(
     )
 }
 
+/** The document a frame shows; null for a page of another origin. */
+function frameDocument(frame: HTMLIFrameElement | null): Document | null {
+    try {
+        return frame?.contentDocument ?? null
+    } catch {
+        return null
+    }
+}
+
 /**
  * One of Scanovate's own capture pages, embedded as its integration guide asks,
  * over the whole capture window.
+ *
+ * While it stays mounted, a new `url` opens in the same frame, in place of
+ * the page that finished: no step is added to the browser's Back.
  */
 function ScanovateFrame(props: {
+    frameRef: RefObject<HTMLIFrameElement | null>
     url: string
     title: TemplateLabel
     dispatch: Dispatch<CaptureEvent>
     // The camera the page is to open, where this page can tell it.
     facing?: CameraFacing
+    // Whether to have the page lay itself out again after the device is turned.
+    laidOutAgain?: boolean
 }) {
-    const {url, title, dispatch, facing} = props
-    const ref = useRef<HTMLIFrameElement | null>(null)
+    const {frameRef: ref, url, title, dispatch, facing, laidOutAgain = false} = props
+    // The page the frame starts with; later ones are opened in it.
+    const [first] = useState(url)
+    const shown = useRef(url)
+    // The page that finished has no more to say, while the next one loads.
+    const finished = useRef<Document | null>(null)
+
+    useEffect(() => {
+        if (shown.current === url) return
+        shown.current = url
+        finished.current = frameDocument(ref.current)
+        ref.current?.contentWindow?.location.replace(new URL(url, window.location.href).href)
+    }, [url, ref])
 
     // The rear camera is what the page opens by itself: nothing to tell it.
     useEffect(() => {
         if (facing !== CameraFacing.Front || ref.current === null) return
         return watchFrame(ref.current, facing)
-    }, [facing])
+    }, [facing, ref])
+
+    useEffect(() => {
+        if (!laidOutAgain || ref.current === null) return
+        return keepLaidOut(ref.current)
+    }, [laidOutAgain, ref])
 
     useEffect(() => {
         const listen = (event: MessageEvent) => {
@@ -326,17 +372,21 @@ function ScanovateFrame(props: {
                 return
             }
             const message = parseScanovateMessage(event.data)
-            if (message !== null) dispatch(captureEvent(message))
+            if (message === null) return
+            const speaking = frameDocument(ref.current)
+            if (speaking !== null && speaking === finished.current) return
+            if (message.kind === ScanovateMessageKind.Done) finished.current = speaking
+            dispatch(captureEvent(message))
         }
         window.addEventListener("message", listen)
         return () => window.removeEventListener("message", listen)
-    }, [url, dispatch])
+    }, [url, dispatch, ref])
 
     return (
         <div className="scanovate-frame">
             <iframe
                 ref={ref}
-                src={url}
+                src={first}
                 title={title.text}
                 lang={title.lang}
                 allow="camera *; microphone *"

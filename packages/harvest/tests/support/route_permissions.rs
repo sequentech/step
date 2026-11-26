@@ -151,6 +151,8 @@ impl Identity {
     }
 }
 
+const UNWRAP_PATH: &str = "/configuration-package-intake/unwrap";
+
 struct Case {
     identity: Identity,
     path: &'static str,
@@ -168,11 +170,26 @@ impl Case {
         client: &Client,
         permissions: &[String],
     ) -> Result<Reply, String> {
-        let request = client
+        let mut request = client
             .post(concrete(self.path))
             .header(ContentType::JSON)
             .header(bearer(&self.identity.claims().roles(permissions)))
             .body(self.body.to_string());
+        // The direct package intake also needs the first-party transport
+        // (403 before its permissions otherwise): loopback plain HTTP, same
+        // origin, so these cases measure its permission guard.
+        if self.path == UNWRAP_PATH {
+            request = request
+                .header(rocket::http::Header::new("Host", "localhost:3002"))
+                .header(rocket::http::Header::new(
+                    "Origin",
+                    "http://localhost:3002",
+                ))
+                .header(rocket::http::Header::new(
+                    "Sec-Fetch-Site",
+                    "same-origin",
+                ));
+        }
         let response =
             tokio::time::timeout(Duration::from_secs(3), request.dispatch())
                 .await
@@ -334,6 +351,8 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/export-election-event", {"election_event_id": EVENT_ID, "export_configurations": {}}, [ELECTION_EVENT_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-election-event-logs", {"election_event_id": EVENT_ID, "format": "CSV"}, [LOGS_EXPORT], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-tally-results", {"election_event_id": EVENT_ID, "tally_session_id": "test-session"}, [TALLY_RESULTS_READ], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/tally-public-verification-boards", {"election_event_id": UUID_V4_EVENT_ID, "tally_session_id": UUID_V4_EVENT_ID}, [TALLY_RESULTS_READ], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/tally-public-verification-transcript", {"election_event_id": UUID_V4_EVENT_ID, "tally_session_id": UUID_V4_EVENT_ID, "tally_board": "tally_d9792af071b849528aac94bc0fead5f7_0"}, [TALLY_RESULTS_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-tasks-execution", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [TASKS_READ], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(Admin, "/export-template", {"tenant_id": TENANT_ID}, [TEMPLATE_WRITE], BACKEND, BACKEND),
@@ -364,7 +383,8 @@ fn cases() -> Vec<Case> {
         case!(SuperAdmin, "/generate-report", {"report_id": "test-report", "tenant_id": TENANT_ID, "report_mode": "PREVIEW"}, [REPORT_READ, REPORT_PREVIEW], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-transmission-report", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "election_id": ELECTION_ID, "tally_session_id": ELECTION_ID}, [TRANSMISSION_REPORT_GENERATE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-template", {"type": "BallotImages", "election_event_id": EVENT_ID, "election_id": "test-election", "tally_session_id": "test-session"}, [REPORT_READ], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/get-manual-verification-pdf", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "voter_id": "test-voter"}, [VOTER_MANUALLY_VERIFY], BACKEND, UNAUTHORIZED),
+        case!(UuidTenant, "/get-manual-verification-pdf", {"tenant_id": UUID_TENANT_ID, "election_event_id": UUID_EVENT_ID, "voter_id": "test-voter"}, [VOTER_MANUALLY_VERIFY], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/manual-verification-authority", {"tenant_id": UUID_TENANT_ID, "election_event_id": UUID_EVENT_ID, "voter_id":"test-voter","phase":"issue"}, [SERVICE_ACCOUNT], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-voter-information-letter", {"election_event_id": EVENT_ID, "voter_id": "test-voter"}, [VOTER_INFORMATION_LETTER, DOCUMENT_PASSWORD_READ], BACKEND, FORBIDDEN_JSON),
         case!(Voter, "/get-ballot-files-urls", {"election_event_id": EVENT_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
         case!(UuidTenant, "/get-architect-approval-policy", {"tenant_id": UUID_TENANT_ID}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED),
@@ -409,6 +429,10 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/import-templates", {"tenant_id": TENANT_ID, "document_id": "test-document"}, [TEMPLATE_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/import-tenant-config", {"tenant_id": TENANT_ID, "document_id": "test-document", "import_configurations": {}}, [TENANT_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/apply-configuration-package", {"tenant_id": TENANT_ID, "document_id": "test-document", "mode": "preview"}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED),
+        // intake_permissions(): the package permissions plus provisioning
+        // package messaging. A well-formed body with UUID tenant and document
+        // passes parsing; the first backend call is the database pool.
+        case!(UuidTenant, "/configuration-package-intake/unwrap", {"document_id": ELECTION_ID, "password": "synthetic-transfer-password"}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE, MESSAGING_ACCOUNT_READ, MESSAGING_ACCOUNT_WRITE, MESSAGING_CONFIG_WRITE], BACKEND, UNAUTHORIZED),
         case!(RosterOperator, "/get-architect-signer-roster-status", {"tenant_id": TENANT_ID}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED_JSON),
         case!(RosterOperator, "/get-architect-signer-roster-status", {"tenant_id": OTHER_TENANT_ID}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], UNAUTHORIZED_JSON, UNAUTHORIZED_JSON),
         case!(RosterOperator, "/preview-architect-signer-roster", {"tenant_id": TENANT_ID, "roster_json": roster_json, "expected_sha256": roster_sha256}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED_JSON),

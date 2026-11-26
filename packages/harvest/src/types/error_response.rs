@@ -72,6 +72,10 @@ pub enum ErrorCode {
     /// An enrollment's application that can't be rejected as its email
     /// being in use: the server's own checks didn't confirm it.
     ApplicationNotRejectable,
+    #[strum(serialize = "manual-verification-delivery-failed")]
+    ManualVerificationDeliveryFailed,
+    #[strum(serialize = "manual-verification-unavailable")]
+    ManualVerificationUnavailable,
     #[strum(serialize = "architect-roster-fresh-auth-required")]
     ArchitectRosterFreshAuthRequired,
     #[strum(serialize = "architect-roster-management-forbidden")]

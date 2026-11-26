@@ -186,8 +186,8 @@ fn check_signing(bundle: &ImportElectionEventSchema, report: &mut Report) {
 /// [`check_signing`]'s rules, at `prefix` (`signing_rules` in a bundle,
 /// `signing.rules` in a plan), so the wizard reports the same problems, with
 /// the same ids, on the plan before anything is compiled.
-pub(crate) fn check_signing_rules(
-    rules: &[crate::signing::SigningRule],
+pub(crate) fn check_signing_rules<Action: std::fmt::Display + Copy>(
+    rules: &[crate::signing::SigningRule<Action>],
     prefix: &str,
     report: &mut Report,
 ) {

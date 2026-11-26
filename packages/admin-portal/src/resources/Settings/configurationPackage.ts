@@ -310,6 +310,45 @@ export interface ActiveSubmission {
     encryptedPayloadSha256?: string
 }
 
+/** The receiver's safe options for this rejected Preview. A previous task
+ * is not a new authorization and these options are never saved in the browser.
+ */
+export const readPackageRetry = (
+    annotations: unknown,
+    tenantId: string,
+    submitted: ActiveSubmission
+): {requirements: PackageRequirements; packageSha256: string} | null => {
+    const row = asObject(annotations)
+    const hint = asObject(row.packageRetry)
+    const plan = asObject(hint.requirements)
+    const digest = hint.packageSha256
+    if (
+        row.application ||
+        row.previouslyApplied ||
+        hint.tenantId !== tenantId ||
+        typeof digest !== "string" ||
+        !/^[0-9a-f]{64}$/.test(digest) ||
+        [submitted.encryptedPayloadSha256, submitted.expectedSha].some(
+            (expected) =>
+                !!expected && (typeof expected !== "string" || expected.toLowerCase() !== digest)
+        ) ||
+        !submitted.requirements ||
+        !Array.isArray(submitted.requirements.sections) ||
+        !Array.isArray(plan.sections) ||
+        plan.sections.some((section) => !PACKAGE_SECTIONS.includes(section)) ||
+        new Set(plan.sections).size !== plan.sections.length ||
+        (plan.census !== "required" && plan.census !== "optional")
+    )
+        return null
+    const requirements: PackageRequirements = {
+        sections: PACKAGE_SECTIONS.filter((section) => plan.sections.includes(section)),
+        census: plan.census,
+    }
+    return sameRequirements(requirements, submitted.requirements)
+        ? null
+        : {requirements, packageSha256: digest}
+}
+
 const storageKey = (tenantId: string) => `configurationPackage.active.${tenantId}`
 
 /** Remember the submission for this tenant in this browser session. */
@@ -351,6 +390,18 @@ export const forgetSubmission = (tenantId: string): void => {
 const names = (value: unknown): string[] =>
     Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : []
 
+const changeEntries = (changes: unknown): unknown[] =>
+    Array.isArray(changes) ? changes : changes ? [changes] : []
+
+const isPortableReference = (value: unknown): value is string =>
+    typeof value === "string" && /^package:[a-z0-9-]+$/.test(value)
+
+export const hasPortableReplacement = (changes: unknown): boolean =>
+    changeEntries(changes).some((raw) => {
+        const change = asObject(raw)
+        return isPortableReference(change.reference) && change.action === "replace"
+    })
+
 /**
  * One readable line per proposed change of a section's preview: what it
  * names (a field, group, username, trustee or event), the action, and the
@@ -358,15 +409,13 @@ const names = (value: unknown): string[] =>
  * platform did not mean as a name (a setting's value, a record) is never
  * shown; a display name's old and new text are the only values shown.
  */
-export const changeLines = (changes: unknown): string[] => {
-    const entries = Array.isArray(changes) ? changes : changes ? [changes] : []
-    return entries.map((raw) => {
+export const changeLines = (changes: unknown, replaceLabel = "replace"): string[] => {
+    return changeEntries(changes).map((raw) => {
         const change = asObject(raw)
         const reference = change.reference
         if (
-            typeof reference === "string" &&
-            /^package:[a-z0-9-]+$/.test(reference) &&
-            (change.action === "create" || change.action === "reuse")
+            isPortableReference(reference) &&
+            (change.action === "create" || change.action === "reuse" || change.action === "replace")
         ) {
             const provider =
                 typeof change.provider === "string" &&
@@ -383,9 +432,8 @@ export const changeLines = (changes: unknown): string[] => {
                 typeof change.channel === "string" && /^[A-Z_]{2,24}$/.test(change.channel)
                     ? change.channel
                     : null
-            return [safeText(reference), change.action, channel, provider]
-                .filter(Boolean)
-                .join(" · ")
+            const action = change.action === "replace" ? replaceLabel : change.action
+            return [safeText(reference), action, channel, provider].filter(Boolean).join(" · ")
         }
         const subject = ["field", "username", "group", "name", "electionEventId"]
             .map((key) => change[key])

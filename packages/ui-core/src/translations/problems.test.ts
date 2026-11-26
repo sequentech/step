@@ -161,6 +161,34 @@ describe("problem catalog", () => {
         }
     )
 
+    it.each(Object.entries(locales))(
+        "%s: candidate photo problems name the accepted formats and exact source fields",
+        async (language, locale) => {
+            const i18n = createInstance()
+            await i18n.init({
+                lng: language,
+                resources: {[language]: {translation: locale.translations}},
+            })
+            const prefix = "problems.messages.candidate"
+            const inlinePhoto = i18n.t(`${prefix}.inline-photo.text`)
+            const sqlPhoto = i18n.t(`${prefix}.sql-photo.text`)
+            const conflict = i18n.t(`${prefix}.photo-source-conflict.text`)
+            for (const format of ["PNG", "JPEG"]) {
+                expect(inlinePhoto).toContain(format)
+                expect(sqlPhoto).toContain(format)
+            }
+            expect(sqlPhoto).toContain("PICTURE")
+            expect(sqlPhoto).toContain("BLOB")
+            expect(sqlPhoto).toContain("EXIF")
+            for (const newSqlFormat of ["WebP", "AVIF"]) {
+                expect(sqlPhoto).toContain(newSqlFormat)
+                expect(inlinePhoto).not.toContain(newSqlFormat)
+            }
+            expect(conflict).toContain("PICTURE")
+            expect(conflict).toContain("image_data_url")
+        }
+    )
+
     /*
      * Sentences about a counted thing, and the languages whose words change with
      * that count. "greeting have no words in 'es'" is what the Call Emulator said

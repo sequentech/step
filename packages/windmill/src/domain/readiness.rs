@@ -67,6 +67,8 @@ pub struct EventEvidence {
     pub ballot_count: u64,
     pub received_ballot_count: u64,
     pub tally_session_count: u64,
+    /// The tested event's publication evidence; new official snapshots do not
+    /// inspect publications. Older signed readiness reports retain both.
     pub publication: Option<PublicationEvidence>,
     pub seal_at_close: bool,
     pub expected_boxes: BTreeSet<(String, String)>,
@@ -87,6 +89,7 @@ pub enum CheckKind {
     Configuration,
     CertifiedVoters,
     OfficialZero,
+    /// Decode historical signed readiness reports only.
     Publication,
     TestedFinished,
 }
@@ -707,8 +710,6 @@ pub fn evaluate(evidence: ReadinessEvidence, checked_at: String) -> ReadinessRep
             "Both events have the same certified file, full current registry counts per area and signed import evidence"),
         (CheckKind::OfficialZero, official_zero_findings(official),
             "The official event has never opened voting and holds no ballots or tally sessions"),
-        (CheckKind::Publication, publication_findings(official, EventRole::Official),
-            "The complete official publication matches its signed manifest"),
         (CheckKind::TestedFinished, tested_finished_findings(tested),
             "The complete tested publication matches its signed manifest, every voting channel is closed and every expected ballot box is sealed"),
     ];
@@ -814,7 +815,7 @@ pub(crate) mod tests {
         value["tested"]["configuration"]["manifest_sha256"] = json!("12".repeat(32));
         let result = check(value);
         assert!(result.passed);
-        assert_eq!(result.checks.len(), 5);
+        assert_eq!(result.checks.len(), 4);
         assert!(result.log_entry_id.is_none());
         assert_eq!(result.evidence.tested.configuration.unwrap().revision, 9);
     }
@@ -884,9 +885,9 @@ pub(crate) mod tests {
                 CheckKind::OfficialZero,
             ),
             (
-                "/official/publication/matches_manifest",
+                "/tested/publication/matches_manifest",
                 json!(false),
-                CheckKind::Publication,
+                CheckKind::TestedFinished,
             ),
             (
                 "/tested/all_channels_closed",
@@ -923,7 +924,7 @@ pub(crate) mod tests {
             "/official/configuration",
             "/tested/voters",
             "/official/status",
-            "/official/publication",
+            "/tested/publication",
         ] {
             let mut value = evidence();
             *value.pointer_mut(path).unwrap() = Value::Null;
@@ -1090,25 +1091,18 @@ pub(crate) mod tests {
                 Official,
             ),
             (
-                "/official/publication/matches_manifest",
+                "/tested/publication/matches_manifest",
                 json!(false),
-                CheckKind::Publication,
+                CheckKind::TestedFinished,
                 PublicationMismatch,
-                Official,
+                Tested,
             ),
             (
-                "/official/publication/design_count",
+                "/tested/publication/design_count",
                 json!(0),
-                CheckKind::Publication,
+                CheckKind::TestedFinished,
                 PublicationEmpty,
-                Official,
-            ),
-            (
-                "/official/publication",
-                Value::Null,
-                CheckKind::Publication,
-                PublicationMissing,
-                Official,
+                Tested,
             ),
             (
                 "/tested/publication",

@@ -226,15 +226,47 @@ fn configuration_package_key(tenant: uuid::Uuid, storage_id: uuid::Uuid) -> Stri
     format!("configuration-package-staging/tenant-{tenant}/{storage_id}/delivery.zip")
 }
 
+/// The server-only sibling holding a server-unwrapped signed ZIP. Only
+/// `configuration_package_key` is ever presigned, so a browser's upload URL
+/// can never write here.
+pub fn unwrapped_configuration_package_key(
+    tenant: uuid::Uuid,
+    storage_id: uuid::Uuid,
+    unwrapped_id: uuid::Uuid,
+) -> String {
+    format!(
+        "configuration-package-staging/tenant-{tenant}/{storage_id}/unwrapped-{unwrapped_id}.zip"
+    )
+}
+
+/// What Preview and Apply read: the published unwrapped sibling when there
+/// is one, otherwise (ordinary and older deliveries) the uploaded object.
+pub fn staged_object_key(
+    tenant: uuid::Uuid,
+    storage_id: uuid::Uuid,
+    unwrapped_id: Option<uuid::Uuid>,
+) -> String {
+    match unwrapped_id {
+        Some(unwrapped) => unwrapped_configuration_package_key(tenant, storage_id, unwrapped),
+        None => configuration_package_key(tenant, storage_id),
+    }
+}
+
 pub fn valid_configuration_package_size(size: usize) -> bool {
     (1..=MAX_SIGNED_DELIVERY_BYTES).contains(&size)
 }
 
+/// `uploaded_by` is the verified token subject: only it may later ask the
+/// server to unwrap this upload.
 pub async fn stage_configuration_package(
     tx: &Transaction<'_>,
     size: usize,
     tenant_id: &str,
+    uploaded_by: &str,
 ) -> AnyhowResult<(Document, String)> {
+    if uploaded_by.is_empty() {
+        return Err(anyhow!("protected staging needs an authenticated uploader"));
+    }
     if !valid_configuration_package_size(size) {
         return Err(anyhow!("invalid configuration package size"));
     }
@@ -253,9 +285,10 @@ pub async fn stage_configuration_package(
     let document_id = uuid::Uuid::parse_str(&document.id)?;
     let storage_id: uuid::Uuid = tx
         .query_one(
-            "INSERT INTO sequent_backend.configuration_package_staging (tenant_id, document_id)
-         VALUES ($1, $2) RETURNING storage_id",
-            &[&tenant, &document_id],
+            "INSERT INTO sequent_backend.configuration_package_staging
+                 (tenant_id, document_id, uploaded_by)
+             VALUES ($1, $2, $3) RETURNING storage_id",
+            &[&tenant, &document_id, &uploaded_by],
         )
         .await?
         .try_get(0)?;
@@ -264,19 +297,21 @@ pub async fn stage_configuration_package(
     Ok((document, url))
 }
 
+/// A protected staging row's storage ID and, once published, its unwrapped
+/// sibling's ID.
 async fn configuration_package_storage(
     tx: &Transaction<'_>,
     tenant: uuid::Uuid,
     document_id: &str,
-) -> AnyhowResult<Option<uuid::Uuid>> {
+) -> AnyhowResult<Option<(uuid::Uuid, Option<uuid::Uuid>)>> {
     let id = uuid::Uuid::parse_str(document_id)?;
     tx.query_opt(
-        "SELECT storage_id FROM sequent_backend.configuration_package_staging
+        "SELECT storage_id, unwrapped_id FROM sequent_backend.configuration_package_staging
          WHERE tenant_id = $1 AND document_id = $2",
         &[&tenant, &id],
     )
     .await?
-    .map(|row| row.try_get::<_, uuid::Uuid>(0).map_err(anyhow::Error::from))
+    .map(|row| -> AnyhowResult<_> { Ok((row.try_get(0)?, row.try_get(1)?)) })
     .transpose()
 }
 
@@ -331,6 +366,107 @@ async fn download_bounded_package(bucket: String, key: &str) -> AnyhowResult<Nam
     Ok(file)
 }
 
+/// The bytes the browser placed in this tenant's protected staging (for a V2
+/// delivery, the still-encrypted transfer), under the same streamed cap.
+/// Only the direct intake route calls this, after locking the staging row;
+/// a row already unwrapped is refused.
+pub async fn read_protected_configuration_package(
+    tx: &Transaction<'_>,
+    tenant: uuid::Uuid,
+    document_id: &str,
+) -> AnyhowResult<Vec<u8>> {
+    let (storage_id, unwrapped) = configuration_package_storage(tx, tenant, document_id)
+        .await?
+        .ok_or_else(|| anyhow!("not a protected configuration package staging document"))?;
+    if unwrapped.is_some() {
+        return Err(anyhow!("this staging document was already unwrapped"));
+    }
+    let file = download_bounded_package(
+        s3::get_private_bucket()?,
+        &configuration_package_key(tenant, storage_id),
+    )
+    .await?;
+    Ok(std::fs::read(file.path())?)
+}
+
+/// Write the server-unwrapped signed ZIP to a fresh server-only sibling of
+/// the staging row. Not yet visible to anyone: [`publish_unwrapped_pointer`]
+/// in the same transaction makes Preview and Apply read it. The uploaded
+/// (presigned) object is never written by the server. Returns the sibling ID
+/// and the encrypted original's key, to remove once the pointer commits.
+pub async fn write_unwrapped_configuration_package(
+    tx: &Transaction<'_>,
+    tenant: uuid::Uuid,
+    document_id: &str,
+    signed_zip: &[u8],
+) -> AnyhowResult<(uuid::Uuid, String)> {
+    if !valid_configuration_package_size(signed_zip.len()) {
+        return Err(anyhow!("invalid configuration package size"));
+    }
+    let (storage_id, unwrapped) = configuration_package_storage(tx, tenant, document_id)
+        .await?
+        .ok_or_else(|| anyhow!("not a protected configuration package staging document"))?;
+    if unwrapped.is_some() {
+        return Err(anyhow!("this staging document was already unwrapped"));
+    }
+    let unwrapped_id = uuid::Uuid::new_v4();
+    let mut file = NamedTempFile::new()?;
+    file.write_all(signed_zip)?;
+    file.flush()?;
+    let path = file
+        .path()
+        .to_str()
+        .ok_or_else(|| anyhow!("temporary path is not UTF-8"))?
+        .to_string();
+    s3::upload_file_to_s3(
+        unwrapped_configuration_package_key(tenant, storage_id, unwrapped_id),
+        false,
+        s3::get_private_bucket()?,
+        "application/zip".into(),
+        path,
+        None,
+        None,
+    )
+    .await?;
+    Ok((unwrapped_id, configuration_package_key(tenant, storage_id)))
+}
+
+/// After the unwrapped sibling's pointer has committed: remove the encrypted
+/// original. Readers no longer use it, so a failure leaves only ciphertext.
+pub async fn remove_encrypted_original(original_key: String) -> AnyhowResult<()> {
+    s3::delete_files_from_s3(
+        s3::get_private_bucket()?,
+        original_key,
+        s3::S3Endpoint::Server,
+    )
+    .await
+}
+
+/// Publish the unwrapped sibling and the credentials' expiry, once, in the
+/// caller's transaction (the one that staged the credentials in the vault):
+/// both become visible together at commit, or neither does.
+pub async fn publish_unwrapped_pointer(
+    tx: &Transaction<'_>,
+    tenant: uuid::Uuid,
+    document_id: uuid::Uuid,
+    unwrapped_id: uuid::Uuid,
+    credentials_expire_at: chrono::DateTime<chrono::Utc>,
+) -> AnyhowResult<()> {
+    let published = tx
+        .execute(
+            "UPDATE sequent_backend.configuration_package_staging
+             SET unwrapped_id = $3, credentials_expires_at = $4
+             WHERE tenant_id = $1 AND document_id = $2
+               AND unwrapped_id IS NULL AND uploaded_by IS NOT NULL",
+            &[&tenant, &document_id, &unwrapped_id, &credentials_expire_at],
+        )
+        .await?;
+    if published != 1 {
+        return Err(anyhow!("this staging document was already unwrapped"));
+    }
+    Ok(())
+}
+
 /// Only the package admission worker uses the protected namespace.
 pub(crate) async fn read_configuration_package(
     tx: &Transaction<'_>,
@@ -338,7 +474,9 @@ pub(crate) async fn read_configuration_package(
     document: &Document,
 ) -> AnyhowResult<(NamedTempFile, bool)> {
     let tenant = uuid::Uuid::parse_str(tenant_id)?;
-    if let Some(storage_id) = configuration_package_storage(tx, tenant, &document.id).await? {
+    if let Some((storage_id, unwrapped)) =
+        configuration_package_storage(tx, tenant, &document.id).await?
+    {
         if document.tenant_id.as_deref() != Some(tenant.to_string().as_str())
             || document.election_event_id.is_some()
             || document.is_public != Some(false)
@@ -347,15 +485,24 @@ pub(crate) async fn read_configuration_package(
                 "invalid protected configuration package staging document"
             ));
         }
+        // A published server-unwrapped sibling replaces the uploaded object.
         let file = download_bounded_package(
             s3::get_private_bucket()?,
-            &configuration_package_key(tenant, storage_id),
+            &staged_object_key(tenant, storage_id, unwrapped),
         )
         .await?;
         return Ok((file, true));
     }
     // Previously uploaded ordinary deliveries remain compatible, but document
     // metadata must never grant an exemption from the same streamed byte cap.
+    // Operational MIRU output is never read as an ordinary delivery.
+    if crate::services::signing::operational_policy::direct_hsm_approval_build()
+        && registered_miru_artifact(tenant_id, document).await?
+    {
+        return Err(anyhow!(
+            "Operational MIRU output is not a configuration package"
+        ));
+    }
     let bucket = if document.is_public == Some(true) {
         s3::get_public_bucket()?
     } else {
@@ -392,7 +539,9 @@ pub async fn ordinary_document_url_allowed(
     tenant_id: &str,
     document: &Document,
 ) -> anyhow::Result<bool> {
-    use crate::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
+    use crate::services::signing::operational_policy::{
+        direct_hsm_approval_build, signing_mode, OperationalSigningMode,
+    };
     let tenant = uuid::Uuid::parse_str(tenant_id)?;
     if configuration_package_storage(tx, tenant, &document.id)
         .await?
@@ -400,7 +549,10 @@ pub async fn ordinary_document_url_allowed(
     {
         return Ok(false);
     }
-    if signing_mode(tx, tenant).await? != OperationalSigningMode::HsmRequired {
+    let hsm_tenant = signing_mode(tx, tenant).await? == OperationalSigningMode::HsmRequired;
+    // The direct-HSM build registers its MIRU output on a legacy-p12 tenant;
+    // that output is withheld like an HSM-required tenant's.
+    if !hsm_tenant && !direct_hsm_approval_build() {
         return Ok(true);
     }
     let event = document
@@ -417,6 +569,10 @@ pub async fn ordinary_document_url_allowed(
         )
         .await?
         .try_get(0)?;
+    if !hsm_tenant {
+        // A legacy tenant has no inventory: only a registered document is withheld.
+        return Ok(withheld != Some(true));
+    }
     Ok(!withheld
         .ok_or_else(|| anyhow::anyhow!("Operational document inventory not yet verified"))?)
 }
@@ -457,8 +613,54 @@ pub async fn get_document_url(
     Ok(Some(url))
 }
 
+/// The bytes of a stored document for any ordinary use. In the direct-HSM
+/// build, a document registered as operational MIRU output is refused: it is
+/// read only by the MIRU custody paths, through
+/// `get_operational_miru_document_as_temp_file`.
 #[instrument(err)]
 pub async fn get_document_as_temp_file(
+    tenant_id: &str,
+    document: &Document,
+) -> anyhow::Result<NamedTempFile> {
+    use crate::services::signing::operational_policy::direct_hsm_approval_build;
+    if direct_hsm_approval_build() && registered_miru_artifact(tenant_id, document).await? {
+        return Err(anyhow::anyhow!(
+            "Operational MIRU output is not an ordinary document"
+        ));
+    }
+    get_operational_miru_document_as_temp_file(tenant_id, document).await
+}
+
+/// Whether the central registry withholds this exact document: committed
+/// registry state, read on its own connection; any error refuses the read.
+async fn registered_miru_artifact(tenant_id: &str, document: &Document) -> anyhow::Result<bool> {
+    let tenant = uuid::Uuid::parse_str(tenant_id)?;
+    let document_id = uuid::Uuid::parse_str(&document.id)?;
+    let event = document
+        .election_event_id
+        .as_deref()
+        .filter(|id| !id.is_empty())
+        .map(uuid::Uuid::parse_str)
+        .transpose()?;
+    let client = crate::services::database::get_hasura_pool()
+        .await
+        .get()
+        .await?;
+    let withheld: Option<bool> = client
+        .query_one(
+            "SELECT sequent_backend.operational_miru_generic_withhold($1,$2,$3)",
+            &[&tenant, &event, &document_id],
+        )
+        .await?
+        .try_get(0)?;
+    Ok(withheld == Some(true))
+}
+
+/// The bytes of a stored document without the registry check. Only for the
+/// MIRU custody paths, which bind the exact registered revision and digest
+/// themselves, and the signing revision store's digest-bound request document.
+#[instrument(err)]
+pub async fn get_operational_miru_document_as_temp_file(
     tenant_id: &str,
     document: &Document,
 ) -> anyhow::Result<NamedTempFile> {
@@ -494,7 +696,8 @@ pub async fn get_document_as_temp_file(
 #[cfg(test)]
 mod tests {
     use super::{
-        configuration_package_key, stored_document_key, valid_configuration_package_size,
+        configuration_package_key, staged_object_key, stored_document_key,
+        unwrapped_configuration_package_key, valid_configuration_package_size,
         write_bounded_package, MAX_SIGNED_DELIVERY_BYTES,
     };
     use sequent_core::types::hasura::core::Document;
@@ -502,6 +705,26 @@ mod tests {
     const TENANT: &str = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
     const EVENT: &str = "e003472c-4b31-4585-ae8c-73c2f216e887";
     const DOCUMENT: &str = "068b6853-3aa2-4cc7-9ec5-8dc8294bc1e4";
+
+    #[test]
+    fn the_unwrapped_sibling_is_never_the_presigned_object() {
+        let tenant = uuid::Uuid::parse_str(TENANT).unwrap();
+        let storage = uuid::Uuid::from_u128(1);
+        let sibling = uuid::Uuid::from_u128(2);
+        let uploaded = configuration_package_key(tenant, storage);
+        let unwrapped = unwrapped_configuration_package_key(tenant, storage, sibling);
+        assert_ne!(uploaded, unwrapped);
+        // Same tenant/storage namespace, distinct server-only name.
+        assert!(unwrapped.starts_with(uploaded.trim_end_matches("delivery.zip")));
+        assert!(!unwrapped.ends_with("delivery.zip"));
+        // Readers: the uploaded object until a sibling is published (V1/older rows).
+        assert_eq!(staged_object_key(tenant, storage, None), uploaded);
+        assert_eq!(staged_object_key(tenant, storage, Some(sibling)), unwrapped);
+        assert_ne!(
+            unwrapped,
+            unwrapped_configuration_package_key(tenant, storage, uuid::Uuid::from_u128(3))
+        );
+    }
 
     fn document(election_event_id: Option<&str>, is_public: Option<bool>) -> Document {
         Document {

@@ -7,6 +7,104 @@ use super::problem::{Code, Problem, Report};
 use super::sheet::{Sheet, SHEET_ADMIN_USERS, SHEET_TRUSTEES};
 use serde_json::Value;
 
+#[cfg(feature = "election_config_xlsx")]
+fn normalised(name: &str) -> String {
+    name.chars()
+        .filter(char::is_ascii_alphanumeric)
+        .map(|c| c.to_ascii_lowercase())
+        .collect()
+}
+
+/// AWS static key material under any common spelling: case, separators and
+/// prefixes are ignored (`AWS_SECRET_ACCESS_KEY`, `awsAccessKeyId`,
+/// `secret-access-key`, `access_key`...). Deliberately broad: a false match
+/// only routes a workbook to protected intake.
+#[cfg(feature = "election_config_xlsx")]
+fn aws_key_field(name: &str) -> bool {
+    let name = normalised(name);
+    name.contains("accesskeyid")
+        || name.contains("secretaccesskey")
+        || name.contains("sessiontoken")
+        || name.ends_with("accesskey")
+        || name.ends_with("secretkey")
+}
+
+#[cfg(feature = "election_config_xlsx")]
+fn non_empty(value: &Value) -> bool {
+    !value.is_null()
+        && !matches!(value, Value::String(text) if text.trim().is_empty())
+}
+
+/// Nested JSON text is decoded too (bounded), as Blueprints may encode a
+/// member as a string. Nested text that doesn't parse is ordinary text (a
+/// template such as `{{name}}`, say): nothing downstream reads it as a key.
+/// Too deep a nesting fails closed. Never returns or records a value.
+#[cfg(feature = "election_config_xlsx")]
+fn carries_aws_key(value: &Value, depth: usize) -> bool {
+    if depth > 8 {
+        return true;
+    }
+    match value {
+        Value::Object(fields) => fields.iter().any(|(field, value)| {
+            (aws_key_field(field) && non_empty(value))
+                || carries_aws_key(value, depth + 1)
+        }),
+        Value::Array(items) => {
+            items.iter().any(|value| carries_aws_key(value, depth + 1))
+        }
+        Value::String(text) => {
+            let text = text.trim();
+            (text.starts_with('{') || text.starts_with('['))
+                && serde_json::from_str::<Value>(text)
+                    .is_ok_and(|decoded| carries_aws_key(&decoded, depth + 1))
+        }
+        _ => false,
+    }
+}
+
+/// Whether the Parameters sheet carries AWS key material: in the
+/// `tenant_package` value (typed object or JSON text, as
+/// `portable_messaging::validate_workbook_sheets` reads it), or in any row or
+/// column named like an AWS key. An unreadable `tenant_package` text fails
+/// closed. Value-free: the answer is a boolean only.
+#[cfg(feature = "election_config_xlsx")]
+fn parameters_carry_aws_keys(sheets: &[Sheet]) -> bool {
+    sheets
+        .iter()
+        .filter(|sheet| {
+            use super::sheet::{normalise_sheet_name, SHEET_PARAMETERS};
+            sheet.key == SHEET_PARAMETERS
+                || normalise_sheet_name(&sheet.name) == SHEET_PARAMETERS
+        })
+        .flat_map(|sheet| &sheet.rows)
+        .any(|row| {
+            let key = row.text("key").map(normalised).unwrap_or_default();
+            let value = row.get("value");
+            if aws_key_field(&key) && value.is_some_and(non_empty) {
+                return true;
+            }
+            if row
+                .cells
+                .iter()
+                .any(|(name, value)| aws_key_field(name) && non_empty(value))
+            {
+                return true;
+            }
+            match (key.as_str(), value) {
+                ("tenantpackage", Some(Value::String(text)))
+                    if !text.trim().is_empty() =>
+                {
+                    match serde_json::from_str::<Value>(text) {
+                        Ok(decoded) => carries_aws_key(&decoded, 0),
+                        Err(_) => true,
+                    }
+                }
+                ("tenantpackage", Some(value)) => carries_aws_key(value, 0),
+                _ => false,
+            }
+        })
+}
+
 pub(super) fn credential_column(header: &str) -> bool {
     let name: String = header
         .rsplit('.')
@@ -82,7 +180,8 @@ pub fn reject_ordinary_credentials(sheets: &[Sheet]) -> Result<(), Report> {
 }
 
 /// A local, value-free probe before choosing between ordinary conversion and
-/// protected intake. Unknown, oversized or unparseable inputs are not ordinary.
+/// protected intake. Unknown, oversized or unparseable inputs are not ordinary;
+/// nor are admin/trustee passwords, or AWS key material in Parameters.
 #[cfg(feature = "election_config_xlsx")]
 pub fn is_ordinary_workbook(bytes: &[u8]) -> bool {
     use std::io::Cursor;
@@ -109,8 +208,10 @@ pub fn is_ordinary_workbook(bytes: &[u8]) -> bool {
         total = next;
     }
     drop(zip);
-    super::xlsx::read_xlsx(bytes)
-        .is_ok_and(|w| reject_ordinary_credentials(w.sheets()).is_ok())
+    super::xlsx::read_xlsx(bytes).is_ok_and(|w| {
+        reject_ordinary_credentials(w.sheets()).is_ok()
+            && !parameters_carry_aws_keys(w.sheets())
+    })
 }
 
 #[cfg(all(test, feature = "election_config_xlsx"))]
@@ -134,6 +235,102 @@ fn workbook_probe_is_value_free_and_does_not_require_an_election_plan() {
     }
     assert!(!is_ordinary_workbook(b"this is not an XLSX"));
     assert!(!is_ordinary_workbook(&vec![0u8; 12 * 1024 * 1024 + 1]));
+}
+
+#[cfg(all(test, feature = "election_config_xlsx"))]
+#[test]
+fn workbook_probe_routes_aws_key_material_in_parameters_to_protected_intake() {
+    use super::{paths::Cell, sheet::Workbook, xlsx_write::write_xlsx};
+    use serde_json::json;
+    // Synthetic, format-valid, not AWS credentials.
+    const KEY_ID: &str = "AKIASYNTHETICEXAMPLE";
+    const SECRET: &str = "SyntheticSecretValueForTestsOnly00000000";
+    let parameters = |rows: &[(&str, String)]| {
+        let mut grid = vec![vec![Cell::text("key"), Cell::text("value")]];
+        for (key, value) in rows {
+            grid.push(vec![Cell::text(*key), Cell::text(value.as_str())]);
+        }
+        let sheet = Sheet::from_grid("Parameters", &grid).unwrap();
+        write_xlsx(&Workbook::new(vec![sheet]).unwrap()).unwrap()
+    };
+    let package = |account: serde_json::Value| {
+        json!({"format":"sequent.tenant-package/1","messagingAccounts":{
+            "format":"sequent.tenant-messaging-accounts/1","accounts":[account]}})
+        .to_string()
+    };
+    let ses = |extra: serde_json::Value| {
+        let mut account = json!({"reference":"email","name":"Synthetic Email",
+            "sender":{"provider":"AWS_SES","from_address":"demo@example.invalid","region":"us-east-1"}});
+        for (k, v) in extra.as_object().unwrap() {
+            account[k] = v.clone();
+        }
+        account
+    };
+    let sns = json!({"reference":"sms","name":"Synthetic SMS",
+        "sender":{"provider":"AWS_SNS","sender_id":"Demo","region":"us-east-1"},
+        "aws_access_key_id": KEY_ID});
+    let ordinary =
+        |rows: &[(&str, String)]| is_ordinary_workbook(&parameters(rows));
+
+    // AWS-free profiles, and empty key fields, stay ordinary.
+    assert!(ordinary(&[("tenant_package", package(ses(json!({}))))]));
+    assert!(ordinary(&[(
+        "tenant_package",
+        package(ses(json!({"credential_commitment": "ab".repeat(32)})))
+    )]));
+    assert!(ordinary(&[(
+        "tenant_package",
+        package(ses(
+            json!({"aws_access_key_id": "", "aws_secret_access_key": null})
+        ))
+    )]));
+    // A template-like nested text is plain text, not JSON to fail on.
+    assert!(ordinary(&[(
+        "tenant_package",
+        json!({"format":"sequent.tenant-package/1",
+            "tenantSettings":{"greeting":"{{voter.name}}"}})
+        .to_string()
+    )]));
+    assert!(ordinary(&[("tenant_package", String::new())]));
+    assert!(ordinary(&[("election_event_name", "Synthetic".into())]));
+
+    // SES and SNS key material, complete or partial, any spelling or nesting.
+    for protected in [
+        vec![(
+            "tenant_package",
+            package(ses(
+                json!({"aws_access_key_id": KEY_ID, "aws_secret_access_key": SECRET}),
+            )),
+        )],
+        vec![(
+            "tenant_package",
+            package(ses(json!({"aws_secret_access_key": SECRET}))),
+        )],
+        vec![("tenant_package", package(sns.clone()))],
+        vec![(
+            "tenant_package",
+            package(ses(json!({"credentials": {"AWS-Access-Key-Id": KEY_ID}}))),
+        )],
+        vec![(
+            "tenant_package",
+            package(ses(json!({"secretAccessKey": SECRET}))),
+        )],
+        // The accounts member itself encoded as JSON text.
+        vec![(
+            "tenant_package",
+            json!({"format":"sequent.tenant-package/1",
+                "messagingAccounts": package(sns.clone())})
+            .to_string(),
+        )],
+        // An unreadable tenant_package text fails closed.
+        vec![("tenant_package", "{\"messagingAccounts\": ".into())],
+        // A Parameters row named like a key.
+        vec![("aws_secret_access_key", SECRET.into())],
+        vec![("Tenant Package", package(sns.clone()))],
+    ] {
+        assert!(!ordinary(&protected));
+    }
+    // Admin/trustee password behaviour is unchanged (see the test above).
 }
 
 /// A verifier is sensitive account bootstrap data. It is never a review,

@@ -4,7 +4,10 @@
 import {
     EMessageChannel,
     EMessagePurpose,
+    EMessagingProvider,
     EOutOfWindowPolicy,
+    ETemplateButtonType,
+    EViberContentMode,
     IEventChannelConfig,
     IEventMessagingConfig,
     IMessagingAccount,
@@ -16,6 +19,7 @@ import {
     sendNoticeChannels,
     sendableTemplates,
     sendingAccountFor,
+    sendsWrittenText,
 } from "./sendTemplatePayload"
 
 const content = {
@@ -74,6 +78,21 @@ describe("buildSendTemplatePayload", () => {
         })
         expect(payload.messenger).toEqual(content.messenger)
         expect("alias" in payload).toBe(false)
+    })
+
+    it("carries a provider template's buttons, and none without one", () => {
+        const buttons = [{type: ETemplateButtonType.QUICK_REPLY, parameter: "STOP"}]
+        const payload = buildSendTemplatePayload({
+            ...base,
+            content: {
+                ...content,
+                whatsapp: {...content.whatsapp, provider_template: "vote_reminder", buttons},
+                messenger: {...content.messenger, buttons},
+            },
+        })
+        expect(payload.whatsapp?.buttons).toEqual(buttons)
+        // Without its own template, the binding's template and buttons are used.
+        expect(payload.messenger && "buttons" in payload.messenger).toBe(false)
     })
 
     it("carries the alias of the chosen template, the key its template is bound under", () => {
@@ -197,5 +216,34 @@ describe("sendingAccountFor", () => {
         expect(sendingAccountFor(null, [], EMessageChannel.EMAIL)).toBe("ENVIRONMENT")
         expect(sendingAccountFor(null, [], EMessageChannel.WHATSAPP)).toBeNull()
         expect(sendingAccountFor(withSms("deleted"), [sms], EMessageChannel.SMS)).toBeNull()
+    })
+})
+
+describe("sendsWrittenText", () => {
+    const viber = (content_mode?: EViberContentMode) =>
+        ({
+            id: "viber-1",
+            channel: EMessageChannel.VIBER,
+            provider: EMessagingProvider.VIBER_INFOBIP,
+            sender: {
+                provider: EMessagingProvider.VIBER_INFOBIP,
+                base_url: "https://x.api.infobip.com",
+                sender: "COMELEC",
+                ...(content_mode ? {content_mode} : {}),
+            },
+        }) as IMessagingAccount
+
+    it("lets the text be edited only where the account sends it as written", () => {
+        expect(sendsWrittenText(EMessageChannel.VIBER, viber(EViberContentMode.FREE_TEXT))).toBe(
+            true
+        )
+        expect(sendsWrittenText(EMessageChannel.VIBER, viber())).toBe(false)
+        expect(
+            sendsWrittenText(EMessageChannel.VIBER, viber(EViberContentMode.APPROVED_TEMPLATES))
+        ).toBe(false)
+        // Without an account, Viber and WhatsApp show the approved wording.
+        expect(sendsWrittenText(EMessageChannel.VIBER, null)).toBe(false)
+        expect(sendsWrittenText(EMessageChannel.WHATSAPP, null)).toBe(false)
+        expect(sendsWrittenText(EMessageChannel.MESSENGER, null)).toBe(true)
     })
 })

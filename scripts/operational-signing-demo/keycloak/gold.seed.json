@@ -1,0 +1,158 @@
+{
+  "realm": "tenant-be001490-0000-4000-8000-000000000001",
+  "displayName": "Synthetic operational signing demo only",
+  "enabled": true,
+  "sslRequired": "all",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "loginWithEmailAllowed": false,
+  "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 0,
+  "verifyEmail": false,
+  "accessCodeLifespan": 60,
+  "accessCodeLifespanLogin": 240,
+  "accessCodeLifespanUserAction": 120,
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyDigits": 6,
+  "otpPolicyPeriod": 30,
+  "otpPolicyLookAheadWindow": 1,
+  "otpPolicyCodeReusable": false,
+  "attributes": {
+    "acr.loa.map": "{\"gold\":2}",
+    "parRequestUriLifespan": "60",
+    "frontendUrl": "https://127.0.0.1:18443"
+  },
+  "identityProviders": [],
+  "identityProviderMappers": [],
+  "authenticatorConfig": [
+    {
+      "alias": "14990-gold-loa",
+      "config": {
+        "loa-condition-level": "2",
+        "loa-max-age": "0"
+      }
+    },
+    {
+      "alias": "14990-gold-password-reference",
+      "config": {
+        "default.reference.value": "sequent-op-pwd",
+        "default.reference.maxAge": "240"
+      }
+    },
+    {
+      "alias": "14990-gold-otp-reference",
+      "config": {
+        "default.reference.value": "sequent-op-otp",
+        "default.reference.maxAge": "240"
+      }
+    }
+  ],
+  "authenticationFlows": [
+    {
+      "id": "be001490-0000-4000-8000-000000000110",
+      "alias": "14990 Gold only",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "requirement": "CONDITIONAL",
+          "authenticatorFlow": true,
+          "flowAlias": "14990 Gold mandatory factors",
+          "priority": 10,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "be001490-0000-4000-8000-000000000111",
+      "alias": "14990 Gold mandatory factors",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-level-of-authentication",
+          "authenticatorConfig": "14990-gold-loa",
+          "requirement": "REQUIRED",
+          "authenticatorFlow": false,
+          "priority": 10,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "auth-username-password-form",
+          "authenticatorConfig": "14990-gold-password-reference",
+          "requirement": "REQUIRED",
+          "authenticatorFlow": false,
+          "priority": 20,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "auth-otp-form",
+          "authenticatorConfig": "14990-gold-otp-reference",
+          "requirement": "REQUIRED",
+          "authenticatorFlow": false,
+          "priority": 30,
+          "userSetupAllowed": false
+        }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "sequent-operational-demo-14990",
+      "protocol": "openid-connect",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": false,
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": false,
+      "redirectUris": [
+        "https://127.0.0.1:13443/operational-signing/return"
+      ],
+      "webOrigins": [
+        "https://127.0.0.1:13443"
+      ],
+      "defaultClientScopes": ["basic"],
+      "optionalClientScopes": [],
+      "authenticationFlowBindingOverrides": {
+        "browser": "be001490-0000-4000-8000-000000000110"
+      },
+      "attributes": {
+        "require.pushed.authorization.requests": "true",
+        "pkce.code.challenge.method": "S256",
+        "default.acr.values": "gold",
+        "minimum.acr.value": "gold",
+        "use.refresh.tokens": "false",
+        "id.token.signed.response.alg": "RS256",
+        "standard.token.exchange.enabled": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "14990 execution AMR",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-amr-mapper",
+          "config": {
+            "id.token.claim": "true",
+            "access.token.claim": "false"
+          }
+        },
+        {
+          "name": "14990 achieved ACR",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-acr-mapper",
+          "config": {
+            "id.token.claim": "true",
+            "access.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ]
+}

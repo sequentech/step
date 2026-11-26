@@ -147,26 +147,26 @@ pub async fn meta_callback(
     Ok((WebhookOutcome::Accepted, codes))
 }
 
-/// Logged when an authenticated Viber report can't be read: it is answered
-/// as taken and dropped, never retried for ever (R7-24).
-pub const REPORT_UNREADABLE: &str = "Viber report ignored: it can't be read";
+/// Logged when an authenticated Infobip report can't be read: it is
+/// answered as taken and dropped, never retried for ever (R7-24).
+pub const REPORT_UNREADABLE: &str = "Infobip report ignored: it can't be read";
 
-/// Infobip Viber delivery reports. They come only through the account's
-/// Infobip subscription, whose Basic auth (`authorization`, forwarded by the
-/// webhook component) must be the account's report credentials, compared in
-/// constant time. A report without it, with another one, or for an account
-/// whose report credentials were never generated is refused unread.
+/// Infobip delivery reports for an account of `provider` (Viber or
+/// WhatsApp). They come only through the account's Infobip subscription,
+/// whose Basic auth (`authorization`, forwarded by the webhook component)
+/// must be the account's report credentials, compared in constant time. A
+/// report without it, with another one, or for an account whose report
+/// credentials were never generated is refused unread.
 #[instrument(skip_all, err)]
-pub async fn viber_events(
+pub async fn infobip_events(
     client: &mut DbClient,
     dispatcher: &Dispatcher,
+    provider: MessagingProvider,
     webhook_key: &str,
     authorization: Option<&str>,
     body: &[u8],
 ) -> Result<WebhookOutcome> {
-    let Some(account) =
-        account_for_key(client, webhook_key, &[MessagingProvider::VIBER_INFOBIP]).await?
-    else {
+    let Some(account) = account_for_key(client, webhook_key, &[provider]).await? else {
         return Ok(WebhookOutcome::NotFound);
     };
     let expected = match (
@@ -178,7 +178,7 @@ pub async fn viber_events(
     };
     if let Err(refusal) = verify_report_authorization(authorization, expected.as_ref()) {
         warn!(
-            "Viber report for account {} refused: {}",
+            "Infobip report for account {} refused: {}",
             account.id,
             refusal.reason()
         );

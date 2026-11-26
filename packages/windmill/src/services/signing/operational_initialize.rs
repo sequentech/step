@@ -7,20 +7,26 @@
 //! This does not authorize the step-up client or contact a device.
 
 use super::approve::sign_refusal;
-use super::operational_policy::{signing_mode, OperationalSigningMode};
-use super::operational_quorum::check_operational_approvals;
+#[cfg(feature = "felix3-local-initialize")]
+pub use super::operational_device::local_initialize::LocalInitializeInstallation;
+use super::operational_device::matches_canonical_request;
+use super::operational_policy::local_scope::request_mode_and_latch;
+use super::operational_policy::{lock_signing_policy, OperationalSigningMode};
+use super::operational_quorum::checked_approval_device;
 use super::requests::{is_overdue, lock_request, read_request};
 use super::{SigningCaller, SigningError, SigningResult};
 use crate::postgres::signing::{list_signing_approvals, SigningRequestRow};
 use anyhow::Context;
 use deadpool_postgres::Transaction;
-use sequent_core::signing::{sha256_hex, SigningAction, SigningRequestStatus, SigningRule};
+use sequent_core::signing::{SigningAction, SigningRequestStatus, SigningRule};
 use uuid::Uuid;
 
 /// Only this service can construct a scope from the authorized request.
 pub struct InitializeSigningScope {
     request: SigningRequestRow,
     actor: Uuid,
+    #[cfg(feature = "felix3-local-initialize")]
+    local_installation: Option<&'static LocalInitializeInstallation>,
 }
 
 impl InitializeSigningScope {
@@ -48,6 +54,13 @@ impl InitializeSigningScope {
     pub fn payload_sha256(&self) -> &str {
         &self.request.payload_sha256
     }
+
+    /// Present only for the exact operator installation verified in the scope's
+    /// transaction. Preparing a callback and applying its receipt recheck it.
+    #[cfg(feature = "felix3-local-initialize")]
+    pub fn local_installation(&self) -> Option<&LocalInitializeInstallation> {
+        self.local_installation
+    }
 }
 
 fn unavailable() -> SigningError {
@@ -61,13 +74,9 @@ async fn scope(
     request_id: Uuid,
     changes_state: bool,
 ) -> SigningResult<InitializeSigningScope> {
-    if signing_mode(tx, tenant)
+    lock_signing_policy(tx)
         .await
-        .context("Read signing mode")?
-        != OperationalSigningMode::HsmRequired
-    {
-        return Err(unavailable());
-    }
+        .context("Lock signing policy")?;
     let initial = read_request(tx, tenant, request_id).await?;
     if initial.action != SigningAction::InitializeVoting {
         return Err(unavailable());
@@ -80,15 +89,22 @@ async fn scope(
     } else {
         initial
     };
+    let (mode, direct) = request_mode_and_latch(tx, &request)
+        .await
+        .map_err(|_| unavailable())?;
+    if direct.is_some() || mode != OperationalSigningMode::HsmRequired {
+        return Err(unavailable());
+    }
     let rule: SigningRule = serde_json::from_value(request.rule_snapshot.clone())
         .context("Read frozen signing rule")?;
-    if rule.action != request.action
+    if request.election_id.is_none_or(|post| post.is_nil())
+        || rule.action != request.action
         || rule.validate().is_err()
         || !rule.is_required()
         || i32::from(rule.required()) != request.required
         || request.document_id.is_some()
         || request.document_sha256.is_some()
-        || sha256_hex(request.canonical_payload.as_bytes()) != request.payload_sha256
+        || !matches_canonical_request(&request)
     {
         return Err(unavailable());
     }
@@ -96,7 +112,15 @@ async fn scope(
         .ok()
         .filter(|id| !id.is_nil() && id.to_string() == caller.user_id)
         .ok_or_else(unavailable)?;
-    Ok(InitializeSigningScope { request, actor })
+    Ok(InitializeSigningScope {
+        #[cfg(feature = "felix3-local-initialize")]
+        local_installation: super::operational_device::local_initialize::for_canonical_request(
+            tx, &request,
+        )
+        .await?,
+        request,
+        actor,
+    })
 }
 
 /// Same authorization and immutable scope without requiring a live attempt.
@@ -143,5 +167,9 @@ pub async fn initialize_signing_applied(
     let Some(approval) = rows.iter().find(|row| row.user_id == caller.user_id) else {
         return Ok(false);
     };
-    Ok(check_operational_approvals(tx, request, std::slice::from_ref(approval)).await?)
+    Ok(
+        checked_approval_device(tx, request, std::slice::from_ref(approval))
+            .await?
+            .is_some(),
+    )
 }

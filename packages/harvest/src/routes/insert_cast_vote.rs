@@ -349,6 +349,13 @@ pub(crate) fn cast_vote_error_response(
             ErrorCode::InternalServerError.to_string().as_str(),
             ErrorCode::InternalServerError,
         ),
+        // The event's sealing (its key, its pin) is not the voter's to fix:
+        // nothing about it is answered.
+        CastVoteError::BallotSealFailed(_) => ErrorResponse::new(
+            Status::InternalServerError,
+            ErrorCode::InternalServerError.to_string().as_str(),
+            ErrorCode::InternalServerError,
+        ),
     }
 }
 

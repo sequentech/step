@@ -185,8 +185,10 @@ pub fn mount(
                     meta_lookup,
                     get_started,
                     infobip_send,
-                    infobip_balance,
+                    infobip_viber_templates,
                     infobip_logs,
+                    infobip_whatsapp_send,
+                    infobip_whatsapp_templates,
                     aws_post,
                     aws_get,
                     list_messages,
@@ -945,8 +947,10 @@ pub fn messenger_get_started(
     .to_string()
 }
 
-/// Infobip's delivery report for a Viber message.
+/// Infobip's delivery report for a message on `channel` (`VIBER`,
+/// `WHATSAPP`).
 pub fn infobip_delivered(
+    channel: MessageChannel,
     message_id: &str,
     recipient: &str,
     now: DateTime<Utc>,
@@ -975,7 +979,7 @@ pub fn infobip_delivered(
             "description": "No Error",
             "permanent": false,
         },
-        "channel": "VIBER",
+        "channel": channel.to_string(),
     }]})
     .to_string()
 }
@@ -1057,7 +1061,25 @@ async fn report(
                 CredentialName::REPORT_USERNAME,
                 CredentialName::REPORT_PASSWORD,
             ],
-            infobip_delivered(&subject.id, &subject.recipient, now),
+            infobip_delivered(
+                MessageChannel::VIBER,
+                &subject.id,
+                &subject.recipient,
+                now,
+            ),
+        ),
+        AccountSender::WHATSAPP_INFOBIP { .. } => (
+            CallbackProvider::INFOBIP,
+            vec![
+                CredentialName::REPORT_USERNAME,
+                CredentialName::REPORT_PASSWORD,
+            ],
+            infobip_delivered(
+                MessageChannel::WHATSAPP,
+                &subject.id,
+                &subject.recipient,
+                now,
+            ),
         ),
         _ => {
             return FakeReport::of(
@@ -1083,7 +1105,10 @@ async fn report(
                 .into_iter()
                 .collect()
         }
-        (CallbackProvider::VIBER, [Some(username), Some(password)]) => {
+        (
+            CallbackProvider::VIBER | CallbackProvider::INFOBIP,
+            [Some(username), Some(password)],
+        ) => {
             vec![("authorization", basic(username, password))]
         }
         _ => vec![],
@@ -1126,6 +1151,7 @@ fn accept(
         MessagingProvider::WHATSAPP_CLOUD_API
             | MessagingProvider::MESSENGER_SEND_API
             | MessagingProvider::VIBER_INFOBIP
+            | MessagingProvider::WHATSAPP_INFOBIP
     );
     let component_url = services.messaging_webhooks_url.clone();
     let mut accounts = accounts;
@@ -2005,17 +2031,141 @@ async fn infobip_send(
     )
 }
 
-/// The Infobip account check. It needs an `App` key, as Infobip's does;
-/// any key is valid (the check also runs on a key not stored yet).
-#[get("/infobip/account/1/balance")]
-fn infobip_balance(
+/// Infobip WhatsApp template sends: one message each, with the message ID
+/// the request names (Step sets it), else a new one. Taken only when every
+/// message's `from` number is used by an account with the request's `App`
+/// key. A code is read from the copy-code button.
+#[post("/infobip/whatsapp/1/message/template", data = "<data>")]
+async fn infobip_whatsapp_send(
+    data: Data<'_>,
+    authorization: ProviderAuthorization,
+    services: &State<HarvestServices>,
+    provider: &State<FakeProvider>,
+) -> (Status, Json<Value>) {
+    let Some(key) = authorization.infobip_key() else {
+        return infobip_refused(Refused::CREDENTIAL);
+    };
+    let body: Value = match read_body(data).await {
+        Ok(bytes) => match serde_json::from_slice(&bytes) {
+            Ok(body) => body,
+            Err(_) => {
+                return infobip_invalid(Status::BadRequest, "Invalid JSON")
+            }
+        },
+        Err(status) => return infobip_invalid(status, "Unreadable body"),
+    };
+    let messages: Vec<&Value> =
+        body["messages"].as_array().into_iter().flatten().collect();
+    // Every sender is checked before any message is taken.
+    let mut senders = vec![];
+    for message in &messages {
+        let wanted = text(&message["from"]).unwrap_or_default();
+        match authenticated(
+            &services.databases,
+            CredentialName::API_KEY,
+            Some(key),
+            |account| {
+                matches!(account, AccountSender::WHATSAPP_INFOBIP {
+                    sender_number, ..
+                } if sender_number.trim().trim_start_matches('+') == wanted)
+            },
+        )
+        .await
+        {
+            Ok(accounts) => senders.push((wanted, accounts)),
+            Err(refused) => return infobip_refused(refused),
+        }
+    }
+    let mut answered = vec![];
+    for (message, (sender, accounts)) in messages.into_iter().zip(senders) {
+        let content = &message["content"];
+        let data = &content["templateData"];
+        let mut fake = FakeContent {
+            template_name: text(&content["templateName"]),
+            template_language: text(&content["language"]),
+            // The copy-code button is the URL one; quick replies carry
+            // their payload.
+            code: data["buttons"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|button| button["type"] == "URL")
+                .find_map(|button| text(&button["parameter"])),
+            ..Default::default()
+        };
+        for value in data["body"]["placeholders"]
+            .as_array()
+            .into_iter()
+            .flatten()
+        {
+            fake.parameters.push(FakeParameter {
+                name: None,
+                value: text(value).unwrap_or_else(|| value.to_string()),
+            });
+        }
+        let to = text(&message["to"]).unwrap_or_default();
+        let id = text(&message["messageId"]).unwrap_or_else(|| new_id("fake-"));
+        accept(
+            provider,
+            services,
+            MessageChannel::WHATSAPP,
+            MessagingProvider::WHATSAPP_INFOBIP,
+            sender,
+            Subject {
+                id: id.clone(),
+                recipient: to.clone(),
+            },
+            fake,
+            accounts,
+        );
+        answered.push(json!({
+            "to": to,
+            "messageCount": 1,
+            "messageId": id,
+            "status": {
+                "groupId": 1,
+                "groupName": "PENDING",
+                "id": 7,
+                "name": "PENDING_ENROUTE",
+                "description": "Message sent to next instance",
+            },
+        }));
+    }
+    (Status::Ok, Json(json!({"messages": answered})))
+}
+
+/// The WhatsApp templates of a sender: [`fake_templates`], approved. It
+/// needs an `App` key; any key is valid, as for the balance.
+#[get("/infobip/whatsapp/2/senders/<_sender>/templates")]
+fn infobip_whatsapp_templates(
+    _sender: &str,
     authorization: ProviderAuthorization,
 ) -> (Status, Json<Value>) {
     match authorization.infobip_key() {
-        Some(_) => (
-            Status::Ok,
-            Json(json!({"balance": 1000.0, "currency": "EUR"})),
-        ),
+        Some(_) => (Status::Ok, Json(json!({"templates": fake_templates()}))),
+        None => infobip_refused(Refused::CREDENTIAL),
+    }
+}
+
+/// Infobip's answer to a request it can't read.
+fn infobip_invalid(status: Status, text: &str) -> (Status, Json<Value>) {
+    (
+        status,
+        Json(json!({"requestError": {"serviceException": {
+            "messageId": "BAD_REQUEST", "text": text,
+        }}})),
+    )
+}
+
+/// The Viber sender check. It needs an `App` key, as Infobip's does;
+/// any key is valid (the check also runs on a key not stored yet).
+#[get("/infobip/viber/1/senders/<_sender>/templates")]
+fn infobip_viber_templates(
+    _sender: &str,
+    authorization: ProviderAuthorization,
+) -> (Status, Json<Value>) {
+    match authorization.infobip_key() {
+        Some(_) => (Status::Ok, Json(json!({"templates": []}))),
         None => infobip_refused(Refused::CREDENTIAL),
     }
 }

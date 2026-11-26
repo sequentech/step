@@ -656,17 +656,7 @@ impl PlatformTarget {
                     let plan = self.require_portable_messaging().await?;
                     let mut db: DbClient = get_hasura_pool().await.get().await?;
                     let tx = db.transaction().await?;
-                    let registry = plan.plan(&tx).await?;
-                    let changes = plan.changes(&registry)?;
-                    let needs_apply = registry
-                        .bindings
-                        .values()
-                        .any(|row| row.existing_fingerprint.is_none());
-                    Ok::<_, anyhow::Error>(SectionPreview {
-                        needs_apply,
-                        changes,
-                        blockers: vec![],
-                    })
+                    plan.preview_registry(&tx).await
                 }
                 .await;
                 Ok(result.unwrap_or_else(|error| SectionPreview {
@@ -1187,7 +1177,7 @@ impl PackageTarget for PlatformTarget {
                 let plan = self.require_portable_messaging().await?;
                 let mut db: DbClient = get_hasura_pool().await.get().await?;
                 let tx = db.transaction().await?;
-                let changes = plan
+                let (changes, installed) = plan
                     .install(&tx)
                     .await
                     .map_err(|error| anyhow!("{}", portable_blocker(&error)))?;
@@ -1202,7 +1192,7 @@ impl PackageTarget for PlatformTarget {
                 )?;
                 crate::services::audit_log::stage(&tx, &audit).await?;
                 tx.commit().await?;
-                plan.installed();
+                plan.installed(installed);
                 crate::tasks::audit_log_outbox::kick_audit_log_outbox();
                 Ok(SectionSubmission {
                     task_id: None,

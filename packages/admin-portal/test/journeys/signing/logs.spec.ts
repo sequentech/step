@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
+import {EVENT_LOG_STATEMENT_KINDS} from "../../../src/components/logs/logScope"
 import {test, expect} from "../fixtures"
 import {EVENT_ID, EVENT_URL, JOSE, MARIA, mockSigningEvent, type Person} from "./data"
 
@@ -139,5 +140,107 @@ test("Election Event > Logs lists each signing step as a USER and a SYSTEM entry
     expect(portal.graphql.callsTo("listElectoralLog")[0].variables).toMatchObject({
         election_event_id: EVENT_ID,
         order_by: {id: "desc"},
+    })
+})
+
+test("event log details show the complete HSM approver fingerprint, separate from the log signature", async ({
+    page,
+    portal,
+}) => {
+    mockSigningEvent(portal)
+    // Synthetic rows with the actual two HSM proof shapes, using the entry numbers under review.
+    const [system, user] = entries().filter(
+        (entry) => entry.statement_kind === "SigningRequestSigned"
+    )
+    const systemSignature = "f0".repeat(32)
+    const fixtures = [
+        {
+            id: 106,
+            entry: system,
+            proof: "direct-action-demo-pkcs11-v2",
+            fingerprint: "1e".repeat(32),
+        },
+        {id: 59, entry: user, proof: "initialize-voting-demo-pkcs11", fingerprint: "2f".repeat(32)},
+        {id: 58, entry: system, proof: "direct-action-demo-pkcs11-v2", fingerprint: "invalid"},
+        {id: 57, entry: user, proof: undefined, fingerprint: undefined},
+    ]
+    const items = fixtures.map(({id, entry, proof, fingerprint}) => {
+        const message = JSON.parse(entry.message)
+        message.system_signature = systemSignature
+        message.statement.body.Signing.details_json = JSON.stringify(
+            proof
+                ? {proof_kind: proof, spki_sha256: fingerprint}
+                : {certificate: {spki_sha256: "00".repeat(32)}}
+        )
+        return {...entry, id, message: JSON.stringify(message)}
+    })
+    portal.graphql.on("listElectoralLog", () => ({
+        data: {listElectoralLog: {items, total: {aggregate: {count: items.length}}}},
+    }))
+    await page.goto(`${portal.origin}${EVENT_URL}?lang=en`)
+    await page.getByRole("tab", {name: "Logs", exact: true}).click()
+    await expect(page.getByText("Approver key fingerprint", {exact: true})).toHaveCount(0)
+
+    for (const {id, fingerprint} of fixtures) {
+        await page.getByRole("cell", {name: String(id), exact: true}).click()
+        const dialog = page.getByRole("dialog", {name: `Log entry ${id}`, exact: true})
+        await expect(dialog.getByText("System signature", {exact: true})).toBeVisible()
+        await expect(dialog.getByTitle(systemSignature, {exact: true})).toBeVisible()
+        const field = dialog.getByText("Approver key fingerprint", {exact: true})
+        if (fingerprint?.length === 64) {
+            await expect(field).toBeVisible()
+            const value = dialog.getByText(fingerprint, {exact: true})
+            await expect(value).toBeVisible()
+            await value.dblclick()
+            await expect
+                .poll(() => page.evaluate(() => window.getSelection()?.toString()))
+                .toBe(fingerprint)
+        } else {
+            await expect(field).toHaveCount(0)
+        }
+        await dialog.getByRole("button", {name: "Close", exact: true}).click()
+        await expect(dialog).toBeHidden()
+    }
+})
+
+test("Election Event > Logs filters by any statement kind under Add filter", async ({
+    page,
+    portal,
+}) => {
+    mockSigningEvent(portal)
+    const items = entries()
+    portal.graphql.on("listElectoralLog", ({variables}) => {
+        const kind = (variables.filter as {statement_kind?: string} | undefined)?.statement_kind
+        const listed = kind ? items.filter((item) => item.statement_kind === kind) : items
+        return {
+            data: {listElectoralLog: {items: listed, total: {aggregate: {count: listed.length}}}},
+        }
+    })
+    await page.goto(`${portal.origin}${EVENT_URL}?lang=en`)
+    await page.getByRole("tab", {name: "Logs", exact: true}).click()
+    const rows = page.getByRole("row").filter({has: page.getByRole("cell")})
+    await expect(rows).toHaveCount(items.length)
+
+    // No shortcut for one family of kinds: every kind is under Add filter.
+    await expect(page.getByRole("button", {name: "Signing activity"})).toHaveCount(0)
+    await page.getByRole("button", {name: "Add filter", exact: true}).click()
+    await page.getByRole("menuitemcheckbox", {name: "Statement kind", exact: true}).click()
+    await page.getByRole("combobox", {name: "Statement kind", exact: true}).click()
+    const options = page.getByRole("option").filter({hasText: /\w/})
+    // The UI registry is independently checked against the backend StatementType.
+    await expect(options).toHaveCount(EVENT_LOG_STATEMENT_KINDS.length)
+    await expect(
+        page.getByRole("option", {name: "Cast ballot encryption key published", exact: true})
+    ).toHaveCount(1)
+    await expect(page.getByRole("option", {name: "Lockdown changed", exact: true})).toHaveCount(1)
+    await expect(page.getByRole("option", {name: "SigningActionExecuted"})).toHaveCount(0)
+    await page.getByRole("option", {name: "Approval threshold reached", exact: true}).click()
+
+    // The server filters by the exact kind; the page shows what it answers.
+    await expect(rows).toHaveCount(2)
+    await expect(rows.filter({hasText: "SigningRequestCompleted"})).toHaveCount(2)
+    expect(portal.graphql.callsTo("listElectoralLog").at(-1)?.variables).toMatchObject({
+        election_event_id: EVENT_ID,
+        filter: {statement_kind: "SigningRequestCompleted"},
     })
 })

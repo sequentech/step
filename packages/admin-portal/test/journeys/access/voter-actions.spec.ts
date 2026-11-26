@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
+import {ELECTION_ID, MARIA, SPAIN_ID, SigningRequestState, signInAs} from "../signing/data"
 import {IDS} from "@sequentech/ui-test-kit/fixtures"
 import {test, expect, TENANT_ID} from "../fixtures"
 import {
@@ -41,7 +42,7 @@ test.describe("voter operator with every row action", () => {
             "Send",
             "Edit",
             "Delete",
-            "Manually Verify",
+            "Manually verify identity",
             "Voter Information Letter",
             "Change password",
             "User's Logs",
@@ -120,7 +121,13 @@ test.describe("voter operator with every row action", () => {
         })
         const url = portal.s3.presign("documents/manual-verify.pdf", "manual-verify")
         portal.graphql.on("ManualVerification", () => ({
-            data: {get_manual_verification_pdf: {document_id: DOCUMENT_ID, status: "ok"}},
+            data: {
+                get_manual_verification_pdf: {
+                    document_id: DOCUMENT_ID,
+                    status: "pending",
+                    signing_request: null,
+                },
+            },
         }))
         portal.graphql.on("GetDocument", () => ({
             data: {sequent_backend_document: [{name: "manual-verify.pdf", annotations: {}}]},
@@ -134,7 +141,7 @@ test.describe("voter operator with every row action", () => {
             .getByRole("row", {name: /bob/})
             .getByRole("button", {name: "Actions", exact: true})
             .click()
-        await page.getByRole("menuitem", {name: "Manually Verify", exact: true}).click()
+        await page.getByRole("menuitem", {name: "Manually verify identity", exact: true}).click()
         await expect(
             dialog.getByText(
                 "This voter can not be manually verified because they do not have an email address or phone number attributed to them.",
@@ -142,7 +149,7 @@ test.describe("voter operator with every row action", () => {
             )
         ).toBeVisible()
         await expect(
-            dialog.getByRole("button", {name: "Manually Verify this voter", exact: true})
+            dialog.getByRole("button", {name: "Request verification document", exact: true})
         ).toBeDisabled()
         await dialog.getByRole("button", {name: "Cancel", exact: true}).click()
         await expect(dialog).toHaveCount(0)
@@ -151,20 +158,27 @@ test.describe("voter operator with every row action", () => {
             .getByRole("row", {name: /alice/})
             .getByRole("button", {name: "Actions", exact: true})
             .click()
-        await page.getByRole("menuitem", {name: "Manually Verify", exact: true}).click()
+        await page.getByRole("menuitem", {name: "Manually verify identity", exact: true}).click()
         const downloading = page.waitForEvent("download")
-        await dialog.getByRole("button", {name: "Manually Verify this voter", exact: true}).click()
+        await dialog
+            .getByRole("button", {name: "Request verification document", exact: true})
+            .click()
         const download = await downloading
         expect(download.url()).toBe(url)
         expect(download.suggestedFilename()).toBe(`manual-verify-${IDS.event}-${DOCUMENT_ID}.pdf`)
         await expect(
-            page.getByText("Sucessfully verified manually the voter, downloading PDF..", {
+            page.getByText("Downloading the manual identity verification document.", {
                 exact: true,
             })
         ).toBeVisible()
         await expect(dialog).toHaveCount(0)
         expect(portal.graphql.callsTo("ManualVerification").map((call) => call.variables)).toEqual([
-            {tenantId: TENANT_ID, electionEventId: IDS.event, voterId: ALICE_ID},
+            {
+                tenantId: TENANT_ID,
+                electionEventId: IDS.event,
+                voterId: ALICE_ID,
+                initiationId: expect.stringMatching(/^[a-f0-9-]{36}$/),
+            },
         ])
         expect(portal.graphql.callsTo("FetchDocument")[0].variables).toEqual({
             electionEventId: IDS.event,
@@ -174,7 +188,129 @@ test.describe("voter operator with every row action", () => {
             id: DOCUMENT_ID,
             tenantId: TENANT_ID,
         })
-        expectRole(portal, "ManualVerification", "admin-user")
+        expectRole(portal, "ManualVerification", "voter-manually-verify")
+    })
+
+    test("retains the same verification initiation on retry and opens its signing request without downloading", async ({
+        page,
+        portal,
+    }) => {
+        mockVoters(portal)
+        const requestId = "10000000-0000-4000-8000-0000000000aa"
+        portal.graphql.once("ManualVerification", () => ({
+            errors: [{message: "Temporary failure"}],
+        }))
+        portal.graphql.on("ManualVerification", () => ({
+            data: {
+                get_manual_verification_pdf: {
+                    document_id: null,
+                    status: "awaiting-signatures",
+                    signing_request: {id: requestId},
+                },
+            },
+        }))
+        portal.graphql.on("SigningGetRequest", () => ({
+            errors: [{message: "Synthetic read declined"}],
+        }))
+        await openVoters(page, portal)
+        await rowAction(page, "Manually verify identity")
+        const confirm = page
+            .getByRole("dialog")
+            .getByRole("button", {name: "Request verification document", exact: true})
+        await confirm.click()
+        await expect(
+            page.getByText("Error requesting manual identity verification", {exact: true})
+        ).toBeVisible()
+        await confirm.click()
+        await expect
+            .poll(() => portal.graphql.callsTo("SigningGetRequest").length)
+            .toBeGreaterThan(0)
+        const calls = portal.graphql.callsTo("ManualVerification")
+        expect(calls).toHaveLength(2)
+        expect(calls[0].variables.initiationId).toMatch(/^[a-f0-9-]{36}$/)
+        expect(calls[1].variables).toEqual(calls[0].variables)
+        expect(portal.graphql.callsTo("GetDocument")).toHaveLength(0)
+        expect(portal.graphql.callsTo("FetchDocument")).toHaveLength(0)
+        expect(portal.graphql.callsTo("ChangeApplicationStatus")).toHaveLength(0)
+    })
+
+    test("the initiator retrieves the same verification document only after the signing action has executed", async ({
+        page,
+        portal,
+    }) => {
+        signInAs(portal, MARIA)
+        mockVoters(portal)
+        const requestId = "10000000-0000-4000-8000-0000000000ab"
+        const url = portal.s3.presign("documents/verification.pdf", "synthetic-verification")
+        let state: SigningRequestState
+        let release = false
+        portal.graphql.on("ManualVerification", ({variables}) => {
+            state ??= new SigningRequestState(
+                {
+                    id: requestId,
+                    action: "authorize-manual-verification",
+                    code: "AB12-CD34",
+                    required: 1,
+                    requestedBy: MARIA,
+                    signers: [],
+                    subject: {
+                        voter_id: variables.voterId,
+                        initiation_id: variables.initiationId,
+                        requester_id: MARIA.userId,
+                        post_id: ELECTION_ID,
+                        area_id: SPAIN_ID,
+                        secret_attributes: [],
+                    },
+                },
+                portal.now
+            )
+            return {
+                data: {
+                    get_manual_verification_pdf: release
+                        ? {document_id: DOCUMENT_ID, status: "pending", signing_request: null}
+                        : {
+                              document_id: null,
+                              status: "awaiting-signatures",
+                              signing_request: {id: requestId},
+                          },
+                },
+            }
+        })
+        portal.graphql.on("SigningGetRequest", () => {
+            state.status = release ? "executed" : "completed"
+            state.completedAt = new Date(portal.now).toISOString()
+            return {data: {signingGetRequest: {panel: state.panel(MARIA.userId)}}}
+        })
+        portal.graphql.on("GetDocument", () => ({
+            data: {sequent_backend_document: [{name: "verification.pdf", annotations: {}}]},
+        }))
+        portal.graphql.on("FetchDocument", () => ({data: {fetchDocument: {url}}}))
+        await openVoters(page, portal)
+        await rowAction(page, "Manually verify identity")
+        await page
+            .getByRole("dialog")
+            .getByRole("button", {name: "Request verification document", exact: true})
+            .click()
+        await expect
+            .poll(() => portal.graphql.callsTo("SigningGetRequest").length)
+            .toBeGreaterThan(0)
+        const downloadButton = page.getByRole("button", {
+            name: "Download verification document",
+            exact: true,
+        })
+        await expect(downloadButton).toHaveCount(0)
+        expect(portal.graphql.callsTo("GetDocument")).toHaveLength(0)
+        release = true
+        const downloading = page.waitForEvent("download")
+        await downloadButton.click()
+        expect((await downloading).suggestedFilename()).toBe(
+            `manual-verify-${IDS.event}-${DOCUMENT_ID}.pdf`
+        )
+        const issued = portal.graphql.callsTo("ManualVerification")
+        expect(issued).toHaveLength(2)
+        expect(issued[0].variables).not.toHaveProperty("recoverRequestId")
+        expect(issued[1].variables).toEqual({...issued[0].variables, recoverRequestId: requestId})
+        expect(portal.graphql.callsTo("ChangeApplicationStatus")).toHaveLength(0)
     })
 
     test("generates a voter information letter and reveals its one-time PDF password", async ({

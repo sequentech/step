@@ -6,10 +6,21 @@
 name = "harvest"
 version = "0.1.0"
 edition = "2021"
+default-run = "harvest"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
+comelec-demo-direct-hsm = ["windmill/comelec-demo-direct-hsm", "dep:openssl", "reqwest/native-tls", "uuid/serde"]
+# The ordinary Felix3 install mounts its protected Initialize actions.
+felix3-local-initialize = [
+    "operational-signing-candidate", "windmill/felix3-local-initialize",
+    "dep:openssl", "reqwest/native-tls", "uuid/serde",
+]
+# The private assessment executable also needs inbound mTLS.
+felix3-local-initialize-ca = ["felix3-local-initialize", "operational-signing-private-ca-candidate", "dep:zeroize"]
+# Isolated synthetic demo, not a deployment feature.
+operational-signing-demo-fixture = ["operational-signing-private-ca-candidate", "windmill/operational-signing-demo-fixture"]
 # Candidate code compiles for dedicated verification without mounting routes.
 operational-signing-candidate = ["windmill/operational-signing-candidate", "reqwest/rustls-tls"]
 operational-signing-private-ca-candidate = ["operational-signing-candidate", "rocket/mtls", "dep:openssl"]
@@ -71,6 +82,7 @@ quick-xml = "0.32"
 serde_yaml = "0.9"
 sha2 = "0.10"
 openssl = { version = "0.10", optional = true }
+zeroize = { version = "1", optional = true }
 
 [dev-dependencies]
 tracing-subscriber = "0.3"
@@ -84,3 +96,13 @@ messaging = { path = "../messaging", features = ["test-support"] }
 messaging-webhooks = { path = "../messaging-webhooks" }
 # Signs the bearer tokens of the route tests.
 jsonwebtoken = { version = "10.3", features = ["aws_lc_rs"] }
+
+[[bin]]
+name = "harvest-operational-demo"
+path = "src/bin/harvest-operational-demo.rs"
+required-features = ["operational-signing-demo-fixture"]
+
+[[bin]]
+name = "harvest-felix3-initialize-ca"
+path = "src/bin/harvest-felix3-initialize-ca.rs"
+required-features = ["felix3-local-initialize-ca"]

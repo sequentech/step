@@ -9,6 +9,7 @@ import {
     EProviderApproval,
     EReadinessBlocker,
     EReadinessPolicy,
+    EViberContentMode,
     IMessagingAccount,
     MESSAGE_CHANNELS,
 } from "@/types/messaging"
@@ -20,6 +21,7 @@ import {
     credentialsToReenter,
     emptyAccountForm,
     endpointChanged,
+    endpointField,
     formFromAccount,
     limitsFromForm,
     parseCallingCodes,
@@ -29,6 +31,7 @@ import {
     upsertAccountVariables,
     validateAccountForm,
     withChannel,
+    withProvider,
 } from "./messagingAccountForm"
 
 const form = (
@@ -99,10 +102,22 @@ describe("senderFields", () => {
             "notification_topic_arn",
         ])
         expect(senderFields(EMessagingProvider.CONSOLE)).toEqual([])
+        expect(senderFields(EMessagingProvider.WHATSAPP_INFOBIP)).toEqual([
+            {key: "base_url", required: true},
+            {key: "sender_number", required: true},
+            {key: "display_name", required: false},
+        ])
     })
 })
 
 describe("selectableProviders", () => {
+    it("offers WhatsApp through Meta or Infobip", () => {
+        expect(selectableProviders(EMessageChannel.WHATSAPP)).toEqual([
+            EMessagingProvider.WHATSAPP_CLOUD_API,
+            EMessagingProvider.WHATSAPP_INFOBIP,
+        ])
+    })
+
     it("offers only the channel's own adapters, never a generic or console provider", () => {
         expect(selectableProviders(EMessageChannel.EMAIL)).toEqual([
             EMessagingProvider.AWS_SES,
@@ -206,7 +221,61 @@ describe("senderFromForm", () => {
             base_url: "https://x.api.infobip.com",
             sender: "Staff Association",
             approved_templates: {OTP: {en: "88213", tl: "88214"}},
+            content_mode: EViberContentMode.APPROVED_TEMPLATES,
         })
+    })
+
+    it("keeps a Viber account's content mode, reading a stored account as templates", () => {
+        const viber = (content_mode?: EViberContentMode) =>
+            account({
+                channel: EMessageChannel.VIBER,
+                provider: EMessagingProvider.VIBER_INFOBIP,
+                sender: {
+                    provider: EMessagingProvider.VIBER_INFOBIP,
+                    base_url: "https://x.api.infobip.com",
+                    sender: "Staff Association",
+                    approved_templates: {OTP: {en: "88213"}},
+                    ...(content_mode ? {content_mode} : {}),
+                },
+            })
+        expect(formFromAccount(viber()).viberContentMode).toBe(EViberContentMode.APPROVED_TEMPLATES)
+        const freeText = viber(EViberContentMode.FREE_TEXT)
+        const values = formFromAccount(freeText)
+        expect(values.viberContentMode).toBe(EViberContentMode.FREE_TEXT)
+        // The templates stay, for a switch back.
+        expect(senderFromForm(values)).toEqual(freeText.sender)
+        expect(emptyAccountForm(EMessageChannel.VIBER, EMessagingProvider.VIBER_INFOBIP)).toEqual(
+            expect.objectContaining({viberContentMode: EViberContentMode.APPROVED_TEMPLATES})
+        )
+        expect(
+            withProvider(
+                {...values, provider: EMessagingProvider.AWS_SNS},
+                EMessagingProvider.VIBER_INFOBIP
+            ).viberContentMode
+        ).toBe(EViberContentMode.APPROVED_TEMPLATES)
+    })
+
+    it("builds an Infobip WhatsApp sender, whose credentials follow its base URL", () => {
+        const values = form(EMessagingProvider.WHATSAPP_INFOBIP, EMessageChannel.WHATSAPP, {
+            sender: {
+                base_url: "https://x.api.infobip.com",
+                sender_number: " 447796344125 ",
+                display_name: "",
+            },
+        })
+        expect(senderFromForm(values)).toEqual({
+            provider: EMessagingProvider.WHATSAPP_INFOBIP,
+            base_url: "https://x.api.infobip.com",
+            sender_number: "447796344125",
+            display_name: null,
+        })
+        expect(endpointField(EMessagingProvider.WHATSAPP_INFOBIP)).toBe("base_url")
+        expect(
+            validateAccountForm({
+                ...values,
+                sender: {...values.sender, base_url: "http://x.api.infobip.com"},
+            })
+        ).toEqual({"sender.base_url": EAccountFormError.NOT_A_URL})
     })
 
     it("round-trips an existing account through the form", () => {
@@ -276,6 +345,10 @@ describe("validateAccountForm", () => {
             "viberTemplates.1": EAccountFormError.DUPLICATE_LANGUAGE,
             "viberTemplates.2": EAccountFormError.REQUIRED,
         })
+        // Free text hides the templates: they can't block the save.
+        expect(
+            validateAccountForm({...values, viberContentMode: EViberContentMode.FREE_TEXT})
+        ).toEqual({})
     })
 })
 

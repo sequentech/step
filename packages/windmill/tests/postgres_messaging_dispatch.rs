@@ -159,6 +159,7 @@ async fn viber_account(client: &mut Client, world: &World, base_url: &str, key: 
     let sender = AccountSender::VIBER_INFOBIP {
         base_url: base_url.to_string(),
         sender: "Elections".to_string(),
+        content_mode: Default::default(),
         approved_templates: BTreeMap::from([
             (
                 MessagePurpose::NOTICE,
@@ -1103,6 +1104,7 @@ async fn a_bound_template_goes_out_as_a_utility_message_outside_the_window() {
                     language: "en".to_string(),
                     provider_template: "generic_notice".to_string(),
                     provider_language: None,
+                    buttons: None,
                 },
                 TemplateBinding {
                     purpose: MessagePurpose::NOTICE,
@@ -1110,6 +1112,7 @@ async fn a_bound_template_goes_out_as_a_utility_message_outside_the_window() {
                     language: "en".to_string(),
                     provider_template: "voting_reminder".to_string(),
                     provider_language: Some("en_US".to_string()),
+                    buttons: None,
                 },
             ],
             // The first release's "do not send": Messenger now always uses

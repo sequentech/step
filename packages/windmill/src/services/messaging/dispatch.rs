@@ -34,7 +34,8 @@ use messaging::sender::{
 use sequent_core::types::messaging::{
     AccountCheck, AccountSender, BillingCategory, DeliveryFeedback, EventMessagingConfig,
     MessageAttemptState, MessageChannel, MessageContent, MessagePurpose, MessageReason,
-    NoticeRecipient, OutOfWindowPolicy, ProviderCapabilities, RecipientKind, RETRY_PREPARE_HOURS,
+    NoticeRecipient, OutOfWindowPolicy, ProviderCapabilities, RecipientKind, TemplateButton,
+    RETRY_PREPARE_HOURS,
 };
 use sequent_core::types::templates::SendTemplateBody;
 use sequent_core::types::voter_channel::{VoterChannel, VoterChannelSource};
@@ -115,6 +116,50 @@ pub struct ProviderTemplate {
     pub name: String,
     /// The provider's code for the template's language.
     pub language: Option<String>,
+    /// The values of its buttons, in its button order. `None`: the
+    /// provider's default for the purpose; empty: none.
+    pub buttons: Option<Vec<TemplateButton>>,
+}
+
+/// The approved template a message is sent with, and the provider's code
+/// for its language: the message's own, then the event's most specific
+/// binding, then the Viber account's entered templates. Its buttons go
+/// with it: the binding's or the message's, never another template's.
+pub(crate) fn chosen_template(
+    channel: MessageChannel,
+    purpose: MessagePurpose,
+    template_key: Option<&str>,
+    language: Option<&str>,
+    message_template: Option<&ProviderTemplate>,
+    config: Option<&EventMessagingConfig>,
+    sender: Option<&AccountSender>,
+) -> Option<ProviderTemplate> {
+    message_template
+        .cloned()
+        .or_else(|| {
+            config
+                .and_then(|c| c.template_for(channel, purpose, template_key, language))
+                .map(|binding| ProviderTemplate {
+                    name: binding.provider_template.clone(),
+                    language: Some(binding.provider_language().to_string()),
+                    buttons: binding.buttons.clone(),
+                })
+        })
+        .or_else(|| match sender {
+            Some(AccountSender::VIBER_INFOBIP {
+                approved_templates, ..
+            }) => approved_templates.get(&purpose).and_then(|by_language| {
+                language
+                    .and_then(|language| by_language.get_key_value(language))
+                    .or_else(|| by_language.iter().next())
+                    .map(|(language, name)| ProviderTemplate {
+                        name: name.clone(),
+                        language: Some(language.clone()),
+                        buttons: None,
+                    })
+            }),
+            _ => None,
+        })
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1051,47 +1096,20 @@ pub async fn deliver_within(
                 // The approved template and the provider's code for its
                 // language: the message's own, then the event's most
                 // specific binding, then the account's declared approvals.
-                let template: Option<ProviderTemplate> = delivery
-                    .provider_template
-                    .clone()
-                    .or_else(|| {
-                        config
-                            .as_ref()
-                            .and_then(|c| {
-                                c.template_for(
-                                    channel,
-                                    delivery.purpose,
-                                    delivery.template_key.as_deref(),
-                                    delivery.language.as_deref(),
-                                )
-                            })
-                            .map(|binding| ProviderTemplate {
-                                name: binding.provider_template.clone(),
-                                language: Some(binding.provider_language().to_string()),
-                            })
-                    })
-                    .or_else(|| match account.as_ref().map(|a| &a.sender) {
-                        Some(AccountSender::VIBER_INFOBIP {
-                            approved_templates, ..
-                        }) => approved_templates
-                            .get(&delivery.purpose)
-                            .and_then(|by_language| {
-                                delivery
-                                    .language
-                                    .as_ref()
-                                    .and_then(|language| by_language.get_key_value(language))
-                                    .or_else(|| by_language.iter().next())
-                                    .map(|(language, name)| ProviderTemplate {
-                                        name: name.clone(),
-                                        language: Some(language.clone()),
-                                    })
-                            }),
-                        _ => None,
-                    });
+                let template = chosen_template(
+                    channel,
+                    delivery.purpose,
+                    delivery.template_key.as_deref(),
+                    delivery.language.as_deref(),
+                    delivery.provider_template.as_ref(),
+                    config.as_ref(),
+                    account.as_ref().map(|a| &a.sender),
+                );
                 let language = template
                     .as_ref()
                     .and_then(|t| t.language.clone())
                     .or_else(|| delivery.language.clone());
+                let template_buttons = template.as_ref().and_then(|t| t.buttons.clone());
                 let provider_template = template.map(|t| t.name);
                 let (sender, last_get_started): (Box<dyn ChannelSender>, _) = match &account {
                     Some(account) => {
@@ -1128,6 +1146,7 @@ pub async fn deliver_within(
                         language,
                         content,
                         provider_template,
+                        template_buttons,
                         idempotency_key: format!("{}:{attempt}", delivery.logical_key),
                         expires_at: delivery.expires_at,
                         last_inbound_at: last_get_started,
@@ -1292,6 +1311,98 @@ pub async fn deliver_within(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_template_goes_with_its_own_buttons() {
+        use sequent_core::types::messaging::{
+            EventChannelConfig, OutOfWindowPolicy, TemplateBinding, TemplateButton,
+            TemplateButtonType,
+        };
+        use std::collections::BTreeMap;
+        let quick = |payload: &str| TemplateButton {
+            kind: TemplateButtonType::QUICK_REPLY,
+            parameter: payload.to_string(),
+        };
+        let config = EventMessagingConfig {
+            channels: vec![EventChannelConfig {
+                channel: MessageChannel::WHATSAPP,
+                account_id: "wa-1".to_string(),
+                purposes: vec![MessagePurpose::OTP],
+                templates: vec![TemplateBinding {
+                    purpose: MessagePurpose::OTP,
+                    key: None,
+                    language: "en".to_string(),
+                    provider_template: "authentication".to_string(),
+                    provider_language: Some("en_GB".to_string()),
+                    buttons: Some(vec![quick("NA")]),
+                }],
+                out_of_window: OutOfWindowPolicy::DISABLED,
+            }],
+            ..Default::default()
+        };
+        // The event's binding, with its buttons.
+        assert_eq!(
+            chosen_template(
+                MessageChannel::WHATSAPP,
+                MessagePurpose::OTP,
+                None,
+                Some("en"),
+                None,
+                Some(&config),
+                None,
+            ),
+            Some(ProviderTemplate {
+                name: "authentication".to_string(),
+                language: Some("en_GB".to_string()),
+                buttons: Some(vec![quick("NA")]),
+            })
+        );
+        // The message's own template wins, with its own buttons: none set
+        // means the provider's default, never the binding's.
+        let own = ProviderTemplate {
+            name: "reminder".to_string(),
+            language: None,
+            buttons: None,
+        };
+        assert_eq!(
+            chosen_template(
+                MessageChannel::WHATSAPP,
+                MessagePurpose::OTP,
+                None,
+                Some("en"),
+                Some(&own),
+                Some(&config),
+                None,
+            ),
+            Some(own)
+        );
+        // Viber's entered templates have no buttons.
+        let viber = AccountSender::VIBER_INFOBIP {
+            base_url: "https://x.api.infobip.com".to_string(),
+            sender: "COMELEC".to_string(),
+            approved_templates: BTreeMap::from([(
+                MessagePurpose::OTP,
+                BTreeMap::from([("en".to_string(), "tpl-otp".to_string())]),
+            )]),
+            content_mode: Default::default(),
+        };
+        assert_eq!(
+            chosen_template(
+                MessageChannel::VIBER,
+                MessagePurpose::OTP,
+                None,
+                Some("en"),
+                None,
+                None,
+                Some(&viber),
+            ),
+            Some(ProviderTemplate {
+                name: "tpl-otp".to_string(),
+                language: Some("en".to_string()),
+                buttons: None,
+            })
+        );
+    }
 
     fn target(channel: MessageChannel, destination: &str) -> NoticeTarget {
         NoticeTarget {

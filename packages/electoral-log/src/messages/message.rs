@@ -1156,6 +1156,25 @@ impl Message {
         Self::sign_ballot_box(head, body, sd, election_id, area_id)
     }
 
+    /// The key the election event's cast votes are sealed to, signed by the
+    /// event's system key.
+    pub fn cast_vote_seal_key_published_message(
+        pin: crate::cast_vote_seal::CastVoteSealKeyPin,
+        sd: &SigningData,
+    ) -> Result<Self> {
+        let event = EventIdString(pin.election_event_id.clone());
+        Self::from_body(
+            event,
+            StatementBody::CastVoteSealKeyPublished(pin),
+            sd,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+    }
+
     fn sign_ballot_box(
         head: StatementHead,
         body: StatementBody,

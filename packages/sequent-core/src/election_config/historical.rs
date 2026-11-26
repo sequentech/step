@@ -21,7 +21,7 @@ use chrono::{DateTime, FixedOffset, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{btree_map::Entry, BTreeMap, BTreeSet};
 
 #[path = "historical_defaults.rs"]
 mod defaults;
@@ -137,9 +137,14 @@ pub enum VoterAreaJoin {
     PopulationPrecinctTuple,
     /// `voters.(MAILCOUNTRY, MAILEMBASSY)` equals `pop.(PROV_CODE, MUN_CODE)`,
     /// for the post-qualification schema, whose voters carry no precinct. Every
-    /// in-scope polling row with that location must resolve to the same area;
-    /// a location shared by two areas is a conflict, never a choice.
+    /// source row for a voter's location must agree on its area and scope. A
+    /// conflicting location is rejected for every voter using it, never guessed.
     MailCountryEmbassy,
+    /// A reviewed post-qualification dump also identifies mail offices by
+    /// `pop.(MUN_CODE, BRGY_CODE)`. If the ordinary mail key is absent, a
+    /// unique in-scope office key with exact source geography can be used.
+    /// Known conflicts are never overridden. Requires both source digests.
+    PostQualificationMailOfficeCodes,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -396,6 +401,12 @@ pub fn adapt(
     let (dump, source_schema) =
         schema::normalize(dump).map_err(|p| fail(summary.clone(), p))?;
     summary.source_schema = source_schema;
+    if options.voter_area_join
+        == Some(VoterAreaJoin::PostQualificationMailOfficeCodes)
+    {
+        check_mail_office_decision(options, &summary)
+            .map_err(|problem| fail(summary.clone(), problem))?;
+    }
     let workbook = read_workbook(xlsx, &summary)?;
     let (workbook, derived) = if defaults::is_defaults(&workbook) {
         summary.defaults_workbook = true;
@@ -450,6 +461,38 @@ pub fn adapt(
             summary,
             report: schema::source_names(report, source_schema),
         })
+}
+
+fn check_mail_office_decision(
+    options: &HistoricalOptions,
+    summary: &Summary,
+) -> Result<(), Problem> {
+    if summary.source_schema != SourceSchema::PostQualification
+        || options.census != CensusPolicy::PreserveSourceVoters
+    {
+        return Err(Problem::error(
+            Code::InvalidValue,
+            "historical decisions voterAreaJoin",
+            "reviewed mail office codes require a post-qualification dump and preserve-source-voters",
+        ));
+    }
+    let digests = options.source_digests.as_ref().ok_or_else(|| {
+        Problem::error(
+            Code::NotApproved,
+            "historical decisions sourceDigests",
+            "reviewed mail office codes must be bound to both source-file hashes",
+        )
+    })?;
+    if digests.sql_sha256 != summary.sql_sha256
+        || digests.workbook_sha256 != summary.workbook_sha256
+    {
+        return Err(Problem::error(
+            Code::IntegrityMismatch,
+            "historical decisions sourceDigests",
+            "decisions describe different source bytes",
+        ));
+    }
+    Ok(())
 }
 
 /// Read a supplemental workbook within the source limits.
@@ -545,6 +588,34 @@ impl<'a> Data<'a> {
             }
         }
         Ok(Self { name, table })
+    }
+    /// A PICTURE BLOB bypasses the connection charset entirely. Absence is
+    /// normal in older schemas and in reconstructed demo dumps.
+    fn picture(
+        &self,
+        row: usize,
+        index: Option<usize>,
+        budget: &mut super::workbook_photo::SqlBudget,
+    ) -> Result<Option<super::workbook_photo::PreparedPhoto>, Problem> {
+        let Some(SqlValue::Bytes(raw)) =
+            index.and_then(|i| self.table.rows[row].get(i))
+        else {
+            return Ok(None);
+        };
+        if raw.is_empty() {
+            return Ok(None);
+        }
+        let invalid = |why: &str| {
+            problem(self.name, row, "PICTURE", Code::InvalidValue, why)
+                .id("candidate.sql-photo")
+        };
+        if !matches!(
+            self.table.column_types.get("PICTURE").map(String::as_str),
+            Some("tinyblob" | "blob" | "mediumblob" | "longblob")
+        ) {
+            return Err(invalid("nonempty PICTURE must be declared as a BLOB"));
+        }
+        budget.decode(raw).map(Some).map_err(invalid)
     }
     /// A name as the ballot shows it, unchanged; a blank one is refused rather
     /// than shown as `-`.
@@ -679,6 +750,153 @@ impl<'a> Data<'a> {
         })
     }
 }
+
+/// Resolve an explicit precinct cluster as written. When it is SQL NULL, some
+/// COMELEC dumps still provide the exact barangay and its city in the geography
+/// table. The barangay key has no extra zero; the transmission route key does.
+fn precinct_barangay(
+    populations: &Data<'_>,
+    pop: usize,
+    barangays: &Data<'_>,
+    by_id: &BTreeMap<String, usize>,
+) -> Result<usize, Problem> {
+    const CLUSTER: &str = "CLUSTERPOLLCENTER";
+    if let Some(explicit) = populations.optional(pop, CLUSTER)? {
+        return barangays.lookup(by_id, &explicit, pop, CLUSTER);
+    }
+
+    let geography_code =
+        |column| precinct_geography_code(populations, pop, column);
+    let city = format!(
+        "{}{}",
+        geography_code("PROV_CODE")?,
+        geography_code("MUN_CODE")?
+    );
+    let id = format!("{city}{}", geography_code("BRGY_CODE")?);
+    // by_id already refuses every duplicate ID_BARANGAY in the source.
+    let row = by_id.get(&id).copied().ok_or_else(|| {
+        problem(
+            "pop",
+            pop,
+            CLUSTER,
+            Code::DanglingReference,
+            "NULL precinct cluster has no exact allbgy.ID_BARANGAY match",
+        )
+    })?;
+    if barangays.text(row, "ID_CITY")? != city {
+        return Err(problem(
+            "pop",
+            pop,
+            CLUSTER,
+            Code::ConflictingColumns,
+            "inferred barangay's allbgy.ID_CITY disagrees with the precinct city",
+        ));
+    }
+    Ok(row)
+}
+
+fn precinct_geography_code(
+    populations: &Data<'_>,
+    pop: usize,
+    column: &str,
+) -> Result<String, Problem> {
+    let value = populations.text(pop, column)?;
+    if value.trim().is_empty() {
+        return Err(problem(
+            "pop",
+            pop,
+            column,
+            Code::MissingField,
+            "source geography code is blank",
+        ));
+    }
+    Ok(value)
+}
+
+/// Find the source station without rewriting it. Only the post-qualification
+/// schema can use a corroborated city + cluster OVCS route on a legacy miss.
+fn precinct_route(
+    populations: &Data<'_>,
+    pop: usize,
+    city: &str,
+    routes: &Data<'_>,
+    by_source: &BTreeMap<String, usize>,
+    schema: SourceSchema,
+) -> Result<usize, Problem> {
+    let barangay = populations.text(pop, "BRGY_CODE")?;
+    let legacy_key = format!("{city}0{barangay}");
+    let legacy = routes.lookup(by_source, &legacy_key, pop, "TRANS_SOURCE_ID");
+    if legacy.is_ok() || schema != SourceSchema::PostQualification {
+        return legacy;
+    }
+
+    for column in ["PROV_CODE", "MUN_CODE", "BRGY_CODE"] {
+        precinct_geography_code(populations, pop, column)?;
+    }
+    let cluster_number = |column| {
+        let value = populations.text(pop, column)?;
+        value
+            .parse::<u16>()
+            .ok()
+            .filter(|number| {
+                *number <= 9999 && value.bytes().all(|b| b.is_ascii_digit())
+            })
+            .ok_or_else(|| {
+                problem(
+                    "pop",
+                    pop,
+                    column,
+                    Code::InvalidValue,
+                    "expected a numeric cluster representable in four digits",
+                )
+            })
+    };
+    let conflicting = |column, message| {
+        problem("pop", pop, column, Code::ConflictingColumns, message)
+    };
+    let cluster = cluster_number("CLUSTER")?;
+    if cluster_number("GROUPNUMBER")? != cluster {
+        return Err(conflicting(
+            "GROUPNUMBER",
+            "GROUPNUMBER disagrees with CLUSTER",
+        ));
+    }
+    let cluster = format!("{cluster:04}");
+    let precinct = populations.text(pop, "CLUSTEREDPRECINCT")?;
+    let valid_length = match precinct.as_bytes() {
+        [_, _, _, _] => true,
+        [_, _, _, _, suffix] => suffix.is_ascii_uppercase(),
+        _ => false,
+    };
+    if !valid_length || precinct.get(..4) != Some(cluster.as_str()) {
+        return Err(conflicting(
+            "CLUSTEREDPRECINCT",
+            "CLUSTEREDPRECINCT must be the same four-digit cluster followed by at most one uppercase ASCII letter",
+        ));
+    }
+    if populations.text(pop, "CODE")? != format!("{city}{barangay}{precinct}") {
+        return Err(conflicting(
+            "CODE",
+            "CODE disagrees with the precinct geography and CLUSTEREDPRECINCT",
+        ));
+    }
+
+    let key = format!("{city}{cluster}");
+    let row = routes.lookup(by_source, &key, pop, "TRANS_SOURCE_ID")?;
+    // The post-qualification schema normalizes TYPE to MACHINE_TYPE. A
+    // city-only CCS row is neither looked up nor accepted as an OVCS route.
+    if routes.text(row, "MACHINE_TYPE")? != "OVCS" {
+        return Err(problem(
+            "trans_route",
+            row,
+            "MACHINE_TYPE",
+            Code::InvalidValue,
+            "post-qualification cluster route must have type OVCS",
+        ));
+    }
+    Ok(row)
+}
+
 fn latin1(byte: u8) -> char {
     // MySQL's latin1 uses Windows-1252 in the 0x80–0x9f range.
     const C1: [char; 32] = [
@@ -1005,8 +1223,10 @@ fn apply_contest_rows(
 fn apply_candidate_rows(
     given: &[Row],
     candidates: &mut BTreeMap<String, Row>,
+    placement_budget: &mut super::workbook_photo::Budget,
 ) -> Result<(), Problem> {
     let mut seen = BTreeSet::new();
+    let mut source_budget = super::workbook_photo::Budget::default();
     for given in given {
         let id = text(given, "source_candidate_id")?;
         if !seen.insert(id.clone()) {
@@ -1020,20 +1240,41 @@ fn apply_candidate_rows(
             if column != "source_candidate_id"
                 && !["presentation", "description", "labels"]
                     .contains(&column.as_str())
+                && column != "image_data_url"
                 && !column.starts_with("presentation.")
                 && !column.starts_with("description.")
             {
                 return Err(Problem::error(Code::ConflictingColumns,
                     given.origin(Some(column)).to_string(),
-                    "candidate supplements may only set presentation, description or labels"));
+                    "candidate supplements may only set presentation, description, labels or image_data_url"));
             }
         }
+        let mut prepared = None;
         let mut matched = false;
         for candidate in candidates.values_mut().filter(|candidate| {
             candidate.text("annotations.miru:candidate-id") == Some(id.as_str())
         }) {
             matched = true;
             for (column, value) in &given.cells {
+                if column == super::workbook_photo::COLUMN {
+                    if !super::workbook_photo::present(value) {
+                        continue;
+                    }
+                    if candidate.get(column).is_some() {
+                        let origin = given.origin(Some(column));
+                        return Err(Problem::error(Code::ConflictingColumns, origin.to_string(), "both SQL PICTURE and Excel image_data_url are populated; leave exactly one photo source for this candidate").at(&origin).id("candidate.photo-source-conflict"));
+                    }
+                    if prepared.is_none() {
+                        prepared = source_budget.prepare_cell(given)?;
+                    }
+                    if let Some(photo) = &prepared {
+                        placement_budget.charge_picture(photo).map_err(
+                            |why| super::workbook_photo::problem(given, why),
+                        )?;
+                        set(candidate, column, json!(photo.url));
+                    }
+                    continue;
+                }
                 if column != "source_candidate_id" {
                     set(candidate, column, value.clone());
                 }
@@ -1090,6 +1331,21 @@ fn sheet_row<'a>(
         )
     })
 }
+
+/// A COMELEC seat may name VICE-PRESIDENT without the hyphen. Use that
+/// spelling only for the lookup and only if no exact contest name exists.
+fn seat_contest_lookup_name<'a>(
+    name: &'a str,
+    contests_by_name: &BTreeMap<String, usize>,
+) -> &'a str {
+    match name {
+        "VICE PRESIDENT" if !contests_by_name.contains_key(name) => {
+            "VICE-PRESIDENT"
+        }
+        _ => name,
+    }
+}
+
 /// Resolve every candidate's contest and seat against the whole source, before
 /// any seat is selected. Scope policy filters valid rows; it must never be what
 /// a broken reference hides behind. Codes are source configuration, not personal
@@ -1135,7 +1391,8 @@ fn check_candidate_references(
             ));
         };
         let name = seats.text(seat, "CONTEST")?;
-        let contest = contests_by_name.get(&name).copied().ok_or_else(|| {
+        let key = seat_contest_lookup_name(&name, contests_by_name);
+        let contest = contests_by_name.get(key).copied().ok_or_else(|| {
             problem(
                 "seat",
                 seat,
@@ -1446,12 +1703,7 @@ fn map(
                 pop,
                 "POLLCENTER_CODE",
             )?;
-            let bgy = barangays.lookup(
-                &bi,
-                &populations.text(pop, "CLUSTERPOLLCENTER")?,
-                pop,
-                "CLUSTERPOLLCENTER",
-            )?;
+            let bgy = precinct_barangay(&populations, pop, &barangays, &bi)?;
             let city = format!(
                 "{}{}",
                 populations.text(pop, "PROV_CODE")?,
@@ -1610,16 +1862,17 @@ fn map(
     let mut output_candidates = BTreeMap::new();
     let mut output_links = BTreeMap::new();
     let mut used_candidates = BTreeSet::new();
+    let picture_index = candidates
+        .table
+        .columns
+        .iter()
+        .position(|column| column == "PICTURE");
+    let mut sql_pictures = BTreeMap::new();
+    let mut source_photo_budget = super::workbook_photo::SqlBudget::default();
+    let mut placement_budget = super::workbook_photo::Budget::default();
     let mut unresolved_affiliations = BTreeSet::new();
-    // (PROV_CODE, MUN_CODE, PRECINCT) -> area external_id for an in-scope pop row,
-    // or None for an out-of-scope one, recorded from the same crosswalk the areas
-    // are built from so source voters can join to an area. EVERY pop row is recorded
-    // (before the scope filters) so a key shared by an excluded row is caught as a
-    // conflict instead of silently assigning its voters to the in-scope area.
-    let mut precinct_area_index: BTreeMap<
-        (String, String, String),
-        Option<VoterArea>,
-    > = BTreeMap::new();
+    let mut precinct_area_index =
+        VoterAreaIndex::new(summary.source_schema, options.voter_area_join);
     for pop in 0..populations.table.rows.len() {
         // Only the voter-preserving census needs this crosswalk (and, for the
         // precinct join, the source PRECINCT column); other policies leave the
@@ -1632,7 +1885,10 @@ fn map(
                     VoterAreaJoin::PopulationPrecinctTuple => {
                         populations.text(pop, "PRECINCT")?
                     }
-                    VoterAreaJoin::MailCountryEmbassy => String::new(),
+                    VoterAreaJoin::MailCountryEmbassy
+                    | VoterAreaJoin::PostQualificationMailOfficeCodes => {
+                        String::new()
+                    }
                 },
             )),
             _ => None,
@@ -1643,22 +1899,37 @@ fn map(
             pop,
             "POLLCENTER_CODE",
         )?;
-        let bgy = barangays.lookup(
-            &bi,
-            &populations.text(pop, "CLUSTERPOLLCENTER")?,
-            pop,
-            "CLUSTERPOLLCENTER",
-        )?;
+        let bgy = precinct_barangay(&populations, pop, &barangays, &bi)?;
         let city_code = format!(
             "{}{}",
             populations.text(pop, "PROV_CODE")?,
             populations.text(pop, "MUN_CODE")?
         );
+        let office =
+            match (precinct_area_index.use_office_codes, precinct_key.as_ref())
+            {
+                (true, Some((province, municipality, _))) => mail_office_key(
+                    &populations,
+                    pop,
+                    province,
+                    municipality,
+                    &city_code,
+                    &barangays,
+                    bgy,
+                )?,
+                _ => None,
+            };
         let municipality =
             municipalities.lookup(&mi, &city_code, pop, "ID_CITY")?;
-        let route_code =
-            format!("{}0{}", city_code, populations.text(pop, "BRGY_CODE")?);
-        let route = routes.lookup(&ri, &route_code, pop, "TRANS_SOURCE_ID")?;
+        let route = precinct_route(
+            &populations,
+            pop,
+            &city_code,
+            &routes,
+            &ri,
+            summary.source_schema,
+        )?;
+        let route_code = routes.text(route, "TRANS_SOURCE_ID")?;
         let post = centers.text(center, "POLLING_PLACE")?;
         let barangay = barangays.text(bgy, "AREANAME")?;
         let area_name = if barangay == post {
@@ -1668,7 +1939,7 @@ fn map(
         };
         let Some(contexts) = ei.get(&post) else {
             if let Some(key) = &precinct_key {
-                record_precinct_area(&mut precinct_area_index, key, None, pop)?;
+                precinct_area_index.record(key, office.as_ref(), None, pop)?;
             }
             summary.excluded_precinct_rows += 1;
             continue;
@@ -1678,7 +1949,7 @@ fn map(
             && options.precinct_coverage == PostCoverage::WorkbookPostsOnly
         {
             if let Some(key) = &precinct_key {
-                record_precinct_area(&mut precinct_area_index, key, None, pop)?;
+                precinct_area_index.record(key, office.as_ref(), None, pop)?;
             }
             summary.excluded_precinct_rows += 1;
             continue;
@@ -1694,9 +1965,9 @@ fn map(
         set(&mut area, "external_id", json!(area_id));
         if let Some(key) = &precinct_key {
             let (country, embassy) = voter_location(&area);
-            record_precinct_area(
-                &mut precinct_area_index,
+            precinct_area_index.record(
                 key,
+                office.as_ref(),
                 Some(VoterArea {
                     external_id: area_id.clone(),
                     country,
@@ -1845,9 +2116,10 @@ fn map(
                     seat,
                     "GEOCODE",
                 )?;
+                let name = seats.text(seat, "CONTEST")?;
                 let contest = contests.lookup(
                     &ti,
-                    &seats.text(seat, "CONTEST")?,
+                    seat_contest_lookup_name(&name, &ti),
                     seat,
                     "CONTEST",
                 )?;
@@ -1907,10 +2179,7 @@ fn map(
                             ("counting_algorithm", json!("plurality-at-large")),
                             ("presentation.sort_order", json!(order)),
                             ("annotations.miru:contest-id", json!(district)),
-                            (
-                                "annotations.miru:contest-name",
-                                json!(seats.text(seat, "CONTEST")?),
-                            ),
+                            ("annotations.miru:contest-name", json!(name)),
                         ],
                     ),
                 );
@@ -1934,7 +2203,30 @@ fn map(
                         continue;
                     }
                     let code = candidates.text(candidate, "CAND_CODE")?;
-                    used_candidates.insert(code.clone());
+                    if used_candidates.insert(code.clone()) {
+                        if let Some(photo) = candidates.picture(
+                            candidate,
+                            picture_index,
+                            &mut source_photo_budget,
+                        )? {
+                            sql_pictures.insert(code.clone(), photo);
+                        }
+                    }
+                    let photo = sql_pictures.get(&code);
+                    if let Some(photo) = photo {
+                        placement_budget.charge_picture(photo).map_err(
+                            |why| {
+                                problem(
+                                    "candidate",
+                                    candidate,
+                                    "PICTURE",
+                                    Code::InvalidValue,
+                                    why,
+                                )
+                                .id("candidate.sql-photo")
+                            },
+                        )?;
+                    }
                     candidate_order += 1;
                     let mut candidate_row = row(
                         "Candidates",
@@ -1963,11 +2255,23 @@ fn map(
                             ),
                         ],
                     );
+                    if let Some(photo) = photo {
+                        set(
+                            &mut candidate_row,
+                            super::workbook_photo::COLUMN,
+                            json!(photo.url),
+                        );
+                    }
                     if let Some(party) = candidates
                         .optional(candidate, "NOMINATEDBY")?
-                        .filter(|s| !s.is_empty())
+                        .filter(|s| !s.trim().is_empty())
                     {
                         if let Some(&party_row) = pi.get(&party) {
+                            let registered =
+                                parties.name(party_row, "NAME_PARTY")?;
+                            let short = parties
+                                .optional(party_row, "SHORT_NAME")?
+                                .filter(|name| !name.trim().is_empty());
                             set(
                                 &mut candidate_row,
                                 "annotations.miru:candidate-affiliation-id",
@@ -1976,12 +2280,12 @@ fn map(
                             set(
                                 &mut candidate_row,
                                 "annotations.miru:candidate-affiliation-registered-name",
-                                json!(parties.text(party_row, "NAME_PARTY")?),
+                                json!(registered),
                             );
                             set(
                                 &mut candidate_row,
                                 "annotations.miru:candidate-affiliation-party",
-                                json!(parties.text(party_row, "SHORT_NAME")?),
+                                json!(short.as_deref().unwrap_or(&registered)),
                             );
                         } else {
                             unresolved_affiliations.insert(code.clone());
@@ -2122,7 +2426,11 @@ fn map(
         );
     }
     apply_contest_rows(workbook.rows("contests"), &mut output_contests)?;
-    apply_candidate_rows(workbook.rows("candidates"), &mut output_candidates)?;
+    apply_candidate_rows(
+        workbook.rows("candidates"),
+        &mut output_candidates,
+        &mut placement_budget,
+    )?;
     let aliases: BTreeMap<String, String> = output_elections
         .values()
         .filter_map(|r| {
@@ -2263,28 +2571,172 @@ fn voter_location(area: &Row) -> (String, String) {
     (format!("{country_head}/{embassy}"), embassy)
 }
 
-/// Record a pop row's `(PROV_CODE, MUN_CODE, PRECINCT)` key against the area it
-/// resolves to (`Some`) or against being out of scope (`None`). Every pop row is
-/// recorded, so a key that two rows share with different outcomes (two areas, or an
-/// in-scope and an out-of-scope row) is a conflict rather than a silent
-/// misassignment.
-fn record_precinct_area(
-    index: &mut BTreeMap<(String, String, String), Option<VoterArea>>,
-    key: &(String, String, String),
-    area: Option<VoterArea>,
-    row: usize,
-) -> Result<(), Problem> {
-    match index.get(key) {
-        Some(existing) if *existing != area => Err(problem(
-            "pop",
+type VoterLocation = (String, String, String);
+
+struct MailOfficeKey {
+    location: VoterLocation,
+    proven: bool,
+}
+
+/// A source office key only earns a mapping if the same selected barangay has
+/// the exact geographic ID and independently names the same city. Keep
+/// unproven keys visible for collision detection, never as usable mappings.
+fn mail_office_key(
+    populations: &Data<'_>,
+    pop: usize,
+    province: &str,
+    municipality: &str,
+    city: &str,
+    barangays: &Data<'_>,
+    bgy: usize,
+) -> Result<Option<MailOfficeKey>, Problem> {
+    let barangay = populations.text(pop, "BRGY_CODE")?;
+    if [province, municipality, &barangay]
+        .iter()
+        .any(|part| part.trim().is_empty())
+    {
+        return Ok(None);
+    }
+    let proven = barangays.text(bgy, "ID_BARANGAY")?
+        == format!("{city}{barangay}")
+        && barangays
+            .table
+            .columns
+            .iter()
+            .any(|column| column == "ID_CITY")
+        && barangays.optional(bgy, "ID_CITY")?.as_deref() == Some(city);
+    Ok(Some(MailOfficeKey {
+        location: (municipality.to_owned(), barangay, String::new()),
+        proven,
+    }))
+}
+
+#[derive(Clone, PartialEq, Eq)]
+enum VoterAreaMatch {
+    InScope(VoterArea),
+    OutOfScope,
+    Ambiguous,
+    Unproven,
+}
+
+/// Records all source rows, including excluded ones, before looking up voters.
+/// For the coarser post-qualification mail key, keep disagreements as unusable
+/// keys and report them only for voters who use them. Other joins stay strict
+/// even for unused keys.
+struct VoterAreaIndex {
+    locations: BTreeMap<VoterLocation, VoterAreaMatch>,
+    offices: BTreeMap<VoterLocation, VoterAreaMatch>,
+    defer_mail_conflicts: bool,
+    use_office_codes: bool,
+}
+
+impl VoterAreaIndex {
+    fn new(schema: SourceSchema, join: Option<VoterAreaJoin>) -> Self {
+        Self {
+            locations: BTreeMap::new(),
+            offices: BTreeMap::new(),
+            defer_mail_conflicts: schema == SourceSchema::PostQualification
+                && matches!(
+                    join,
+                    Some(
+                        VoterAreaJoin::MailCountryEmbassy
+                            | VoterAreaJoin::PostQualificationMailOfficeCodes
+                    )
+                ),
+            use_office_codes: join
+                == Some(VoterAreaJoin::PostQualificationMailOfficeCodes),
+        }
+    }
+
+    fn record(
+        &mut self,
+        key: &VoterLocation,
+        office: Option<&MailOfficeKey>,
+        area: Option<VoterArea>,
+        row: usize,
+    ) -> Result<(), Problem> {
+        let outcome =
+            area.map_or(VoterAreaMatch::OutOfScope, VoterAreaMatch::InScope);
+        if let Some(office) = office {
+            let office_outcome = if office.proven {
+                outcome.clone()
+            } else {
+                VoterAreaMatch::Unproven
+            };
+            Self::insert(
+                &mut self.offices,
+                &office.location,
+                office_outcome,
+                true,
+                row,
+            )?;
+        }
+        Self::insert(
+            &mut self.locations,
+            key,
+            outcome,
+            self.defer_mail_conflicts,
             row,
-            "PRECINCT",
-            Code::DuplicateId,
-            "a voter location (province, municipality and, by precinct, the precinct) maps to two different areas or scopes",
-        )),
-        _ => {
-            index.insert(key.clone(), area);
-            Ok(())
+        )
+    }
+
+    fn insert(
+        index: &mut BTreeMap<VoterLocation, VoterAreaMatch>,
+        key: &VoterLocation,
+        outcome: VoterAreaMatch,
+        defer_conflicts: bool,
+        row: usize,
+    ) -> Result<(), Problem> {
+        match index.entry(key.clone()) {
+            Entry::Vacant(entry) => {
+                entry.insert(outcome);
+            }
+            Entry::Occupied(mut entry) if entry.get() != &outcome => {
+                if !defer_conflicts {
+                    return Err(problem(
+                        "pop",
+                        row,
+                        "PRECINCT",
+                        Code::DuplicateId,
+                        "a voter location (province, municipality and, by precinct, the precinct) maps to two different areas or scopes",
+                    ));
+                }
+                // Do not let a later agreeing row pick one side of a conflict.
+                entry.insert(VoterAreaMatch::Ambiguous);
+            }
+            Entry::Occupied(_) => {}
+        }
+        Ok(())
+    }
+
+    fn area(
+        &self,
+        key: &VoterLocation,
+        voter_row: usize,
+        column: &str,
+        unmatched: &str,
+    ) -> Result<&VoterArea, Problem> {
+        use VoterAreaMatch::{Ambiguous, InScope, OutOfScope};
+        let direct = self.locations.get(key);
+        let office = self.offices.get(key);
+        let rejected =
+            |code, message| problem("voters", voter_row, column, code, message);
+        let disagree = "the ordinary mail key and the reviewed office key disagree on the voter area or scope";
+        match (direct, office) {
+            (Some(Ambiguous), _) | (_, Some(Ambiguous)) => Err(rejected(
+                Code::DuplicateId,
+                "voter mail location maps to different areas or scopes in the source; resolve the conflicting source mappings before import",
+            )),
+            (Some(InScope(direct)), Some(InScope(office))) if direct != office => {
+                Err(rejected(Code::ConflictingColumns, disagree))
+            }
+            (Some(InScope(_)), Some(OutOfScope)) | (Some(OutOfScope), Some(InScope(_))) => {
+                Err(rejected(Code::ConflictingColumns, disagree))
+            }
+            // The office key fills an absent ordinary key, never an excluded
+            // or conflicting one. A single unproven office key cannot assign a voter.
+            (Some(InScope(area)), _) | (None, Some(InScope(area))) => Ok(area),
+            _ => Err(rejected(Code::DanglingReference, unmatched)),
         }
     }
 }
@@ -2321,13 +2773,14 @@ fn record_precinct_area(
 /// Each voter joins to an area through the crosswalk recorded while the areas were
 /// built, keyed as the join decides: `(COUNTRY, EMBASSY, PRECINCT)` against
 /// `(PROV_CODE, MUN_CODE, PRECINCT)`, or the post-qualification
-/// `(MAILCOUNTRY, MAILEMBASSY)` against `(PROV_CODE, MUN_CODE)`. A voter whose
-/// location has no in-scope area raises a visible per-row error rather than being
-/// silently dropped.
+/// `(MAILCOUNTRY, MAILEMBASSY)` against `(PROV_CODE, MUN_CODE)`. Only the
+/// separately reviewed office-code mode also checks `(MUN_CODE, BRGY_CODE)`.
+/// A voter whose location has no in-scope area raises a visible per-row error
+/// rather than being silently dropped.
 fn build_source_voter_rows(
     dump: &SqlDump,
     join: VoterAreaJoin,
-    precinct_area_index: &BTreeMap<(String, String, String), Option<VoterArea>>,
+    precinct_area_index: &VoterAreaIndex,
     summary: &mut Summary,
 ) -> Result<Vec<Row>, Report> {
     let columns: &[&str] = match join {
@@ -2340,7 +2793,8 @@ fn build_source_voter_rows(
             "PRECINCT",
             "ABROADSTATUS",
         ],
-        VoterAreaJoin::MailCountryEmbassy => {
+        VoterAreaJoin::MailCountryEmbassy
+        | VoterAreaJoin::PostQualificationMailOfficeCodes => {
             &["ID", "FIRSTNAME", "LASTNAME", "MAILCOUNTRY", "MAILEMBASSY"]
         }
     };
@@ -2374,7 +2828,7 @@ fn source_voter_row(
     voters: &Data<'_>,
     v: usize,
     join: VoterAreaJoin,
-    precinct_area_index: &BTreeMap<(String, String, String), Option<VoterArea>>,
+    precinct_area_index: &VoterAreaIndex,
     usernames: &mut BTreeSet<String>,
 ) -> Result<Row, Problem> {
     {
@@ -2402,6 +2856,12 @@ fn source_voter_row(
                     None,
                     "voter (mail country, mail embassy) has no in-scope area; the matching source polling row is absent or out of scope",
                 ),
+                VoterAreaJoin::PostQualificationMailOfficeCodes => (
+                    "MAILCOUNTRY",
+                    "MAILEMBASSY",
+                    None,
+                    "voter mail location has no verified in-scope ordinary or office key in the source",
+                ),
             };
         let country = voters.text(v, country_column)?;
         let embassy = voters.text(v, embassy_column)?;
@@ -2409,23 +2869,12 @@ fn source_voter_row(
             .map(|column| voters.text(v, column))
             .transpose()?
             .unwrap_or_default();
-        let area = match precinct_area_index.get(&(
-            country.clone(),
-            embassy.clone(),
-            precinct.clone(),
-        )) {
-            Some(Some(area)) => area,
-            // Absent key or an out-of-scope (None) row: surface, never guess.
-            _ => {
-                return Err(problem(
-                    "voters",
-                    v,
-                    precinct_column.unwrap_or(embassy_column),
-                    Code::DanglingReference,
-                    message,
-                ))
-            }
-        };
+        let area = precinct_area_index.area(
+            &(country.clone(), embassy.clone(), precinct.clone()),
+            v,
+            precinct_column.unwrap_or(embassy_column),
+            message,
+        )?;
         // The area must carry a usable embassy/country label, or enrollment matching
         // would compare against a blank value. Surface it instead of emitting one.
         if area.embassy.is_empty()

@@ -266,6 +266,8 @@ limitations = [
 issue = "https://github.com/sequentech/meta/issues/13302"
 
 [profiles.harvest.scope_exceptions]
+"src/bin/harvest-operational-demo.rs" = "Separate explicitly selected demo executable, absent from the paired baseline's private-ca candidate build; test its argv guard with the demo-only binary test (see HARVEST.md)."
+"src/operational_demo_composition.rs" = "Installer-only demo fixture composition absent from the paired baseline feature set; exercise its route and mount guards in the separate operational-signing-demo-fixture test cohort (see HARVEST.md). Common Harvest routes and protocol guards remain measured."
 "src/adapters/memory/mod.rs" = "Module declarations only; user task fakes remain in the source inventory."
 "src/adapters/mod.rs" = "Module declarations only; production adapters are inventoried separately."
 "src/ports/cast_votes.rs" = "Cast vote insertion trait declaration only; implementations are measured in adapters."
@@ -413,12 +415,18 @@ WBRAID_B4_PG_PASSWORD = "test"
 "src/services/audit_log_tests.rs" = "Standalone unit-test module under cfg(test); the audit entries and their redaction remain measured."
 "src/services/audit_log_export_tests.rs" = "Standalone unit-test module under cfg(test); the audit log export remains measured."
 "src/services/signing/actions/actions_tests.rs" = "Standalone unit-test module under cfg(test); the protected actions' integrations remain measured."
+"src/services/cast_vote_seal/cast_vote_seal_tests.rs" = "Standalone unit-test module under cfg(test); cast vote sealing, the key pin and the opener port remain measured."
+"src/services/cast_vote_seal/format_tests.rs" = "Standalone unit-test module under cfg(test); the hsm-seal-v1 format and its AAD remain measured."
+"src/services/cast_vote_seal/testing.rs" = "Test-only software stand-in for the HSM opener under cfg(test); production sealing and opening remain measured."
 "src/services/scheduled_outcome_tests.rs" = "Standalone unit-test module under cfg(test); the scheduled outcomes remain measured."
 "src/services/application_matrix_tests.rs" = "Standalone unit-test module under cfg(test); the enrollment decision remains measured."
 "src/services/approval_matrix/evaluate_tests.rs" = "Standalone unit-test module under cfg(test); the approval matrix evaluation remains measured."
 "src/services/approval_matrix/model_tests.rs" = "Standalone unit-test module under cfg(test); the approval matrix model and its validation remain measured."
 
 [profiles.windmill.scope_exceptions]
+"src/bin/windmill-operational-demo.rs" = "Dedicated opt-in worker executable not built by the paired candidate feature. Verify the separate binary refuses without its launcher; see the demo HARVEST.md."
+"src/operational_demo_worker.rs" = "Only compiled for the distinct installer-sealed operational-signing-demo-fixture build. Run the feature-specific environment tests and test-worker-acl.sh as described in HARVEST.md."
+"src/services/signing/operational_device_postgres_tests.rs" = "This test-only module needs a private socket-only PostgreSQL fixture and the separate demo feature. Run test-canonical-reload.sh; common canonical signing logic and the real candidate request integration suite remain measured."
 "src/adapters/memory/mod.rs" = "Module declarations only; the in-memory adapters remain in the source inventory."
 "src/adapters/mod.rs" = "Module declarations only; the adapters remain in the source inventory."
 "src/domain/mod.rs" = "Module declarations only; the domain rules remain in the source inventory."

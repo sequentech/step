@@ -388,6 +388,25 @@ async fn viber_callback(
     .await
 }
 
+/// Infobip delivery reports for its other channels (WhatsApp).
+#[post("/webhooks/infobip/<key>", data = "<data>")]
+async fn infobip_callback(
+    key: &str,
+    incoming: Incoming,
+    data: Data<'_>,
+    relay: &State<Relay>,
+) -> Reply {
+    relay_callback(
+        relay,
+        CallbackProvider::INFOBIP,
+        CallbackMethod::POST,
+        key,
+        incoming,
+        Some(data),
+    )
+    .await
+}
+
 /// SNS-wrapped SES events and SNS subscription confirmation. SNS posts
 /// `text/plain`, so no content type is required.
 #[post("/webhooks/aws/<key>", data = "<data>")]
@@ -447,6 +466,7 @@ pub fn build(config: Config) -> Result<Rocket<Build>> {
                 meta_subscription,
                 meta_callback,
                 viber_callback,
+                infobip_callback,
                 aws_callback,
                 healthz,
                 no_head
