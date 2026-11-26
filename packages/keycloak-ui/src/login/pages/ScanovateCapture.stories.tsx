@@ -331,15 +331,17 @@ export const DocumentStepLaidOutAfterTurn: Story = {
         const layouts = (frame: HTMLIFrameElement) =>
             (frame.contentWindow as Window & {layouts: number}).layouts
         const scan = await scanovateFrame(canvasElement, FAKE_OCR)
-        await expect(layouts(scan)).toBe(0)
+        // The window may have been given its size just now: count from here.
+        const before = layouts(scan)
         window.dispatchEvent(new Event("orientationchange"))
-        await waitFor(() => expect(layouts(scan)).toBe(2), {timeout: 3000})
+        await waitFor(() => expect(layouts(scan)).toBe(before + 2), {timeout: 3000})
 
         await press(canvasElement, FAKE_OCR, "Finish")
         const face = await scanovateFrame(canvasElement, FAKE_LIVENESS)
+        const faceBefore = layouts(face)
         window.dispatchEvent(new Event("orientationchange"))
         await new Promise((resolve) => setTimeout(resolve, 1300))
-        await expect(layouts(face)).toBe(0)
+        await expect(layouts(face)).toBe(faceBefore)
     },
 }
 
