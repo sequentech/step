@@ -667,6 +667,8 @@ const tagalogTranslation: TranslationType = {
             ambiguous:
                 "Higit sa isa sa iyong mga balota ang tumutugma sa {{ballotId}}. Gamitin ang buong Ballot ID.",
             contentDesc: "Ito ang nilalaman ng iyong balota: ",
+            contentSealed:
+                "Nakaselyo ang pagkakaimbak ng iyong balota, kaya hindi ipinapakita rito ang nilalaman nito.",
             wrongFormatBallotId: "Mali ang format para sa Ballot ID",
             ballotIdNotFoundAtFilter: "Hindi natagpuan ang iyong ballot ID sa filter",
             filterByBallotId: "Tumutugma sa Ballot ID",

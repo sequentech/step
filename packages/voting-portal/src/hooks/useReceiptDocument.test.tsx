@@ -14,7 +14,7 @@ it("polls only the owned receipt action and never caches its private download UR
         link: new ApolloLink((operation) => {
             expect(operation.operationName).toBe("ReceiptDocument")
             expect(operation.variables).toEqual({electionEventId: "event", documentId: "receipt"})
-            expect(operation.getContext().headers).toEqual({"x-hasura-role": "cast-vote"})
+            expect(operation.getContext().headers).toEqual({"x-hasura-role": "user"})
             requests++
             return new Observable((observer) => {
                 observer.next({

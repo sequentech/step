@@ -21,6 +21,7 @@ import {IPermissions} from "@/types/keycloak"
 import {
     EMessageAttemptState,
     EMessagePurpose,
+    EMessageChannel,
     EMessagingProvider,
     IMessagingAccount,
     MESSAGE_PURPOSES,
@@ -56,14 +57,14 @@ export const testStateSeverity = (state: EMessageAttemptState): AlertColor => {
 }
 
 /**
- * Whether a test names the approved template to send. WhatsApp needs one;
- * Infobip's Viber accounts list their own.
+ * Whether a test names the approved template to send. WhatsApp needs one,
+ * through Meta or Infobip; Infobip's Viber accounts list their own.
  */
 export const testTemplateField = (
     account: IMessagingAccount,
     _purpose: EMessagePurpose
 ): {offered: boolean; required: boolean} =>
-    account.provider === EMessagingProvider.WHATSAPP_CLOUD_API
+    account.channel === EMessageChannel.WHATSAPP
         ? {offered: true, required: true}
         : {offered: false, required: false}
 

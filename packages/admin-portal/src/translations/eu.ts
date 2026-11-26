@@ -846,6 +846,7 @@ const basqueTranslation: TranslationType = {
                     adminKey: "{{name}} erabiltzailearen administrazio gakoa",
                     systemOnly: "Egunkariaren sistema gakoa soilik",
                     systemSignature: "Sistemaren sinadura",
+                    approverKeyFingerprint: "Onarpena eman duenaren gakoaren hatz-marka",
                     publicKey: "Argitaratutako administrazio gakoa",
                 },
             },
@@ -906,6 +907,98 @@ const basqueTranslation: TranslationType = {
                 statementTimestampFrom: "Adierazpenaren denbora-zigilua noiztik",
                 statementTimestampTo: "Adierazpenaren denbora-zigilua noiz arte",
                 timeZone: "Ordu-eremua",
+            },
+            statementKind: {
+                Unknown: "Sarrera ezezaguna",
+                CastVote: "Botoa emanda",
+                CastVoteError: "Errorea botoa ematean",
+                ElectionPublish: "Hauteskundea argitaratuta",
+                ElectionVotingPeriodOpen: "Bozketa irekita (hauteskundea)",
+                ElectionVotingPeriodClose: "Bozketa itxita (hauteskundea)",
+                ElectionVotingPeriodPause: "Bozketa etenda (hauteskundea)",
+                ElectionEventVotingPeriodOpen: "Bozketa irekita (gertaera)",
+                ElectionEventVotingPeriodClose: "Bozketa itxita (gertaera)",
+                ElectionEventVotingPeriodPause: "Bozketa etenda (gertaera)",
+                KeyGeneration: "Gakoak sortuta",
+                KeyInsertionStart: "Gakoen txertatzea hasita",
+                KeyInsertionCeremony: "Gakoak txertatzeko zeremonia",
+                TallyOpen: "Zenbaketa hasita",
+                TallyClose: "Zenbaketa amaituta",
+                TallyResumedWithResolution: "Zenbaketa berrabiarazita ebazpen baten ondoren",
+                TallyPausedPendingResolution: "Zenbaketa etenda ebazpenaren zain",
+                TallyTieResolved: "Berdinketa ebatzita",
+                TallyTieResolutionUpdated: "Berdinketaren ebazpena eguneratuta",
+                SendTemplate: "Txantiloia bidalita",
+                SendCommunications: "Mezuak bidalita",
+                KeycloakUserEvent: "Erabiltzaile-kontuaren gertaera",
+                VoterPublicKey: "Hauteslearen gako publikoa",
+                AdminPublicKey: "Administratzailearen gako publikoa",
+                CertificateAuthEvent: "Saio-hasiera ziurtagiriarekin",
+                PhoneBlacklistUpdated: "Blokeatutako telefonoen zerrenda eguneratuta",
+                ResultsPublicationAction: "Emaitzen argitalpena",
+                ExternalApiRequest: "Kanpoko APIrako eskaera",
+                ExternalReconciliation: "Kanpoko bateratzea",
+                BallotPublicationFailure: "Errorea txartela argitaratzean",
+                ElectoralLogCheckpoint: "Egunkariaren kontrol-puntua",
+                ElectoralLogContinuation: "Egunkariaren jarraipena",
+                MonitoringConfigChanged: "Monitorizazio-ezarpenak aldatuta",
+                SigningRequestCreated: "Sinadura-eskaera sortuta",
+                SigningCertificateOpenFailed: "Ezin izan da sinadura-ziurtagiria ireki",
+                SigningRequestSigned: "Onespena sinatuta",
+                SigningSignatureRefused: "Sinadura ukatuta",
+                SigningCertificateRegistered: "Sinadura-ziurtagiria erregistratuta",
+                SigningHandover: "Sinadura eskualdatuta",
+                SigningRequestCancelled: "Sinadura-eskaera bertan behera utzita",
+                SigningRequestExpired: "Sinadura-eskaera iraungita",
+                SigningRequestCompleted: "Onespen-atalasea lortuta",
+                SigningActionExecuted: "Onetsitako ekintza amaituta edo huts eginda",
+                SigningRuleChanged: "Sinadura-araua aldatuta",
+                SigningPermissionChanged: "Sinadura-baimena aldatuta",
+                SigningIssuerChanged: "Sinadura-jaulkitzailea aldatuta",
+                SigningChecksChanged: "Sinadura-egiaztapenak aldatuta",
+                SigningCertificateRevoked: "Sinadura-ziurtagiria baliogabetuta",
+                SigningRequestsExported: "Sinadura-eskaerak esportatuta",
+                LifecycleWindowChanged: "Bozketa-egutegiaren leihoa aldatuta",
+                ScheduleRecomputeApplied: "Egutegia berriro kalkulatuta",
+                ScheduleImported: "Egutegia inportatuta",
+                ScheduledOutcomeChanged: "Programatutako emaitza aldatuta",
+                ElectionInitialized: "Hauteskundea hasieratuta",
+                LockdownChanged: "Blokeoa aldatuta",
+                ConfigurationPackageImported: "Konfigurazio-paketea inportatuta",
+                ReportGenerated: "Txostena sortuta",
+                ApprovalMatrixUpdated: "Onespen-matrizea eguneratuta",
+                BallotBoxSealed: "Hautestontzia zigilatuta",
+                BallotBoxSealFailed: "Errorea hautestontzia zigilatzean",
+                TallyBallotBoxVerified: "Hautestontzia egiaztatuta zenbaketarako",
+                TallyBallotBoxRejected: "Hautestontzia baztertuta zenbaketarako",
+                TenantLogOpened: "Maizterraren egunkaria irekita",
+                TenantAdminAction: "Maizterraren administrazio-ekintza",
+                AdminChange: "Administrazio-aldaketa",
+                KeycloakAdminEvent: "Identitateen administrazio-gertaera",
+                LogsExported: "Egunkariak esportatuta",
+                LogWriterStarted: "Egunkari-idazlea abiarazita",
+                LogWriterStopped: "Egunkari-idazlea geldituta",
+                TransmissionFileDownloaded: "Transmisio-fitxategia deskargatuta",
+                VotersImported: "Hautesleak inportatuta",
+                ReadinessVerified: "Prestutasuna egiaztatuta",
+                BallotReceived: "Txartela jasota",
+                BallotAudited: "Txartela auditatuta",
+                PseudonymResolved: "Ezizena ebatzita",
+                ForensicRead: "Irakurketa forentsea",
+                CastVoteSealKeyPublished: "Emandako botoak zifratzeko gakoa argitaratu da",
+            },
+            signingActivity: {
+                row: {
+                    created: "Sinadura-eskaera sortu da: {{action}}",
+                    approved: "Onarpena sinatu da: {{action}}",
+                    quorum: "Beharrezko onarpenak bildu dira: {{action}}",
+                    completed: "Ekintza osatu da: {{action}}",
+                    failed: "Ekintzak huts egin du: {{action}}",
+                    cancelled: "Sinadura-eskaera bertan behera utzi da: {{action}}",
+                    expired: "Sinadura-eskaera iraungi da: {{action}}",
+                    rejected: "Sinadura baztertu da",
+                    progress: "({{approved}} / {{required}})",
+                },
             },
             scheduledOutcome: {
                 outcome: {
@@ -2211,11 +2304,13 @@ const basqueTranslation: TranslationType = {
                     subtitle: "Sortu Bozkatzailea",
                 },
                 manualVerification: {
-                    label: "Eskuz Egiaztatu",
-                    verify: "Eskuz egiaztatu bozkatzaile hau",
-                    body: "Eskuz egiaztatu bozkatzaile hau. Bozkatzaileari online KYC saltatzeko sartzen ahalbidetzen dion QR Kode esteka bat duen PDF bat lortuko duzu.",
+                    label: "Identitatea eskuz egiaztatu",
+                    verify: "Egiaztapen-dokumentua eskatu",
+                    body: "Eskatu hautesle honentzako QR kodea duen PDF pribatua. Sinadurak behar badira, dokumentua onartu ondoren bakarrik emango da. Horrek ez du inskripzio-eskaerarik onartzen.",
                     noEmailOrPhone:
                         "Bozkatzaile hau ezin da eskuz egiaztatu email helbiderik edo telefono zenbakirik ez duelako.",
+                    waiting: "Dokumentua sinaduren zain dago.",
+                    download: "Egiaztapen-dokumentua deskargatu",
                 },
                 emptyHeader: "Ez dago bozkatzailerik oraindik.",
                 askCreate: "Bat sortu nahi duzu?",
@@ -2262,9 +2357,9 @@ const basqueTranslation: TranslationType = {
                     deleteError: "Errorea bozkatzailea ezabatzerakoan",
                     deleteSuccess: "Bozkatzailea ezabatua",
                     multipleDeleteSuccess: "Bozkatzaileak ezabatuak",
-                    manualVerificationError: "Errorea bozkatzailea eskuz egiaztatzerakoan",
+                    manualVerificationError: "Errorea identitatea eskuz egiaztatzea eskatzean",
                     manualVerificationSuccess:
-                        "Arrakastaz egiaztatu da eskuz bozkatzailea, PDFa deskargatzen..",
+                        "Identitatea eskuz egiaztatzeko dokumentua deskargatzen.",
                 },
             },
             roles: {
@@ -2317,7 +2412,9 @@ const basqueTranslation: TranslationType = {
                 "sign-generate-election-returns": "Sinatu: hauteskunde-aktak sortu",
                 "sign-generate-reports": "Sinatu: beste hauteskunde-txosten batzuk sortu",
                 "sign-transmit-results": "Sinatu: emaitzak transmititu",
-                "sign-approve-voter": "Sinatu: hautesle bat eskuz onartu",
+                "sign-approve-voter": "Sinatu: inskripzio-eskaera bat onartu",
+                "sign-authorize-manual-verification":
+                    "Sinatu: identitatea eskuz egiaztatzea baimendu",
                 "sign-approve-configuration": "Sinatu: konfigurazio-bertsio bat onartu",
                 "sign-key-ceremony": "Sinatu: giltza-zati bat berretsi",
                 "sign-tally-key": "Sinatu: giltza-zati bat eman",
@@ -3165,6 +3262,52 @@ const basqueTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "Errorea izan da sinadura igotzean",
             downloadTransmissionPackage: "Deskargatu Transmisio Paketea",
+            publicVerification: {
+                sectionTitle: "Egiaztapen kriptografikoa",
+                description:
+                    "Egiaztatu zure nabigatzailean zenbaketa honen iragarki-taula: zifratutako boto bakoitzaren ezagutza zeroko froga, nahasketa bakoitzaren nahasketa-froga eta fideikomisario bakoitzaren deszifratze-froga. Egiaztapenak plataforma honek tauletaz dituen erregistroetan oinarritzen dira. Ikuskaritza independente baterako, exekutatu trustee verify agindua sinatutako konfigurazio-paketetik hartutako aingurekin.",
+                verify: "Egiaztatu iragarki-taula",
+                verifyAgain: "Egiaztatu berriro",
+                unavailable: "Zenbaketa amaitzean erabilgarri.",
+                loading: "Zenbaketaren taulak irakurtzen…",
+                progress: "{{total}} sortetatik {{current}}. egiaztatzen…",
+                empty: "Zenbaketa honek ez du egiaztatzeko sortarik iragarki-taulan.",
+                failed: "Ezin izan da egiaztapena egin: {{message}}",
+                verifierUnavailable:
+                    "Nabigatzaile honek ezin izan du egiaztatzailea abiarazi: {{message}}",
+                summary: {
+                    verified: "Sorta guztiak egiaztatuta: {{count}} / {{total}}.",
+                    invalid: "Egiaztapena gainditu ez duten sortak: {{count}} / {{total}}.",
+                    error: "Egiaztatu ezin izan diren sortak: {{count}} / {{total}}. Errenkada bakoitzak arrazoia ematen du.",
+                    incomplete:
+                        "Sorta osatugabeak: {{count}} / {{total}}. Beharrezko argitalpenak falta dira, beraz ez daude egiaztatuta.",
+                },
+                checks: {
+                    title: "Sorta bakoitzean egiaztatuta:",
+                    ballots: "Zifratutako boto bakoitzaren ezagutza zeroko froga",
+                    mixing: "Nahasketa bakoitzaren nahasketa-froga, ordenan, beste fideikomisarioek onartua",
+                    decryption:
+                        "Fideikomisario bakoitzaren deszifratze-froga, emaitzak berriro kalkulatuta eta bat etorrita",
+                },
+                columns: {
+                    batch: "Sorta",
+                    ballots: "Botoak",
+                    result: "Emaitza",
+                    detail: "Xehetasuna",
+                },
+                batch: "{{batch}}. sorta",
+                status: {
+                    verified: "Egiaztatuta",
+                    incomplete: "Osatugabea",
+                    invalid: "Baliogabea",
+                    error: "Egiaztatu gabe",
+                },
+                detail: {
+                    verified: "Sortaren froga eta argitalpen guztiak egiaztatu dira.",
+                    incomplete: "Beharrezko argitalpenak falta dira iragarki-taulan.",
+                },
+                download: "Deskargatu frogak",
+            },
             resultsPublication: {
                 sectionTitle: "Argitaratu emaitzen webgunean",
                 policyTitle: "Emaitzen webgunea",
@@ -3357,6 +3500,20 @@ const basqueTranslation: TranslationType = {
                     "Amaitu hautatutako hauteskunde bakoitzeko bozketa eta gelditu kanal aktiboak zenbaketa sortu aurretik.",
                 sealBallotBoxes:
                     "Hauteskunde bat zenbatu daiteke hautestontzi guztiak zigilatuta daudenean eta haien zigiluen erregistroak argitaratuta daudenean.",
+            },
+            failure: {
+                title: "Zenbaketak huts egin du",
+                detail: "Xehetasunak",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "Zenbaketa-taula bat ez dator bat gakoen zeremonian erregistratutako konfigurazioarekin.",
+                    INVALID_BOARD_CONTENT: "Zenbaketa-taula batek erabili ezin den edukia du.",
+                    TRUSTEE_HALTED:
+                        "Fideikomisario batek zenbaketa gelditu eta errore baten berri eman du.",
+                    SEALED_BALLOTS_REFUSED:
+                        "Gordetako boto-paper batzuk ezin dira zenbatu: ez dira irekitzen edo ez datoz bat beren erregistroekin. Ez da boto-paperik zenbatu. Konpondu arrazoia eta, ondoren, hasi zenbaketa berri bat.",
+                    unknown: "Ezin izan da zenbaketa osatu.",
+                },
             },
             createTallySuccess: "Zenbaketa sortua",
             createTallyError: "Ezin izan da Zenbaketa sortu",
@@ -5089,6 +5246,25 @@ const basqueTranslation: TranslationType = {
                 'Ziur al zaude "{{name}}" ziurtagiria (hatz-marka: {{fingerprint}}) ezabatu nahi duzula?',
         },
         signing: {
+            localSetup: {
+                continue: "Jarraitu saioa hasten",
+                register: "Erregistratu nire sinadura-gakoa",
+                phase: {
+                    "setup-available":
+                        "Konfiguratu postu honetako sinadura-gakoa. Lehenik, egiaztatu pasahitza eta erabilera bakarreko kodea.",
+                    "waiting-for-setup-gold":
+                        "Jarraitu saioa hasten konfigurazio honetarako zure identitatea egiaztatzeko.",
+                    "setup-confirmation-required":
+                        "Identitatea egiaztatuta. Hautatu Erregistratu nire sinadura-gakoa postu honetako gakoa sortzeko.",
+                    "setup-retry-available":
+                        "Gailuak ez du oraindik eskaera hartu. Eskaera bera berriro bidal dezakezu.",
+                    "setup-pending":
+                        "Konfigurazioa zain dago. Onartu aurretik sinadura-gakoa eta erregistratutako langile-ziurtagiria behar dituzu.",
+                    "setup-recovery-required":
+                        "Administratzaile batek konfigurazioa berrikusi behar du. Ez da onarpenik erregistratu.",
+                },
+            },
+            operational: englishTranslation.translations.signing.operational,
             terms: {
                 post: "Postu",
                 posts: "Postuak",
@@ -5096,6 +5272,8 @@ const basqueTranslation: TranslationType = {
             tab: {
                 title: "Sinadurak",
                 intro: "Ekintza babestuak behar adina pertsona baimendunek beren ziurtagiri digitalekin sinatu ondoren bakarrik exekutatzen dira. Sinadura bakoitza jaulkitzaile fidagarrien aurka egiaztatzen da eta erregistroan jasotzen da.",
+                hsmIntro:
+                    "Baimendutako pertsonek ekintza babestuak onartzen dituzte. Onarpen bakoitza hauteskunde-erregistroan jasotzen da.",
                 protectedActions: "Ekintza babestuak",
                 certificates: "Ziurtagiriak",
                 requests: "Eskaerak",
@@ -5183,13 +5361,22 @@ const basqueTranslation: TranslationType = {
                         "Zenbaketa atalean hasten da, Transmisioa urratsean. Sinatutako emaitza-paketea sortzen du bere helburuetarako; sinadurek haren sinadura-zerrenda betetzen dute.",
                 },
                 "approve-voter": {
-                    label: "Hautesle bat eskuz onartu",
-                    short: "Hautesle-onarpena",
-                    permissionName: "hautesle bat eskuz onartu",
-                    object: "hautesle-onarpena",
+                    label: "Inskripzio-eskaera bat onartu",
+                    short: "Inskripzioaren onarpena",
+                    permissionName: "inskripzio-eskaera bat onartu",
+                    object: "inskripzioaren onarpena",
                     appliesTo: "Hauteslearen $t(signing.terms.post)a",
                     description:
-                        "Onespenak atalean hasten da. Hauteslea onartzen du eta haren kredentzialak igortzen ditu.",
+                        "Onarpenak fitxan, eskaera onartu eta hauteslearen kredentzialak ematen dira.",
+                },
+                "authorize-manual-verification": {
+                    label: "Identitatea eskuz egiaztatzea baimendu",
+                    short: "Identitatearen eskuzko egiaztapena",
+                    permissionName: "identitatea eskuz egiaztatzea baimendu",
+                    object: "identitatearen eskuzko egiaztapena",
+                    appliesTo: "Hauteslearen $t(signing.terms.post)a",
+                    description:
+                        "Hautesleen zerrendan, egiaztapen-esteka duen dokumentu bat ematea baimentzen du. Ez du inskripzio-eskaerarik onartzen.",
                 },
                 "approve-configuration": {
                     label: "Konfigurazio-bertsio bat onartu",
@@ -5221,6 +5408,8 @@ const basqueTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Sinadura bakoitza sinatzailearen segurtasun-tokeneko ziurtagiri digitalarekin egiten da.",
+                hsmIntro:
+                    "Ikusi nork onar dezakeen ekintza bakoitza eta zenbat onarpen behar diren.",
                 columns: {
                     action: "Ekintza",
                     appliesTo: "Honi aplikatzen zaio",
@@ -5631,6 +5820,12 @@ const basqueTranslation: TranslationType = {
                 scheduled_events: "Programatutako gertaera berriak",
                 ballots_and_contests: "Boto-txartelak eta lehiaketak",
                 application_id: "Izen-emate eskaera",
+                voter_id: "Hauteslearen kontua",
+                initiation_id: "Egiaztapen-eskaera",
+                post_id: "$t(signing.terms.post)",
+                area_id: "Hauteslearen eremua",
+                requester_id: "Eskaera egin duen langilearen kontua",
+                secret_attributes: "Babestutako atributuen izenak",
                 applicant_registry_id: "Erroldako kontua",
                 decision: "Erabakia",
                 submitted_at: "Bidalia",
@@ -5667,6 +5862,8 @@ const basqueTranslation: TranslationType = {
                     "generate-reports": "$t(signing.actions.generate-reports.label)",
                     "transmit-results": "$t(signing.actions.transmit-results.label)",
                     "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "authorize-manual-verification":
+                        "$t(signing.actions.authorize-manual-verification.label)",
                     "approve-configuration": "$t(signing.actions.approve-configuration.label)",
                     "key-ceremony": "$t(signing.actions.key-ceremony.label)",
                     "tally-key": "$t(signing.actions.tally-key.label)",
@@ -6234,6 +6431,8 @@ const basqueTranslation: TranslationType = {
                     "{{channel}}-ek ezin ditu oraindik {{purpose}} bidali. Falta da: {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "{{channel}} txantiloia ({{purpose}}, {{language}}) ez dago hornitzaileak onartuta.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "{{channel}} txantiloiaren botoi batek ez du baliorik ({{purpose}}, {{language}}).",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} kanalak ezin du elkarrizketa-leihotik kanpo bidali kontu honekin: ez du elkarrizketa-leihorik, edo bere jakinarazpenek dagoeneko txantiloi bat behar dute.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -6263,6 +6462,7 @@ const basqueTranslation: TranslationType = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                WHATSAPP_INFOBIP: "WhatsApp Business (Infobip)",
                 CONSOLE: "Kontsola (jada ez da onartzen)",
                 HTTP_API: "HTTP API pertsonalizatua (jada ez da onartzen)",
             },
@@ -6324,6 +6524,24 @@ const basqueTranslation: TranslationType = {
                 REPORT_PASSWORD: "Txostenen pasahitza",
             },
             deliveryUnavailable: "Entrega ez dago erabilgarri",
+            templateButtons: {
+                title: "Txantiloiaren botoiak",
+                help: "Txantiloiaren botoiak bidaltzeko balioak, txantiloian agertzen diren ordenan. {{code}} bidaltzen den kodearekin ordezten da.",
+                choice: {
+                    DEFAULT: "Helbururako lehenetsiak",
+                    CUSTOM: "Txantiloi honetarako ezarriak",
+                },
+                type: "Botoi mota",
+                parameter: "Balioa",
+                add: "Gehitu botoia",
+                remove: "Kendu botoia",
+                none: "Botoirik ez",
+                required: "Idatzi balio bat",
+                types: {
+                    URL: "URLa (kodea kopiatu edo esteka)",
+                    QUICK_REPLY: "Erantzun azkarra",
+                },
+            },
             templates: {
                 noMethod: "Aukeratu gutxienez metodo bat txantiloirako.",
                 parameters: "Txantiloiaren parametroak",
@@ -6350,11 +6568,18 @@ const basqueTranslation: TranslationType = {
                 intro: {
                     WHATSAPP:
                         "WhatsApp-ek Meta-k WhatsApp Business kontuarentzat onartutako txantiloiak soilik bidaltzen ditu. Mezuak txantiloi onartuarekin bat etorri behar du; aukeratu zerk betetzen dituen parametroak.",
-                    VIBER: "Viber-ek kodeak eta transakzio-mezuak Viber bazkideak onartutako txantiloiekin soilik bidaltzen ditu. Mezuak txantiloi onartuarekin bat etorri behar du; aukeratu zerk betetzen dituen parametroak.",
+                    VIBER: "Viber kontu batek Viber bazkideak onartutako txantiloiak edo testu librea bidaltzen ditu. Txantiloi onartuekin, mezuak txantiloiarekin bat etorri behar du; aukeratu zerk betetzen dituen parametroak. Testu librearekin, beheko testua dagoen bezala bidaltzen da.",
                 },
                 approvedWording: "Testu onartua",
                 approvedWordingHelp:
                     "Txantiloi onartuaren kopia bat, aurrebista gisa erabilia. Hemen aldatzeak ez du aldatzen hornitzaileak bidaltzen duena.",
+                buttonsHelp:
+                    "Infobip bidezko WhatsApp-ek erabiltzen ditu goiko hornitzailearen txantiloiarekin. Hura gabe, gertaeraren txantiloia eta haren botoiak erabiltzen dira.",
+                viberWording: "Testua",
+                viberWordingHelp:
+                    "Testu librea bidaltzen duen kontu batek testu hau dagoen bezala bidaltzen du. Txantiloi onartuekin, txantiloiaren kopia bat da, aurrebista gisa erabilia, eta ez du aldatzen bidaltzen dena.",
+                sendsWrittenText:
+                    "Kontu honek testu librea bidaltzen du: goiko testua dagoen bezala bidaltzen da eta ez du txantiloi onarturik behar.",
                 providerTemplateTitle: "Hornitzailearen txantiloia",
                 providerTemplateHelp:
                     "Aukerakoa. Txantiloi onartuak hornitzailean duen izena edo IDa. Hutsik badago, txantiloi honen aliasari lotutako hauteskunde-gertaeraren txantiloia erabiltzen da, edo gertaeraren helbururako lehenetsia.",
@@ -6709,6 +6934,7 @@ const basqueTranslation: TranslationType = {
                 page_name: "Orriaren izena",
                 page_username: "Orriaren erabiltzaile-izena",
                 base_url: "APIaren oinarrizko URLa",
+                sender_number: "Igorlearen zenbakia",
                 sender: "Igorlearen izena",
                 provider_approval: "Hornitzailearen onarpena",
                 is_default: "{{channel}} kontu lehenetsia hauteskunde-gertaera berrietarako",
@@ -6729,6 +6955,8 @@ const basqueTranslation: TranslationType = {
                     "Hautesleek beren kodea lortzeko irekitzen duten m.me estekan erabiltzen da.",
                 api_version: "Adibidez, v23.0.",
                 base_url: "Kontuaren Infobip APIaren oinarrizko URLa.",
+                sender_number:
+                    "Infobip-en erregistratutako WhatsApp zenbakia, nazioarteko formatuan, adibidez 447796344125.",
                 sender: "Hautesleek ikusten duten igorle onartua.",
                 provider_approval:
                     "Meta-k gobernuen WhatsApp mezularitza onartutako akordio baten bidez soilik baimentzen du. Aukeratu Hornitzailearen onarpena berretsita Meta-k kontu honetarako onartu duenean; bitartean, ezin dira kodeak eta jakinarazpenak gaitu kontu honetan.",
@@ -6770,6 +6998,19 @@ const basqueTranslation: TranslationType = {
                 templateId: "Bazkidearen txantiloi-IDa",
                 add: "Gehitu txantiloia",
                 remove: "Kendu txantiloia",
+                contentMode: {
+                    title: "Mezuen edukia",
+                    APPROVED_TEMPLATES: "Txantiloi onartuak",
+                    FREE_TEXT: "Testu librea",
+                },
+                contentModeHelp: {
+                    APPROVED_TEMPLATES:
+                        "Kodeak eta mezuak Viber bazkideak onartutako txantiloiekin bidaltzen dira, behean adierazitakoekin.",
+                    FREE_TEXT:
+                        "Kodeak eta mezuak beren testuarekin bidaltzen dira, SMSak bezala. Ez da txantiloi onarturik behar.",
+                },
+                freeTextWarning:
+                    "Viber-ek txantiloi onarturik gabe bidalitako transakzio-mezuak sustapen-tarifan kobratzen ditu, eta hautesle bati bidalitako lehen mezu gisa sustapen-edukia uka dezake. Berretsi bazkidearekin kontu honek kodeak testu libre gisa bidal ditzakeela.",
             },
             limits: {
                 title: "Bidalketa-mugak",
@@ -6820,6 +7061,10 @@ const basqueTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "Infobip API gakoa.",
                 },
+                WHATSAPP_INFOBIP: {
+                    API_KEY:
+                        "Infobip-en API gakoa, whatsapp:manage eta whatsapp:message:send esparruekin.",
+                },
             },
             webhook: {
                 title: "Entrega-txostenak",
@@ -6830,6 +7075,8 @@ const basqueTranslation: TranslationType = {
                         "Idatzi itzulera-URL hau Metaren webhook ezarpenetan. Entrega-txostenak eta hautesleak Hasi botoian egindako sakatzea hona iristen dira eta aplikazioaren sekretuarekin egiaztatzen dira.",
                     VIBER_INFOBIP:
                         "Infobip-ek Viber-en entrega-txostenak itzulera-URL honetara bidaltzen ditu, Basic autentifikazioa duen harpidetza baten bidez.",
+                    WHATSAPP_INFOBIP:
+                        "Infobip-ek WhatsApp-en entrega-txostenak itzulera-URL honetara bidaltzen ditu, Basic autentifikazioa duen harpidetza baten bidez.",
                     AWS_SES:
                         "Harpidetu itzulera-URL hau (HTTPS) entrega-jakinarazpenen gaiari. Entrega- eta errebote-gertaerak hona iristen dira eta Amazonen sinadurarekin egiaztatzen dira.",
                 },
@@ -6896,13 +7143,13 @@ const basqueTranslation: TranslationType = {
                 error: "Ezin izan dira txostenen kredentzialak sortu.",
                 step: {
                     subscription:
-                        "Infobip-en, sortu harpidetza bat Viber-en entrega-txostenetarako.",
+                        "Infobip-en, sortu harpidetza bat {{channel}}-en entrega-txostenetarako.",
                     url: "Ezarri haren URLa kontu honen itzulera-URLa gisa.",
                     auth: "Aukeratu Basic autentifikazioa eta idatzi txostenen erabiltzaile-izena eta pasahitza.",
                 },
                 confirmTitle: "Txostenen kredentzialak ordeztu?",
                 confirmBody:
-                    "Txostenen egungo erabiltzaile-izenak eta pasahitzak berehala uzten diote funtzionatzeari. Infobip-eko harpidetzak berriak izan arte, Viber-en entrega-txostenak baztertu egiten dira eta mezuak Onartua egoeran geratzen dira.",
+                    "Txostenen egungo erabiltzaile-izenak eta pasahitzak berehala uzten diote funtzionatzeari. Infobip-eko harpidetzak berriak izan arte, {{channel}}-en entrega-txostenak baztertu egiten dira eta mezuak Onartua egoeran geratzen dira.",
                 confirm: "Ordeztu",
             },
         },

@@ -218,6 +218,11 @@ pub trait TemplateRenderer: Debug {
         None
     }
 
+    /// A quorum-authorized credential is private to its original requester.
+    fn is_signed_manual_verification(&self) -> bool {
+        false
+    }
+
     fn signing_action(&self) -> Option<SigningAction> {
         report_signing_action(&self.get_report_type())
     }
@@ -1120,7 +1125,11 @@ pub trait TemplateRenderer: Debug {
             DocumentAnnotations::default()
         };
 
-        annotations.purpose = report_document_purpose(&self.get_report_type(), is_real);
+        annotations.purpose = if is_real && self.is_signed_manual_verification() {
+            Some(sequent_core::types::hasura::core::DocumentPurpose::SignedManualVerification)
+        } else {
+            report_document_purpose(&self.get_report_type(), is_real)
+        };
 
         // A report whose action needs signatures gets its signature page,
         // and is kept as a signing document only.

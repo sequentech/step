@@ -85,12 +85,31 @@ pub struct ApplyConfigurationPackageBody {
     pub executed_by: String,
 }
 
+const STORE_RETRY_REQUIREMENTS: &str = "UPDATE sequent_backend.tasks_execution t
+             SET annotations = COALESCE(t.annotations, '{}'::jsonb) || $3::jsonb
+             WHERE t.tenant_id=$1 AND t.id=$2 AND t.type='APPLY_CONFIGURATION_PACKAGE'
+               AND t.execution_status='IN_PROGRESS'
+               AND NOT (COALESCE(t.annotations, '{}'::jsonb) ?| ARRAY['application','previouslyApplied'])
+               AND (NOT $4 OR EXISTS (
+                   SELECT 1 FROM sequent_backend.configuration_package_staging s
+                    WHERE s.tenant_id=$1 AND s.document_id=$5 AND s.uploaded_by=$6
+               ))";
+
 /// Saves the record on the task row, keeping it in progress until the run
 /// ends, and keeps the run's claim.
 struct TaskRowStore<'a> {
     task: TasksExecution,
     claim: &'a deadpool_postgres::Transaction<'a>,
     logs: tokio::sync::Mutex<Option<serde_json::Value>>,
+    retry_document: Option<RetryDocument<'a>>,
+}
+
+/// Identity of the authorized request, not the preceding operator. For
+/// a protected document the hint can only be issued to its actual uploader.
+struct RetryDocument<'a> {
+    id: &'a str,
+    actor: &'a str,
+    protected: bool,
 }
 
 #[async_trait]
@@ -120,6 +139,43 @@ impl ProgressStore for TaskRowStore<'_> {
         )
         .await?;
         *logs = Some(updated);
+        Ok(())
+    }
+
+    async fn remember_retry_requirements(
+        &self,
+        digest: &str,
+        requirements: &Requirements,
+    ) -> anyhow::Result<()> {
+        let Some(document) = &self.retry_document else {
+            return Ok(()); // not an admitted, signed Admin Portal Preview
+        };
+        let tenant = uuid::Uuid::parse_str(&self.task.tenant_id)?;
+        let task = uuid::Uuid::parse_str(&self.task.id)?;
+        let document_id = uuid::Uuid::parse_str(document.id)?;
+        let hint = json!({
+            "packageRetry": {
+                "tenantId": tenant,
+                "packageSha256": digest,
+                "requirements": requirements,
+            }
+        });
+        let db = get_hasura_pool().await.get().await?;
+        // Do not index this hint as an application or modify a prior receipt.
+        // The tenant claim is held; match the new task and its active status
+        // atomically, and recheck the stage owner without reading credentials.
+        db.execute(
+            STORE_RETRY_REQUIREMENTS,
+            &[
+                &tenant,
+                &task,
+                &hint,
+                &document.protected,
+                &document_id,
+                &document.actor,
+            ],
+        )
+        .await?;
         Ok(())
     }
 
@@ -444,11 +500,24 @@ async fn execute(
     }
     let package_messaging = portable_accounts
         .map(|definitions| {
+            // Delivered AWS key pairs live in the vault under the protected
+            // staging document only; an ordinary document carries none.
+            let staged_document = if protected_stage {
+                Some(uuid::Uuid::parse_str(&body.document_id)?)
+            } else {
+                None
+            };
             Ok::<_, anyhow::Error>(std::sync::Arc::new(PackageMessaging::new(
                 sequent_core::services::uuid_validation::parse_uuid_v4(&body.tenant_id)?,
                 package_sha256.clone(),
                 definitions,
                 confirmed_messaging,
+                staged_document,
+                // Harvest sets this from the verified JWT (audit::actor), never
+                // from the request body: staged credentials need their uploader.
+                body.audit_actor
+                    .as_ref()
+                    .and_then(|actor| actor.user_id.clone()),
             )))
         })
         .transpose()?;
@@ -509,6 +578,21 @@ async fn execute(
         task: task_execution.clone(),
         claim: &claim,
         logs: tokio::sync::Mutex::new(task_execution.logs.clone()),
+        retry_document: body
+            .audit_actor
+            .as_ref()
+            .and_then(|actor| actor.user_id.as_deref())
+            .filter(|actor| {
+                !actor.is_empty()
+                    && body.mode == ApplyMode::Preview
+                    && operator_binding.is_some()
+                    && target.context.verified.is_some()
+            })
+            .map(|actor| RetryDocument {
+                id: &body.document_id,
+                actor,
+                protected: protected_stage,
+            }),
     };
     let record = run(
         &plan,
@@ -796,6 +880,95 @@ mod tests {
             &operator,
             &plan,
         ));
+    }
+
+    #[tokio::test]
+    async fn retry_hint_can_only_annotate_a_new_active_task_with_the_matching_protected_uploader() {
+        let pool = super::apply_test_schema::pool().await;
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let tenant = uuid::Uuid::new_v4();
+        let other = uuid::Uuid::new_v4();
+        for tenant in [tenant, other] {
+            tx.execute(
+                "INSERT INTO sequent_backend.tenant (id, slug, is_active) VALUES ($1, $2, true)",
+                &[&tenant, &format!("retry-test-{tenant}")],
+            )
+            .await
+            .unwrap();
+        }
+        let document: uuid::Uuid = tx
+            .query_one(
+                "INSERT INTO sequent_backend.document (tenant_id, name, is_public) VALUES ($1, 'test.zip', false) RETURNING id",
+                &[&tenant],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        tx.execute(
+            "INSERT INTO sequent_backend.configuration_package_staging (tenant_id, document_id, uploaded_by) VALUES ($1, $2, 'uploader')",
+            &[&tenant, &document],
+        )
+        .await
+        .unwrap();
+        let task = uuid::Uuid::new_v4();
+        let completed = uuid::Uuid::new_v4();
+        let own_record = uuid::Uuid::new_v4();
+        for (id, status, annotations) in [
+            (task, "IN_PROGRESS", json!({CLAIMED_KEY: true})),
+            (
+                completed,
+                "SUCCESS",
+                json!({"previouslyApplied": {"mode": "preview"}}),
+            ),
+            (
+                own_record,
+                "IN_PROGRESS",
+                json!({APPLICATION_KEY: {"outcome": "applied"}}),
+            ),
+        ] {
+            tx.execute(
+                "INSERT INTO sequent_backend.tasks_execution (id, tenant_id, name, type, execution_status, annotations, executed_by_user)
+                 VALUES ($1, $2, 'retry test', 'APPLY_CONFIGURATION_PACKAGE', $3, $4, 'uploader')",
+                &[&id, &tenant, &status, &annotations],
+            )
+            .await
+            .unwrap();
+        }
+
+        let hint = json!({"packageRetry":{"sections":["election-event"],"census":"required"}});
+        for (id, tenant, actor, wanted) in [
+            (task, other, "uploader", 0),
+            (task, tenant, "someone-else", 0),
+            (completed, tenant, "uploader", 0),
+            (own_record, tenant, "uploader", 0),
+            (task, tenant, "uploader", 1),
+        ] {
+            let changed = tx
+                .execute(
+                    STORE_RETRY_REQUIREMENTS,
+                    &[&tenant, &id, &hint, &true, &document, &actor],
+                )
+                .await
+                .unwrap();
+            assert_eq!(changed, wanted);
+        }
+        let annotations: serde_json::Value = tx
+            .query_one(
+                "SELECT annotations FROM sequent_backend.tasks_execution WHERE id = $1",
+                &[&task],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        assert_eq!(
+            annotations,
+            json!({CLAIMED_KEY: true, "packageRetry": hint["packageRetry"]})
+        );
+        let mut hinted_task = row("hint-only", None);
+        hinted_task.annotations = Some(annotations);
+        assert!(choose_prior(vec![hinted_task], "other").unwrap().is_none());
+        tx.rollback().await.unwrap();
     }
 
     #[test]

@@ -222,6 +222,68 @@ it("generates Viber's report credentials and shows them once with the steps", as
     expect(onChanged).toHaveBeenCalled()
 })
 
+it("switches a Viber account to free text, hiding and keeping its templates", async () => {
+    mockUpsert.mockResolvedValue({data: {upsert_messaging_account: {id: "account-1"}}})
+    const {onClose} = renderEditor(
+        messenger({
+            channel: EMessageChannel.VIBER,
+            provider: EMessagingProvider.VIBER_INFOBIP,
+            sender: {
+                provider: EMessagingProvider.VIBER_INFOBIP,
+                base_url: "https://x.api.infobip.com",
+                sender: "Staff Association",
+                approved_templates: {OTP: {en: "88213"}},
+            },
+            credentials: {API_KEY: {replaced_at: "2026-09-30T10:00:00Z"}},
+        })
+    )
+    expect(
+        screen.getByLabelText("messagingAccounts.viber.contentMode.APPROVED_TEMPLATES")
+    ).toBeChecked()
+    expect(screen.getByText("messagingAccounts.viber.title")).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText("messagingAccounts.viber.contentMode.FREE_TEXT"))
+    expect(screen.queryByText("messagingAccounts.viber.title")).toBeNull()
+    expect(screen.getByText("messagingAccounts.viber.freeTextWarning")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.editor.save"}))
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
+    expect(mockUpsert.mock.calls[0][0].variables.sender).toEqual({
+        provider: EMessagingProvider.VIBER_INFOBIP,
+        base_url: "https://x.api.infobip.com",
+        sender: "Staff Association",
+        approved_templates: {OTP: {en: "88213"}},
+        content_mode: "FREE_TEXT",
+    })
+})
+
+it("gives a WhatsApp account through Infobip its number and Infobip's report credentials", () => {
+    renderEditor(
+        messenger({
+            channel: EMessageChannel.WHATSAPP,
+            provider: EMessagingProvider.WHATSAPP_INFOBIP,
+            sender: {
+                provider: EMessagingProvider.WHATSAPP_INFOBIP,
+                base_url: "https://x.api.infobip.com",
+                sender_number: "447796344125",
+                display_name: "Staff Association",
+            },
+            credentials: {API_KEY: {replaced_at: "2026-09-30T10:00:00Z"}},
+        })
+    )
+    expect(screen.getByLabelText(/messagingAccounts.field.sender_number/)).toHaveValue(
+        "447796344125"
+    )
+    expect(screen.getByLabelText(/messagingAccounts.field.display_name/)).toHaveValue(
+        "Staff Association"
+    )
+    expect(
+        screen.getByRole("button", {name: "messagingAccounts.reports.generate"})
+    ).toBeInTheDocument()
+    expect(screen.getByText("messagingAccounts.reports.step.subscription")).toBeInTheDocument()
+    expect(screen.queryByText("messagingAccounts.viber.title")).toBeNull()
+    expect(screen.queryByLabelText("messaging.credential.APP_SECRET")).toBeNull()
+    expect(screen.queryByRole("button", {name: "messagingAccounts.webhook.generate"})).toBeNull()
+})
+
 it("never shows a set credential, only when it was replaced", () => {
     renderEditor(messenger())
     expect(screen.getByText("messagingAccounts.credentials.set")).toBeInTheDocument()

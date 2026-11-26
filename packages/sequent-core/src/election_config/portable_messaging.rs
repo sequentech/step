@@ -31,6 +31,12 @@ pub struct PortableMessagingAccount {
     pub reference: String,
     pub name: String,
     pub sender: PortableSender,
+    /// AWS SES/SNS only: a hiding commitment to a static key pair that
+    /// travels beside the signed delivery, never inside it (see
+    /// `messaging_credentials`). Absent: the receiver keeps the account's
+    /// existing keys, or the service's workload role for a new account.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub credential_commitment: Option<String>,
 }
 
 #[allow(non_camel_case_types)]
@@ -89,6 +95,7 @@ impl PortableMessagingAccounts {
                     && used.insert(&a.reference)
                     && label(&a.name)
                     && a.sender.valid()
+                    && a.credential_commitment_valid()
                     && names.insert(a.name.trim().to_lowercase())
                     && {
                         let identity = a.account_sender().identity();
@@ -119,6 +126,23 @@ pub fn parse(
 impl PortableMessagingAccount {
     pub fn reference_key(&self) -> String {
         format!("{REF_PREFIX}{}", self.reference)
+    }
+    /// Only AWS senders take a static key pair, and only as a SHA-256
+    /// commitment: 64 lowercase hexadecimal digits, never key material.
+    fn credential_commitment_valid(&self) -> bool {
+        match &self.credential_commitment {
+            None => true,
+            Some(c) => {
+                matches!(
+                    self.sender,
+                    PortableSender::AWS_SES { .. }
+                        | PortableSender::AWS_SNS { .. }
+                ) && c.len() == 64
+                    && c.bytes().all(|b| {
+                        b.is_ascii_digit() || (b'a'..=b'f').contains(&b)
+                    })
+            }
+        }
     }
     pub fn account_sender(&self) -> AccountSender {
         use PortableSender::*;
@@ -153,6 +177,7 @@ impl PortableMessagingAccount {
                 AccountSender::VIBER_INFOBIP {
                     base_url: base_url.clone(),
                     sender: sender.clone(),
+                    content_mode: Default::default(),
                     approved_templates: Default::default(),
                 }
             }
@@ -608,6 +633,66 @@ mod tests {
         assert!(validate_delivery(&layout).is_err());
         layout.auxiliary.clear();
         assert!(validate_delivery(&layout).is_ok());
+    }
+
+    #[test]
+    fn only_aws_senders_take_a_hex_commitment_and_never_raw_keys() {
+        let commitment = "ab".repeat(32);
+        let aws = |provider: &str, extra: serde_json::Value| {
+            let mut sender = serde_json::json!({"provider": provider, "region": "us-east-1"});
+            if provider == "AWS_SES" {
+                sender["from_address"] = "demo@example.invalid".into();
+            }
+            let mut account = serde_json::json!({"reference":"aws","name":"Demo AWS","sender":sender});
+            for (k, v) in extra.as_object().unwrap() {
+                account[k] = v.clone();
+            }
+            serde_json::json!({"format":FORMAT,"accounts":[account]})
+        };
+        for provider in ["AWS_SES", "AWS_SNS"] {
+            let absent = parse(
+                &serde_json::to_vec(&aws(provider, serde_json::json!({})))
+                    .unwrap(),
+            )
+            .unwrap();
+            assert_eq!(absent.accounts[0].credential_commitment, None);
+            // Omitted stays omitted: older receivers' signed bytes are unchanged.
+            assert!(!serde_json::to_string(&absent)
+                .unwrap()
+                .contains("credential_commitment"));
+            let present = aws(
+                provider,
+                serde_json::json!({"credential_commitment": commitment}),
+            );
+            assert!(parse(&serde_json::to_vec(&present).unwrap()).is_ok());
+            for bad in [
+                "AB".repeat(32),
+                "ab".repeat(31),
+                "zz".repeat(32),
+                String::new(),
+            ] {
+                let doc = aws(
+                    provider,
+                    serde_json::json!({"credential_commitment": bad}),
+                );
+                assert!(parse(&serde_json::to_vec(&doc).unwrap()).is_err());
+            }
+            // The pair itself has no field in the signed declaration.
+            for field in
+                ["aws_access_key_id", "aws_secret_access_key", "credentials"]
+            {
+                let mut extra = serde_json::Map::new();
+                extra.insert(field.to_string(), "SYNTHETIC-CANARY".into());
+                let doc = aws(provider, serde_json::Value::Object(extra));
+                let err =
+                    parse(&serde_json::to_vec(&doc).unwrap()).unwrap_err();
+                assert!(!err.to_string().contains("CANARY"));
+            }
+        }
+        let meta = serde_json::json!({"format":FORMAT,"accounts":[{"reference":"fb","name":"Demo Facebook",
+            "sender":{"provider":"MESSENGER_SEND_API","page_id":"123","api_version":"v23.0"},
+            "credential_commitment": commitment}]});
+        assert!(parse(&serde_json::to_vec(&meta).unwrap()).is_err());
     }
 
     fn sms() -> serde_json::Value {

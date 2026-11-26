@@ -844,6 +844,7 @@ const galegoTranslation: TranslationType = {
                     adminKey: "Clave de administración de {{name}}",
                     systemOnly: "Só a clave de sistema do rexistro",
                     systemSignature: "Sinatura do sistema",
+                    approverKeyFingerprint: "Pegada dixital da chave de quen aprobou",
                     publicKey: "Clave de administración publicada",
                 },
             },
@@ -904,6 +905,98 @@ const galegoTranslation: TranslationType = {
                 statementTimestampFrom: "Marca de tempo da declaración desde",
                 statementTimestampTo: "Marca de tempo da declaración ata",
                 timeZone: "Fuso horario",
+            },
+            statementKind: {
+                Unknown: "Entrada descoñecida",
+                CastVote: "Voto emitido",
+                CastVoteError: "Erro ao emitir o voto",
+                ElectionPublish: "Elección publicada",
+                ElectionVotingPeriodOpen: "Votación aberta (elección)",
+                ElectionVotingPeriodClose: "Votación pechada (elección)",
+                ElectionVotingPeriodPause: "Votación en pausa (elección)",
+                ElectionEventVotingPeriodOpen: "Votación aberta (evento)",
+                ElectionEventVotingPeriodClose: "Votación pechada (evento)",
+                ElectionEventVotingPeriodPause: "Votación en pausa (evento)",
+                KeyGeneration: "Chaves xeradas",
+                KeyInsertionStart: "Inicio da inserción de chaves",
+                KeyInsertionCeremony: "Cerimonia de inserción de chaves",
+                TallyOpen: "Reconto iniciado",
+                TallyClose: "Reconto finalizado",
+                TallyResumedWithResolution: "Reconto retomado tras unha resolución",
+                TallyPausedPendingResolution: "Reconto en pausa pendente de resolución",
+                TallyTieResolved: "Empate resolto",
+                TallyTieResolutionUpdated: "Resolución do empate actualizada",
+                SendTemplate: "Modelo enviado",
+                SendCommunications: "Mensaxes enviadas",
+                KeycloakUserEvent: "Evento da conta de usuario",
+                VoterPublicKey: "Chave pública do votante",
+                AdminPublicKey: "Chave pública do administrador",
+                CertificateAuthEvent: "Inicio de sesión con certificado",
+                PhoneBlacklistUpdated: "Lista de teléfonos bloqueados actualizada",
+                ResultsPublicationAction: "Publicación de resultados",
+                ExternalApiRequest: "Solicitude á API externa",
+                ExternalReconciliation: "Conciliación externa",
+                BallotPublicationFailure: "Erro ao publicar a papeleta",
+                ElectoralLogCheckpoint: "Punto de control do rexistro",
+                ElectoralLogContinuation: "Continuación do rexistro",
+                MonitoringConfigChanged: "Configuración da monitorización cambiada",
+                SigningRequestCreated: "Solicitude de sinatura creada",
+                SigningCertificateOpenFailed: "Non se puido abrir o certificado de sinatura",
+                SigningRequestSigned: "Aprobación asinada",
+                SigningSignatureRefused: "Sinatura rexeitada",
+                SigningCertificateRegistered: "Certificado de sinatura rexistrado",
+                SigningHandover: "Sinatura traspasada",
+                SigningRequestCancelled: "Solicitude de sinatura cancelada",
+                SigningRequestExpired: "Solicitude de sinatura caducada",
+                SigningRequestCompleted: "Limiar de aprobacións alcanzado",
+                SigningActionExecuted: "Acción aprobada finalizada ou fallida",
+                SigningRuleChanged: "Regra de sinatura cambiada",
+                SigningPermissionChanged: "Permiso de sinatura cambiado",
+                SigningIssuerChanged: "Emisor de sinatura cambiado",
+                SigningChecksChanged: "Comprobacións de sinatura cambiadas",
+                SigningCertificateRevoked: "Certificado de sinatura revogado",
+                SigningRequestsExported: "Solicitudes de sinatura exportadas",
+                LifecycleWindowChanged: "Xanela do calendario de votación cambiada",
+                ScheduleRecomputeApplied: "Calendario recalculado",
+                ScheduleImported: "Calendario importado",
+                ScheduledOutcomeChanged: "Resultado programado cambiado",
+                ElectionInitialized: "Elección inicializada",
+                LockdownChanged: "Bloqueo cambiado",
+                ConfigurationPackageImported: "Paquete de configuración importado",
+                ReportGenerated: "Informe xerado",
+                ApprovalMatrixUpdated: "Matriz de aprobacións actualizada",
+                BallotBoxSealed: "Urna selada",
+                BallotBoxSealFailed: "Erro ao selar a urna",
+                TallyBallotBoxVerified: "Urna verificada para o reconto",
+                TallyBallotBoxRejected: "Urna rexeitada para o reconto",
+                TenantLogOpened: "Rexistro do inquilino aberto",
+                TenantAdminAction: "Acción de administración do inquilino",
+                AdminChange: "Cambio administrativo",
+                KeycloakAdminEvent: "Evento de administración de identidades",
+                LogsExported: "Rexistros exportados",
+                LogWriterStarted: "Escritor do rexistro iniciado",
+                LogWriterStopped: "Escritor do rexistro detido",
+                TransmissionFileDownloaded: "Ficheiro de transmisión descargado",
+                VotersImported: "Votantes importados",
+                ReadinessVerified: "Preparación verificada",
+                BallotReceived: "Papeleta recibida",
+                BallotAudited: "Papeleta auditada",
+                PseudonymResolved: "Pseudónimo resolto",
+                ForensicRead: "Lectura forense",
+                CastVoteSealKeyPublished: "Publicación da chave de cifrado dos votos emitidos",
+            },
+            signingActivity: {
+                row: {
+                    created: "Creouse a solicitude de sinatura para {{action}}",
+                    approved: "Asinouse a aprobación para {{action}}",
+                    quorum: "Reuníronse as aprobacións necesarias para {{action}}",
+                    completed: "Acción completada: {{action}}",
+                    failed: "Produciuse un erro ao executar a acción: {{action}}",
+                    cancelled: "Cancelouse a solicitude de sinatura para {{action}}",
+                    expired: "Caducou a solicitude de sinatura para {{action}}",
+                    rejected: "Rexeitouse a sinatura",
+                    progress: "({{approved}} de {{required}})",
+                },
             },
             scheduledOutcome: {
                 outcome: {
@@ -2218,11 +2311,13 @@ const galegoTranslation: TranslationType = {
                     subtitle: "Crear Votante",
                 },
                 manualVerification: {
-                    label: "Verificar Manualmente",
-                    verify: "Verificar manualmente este votante",
-                    body: "Verificar manualmente este votante. Obterás un PDF cunha ligazón de código QR que permite ao votante iniciar sesión omitindo o KYC en liña.",
+                    label: "Verificar a identidade manualmente",
+                    verify: "Solicitar o documento de verificación",
+                    body: "Solicita un PDF privado cun código QR para este votante. Se se requiren sinaturas, o documento só se emite tras a aprobación. Isto non aproba ningunha solicitude de inscrición.",
                     noEmailOrPhone:
                         "Este votante no puede ser verificado manualmente porque no tiene una dirección de correo electrónico o un número de teléfono asociado a él.",
+                    waiting: "O documento está pendente de sinaturas.",
+                    download: "Descargar o documento de verificación",
                 },
                 emptyHeader: "Aínda non hai votantes.",
                 askCreate: "¿Queres crear un?",
@@ -2269,9 +2364,10 @@ const galegoTranslation: TranslationType = {
                     deleteError: "Erro ao eliminar o votante",
                     deleteSuccess: "Votante eliminado",
                     multipleDeleteSuccess: "Votantes eliminados",
-                    manualVerificationError: "Erro ao verificar manualmente o votante",
+                    manualVerificationError:
+                        "Erro ao solicitar a verificación manual da identidade",
                     manualVerificationSuccess:
-                        "Votante verificado manualmente con éxito, descargando PDF...",
+                        "Descargando o documento de verificación manual da identidade.",
                 },
             },
             roles: {
@@ -2324,7 +2420,9 @@ const galegoTranslation: TranslationType = {
                 "sign-generate-election-returns": "Asinar: xerar actas electorais",
                 "sign-generate-reports": "Asinar: xerar outros informes electorais",
                 "sign-transmit-results": "Asinar: transmitir resultados",
-                "sign-approve-voter": "Asinar: aprobar manualmente un votante",
+                "sign-approve-voter": "Asinar: aprobar unha solicitude de inscrición",
+                "sign-authorize-manual-verification":
+                    "Asinar: autorizar a verificación manual da identidade",
                 "sign-approve-configuration": "Asinar: aprobar unha versión de configuración",
                 "sign-key-ceremony": "Asinar: confirmar un fragmento de chave",
                 "sign-tally-key": "Asinar: achegar un fragmento de chave",
@@ -3172,6 +3270,51 @@ const galegoTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "Houbo un erro ao cargar a sinatura",
             downloadTransmissionPackage: "Descargar Paquete de Transmisión",
+            publicVerification: {
+                sectionTitle: "Verificación criptográfica",
+                description:
+                    "Verifica no teu navegador o taboleiro de anuncios deste reconto: a proba de coñecemento cero de cada papeleta cifrada, a proba de baralladura de cada mestura e a proba de descifrado de cada fideicomisario. As comprobacións baséanse nos rexistros dos taboleiros desta plataforma. Para unha auditoría independente, executa o comando trustee verify con áncoras tomadas do paquete de configuración asinado.",
+                verify: "Verificar o taboleiro de anuncios",
+                verifyAgain: "Verificar de novo",
+                unavailable: "Dispoñible cando remate o reconto.",
+                loading: "Lendo os taboleiros do reconto…",
+                progress: "Verificando o lote {{current}} de {{total}}…",
+                empty: "Este reconto non ten lotes no taboleiro de anuncios que verificar.",
+                failed: "Non se puido realizar a verificación: {{message}}",
+                verifierUnavailable: "Este navegador non puido iniciar o verificador: {{message}}",
+                summary: {
+                    verified: "Todos os lotes verificados: {{count}} de {{total}}.",
+                    invalid: "Lotes que non superaron a verificación: {{count}} de {{total}}.",
+                    error: "Lotes que non se puideron verificar: {{count}} de {{total}}. Cada fila indica o motivo.",
+                    incomplete:
+                        "Lotes incompletos: {{count}} de {{total}}. Faltan publicacións necesarias, polo que non están verificados.",
+                },
+                checks: {
+                    title: "Verificado en cada lote:",
+                    ballots: "A proba de coñecemento cero de cada papeleta cifrada",
+                    mixing: "A proba de baralladura de cada mestura, en orde, avalada polos demais fideicomisarios",
+                    decryption:
+                        "A proba de descifrado de cada fideicomisario, cos resultados recalculados e coincidentes",
+                },
+                columns: {
+                    batch: "Lote",
+                    ballots: "Papeletas",
+                    result: "Resultado",
+                    detail: "Detalle",
+                },
+                batch: "Lote {{batch}}",
+                status: {
+                    verified: "Verificado",
+                    incomplete: "Incompleto",
+                    invalid: "Non válido",
+                    error: "Sen verificar",
+                },
+                detail: {
+                    verified: "Comprobáronse todas as probas e publicacións do lote.",
+                    incomplete: "Faltan publicacións necesarias no taboleiro.",
+                },
+                download: "Descargar as evidencias",
+            },
             resultsPublication: {
                 sectionTitle: "Publicar no sitio web de resultados",
                 policyTitle: "Sitio web de resultados",
@@ -3365,6 +3508,20 @@ const galegoTranslation: TranslationType = {
                     "Finaliza a votación de cada elección seleccionada e detén as súas canles activas antes de crear o escrutinio.",
                 sealBallotBoxes:
                     "Unha elección pódese escrutar cando todas as súas urnas están seladas e as súas actas de selado están publicadas.",
+            },
+            failure: {
+                title: "O escrutinio fallou",
+                detail: "Detalles",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "Un taboleiro de escrutinio non coincide coa configuración rexistrada na cerimonia de claves.",
+                    INVALID_BOARD_CONTENT:
+                        "Un taboleiro de escrutinio ten contido que non se pode usar.",
+                    TRUSTEE_HALTED: "Un fiduciario detivo o escrutinio e informou dun erro.",
+                    SEALED_BALLOTS_REFUSED:
+                        "Algunhas papeletas almacenadas non se poden contar: non se abren ou non coinciden cos seus rexistros. Non se contou ningunha papeleta. Resolve a causa e despois inicia un novo escrutinio.",
+                    unknown: "Non se puido completar o escrutinio.",
+                },
             },
             createTallySuccess: "Escrutinio creado",
             createTallyError: "Non se puido crear o Escrutinio",
@@ -5089,6 +5246,25 @@ const galegoTranslation: TranslationType = {
                 '¿Está seguro de que quere eliminar o certificado "{{name}}" (pegada: {{fingerprint}})?',
         },
         signing: {
+            localSetup: {
+                continue: "Continuar co inicio de sesión",
+                register: "Rexistrar a miña chave de sinatura",
+                phase: {
+                    "setup-available":
+                        "Configura a túa chave de sinatura para este posto. Primeiro verifica o contrasinal e o código dun só uso.",
+                    "waiting-for-setup-gold":
+                        "Continúa o inicio de sesión para verificar a túa identidade nesta configuración.",
+                    "setup-confirmation-required":
+                        "Identidade verificada. Selecciona Rexistrar a miña chave de sinatura para crear a chave deste posto.",
+                    "setup-retry-available":
+                        "O dispositivo aínda non recolleu esta solicitude. Podes volver enviar a mesma solicitude.",
+                    "setup-pending":
+                        "A configuración está pendente. Necesitas unha chave de sinatura e un certificado de persoal rexistrado antes de aprobar.",
+                    "setup-recovery-required":
+                        "Un administrador debe revisar esta configuración. Non se rexistrou ningunha aprobación.",
+                },
+            },
+            operational: englishTranslation.translations.signing.operational,
             terms: {
                 post: "Posto",
                 posts: "Postos",
@@ -5096,6 +5272,8 @@ const galegoTranslation: TranslationType = {
             tab: {
                 title: "Sinaturas",
                 intro: "As accións protexidas só se executan cando abondas persoas autorizadas as asinan cos seus certificados dixitais. Cada sinatura compróbase cos emisores de confianza e queda anotada no rexistro.",
+                hsmIntro:
+                    "As persoas autorizadas aproban as accións protexidas. Cada aprobación queda rexistrada no rexistro electoral.",
                 protectedActions: "Accións protexidas",
                 certificates: "Certificados",
                 requests: "Solicitudes",
@@ -5183,13 +5361,22 @@ const galegoTranslation: TranslationType = {
                         "Iníciase en Escrutinio, Transmisión. Xera o paquete de resultados asinado para os seus destinos; as sinaturas completan a súa lista de sinaturas.",
                 },
                 "approve-voter": {
-                    label: "Aprobar manualmente un votante",
-                    short: "Aprobación de votante",
-                    permissionName: "aprobar manualmente un votante",
-                    object: "aprobación de votante",
+                    label: "Aprobar unha solicitude de inscrición",
+                    short: "Aprobación da inscrición",
+                    permissionName: "aprobar unha solicitude de inscrición",
+                    object: "aprobación da inscrición",
                     appliesTo: "O $t(signing.terms.post) do votante",
                     description:
-                        "Iníciase en Aprobacións. Aproba o votante e emite as súas credenciais.",
+                        "Na lapela Aprobacións, aproba a solicitude e emite as credenciais do votante.",
+                },
+                "authorize-manual-verification": {
+                    label: "Autorizar a verificación manual da identidade",
+                    short: "Verificación manual da identidade",
+                    permissionName: "autorizar a verificación manual da identidade",
+                    object: "verificación manual da identidade",
+                    appliesTo: "O $t(signing.terms.post) do votante",
+                    description:
+                        "Na lista de votantes, permite emitir un documento cunha ligazón de verificación. Non aproba ningunha solicitude de inscrición.",
                 },
                 "approve-configuration": {
                     label: "Aprobar unha versión de configuración",
@@ -5220,6 +5407,8 @@ const galegoTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Cada sinatura faise co certificado dixital do token de seguranza do asinante.",
+                hsmIntro:
+                    "Consulta quen pode aprobar cada acción e cantas aprobacións son necesarias.",
                 columns: {
                     action: "Acción",
                     appliesTo: "Aplícase a",
@@ -5626,6 +5815,12 @@ const galegoTranslation: TranslationType = {
                 scheduled_events: "Novos eventos programados",
                 ballots_and_contests: "Papeletas e concursos",
                 application_id: "Solicitude de inscrición",
+                voter_id: "Conta do votante",
+                initiation_id: "Solicitude de verificación",
+                post_id: "$t(signing.terms.post)",
+                area_id: "Área do votante",
+                requester_id: "Conta do persoal solicitante",
+                secret_attributes: "Nomes dos atributos protexidos",
                 applicant_registry_id: "Conta do rexistro",
                 decision: "Decisión",
                 submitted_at: "Enviada",
@@ -5662,6 +5857,8 @@ const galegoTranslation: TranslationType = {
                     "generate-reports": "$t(signing.actions.generate-reports.label)",
                     "transmit-results": "$t(signing.actions.transmit-results.label)",
                     "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "authorize-manual-verification":
+                        "$t(signing.actions.authorize-manual-verification.label)",
                     "approve-configuration": "$t(signing.actions.approve-configuration.label)",
                     "key-ceremony": "$t(signing.actions.key-ceremony.label)",
                     "tally-key": "$t(signing.actions.tally-key.label)",
@@ -6217,6 +6414,8 @@ const galegoTranslation: TranslationType = {
                     "{{channel}} aínda non pode enviar {{purpose}}. Falta: {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "O modelo de {{channel}} para {{purpose}} en {{language}} non está aprobado polo provedor.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "Un botón do modelo de {{channel}} para {{purpose}} en {{language}} non ten valor.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} non pode enviar fóra dunha xanela de conversa con esta conta: non ten xanela de conversa ou os seus avisos xa precisan un modelo.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -6246,6 +6445,7 @@ const galegoTranslation: TranslationType = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                WHATSAPP_INFOBIP: "WhatsApp Business (Infobip)",
                 CONSOLE: "Consola (xa non é compatible)",
                 HTTP_API: "API HTTP personalizada (xa non é compatible)",
             },
@@ -6307,6 +6507,24 @@ const galegoTranslation: TranslationType = {
                 REPORT_PASSWORD: "Contrasinal de informes",
             },
             deliveryUnavailable: "Entrega non dispoñible",
+            templateButtons: {
+                title: "Botóns do modelo",
+                help: "Os valores cos que se envían os botóns do modelo, na orde en que aparecen nel. {{code}} substitúese polo código que se envía.",
+                choice: {
+                    DEFAULT: "Predeterminados para o propósito",
+                    CUSTOM: "Definidos para este modelo",
+                },
+                type: "Tipo de botón",
+                parameter: "Valor",
+                add: "Engadir botón",
+                remove: "Quitar botón",
+                none: "Sen botóns",
+                required: "Introduza un valor",
+                types: {
+                    URL: "URL (copiar código ou ligazón)",
+                    QUICK_REPLY: "Resposta rápida",
+                },
+            },
             templates: {
                 noMethod: "Escolle polo menos un método para o modelo.",
                 parameters: "Parámetros do modelo",
@@ -6333,11 +6551,18 @@ const galegoTranslation: TranslationType = {
                 intro: {
                     WHATSAPP:
                         "WhatsApp só envía modelos que Meta aprobou para a conta de WhatsApp Business. A mensaxe debe coincidir co modelo aprobado; escolle o que enche os seus parámetros.",
-                    VIBER: "Viber só envía códigos e mensaxes transaccionais con modelos aprobados polo socio de Viber. A mensaxe debe coincidir co modelo aprobado; escolle o que enche os seus parámetros.",
+                    VIBER: "Unha conta de Viber envía modelos aprobados polo socio de Viber ou texto libre. Con modelos aprobados, a mensaxe debe coincidir co modelo; escolle o que enche os seus parámetros. Con texto libre, o texto de abaixo envíase tal cal.",
                 },
                 approvedWording: "Texto aprobado",
                 approvedWordingHelp:
                     "Unha copia do modelo aprobado, usada como vista previa. Cambiala aquí non cambia o que envía o provedor.",
+                buttonsHelp:
+                    "Úsaos WhatsApp a través de Infobip co modelo do provedor de arriba. Sen el, úsanse o modelo do evento e os seus botóns.",
+                viberWording: "Texto",
+                viberWordingHelp:
+                    "Unha conta que envía texto libre envía este texto tal cal. Con modelos aprobados é unha copia do modelo, usada como vista previa, e non cambia o que se envía.",
+                sendsWrittenText:
+                    "Esta conta envía texto libre: o texto de arriba envíase tal cal e non precisa modelo aprobado.",
                 providerTemplateTitle: "Modelo do provedor",
                 providerTemplateHelp:
                     "Opcional. O nome ou ID do modelo aprobado no provedor. Se está baleiro, úsase o modelo do evento electoral vinculado ao alias deste modelo, ou o predeterminado do evento para o propósito.",
@@ -6688,6 +6913,7 @@ const galegoTranslation: TranslationType = {
                 page_name: "Nome da páxina",
                 page_username: "Nome de usuario da páxina",
                 base_url: "URL base da API",
+                sender_number: "Número do remitente",
                 sender: "Nome do remitente",
                 provider_approval: "Aprobación do provedor",
                 is_default: "Conta de {{channel}} predeterminada para novos eventos electorais",
@@ -6707,6 +6933,8 @@ const galegoTranslation: TranslationType = {
                     "Úsase na ligazón m.me que os votantes abren para obter o seu código.",
                 api_version: "Por exemplo, v23.0.",
                 base_url: "A URL base da API de Infobip da conta.",
+                sender_number:
+                    "O número de WhatsApp rexistrado en Infobip, en formato internacional, como 447796344125.",
                 sender: "O remitente aprobado que ven os votantes.",
                 provider_approval:
                     "Meta só permite mensaxes de WhatsApp de gobernos mediante un acordo aprobado. Escolla Aprobación do provedor confirmada cando Meta o aprobase para esta conta; ata entón non se poden activar códigos nin avisos nela.",
@@ -6746,6 +6974,19 @@ const galegoTranslation: TranslationType = {
                 templateId: "ID do modelo do socio",
                 add: "Engadir modelo",
                 remove: "Quitar modelo",
+                contentMode: {
+                    title: "Contido das mensaxes",
+                    APPROVED_TEMPLATES: "Modelos aprobados",
+                    FREE_TEXT: "Texto libre",
+                },
+                contentModeHelp: {
+                    APPROVED_TEMPLATES:
+                        "Os códigos e mensaxes envíanse cos modelos que aprobou o socio de Viber, indicados abaixo.",
+                    FREE_TEXT:
+                        "Os códigos e mensaxes envíanse co seu propio texto, como os SMS. Non fai falta ningún modelo aprobado.",
+                },
+                freeTextWarning:
+                    "Viber factura as mensaxes transaccionais enviadas sen modelo aprobado á súa tarifa promocional e pode rexeitar contido promocional como primeira mensaxe a un votante. Confirma co socio que esta conta pode enviar códigos como texto libre.",
             },
             limits: {
                 title: "Límites de envío",
@@ -6794,6 +7035,10 @@ const galegoTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "A clave de API de Infobip.",
                 },
+                WHATSAPP_INFOBIP: {
+                    API_KEY:
+                        "A clave de API de Infobip, cos ámbitos whatsapp:manage e whatsapp:message:send.",
+                },
             },
             webhook: {
                 title: "Informes de entrega",
@@ -6804,6 +7049,8 @@ const galegoTranslation: TranslationType = {
                         "Introduza este URL de retorno na configuración de webhooks de Meta. Os informes de entrega e o toque do votante en Comezar chegan aquí e compróbanse co segredo da aplicación.",
                     VIBER_INFOBIP:
                         "Infobip envía os informes de entrega de Viber a este URL de retorno mediante unha subscrición con autenticación Basic.",
+                    WHATSAPP_INFOBIP:
+                        "Infobip envía os informes de entrega de WhatsApp a este URL de retorno mediante unha subscrición con autenticación Basic.",
                     AWS_SES:
                         "Subscriba este URL de retorno (HTTPS) ao tema de notificacións de entrega. Os eventos de entrega e rebote chegan aquí e compróbanse coa sinatura de Amazon.",
                 },
@@ -6870,13 +7117,13 @@ const galegoTranslation: TranslationType = {
                 error: "Non se puideron xerar as credenciais de informes.",
                 step: {
                     subscription:
-                        "En Infobip, cree unha subscrición para os informes de entrega de Viber.",
+                        "En Infobip, cree unha subscrición para os informes de entrega de {{channel}}.",
                     url: "Poña como URL o URL de retorno desta conta.",
                     auth: "Escolla a autenticación Basic e introduza o usuario e o contrasinal de informes.",
                 },
                 confirmTitle: "Substituír as credenciais de informes?",
                 confirmBody:
-                    "O usuario e o contrasinal de informes actuais deixan de funcionar de inmediato. Ata que a subscrición de Infobip teña os novos, os informes de entrega de Viber rexéitanse e as mensaxes quedan en Aceptado.",
+                    "O usuario e o contrasinal de informes actuais deixan de funcionar de inmediato. Ata que a subscrición de Infobip teña os novos, os informes de entrega de {{channel}} rexéitanse e as mensaxes quedan en Aceptado.",
                 confirm: "Substituír",
             },
         },

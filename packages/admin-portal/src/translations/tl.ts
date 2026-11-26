@@ -852,6 +852,7 @@ const tagalogTranslation: TranslationType = {
                     adminKey: "Admin key ni {{name}}",
                     systemOnly: "Ang system key lamang ng log",
                     systemSignature: "Lagda ng system",
+                    approverKeyFingerprint: "Fingerprint ng key ng nag-apruba",
                     publicKey: "Nai-publish na admin key",
                 },
             },
@@ -914,6 +915,101 @@ const tagalogTranslation: TranslationType = {
                 statementTimestampFrom: "Timestamp ng pahayag mula",
                 statementTimestampTo: "Timestamp ng pahayag hanggang",
                 timeZone: "Timezone",
+            },
+            statementKind: {
+                Unknown: "Hindi kilalang entry",
+                CastVote: "Naihulog ang boto",
+                CastVoteError: "Nabigong maihulog ang boto",
+                ElectionPublish: "Nailathala ang halalan",
+                ElectionVotingPeriodOpen: "Binuksan ang botohan (halalan)",
+                ElectionVotingPeriodClose: "Isinara ang botohan (halalan)",
+                ElectionVotingPeriodPause: "Ipinahinto ang botohan (halalan)",
+                ElectionEventVotingPeriodOpen: "Binuksan ang botohan (event)",
+                ElectionEventVotingPeriodClose: "Isinara ang botohan (event)",
+                ElectionEventVotingPeriodPause: "Ipinahinto ang botohan (event)",
+                KeyGeneration: "Nabuo ang mga susi",
+                KeyInsertionStart: "Sinimulan ang paglalagay ng mga susi",
+                KeyInsertionCeremony: "Seremonya ng paglalagay ng mga susi",
+                TallyOpen: "Sinimulan ang bilangan",
+                TallyClose: "Natapos ang bilangan",
+                TallyResumedWithResolution:
+                    "Ipinagpatuloy ang bilangan matapos ang isang resolusyon",
+                TallyPausedPendingResolution:
+                    "Ipinahinto ang bilangan habang hinihintay ang resolusyon",
+                TallyTieResolved: "Nalutas ang tabla",
+                TallyTieResolutionUpdated: "Na-update ang resolusyon ng tabla",
+                SendTemplate: "Naipadala ang template",
+                SendCommunications: "Naipadala ang mga mensahe",
+                KeycloakUserEvent: "Pangyayari sa user account",
+                VoterPublicKey: "Pampublikong susi ng botante",
+                AdminPublicKey: "Pampublikong susi ng administrator",
+                CertificateAuthEvent: "Pag-sign in gamit ang sertipiko",
+                PhoneBlacklistUpdated: "Na-update ang listahan ng mga naka-block na telepono",
+                ResultsPublicationAction: "Paglalathala ng mga resulta",
+                ExternalApiRequest: "Kahilingan sa panlabas na API",
+                ExternalReconciliation: "Panlabas na pagtutugma",
+                BallotPublicationFailure: "Nabigong mailathala ang balota",
+                ElectoralLogCheckpoint: "Checkpoint ng log",
+                ElectoralLogContinuation: "Pagpapatuloy ng log",
+                MonitoringConfigChanged: "Binago ang mga setting ng pagsubaybay",
+                SigningRequestCreated: "Nalikha ang kahilingan sa paglagda",
+                SigningCertificateOpenFailed: "Hindi mabuksan ang sertipiko sa paglagda",
+                SigningRequestSigned: "Nilagdaan ang pag-apruba",
+                SigningSignatureRefused: "Tinanggihan ang lagda",
+                SigningCertificateRegistered: "Nairehistro ang sertipiko sa paglagda",
+                SigningHandover: "Ipinasa ang paglagda",
+                SigningRequestCancelled: "Kinansela ang kahilingan sa paglagda",
+                SigningRequestExpired: "Nag-expire ang kahilingan sa paglagda",
+                SigningRequestCompleted: "Naabot ang kinakailangang bilang ng pag-apruba",
+                SigningActionExecuted: "Natapos o nabigo ang inaprubahang aksyon",
+                SigningRuleChanged: "Binago ang patakaran sa paglagda",
+                SigningPermissionChanged: "Binago ang pahintulot sa paglagda",
+                SigningIssuerChanged: "Binago ang nag-isyu ng paglagda",
+                SigningChecksChanged: "Binago ang mga pagsusuri sa paglagda",
+                SigningCertificateRevoked: "Binawi ang sertipiko sa paglagda",
+                SigningRequestsExported: "Na-export ang mga kahilingan sa paglagda",
+                LifecycleWindowChanged: "Binago ang palugit ng iskedyul ng botohan",
+                ScheduleRecomputeApplied: "Muling kinalkula ang iskedyul",
+                ScheduleImported: "Na-import ang iskedyul",
+                ScheduledOutcomeChanged: "Binago ang nakaiskedyul na kalalabasan",
+                ElectionInitialized: "Na-initialize ang halalan",
+                LockdownChanged: "Binago ang lockdown",
+                ConfigurationPackageImported: "Na-import ang configuration package",
+                ReportGenerated: "Nabuo ang ulat",
+                ApprovalMatrixUpdated: "Na-update ang matrix ng pag-apruba",
+                BallotBoxSealed: "Selyado ang ballot box",
+                BallotBoxSealFailed: "Nabigong selyuhan ang ballot box",
+                TallyBallotBoxVerified: "Na-verify ang ballot box para sa bilangan",
+                TallyBallotBoxRejected: "Tinanggihan ang ballot box para sa bilangan",
+                TenantLogOpened: "Binuksan ang log ng tenant",
+                TenantAdminAction: "Aksyong pang-administrasyon ng tenant",
+                AdminChange: "Pagbabagong pang-administrasyon",
+                KeycloakAdminEvent: "Pangyayari sa pamamahala ng pagkakakilanlan",
+                LogsExported: "Na-export ang mga log",
+                LogWriterStarted: "Nagsimula ang tagasulat ng log",
+                LogWriterStopped: "Huminto ang tagasulat ng log",
+                TransmissionFileDownloaded: "Na-download ang file ng transmisyon",
+                VotersImported: "Na-import ang mga botante",
+                ReadinessVerified: "Na-verify ang kahandaan",
+                BallotReceived: "Natanggap ang balota",
+                BallotAudited: "Na-audit ang balota",
+                PseudonymResolved: "Natukoy ang pseudonym",
+                ForensicRead: "Forensic na pagbasa",
+                CastVoteSealKeyPublished:
+                    "Inilathala ang susi sa pag-encrypt ng mga naihulog na balota",
+            },
+            signingActivity: {
+                row: {
+                    created: "Ginawa ang kahilingan sa paglagda para sa {{action}}",
+                    approved: "Nilagdaan ang pag-apruba para sa {{action}}",
+                    quorum: "Nakuha ang mga kinakailangang pag-apruba para sa {{action}}",
+                    completed: "Natapos ang aksyon: {{action}}",
+                    failed: "Nabigo ang aksyon: {{action}}",
+                    cancelled: "Kinansela ang kahilingan sa paglagda para sa {{action}}",
+                    expired: "Nag-expire ang kahilingan sa paglagda para sa {{action}}",
+                    rejected: "Tinanggihan ang lagda",
+                    progress: "({{approved}} sa {{required}})",
+                },
             },
             scheduledOutcome: {
                 outcome: {
@@ -2235,11 +2331,13 @@ const tagalogTranslation: TranslationType = {
                     subtitle: "Lumikha ng Botante",
                 },
                 manualVerification: {
-                    label: "Manwal na I-verify",
-                    verify: "Manu-manong i-verify ang botante",
-                    body: "Manu-manong i-verify ang botante. Makakakuha ka ng PDF na may QR Code link na nagpapahintulot sa botante na mag-login na hindi dumaan sa online KYC.",
+                    label: "Manwal na patunayan ang pagkakakilanlan",
+                    verify: "Hilingin ang dokumento ng pagpapatunay",
+                    body: "Humiling ng pribadong PDF na may QR code para sa botanteng ito. Kung kailangan ng mga lagda, ibibigay lamang ang dokumento pagkatapos ng pag-apruba. Hindi nito inaaprubahan ang aplikasyon sa pagpaparehistro.",
                     noEmailOrPhone:
                         "Ang botanteng ito ay hindi maaaring mano-manong ma-verify dahil wala silang nakatalagang email address o numero ng telepono.",
+                    waiting: "Hinihintay pa ang mga lagda para sa dokumento.",
+                    download: "I-download ang dokumento ng pagpapatunay",
                 },
                 emptyHeader: "Wala pang mga botante.",
                 askCreate: "Gusto mo bang lumikha ng isa?",
@@ -2286,9 +2384,10 @@ const tagalogTranslation: TranslationType = {
                     deleteError: "Error sa pagtanggal ng botante",
                     deleteSuccess: "Natanggal na ang botante",
                     multipleDeleteSuccess: "Natanggal na ang mga botante",
-                    manualVerificationError: "Error sa manu-manong pag-verify ng botante",
+                    manualVerificationError:
+                        "Hindi nahiling ang manwal na pagpapatunay ng pagkakakilanlan",
                     manualVerificationSuccess:
-                        "Matagumpay na na-verify nang manu-mano ang botante, nagda-download ng PDF..",
+                        "Dina-download ang dokumento ng manwal na pagpapatunay ng pagkakakilanlan.",
                 },
             },
             roles: {
@@ -2342,7 +2441,9 @@ const tagalogTranslation: TranslationType = {
                 "sign-generate-election-returns": "Pirmahan: bumuo ng election returns",
                 "sign-generate-reports": "Pirmahan: bumuo ng iba pang ulat ng halalan",
                 "sign-transmit-results": "Pirmahan: i-transmit ang mga resulta",
-                "sign-approve-voter": "Pirmahan: manwal na aprubahan ang isang botante",
+                "sign-approve-voter": "Pirmahan: aprubahan ang aplikasyon sa pagpaparehistro",
+                "sign-authorize-manual-verification":
+                    "Pirmahan: pahintulutan ang manwal na pagpapatunay ng pagkakakilanlan",
                 "sign-approve-configuration":
                     "Pirmahan: aprubahan ang isang bersyon ng configuration",
                 "sign-key-ceremony": "Pirmahan: kumpirmahin ang isang piraso ng susi",
@@ -3197,6 +3298,51 @@ const tagalogTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "Nagkaroon ng error sa pag-upload ng pirma",
             downloadTransmissionPackage: "I-download ang pakete",
+            publicVerification: {
+                sectionTitle: "Kriptograpikong beripikasyon",
+                description:
+                    "I-verify sa iyong browser ang bulletin board ng tally na ito: ang zero-knowledge proof ng bawat naka-encrypt na balota, ang shuffle proof ng bawat mix, at ang decryption proof ng bawat tagapangasiwa. Nakabatay ang mga pagsusuri sa mga talaan ng platapormang ito tungkol sa mga board. Para sa malayang audit, patakbuhin ang command na trustee verify gamit ang mga anchor mula sa nilagdaang configuration package.",
+                verify: "I-verify ang bulletin board",
+                verifyAgain: "I-verify muli",
+                unavailable: "Magagamit kapag tapos na ang tally.",
+                loading: "Binabasa ang mga board ng tally…",
+                progress: "Bine-verify ang batch {{current}} ng {{total}}…",
+                empty: "Walang batch sa bulletin board ang tally na ito na mabe-verify.",
+                failed: "Hindi naisagawa ang beripikasyon: {{message}}",
+                verifierUnavailable: "Hindi masimulan ng browser na ito ang verifier: {{message}}",
+                summary: {
+                    verified: "Na-verify ang lahat ng batch: {{count}} ng {{total}}.",
+                    invalid: "Mga batch na hindi pumasa sa beripikasyon: {{count}} ng {{total}}.",
+                    error: "Mga batch na hindi na-verify: {{count}} ng {{total}}. Sinasabi ng bawat hilera ang dahilan.",
+                    incomplete:
+                        "Mga hindi kumpletong batch: {{count}} ng {{total}}. Kulang ang mga kinakailangang publikasyon, kaya hindi sila na-verify.",
+                },
+                checks: {
+                    title: "Na-verify sa bawat batch:",
+                    ballots: "Ang zero-knowledge proof ng bawat naka-encrypt na balota",
+                    mixing: "Ang shuffle proof ng bawat mix, nang sunud-sunod, na inendorso ng ibang tagapangasiwa",
+                    decryption:
+                        "Ang decryption proof ng bawat tagapangasiwa, na muling kinalkula at tumugma ang mga resulta",
+                },
+                columns: {
+                    batch: "Batch",
+                    ballots: "Mga balota",
+                    result: "Resulta",
+                    detail: "Detalye",
+                },
+                batch: "Batch {{batch}}",
+                status: {
+                    verified: "Na-verify",
+                    incomplete: "Hindi kumpleto",
+                    invalid: "Hindi wasto",
+                    error: "Hindi na-verify",
+                },
+                detail: {
+                    verified: "Nasuri ang lahat ng proof at publikasyon ng batch.",
+                    incomplete: "Kulang sa board ang mga kinakailangang publikasyon.",
+                },
+                download: "I-download ang ebidensya",
+            },
             resultsPublication: {
                 sectionTitle: "I-publish sa website ng mga resulta",
                 policyTitle: "Website ng mga resulta",
@@ -3391,6 +3537,20 @@ const tagalogTranslation: TranslationType = {
                     "Tapusin ang pagboto sa bawat napiling halalan at ihinto ang mga aktibong channel bago gumawa ng pagbibilang.",
                 sealBallotBoxes:
                     "Maaaring i-tally ang isang halalan kapag naka-seal na ang bawat ballot box nito at naipaskil na ang seal record nito.",
+            },
+            failure: {
+                title: "Nabigo ang pagbibilang",
+                detail: "Mga detalye",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "May tally board na hindi tugma sa configuration na naitala sa seremonya ng mga susi.",
+                    INVALID_BOARD_CONTENT: "May tally board na may nilalamang hindi magagamit.",
+                    TRUSTEE_HALTED:
+                        "Itinigil ng isang tagapagtiwala ang pagbibilang at nag-ulat ito ng error.",
+                    SEALED_BALLOTS_REFUSED:
+                        "May mga nakaimbak na balotang hindi mabibilang: hindi nabubuksan o hindi tugma sa kanilang mga record. Walang balotang nabilang. Lutasin ang sanhi, saka magsimula ng bagong pagbibilang.",
+                    unknown: "Hindi natapos ang pagbibilang.",
+                },
             },
             createTallySuccess: "Pagbibilang na ginawa",
             createTallyError: "Error sa paggawa ng pagbibilang",
@@ -5139,6 +5299,68 @@ const tagalogTranslation: TranslationType = {
                 'Sigurado ka bang nais mong burahin ang sertipikong "{{name}}" (fingerprint: {{fingerprint}})?',
         },
         signing: {
+            localSetup: {
+                continue: "Magpatuloy sa pag-sign in",
+                register: "Irehistro ang aking susi sa pagpirma",
+                phase: {
+                    "setup-available":
+                        "I-set up ang iyong susi sa pagpirma para sa Post na ito. Kumpirmahin muna ang iyong password at isang beses na code.",
+                    "waiting-for-setup-gold":
+                        "Magpatuloy sa pag-sign in upang makumpirma ang iyong pagkakakilanlan para sa pag-set up na ito.",
+                    "setup-confirmation-required":
+                        "Nakumpirma na ang pagkakakilanlan. Piliin ang Irehistro ang aking susi sa pagpirma upang makagawa ng susi para sa Post na ito.",
+                    "setup-retry-available":
+                        "Hindi pa kinukuha ng device ang kahilingang ito. Maaari mong ipadala muli ang parehong kahilingan.",
+                    "setup-pending":
+                        "Nakabinbin pa ang pag-set up. Kailangan ang susi sa pagpirma at rehistradong sertipiko ng kawani bago ka makapag-apruba.",
+                    "setup-recovery-required":
+                        "Kailangang suriin ito ng administrator. Wala pang naitalang pag-apruba.",
+                },
+            },
+            operational: {
+                signingAs: "Pipirma ka gamit ang iyong HSM key bilang {{name}}",
+                review: "Suriin",
+                rule_one: "Kailangan ang pag-apruba ng {{count}} awtorisadong tagapirma.",
+                rule_other: "Kailangan ang pag-apruba ng {{count}} awtorisadong tagapirma.",
+                retryApproval:
+                    "Hindi makumpirma ang iyong pag-apruba. Maaari mong subukang pumirma muli.",
+                title: "Suriin ang pag-apruba",
+                setup: "I-set up ang pagpirma",
+                approve: "Aprubahan",
+                cancelUnused: "Kanselahin ang hindi nagamit na verification",
+                confirmCancelUnused:
+                    "Itapon ang hindi nagamit na verification? Walang ipapasang pag-apruba.",
+                keepChallenge: "Panatilihin ang verification",
+                confirmDiscard: "Itapon ang verification",
+                checkStatus: "Tingnan ang katayuan",
+                quorum: "{{count}} sa {{required}} na pag-apruba ang naitala",
+                error: "Hindi makumpirma ang operasyon. Tingnan muna ang katayuan bago subukang muli.",
+                isolatedDemo: "Pagpirma sa hiwalay na demo lamang. Huwag gamitin sa production.",
+                retrySetup: "Subukang muli ang pag-set up ng pagpirma",
+                softwareDemo:
+                    "Para sa demo lamang: software test token ang ginagamit sa pagpirma, hindi pisikal na device.",
+                phase: {
+                    "loading": "Tinitingnan ang katayuan ng pagpirma…",
+                    "setup-required":
+                        "I-set up muna ang pagpirma para sa account na ito bago mag-apruba.",
+                    "setup-retry-available":
+                        "Maaaring ituloy ang hindi nagamit na setup matapos patunayan ang pagkakakilanlan. Walang ipapasang pag-apruba.",
+                    "setup-recovery-required":
+                        "Kailangan ng tulong ng demo operator sa pag-set up. Nakabinbin pa rin ang kahilingan at hindi ito maaaring pirmahan dito.",
+                    "setup-pending":
+                        "Nakabinbin ang pag-set up ng pagpirma. Hindi pa naitala ang iyong pag-apruba.",
+                    "challenge-available":
+                        "Suriin ang aksyon, aprubahan ito, at patunayan ang iyong pagkakakilanlan.",
+                    "waiting-for-identity":
+                        "Hinihintay ang pagpapatunay ng pagkakakilanlan. Hindi pa naitala ang iyong pag-apruba.",
+                    "pending": "Nakabinbin pa ang pag-apruba.",
+                    "approval-recorded": "Naitala ang iyong pag-apruba.",
+                    "reconcile":
+                        "Hindi pa kumpirmado ang resulta. Tingnan ang katayuan sa halip na mag-aprubang muli.",
+                    "unavailable":
+                        "Hindi available ang pagpirma para sa kahilingang ito. Walang pag-aprubang ipinadala mula rito.",
+                },
+            },
             terms: {
                 post: "Post",
                 posts: "Mga Post",
@@ -5146,6 +5368,8 @@ const tagalogTranslation: TranslationType = {
             tab: {
                 title: "Mga Pirma",
                 intro: "Tumatakbo lamang ang mga protektadong aksyon kapag sapat na awtorisadong tao ang pumirma sa mga ito gamit ang kanilang digital na sertipiko. Sinusuri ang bawat pirma laban sa mga pinagkakatiwalaang issuer at itinatala sa log.",
+                hsmIntro:
+                    "Ang mga awtorisadong tao ang nag-aapruba ng mga protektadong aksyon. Itinatala ang bawat pag-apruba sa talaan ng halalan.",
                 protectedActions: "Mga protektadong aksyon",
                 certificates: "Mga Sertipiko",
                 requests: "Mga Kahilingan",
@@ -5234,13 +5458,22 @@ const tagalogTranslation: TranslationType = {
                         "Sinisimulan sa Tally, Transmisyon. Binubuo ang pinirmahang results package para sa mga destinasyon nito; pinupunan ng mga pirma ang listahan ng pirma nito.",
                 },
                 "approve-voter": {
-                    label: "Manwal na aprubahan ang isang botante",
-                    short: "Pag-apruba ng botante",
-                    permissionName: "manwal na aprubahan ang isang botante",
-                    object: "pag-apruba ng botante",
+                    label: "Aprubahan ang aplikasyon sa pagpaparehistro",
+                    short: "Pag-apruba ng pagpaparehistro",
+                    permissionName: "aprubahan ang aplikasyon sa pagpaparehistro",
+                    object: "pag-apruba ng pagpaparehistro",
                     appliesTo: "Ang $t(signing.terms.post) ng botante",
                     description:
-                        "Sinisimulan sa Approvals. Inaaprubahan ang botante at ibinibigay ang kanyang mga credential.",
+                        "Sa tab na Mga Pag-apruba, inaaprubahan nito ang aplikasyon at ibinibigay ang mga kredensyal ng botante.",
+                },
+                "authorize-manual-verification": {
+                    label: "Pahintulutan ang manwal na pagpapatunay ng pagkakakilanlan",
+                    short: "Manwal na pagpapatunay ng pagkakakilanlan",
+                    permissionName: "pahintulutan ang manwal na pagpapatunay ng pagkakakilanlan",
+                    object: "manwal na pagpapatunay ng pagkakakilanlan",
+                    appliesTo: "Ang $t(signing.terms.post) ng botante",
+                    description:
+                        "Sa listahan ng mga botante, pinapayagan nitong mag-isyu ng dokumentong may link para sa pagpapatunay. Hindi nito inaaprubahan ang aplikasyon sa pagpaparehistro.",
                 },
                 "approve-configuration": {
                     label: "Aprubahan ang isang bersyon ng configuration",
@@ -5272,6 +5505,8 @@ const tagalogTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Ginagawa ang bawat pirma gamit ang digital na sertipiko sa security token ng pumipirma.",
+                hsmIntro:
+                    "Tingnan kung sino ang maaaring mag-apruba ng bawat aksyon at kung ilang pag-apruba ang kailangan.",
                 columns: {
                     action: "Aksyon",
                     appliesTo: "Para sa",
@@ -5684,6 +5919,12 @@ const tagalogTranslation: TranslationType = {
                 scheduled_events: "Mga bagong nakaiskedyul na kaganapan",
                 ballots_and_contests: "Mga balota at paligsahan",
                 application_id: "Aplikasyon",
+                voter_id: "Account ng botante",
+                initiation_id: "Kahilingan sa pagpapatunay",
+                post_id: "$t(signing.terms.post)",
+                area_id: "Lugar ng botante",
+                requester_id: "Account ng kawani na humiling",
+                secret_attributes: "Mga pangalan ng protektadong katangian",
                 applicant_registry_id: "Account sa registry",
                 decision: "Desisyon",
                 submitted_at: "Isinumite",
@@ -5720,6 +5961,8 @@ const tagalogTranslation: TranslationType = {
                     "generate-reports": "$t(signing.actions.generate-reports.label)",
                     "transmit-results": "$t(signing.actions.transmit-results.label)",
                     "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "authorize-manual-verification":
+                        "$t(signing.actions.authorize-manual-verification.label)",
                     "approve-configuration": "$t(signing.actions.approve-configuration.label)",
                     "key-ceremony": "$t(signing.actions.key-ceremony.label)",
                     "tally-key": "$t(signing.actions.tally-key.label)",
@@ -6291,6 +6534,8 @@ const tagalogTranslation: TranslationType = {
                     "Hindi pa makakapagpadala ang {{channel}} ng {{purpose}}. Kulang: {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "Hindi aprubado ng provider ang template ng {{channel}} para sa {{purpose}} sa {{language}}.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "Walang halaga ang isang button ng template ng {{channel}} para sa {{purpose}} sa {{language}}.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "Hindi makakapagpadala ang {{channel}} sa labas ng window ng usapan gamit ang account na ito: wala itong window ng usapan, o kailangan na ng template ang mga abiso nito.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -6321,6 +6566,7 @@ const tagalogTranslation: TranslationType = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                WHATSAPP_INFOBIP: "WhatsApp Business (Infobip)",
                 CONSOLE: "Console (hindi na suportado)",
                 HTTP_API: "Pasadyang HTTP API (hindi na suportado)",
             },
@@ -6382,6 +6628,24 @@ const tagalogTranslation: TranslationType = {
                 REPORT_PASSWORD: "Password para sa mga ulat",
             },
             deliveryUnavailable: "Hindi available ang paghahatid",
+            templateButtons: {
+                title: "Mga button ng template",
+                help: "Ang mga value na ipinapadala kasama ng mga button ng template, sa pagkakasunod nila sa template. Pinapalitan ang {{code}} ng code na ipinapadala.",
+                choice: {
+                    DEFAULT: "Default para sa layunin",
+                    CUSTOM: "Itinakda para sa template na ito",
+                },
+                type: "Uri ng button",
+                parameter: "Halaga",
+                add: "Magdagdag ng button",
+                remove: "Alisin ang button",
+                none: "Walang button",
+                required: "Maglagay ng halaga",
+                types: {
+                    URL: "URL (kopyahin ang code o link)",
+                    QUICK_REPLY: "Mabilis na sagot",
+                },
+            },
             templates: {
                 noMethod: "Pumili ng kahit isang paraan para sa template.",
                 parameters: "Mga parameter ng template",
@@ -6408,11 +6672,18 @@ const tagalogTranslation: TranslationType = {
                 intro: {
                     WHATSAPP:
                         "Nagpapadala lamang ang WhatsApp ng mga template na inaprubahan ng Meta para sa WhatsApp Business Account. Dapat tumugma ang mensahe sa aprubadong template; piliin kung ano ang pupuno sa mga parameter nito.",
-                    VIBER: "Nagpapadala lamang ang Viber ng mga code at transactional na mensahe gamit ang mga template na inaprubahan ng Viber partner. Dapat tumugma ang mensahe sa aprubadong template; piliin kung ano ang pupuno sa mga parameter nito.",
+                    VIBER: "Nagpapadala ang isang Viber account ng mga template na inaprubahan ng Viber partner o ng malayang teksto. Sa mga aprubadong template, dapat tumugma ang mensahe sa template; piliin kung ano ang pupuno sa mga parameter nito. Sa malayang teksto, ipinapadala nang eksakto ang teksto sa ibaba.",
                 },
                 approvedWording: "Aprubadong teksto",
                 approvedWordingHelp:
                     "Kopya ng aprubadong template, ginagamit bilang preview. Hindi nito binabago ang ipinapadala ng provider.",
+                buttonsHelp:
+                    "Ginagamit ng WhatsApp sa pamamagitan ng Infobip kasama ang template ng provider sa itaas. Kung wala ito, ang template ng event at ang mga button nito ang ginagamit.",
+                viberWording: "Teksto",
+                viberWordingHelp:
+                    "Ipinapadala ng account na nagpapadala ng malayang teksto ang tekstong ito nang eksakto. Sa mga aprubadong template, kopya ito ng template na ginagamit bilang preview, at hindi nito binabago ang ipinapadala.",
+                sendsWrittenText:
+                    "Nagpapadala ng malayang teksto ang account na ito: ipinapadala nang eksakto ang teksto sa itaas at hindi nito kailangan ng aprubadong template.",
                 providerTemplateTitle: "Template ng provider",
                 providerTemplateHelp:
                     "Opsyonal. Ang pangalan o ID ng aprubadong template sa provider. Kapag walang laman, ginagamit ang template ng election event na nakaugnay sa alias ng template na ito, o ang default ng event para sa layunin.",
@@ -6772,6 +7043,7 @@ const tagalogTranslation: TranslationType = {
                 page_name: "Pangalan ng Page",
                 page_username: "Username ng Page",
                 base_url: "Base URL ng API",
+                sender_number: "Numero ng nagpapadala",
                 sender: "Pangalan ng nagpadala",
                 provider_approval: "Pag-apruba ng provider",
                 is_default: "Default na {{channel}} account para sa mga bagong election event",
@@ -6792,6 +7064,8 @@ const tagalogTranslation: TranslationType = {
                     "Ginagamit para sa m.me link na binubuksan ng mga botante para makuha ang kanilang code.",
                 api_version: "Halimbawa, v23.0.",
                 base_url: "Ang base URL ng Infobip API ng account.",
+                sender_number:
+                    "Ang WhatsApp number na nakarehistro sa Infobip, sa international format, gaya ng 447796344125.",
                 sender: "Ang aprubadong nagpadala na nakikita ng mga botante.",
                 provider_approval:
                     "Pinapayagan lamang ng Meta ang pagmemensahe ng gobyerno sa WhatsApp sa pamamagitan ng aprubadong kaayusan. Piliin ang Kumpirmado ang pag-apruba ng provider kapag naaprubahan na ito ng Meta para sa account na ito; hanggang doon, hindi mapapagana ang mga OTP at abiso para dito.",
@@ -6833,6 +7107,19 @@ const tagalogTranslation: TranslationType = {
                 templateId: "Template ID ng partner",
                 add: "Magdagdag ng template",
                 remove: "Alisin ang template",
+                contentMode: {
+                    title: "Nilalaman ng mensahe",
+                    APPROVED_TEMPLATES: "Mga aprubadong template",
+                    FREE_TEXT: "Malayang teksto",
+                },
+                contentModeHelp: {
+                    APPROVED_TEMPLATES:
+                        "Ipinapadala ang mga code at mensahe gamit ang mga template na inaprubahan ng Viber partner, na nakalagay sa ibaba.",
+                    FREE_TEXT:
+                        "Ipinapadala ang mga code at mensahe bilang sarili nilang teksto, tulad ng SMS. Hindi kailangan ng aprubadong template.",
+                },
+                freeTextWarning:
+                    "Sinisingil ng Viber sa promotional na rate ang mga transactional na mensaheng ipinadala nang walang aprubadong template, at maaari nitong tanggihan ang promotional na nilalaman bilang unang mensahe sa isang botante. Kumpirmahin sa partner na maaaring magpadala ang account na ito ng mga code bilang malayang teksto.",
             },
             limits: {
                 title: "Mga limitasyon sa pagpapadala",
@@ -6883,6 +7170,10 @@ const tagalogTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "Ang Infobip API key.",
                 },
+                WHATSAPP_INFOBIP: {
+                    API_KEY:
+                        "Ang Infobip API key, na may mga scope na whatsapp:manage at whatsapp:message:send.",
+                },
             },
             webhook: {
                 title: "Mga ulat sa paghahatid",
@@ -6893,6 +7184,8 @@ const tagalogTranslation: TranslationType = {
                         "Ilagay ang URL ng callback na ito sa mga setting ng webhook ng Meta. Dito dumarating ang mga ulat sa paghahatid at ang pag-tap ng botante sa Magsimula, at sinusuri ang mga ito gamit ang lihim ng app.",
                     VIBER_INFOBIP:
                         "Ipinapadala ng Infobip ang mga ulat sa paghahatid ng Viber sa URL ng callback na ito sa pamamagitan ng isang subscription na may Basic authentication.",
+                    WHATSAPP_INFOBIP:
+                        "Ipinapadala ng Infobip ang mga ulat sa paghahatid ng WhatsApp sa URL ng callback na ito sa pamamagitan ng isang subscription na may Basic authentication.",
                     AWS_SES:
                         "I-subscribe ang URL ng callback na ito (HTTPS) sa topic ng mga abiso sa paghahatid. Dito dumarating ang mga event ng paghahatid at bounce, at sinusuri ang mga ito gamit ang lagda ng Amazon.",
                 },
@@ -6959,13 +7252,13 @@ const tagalogTranslation: TranslationType = {
                 error: "Hindi mabuo ang mga kredensyal para sa ulat.",
                 step: {
                     subscription:
-                        "Sa Infobip, gumawa ng subscription para sa mga ulat sa paghahatid ng Viber.",
+                        "Sa Infobip, gumawa ng subscription para sa mga ulat sa paghahatid ng {{channel}}.",
                     url: "Itakda ang URL nito sa URL ng callback ng account na ito.",
                     auth: "Piliin ang Basic authentication at ilagay ang pangalan ng user at password para sa mga ulat.",
                 },
                 confirmTitle: "Palitan ang mga kredensyal para sa ulat?",
                 confirmBody:
-                    "Agad na hindi na gagana ang kasalukuyang pangalan ng user at password para sa mga ulat. Hangga't wala pa sa subscription ng Infobip ang mga bago, tatanggihan ang mga ulat ng paghahatid ng Viber at mananatiling Tinanggap ang mga mensahe.",
+                    "Agad na hindi na gagana ang kasalukuyang pangalan ng user at password para sa mga ulat. Hangga't wala pa sa subscription ng Infobip ang mga bago, tatanggihan ang mga ulat ng paghahatid ng {{channel}} at mananatiling Tinanggap ang mga mensahe.",
                 confirm: "Palitan",
             },
         },

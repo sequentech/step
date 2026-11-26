@@ -851,6 +851,7 @@ const frenchTranslation: TranslationType = {
                     adminKey: "Clé d'administration de {{name}}",
                     systemOnly: "Uniquement la clé système du journal",
                     systemSignature: "Signature du système",
+                    approverKeyFingerprint: "Empreinte de la clé d’approbation",
                     publicKey: "Clé d'administration publiée",
                 },
             },
@@ -912,6 +913,98 @@ const frenchTranslation: TranslationType = {
                 statementTimestampFrom: "Horodatage de la déclaration du",
                 statementTimestampTo: "Horodatage de la déclaration au",
                 timeZone: "Fuseau horaire",
+            },
+            statementKind: {
+                Unknown: "Entrée inconnue",
+                CastVote: "Vote déposé",
+                CastVoteError: "Échec du dépôt du vote",
+                ElectionPublish: "Élection publiée",
+                ElectionVotingPeriodOpen: "Vote ouvert (élection)",
+                ElectionVotingPeriodClose: "Vote clôturé (élection)",
+                ElectionVotingPeriodPause: "Vote suspendu (élection)",
+                ElectionEventVotingPeriodOpen: "Vote ouvert (événement)",
+                ElectionEventVotingPeriodClose: "Vote clôturé (événement)",
+                ElectionEventVotingPeriodPause: "Vote suspendu (événement)",
+                KeyGeneration: "Clés générées",
+                KeyInsertionStart: "Début de l'insertion des clés",
+                KeyInsertionCeremony: "Cérémonie d'insertion des clés",
+                TallyOpen: "Dépouillement commencé",
+                TallyClose: "Dépouillement terminé",
+                TallyResumedWithResolution: "Dépouillement repris après une résolution",
+                TallyPausedPendingResolution: "Dépouillement suspendu en attente d'une résolution",
+                TallyTieResolved: "Égalité départagée",
+                TallyTieResolutionUpdated: "Départage mis à jour",
+                SendTemplate: "Modèle envoyé",
+                SendCommunications: "Messages envoyés",
+                KeycloakUserEvent: "Événement de compte utilisateur",
+                VoterPublicKey: "Clé publique de l'électeur",
+                AdminPublicKey: "Clé publique de l'administrateur",
+                CertificateAuthEvent: "Connexion par certificat",
+                PhoneBlacklistUpdated: "Liste des téléphones bloqués mise à jour",
+                ResultsPublicationAction: "Publication des résultats",
+                ExternalApiRequest: "Requête à l'API externe",
+                ExternalReconciliation: "Rapprochement externe",
+                BallotPublicationFailure: "Échec de la publication du bulletin",
+                ElectoralLogCheckpoint: "Point de contrôle du journal",
+                ElectoralLogContinuation: "Suite du journal",
+                MonitoringConfigChanged: "Paramètres de surveillance modifiés",
+                SigningRequestCreated: "Demande de signature créée",
+                SigningCertificateOpenFailed: "Impossible d'ouvrir le certificat de signature",
+                SigningRequestSigned: "Approbation signée",
+                SigningSignatureRefused: "Signature refusée",
+                SigningCertificateRegistered: "Certificat de signature enregistré",
+                SigningHandover: "Signature transmise",
+                SigningRequestCancelled: "Demande de signature annulée",
+                SigningRequestExpired: "Demande de signature expirée",
+                SigningRequestCompleted: "Seuil d'approbations atteint",
+                SigningActionExecuted: "Action approuvée finalisée ou échouée",
+                SigningRuleChanged: "Règle de signature modifiée",
+                SigningPermissionChanged: "Autorisation de signature modifiée",
+                SigningIssuerChanged: "Émetteur de signature modifié",
+                SigningChecksChanged: "Contrôles de signature modifiés",
+                SigningCertificateRevoked: "Certificat de signature révoqué",
+                SigningRequestsExported: "Demandes de signature exportées",
+                LifecycleWindowChanged: "Fenêtre du calendrier de vote modifiée",
+                ScheduleRecomputeApplied: "Calendrier recalculé",
+                ScheduleImported: "Calendrier importé",
+                ScheduledOutcomeChanged: "Résultat programmé modifié",
+                ElectionInitialized: "Élection initialisée",
+                LockdownChanged: "Verrouillage modifié",
+                ConfigurationPackageImported: "Paquet de configuration importé",
+                ReportGenerated: "Rapport généré",
+                ApprovalMatrixUpdated: "Matrice d'approbation mise à jour",
+                BallotBoxSealed: "Urne scellée",
+                BallotBoxSealFailed: "Échec du scellement de l'urne",
+                TallyBallotBoxVerified: "Urne vérifiée pour le dépouillement",
+                TallyBallotBoxRejected: "Urne rejetée pour le dépouillement",
+                TenantLogOpened: "Journal du locataire ouvert",
+                TenantAdminAction: "Action d'administration du locataire",
+                AdminChange: "Modification administrative",
+                KeycloakAdminEvent: "Événement d'administration des identités",
+                LogsExported: "Journaux exportés",
+                LogWriterStarted: "Rédacteur du journal démarré",
+                LogWriterStopped: "Rédacteur du journal arrêté",
+                TransmissionFileDownloaded: "Fichier de transmission téléchargé",
+                VotersImported: "Électeurs importés",
+                ReadinessVerified: "Préparation vérifiée",
+                BallotReceived: "Bulletin reçu",
+                BallotAudited: "Bulletin audité",
+                PseudonymResolved: "Pseudonyme résolu",
+                ForensicRead: "Lecture forensique",
+                CastVoteSealKeyPublished: "Publication de la clé de chiffrement des votes exprimés",
+            },
+            signingActivity: {
+                row: {
+                    created: "Demande de signature créée pour {{action}}",
+                    approved: "Approbation signée pour {{action}}",
+                    quorum: "Approbations requises recueillies pour {{action}}",
+                    completed: "Action terminée : {{action}}",
+                    failed: "Échec de l’action : {{action}}",
+                    cancelled: "Demande de signature annulée pour {{action}}",
+                    expired: "Demande de signature expirée pour {{action}}",
+                    rejected: "Signature rejetée",
+                    progress: "({{approved}} sur {{required}})",
+                },
             },
             scheduledOutcome: {
                 outcome: {
@@ -2237,11 +2330,13 @@ const frenchTranslation: TranslationType = {
                     subtitle: "Créer électeur",
                 },
                 manualVerification: {
-                    label: "Vérifier manuellement",
-                    verify: "Vérifier manuellement l'électeur",
-                    body: "Vérifiez manuellement cet électeur. Vous obtiendrez un PDF avec un lien de code QR qui permettra à l'électeur de se connecter en omettant le KYC en ligne.",
+                    label: "Vérifier l’identité manuellement",
+                    verify: "Demander le document de vérification",
+                    body: "Demandez un PDF privé contenant un code QR pour cet électeur. Si des signatures sont requises, le document n’est délivré qu’après approbation. Cette action n’approuve pas de demande d’inscription.",
                     noEmailOrPhone:
                         "Cet électeur ne peut pas être vérifié manuellement car il n'a pas d'adresse e-mail ou de numéro de téléphone attribué",
+                    waiting: "Le document est en attente de signatures.",
+                    download: "Télécharger le document de vérification",
                 },
                 errors: {
                     editError: "Erreur lors de l'édition de l'électeur",
@@ -2288,9 +2383,9 @@ const frenchTranslation: TranslationType = {
                     deleteSuccess: "Électeur supprimé",
                     multipleDeleteSuccess: "Électeurs supprimés",
                     manualVerificationError:
-                        "Erreur lors de la vérification manuelle de l'électeur",
+                        "Impossible de demander la vérification manuelle de l’identité",
                     manualVerificationSuccess:
-                        "Électeur vérifié manuellement avec succès, télécharger PDF..",
+                        "Téléchargement du document de vérification manuelle de l’identité.",
                 },
             },
             roles: {
@@ -2344,7 +2439,9 @@ const frenchTranslation: TranslationType = {
                 "sign-generate-election-returns": "Signer : générer les procès-verbaux électoraux",
                 "sign-generate-reports": "Signer : générer d'autres rapports électoraux",
                 "sign-transmit-results": "Signer : transmettre les résultats",
-                "sign-approve-voter": "Signer : approuver manuellement un électeur",
+                "sign-approve-voter": "Signer : approuver une demande d’inscription",
+                "sign-authorize-manual-verification":
+                    "Signer : autoriser la vérification manuelle de l’identité",
                 "sign-approve-configuration": "Signer : approuver une version de configuration",
                 "sign-key-ceremony": "Signer : confirmer un fragment de clé",
                 "sign-tally-key": "Signer : apporter un fragment de clé",
@@ -3206,6 +3303,53 @@ const frenchTranslation: TranslationType = {
             errorUploadingSignature:
                 "Une erreur s'est produite lors du téléchargement de la signature",
             downloadTransmissionPackage: "Télécharger le paquet",
+            publicVerification: {
+                sectionTitle: "Vérification cryptographique",
+                description:
+                    "Vérifiez dans votre navigateur le tableau d'affichage de ce dépouillement : la preuve à divulgation nulle de connaissance de chaque bulletin chiffré, la preuve de mélange de chaque brassage et la preuve de déchiffrement de chaque dépositaire. Les vérifications s'appuient sur les enregistrements des tableaux de cette plateforme. Pour un audit indépendant, exécutez la commande trustee verify avec des ancres issues du paquet de configuration signé.",
+                verify: "Vérifier le tableau d'affichage",
+                verifyAgain: "Vérifier à nouveau",
+                unavailable: "Disponible une fois le dépouillement terminé.",
+                loading: "Lecture des tableaux du dépouillement…",
+                progress: "Vérification du lot {{current}} sur {{total}}…",
+                empty: "Ce dépouillement n'a aucun lot du tableau d'affichage à vérifier.",
+                failed: "La vérification n'a pas pu être effectuée : {{message}}",
+                verifierUnavailable:
+                    "Ce navigateur n'a pas pu démarrer le vérificateur : {{message}}",
+                summary: {
+                    verified: "Tous les lots vérifiés : {{count}} sur {{total}}.",
+                    invalid: "Lots dont la vérification a échoué : {{count}} sur {{total}}.",
+                    error: "Lots qui n'ont pas pu être vérifiés : {{count}} sur {{total}}. Chaque ligne en donne la raison.",
+                    incomplete:
+                        "Lots incomplets : {{count}} sur {{total}}. Des publications requises manquent, ils ne sont donc pas vérifiés.",
+                },
+                checks: {
+                    title: "Vérifié dans chaque lot :",
+                    ballots:
+                        "La preuve à divulgation nulle de connaissance de chaque bulletin chiffré",
+                    mixing: "La preuve de mélange de chaque brassage, dans l'ordre, approuvée par les autres dépositaires",
+                    decryption:
+                        "La preuve de déchiffrement de chaque dépositaire, avec les résultats recalculés et concordants",
+                },
+                columns: {
+                    batch: "Lot",
+                    ballots: "Bulletins",
+                    result: "Résultat",
+                    detail: "Détail",
+                },
+                batch: "Lot {{batch}}",
+                status: {
+                    verified: "Vérifié",
+                    incomplete: "Incomplet",
+                    invalid: "Non valide",
+                    error: "Non vérifié",
+                },
+                detail: {
+                    verified: "Toutes les preuves et publications du lot ont été vérifiées.",
+                    incomplete: "Des publications requises manquent sur le tableau.",
+                },
+                download: "Télécharger les preuves",
+            },
             resultsPublication: {
                 sectionTitle: "Publier sur le site web des résultats",
                 policyTitle: "Site web des résultats",
@@ -3401,6 +3545,20 @@ const frenchTranslation: TranslationType = {
                     "Terminez le vote de chaque élection sélectionnée et arrêtez ses canaux actifs avant de créer le dépouillement.",
                 sealBallotBoxes:
                     "Une élection peut être dépouillée une fois que chaque urne est scellée et que son procès-verbal de scellement est publié.",
+            },
+            failure: {
+                title: "Le comptage a échoué",
+                detail: "Détails",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "Un tableau de comptage ne correspond pas à la configuration enregistrée lors de la cérémonie des clés.",
+                    INVALID_BOARD_CONTENT:
+                        "Un tableau de comptage contient des données inutilisables.",
+                    TRUSTEE_HALTED: "Un trustee a arrêté le comptage et a signalé une erreur.",
+                    SEALED_BALLOTS_REFUSED:
+                        "Certains bulletins enregistrés ne peuvent pas être comptés : ils ne s'ouvrent pas ou ne correspondent pas à leurs enregistrements. Aucun bulletin n'a été compté. Corrigez la cause, puis lancez un nouveau comptage.",
+                    unknown: "Le comptage n'a pas pu être terminé.",
+                },
             },
             createTallySuccess: "Comptage créé",
             createTallyError: "Erreur lors de la création du comptage",
@@ -5149,6 +5307,25 @@ const frenchTranslation: TranslationType = {
                 'Êtes-vous sûr de vouloir supprimer le certificat "{{name}}" (empreinte : {{fingerprint}}) ?',
         },
         signing: {
+            localSetup: {
+                continue: "Poursuivre la connexion",
+                register: "Enregistrer ma clé de signature",
+                phase: {
+                    "setup-available":
+                        "Configurez votre clé de signature pour ce poste. Vérifiez d’abord votre mot de passe et le code à usage unique.",
+                    "waiting-for-setup-gold":
+                        "Poursuivez la connexion pour vérifier votre identité avant la configuration.",
+                    "setup-confirmation-required":
+                        "Identité vérifiée. Sélectionnez Enregistrer ma clé de signature pour créer la clé de ce poste.",
+                    "setup-retry-available":
+                        "L’appareil n’a pas encore pris en charge cette demande. Vous pouvez renvoyer la même demande.",
+                    "setup-pending":
+                        "La configuration est en attente. Une clé de signature et un certificat de personnel enregistré sont requis avant toute approbation.",
+                    "setup-recovery-required":
+                        "Un administrateur doit vérifier cette configuration. Aucune approbation n’a été enregistrée.",
+                },
+            },
+            operational: englishTranslation.translations.signing.operational,
             terms: {
                 post: "Poste",
                 posts: "Postes",
@@ -5156,6 +5333,8 @@ const frenchTranslation: TranslationType = {
             tab: {
                 title: "Signatures",
                 intro: "Les actions protégées ne s'exécutent qu'une fois signées par suffisamment de personnes autorisées avec leurs certificats numériques. Chaque signature est vérifiée auprès des émetteurs de confiance et consignée dans le journal.",
+                hsmIntro:
+                    "Les personnes autorisées approuvent les actions protégées. Chaque approbation est consignée dans le journal électoral.",
                 protectedActions: "Actions protégées",
                 certificates: "Certificats",
                 requests: "Demandes",
@@ -5243,13 +5422,22 @@ const frenchTranslation: TranslationType = {
                         "Lancée dans Comptage, Transmission. Construit le paquet de résultats signé pour ses destinations ; les signatures remplissent sa liste de signatures.",
                 },
                 "approve-voter": {
-                    label: "Approuver manuellement un électeur",
-                    short: "Approbation d'électeur",
-                    permissionName: "approuver manuellement un électeur",
-                    object: "approbation d'électeur",
+                    label: "Approuver une demande d’inscription",
+                    short: "Approbation d’inscription",
+                    permissionName: "approuver une demande d’inscription",
+                    object: "approbation d’inscription",
                     appliesTo: "Le $t(signing.terms.post) de l'électeur",
                     description:
-                        "Lancée dans Approvals. Approuve l'électeur et lui délivre ses identifiants.",
+                        "Dans l’onglet Approbations, approuve la demande et délivre les identifiants de l’électeur.",
+                },
+                "authorize-manual-verification": {
+                    label: "Autoriser la vérification manuelle de l’identité",
+                    short: "Vérification manuelle de l’identité",
+                    permissionName: "autoriser la vérification manuelle de l’identité",
+                    object: "vérification manuelle de l’identité",
+                    appliesTo: "Le $t(signing.terms.post) de l'électeur",
+                    description:
+                        "Dans la liste des électeurs, permet de délivrer un document contenant un lien de vérification. N’approuve pas de demande d’inscription.",
                 },
                 "approve-configuration": {
                     label: "Approuver une version de configuration",
@@ -5280,6 +5468,8 @@ const frenchTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Chaque signature est réalisée avec le certificat numérique du jeton de sécurité du signataire.",
+                hsmIntro:
+                    "Consultez qui peut approuver chaque action et combien d’approbations sont nécessaires.",
                 columns: {
                     action: "Action",
                     appliesTo: "S'applique à",
@@ -5690,6 +5880,12 @@ const frenchTranslation: TranslationType = {
                 scheduled_events: "Nouveaux événements programmés",
                 ballots_and_contests: "Bulletins et concours",
                 application_id: "Demande d'inscription",
+                voter_id: "Compte électeur",
+                initiation_id: "Demande de vérification",
+                post_id: "$t(signing.terms.post)",
+                area_id: "Zone de l’électeur",
+                requester_id: "Compte de l’agent demandeur",
+                secret_attributes: "Noms des attributs protégés",
                 applicant_registry_id: "Compte du registre",
                 decision: "Décision",
                 submitted_at: "Soumise",
@@ -5726,6 +5922,8 @@ const frenchTranslation: TranslationType = {
                     "generate-reports": "$t(signing.actions.generate-reports.label)",
                     "transmit-results": "$t(signing.actions.transmit-results.label)",
                     "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "authorize-manual-verification":
+                        "$t(signing.actions.authorize-manual-verification.label)",
                     "approve-configuration": "$t(signing.actions.approve-configuration.label)",
                     "key-ceremony": "$t(signing.actions.key-ceremony.label)",
                     "tally-key": "$t(signing.actions.tally-key.label)",
@@ -6292,6 +6490,8 @@ const frenchTranslation: TranslationType = {
                     "{{channel}} ne peut pas encore envoyer de {{purpose}}. Manque : {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "Le modèle {{channel}} pour {{purpose}} en {{language}} n'est pas approuvé par le fournisseur.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "Un bouton du modèle {{channel}} pour {{purpose}} en {{language}} n'a pas de valeur.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} ne peut pas envoyer hors d'une fenêtre de conversation avec ce compte : il n'a pas de fenêtre de conversation, ou ses avis nécessitent déjà un modèle.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -6322,6 +6522,7 @@ const frenchTranslation: TranslationType = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                WHATSAPP_INFOBIP: "WhatsApp Business (Infobip)",
                 CONSOLE: "Console (plus prise en charge)",
                 HTTP_API: "API HTTP personnalisée (plus prise en charge)",
             },
@@ -6383,6 +6584,24 @@ const frenchTranslation: TranslationType = {
                 REPORT_PASSWORD: "Mot de passe des rapports",
             },
             deliveryUnavailable: "Remise non disponible",
+            templateButtons: {
+                title: "Boutons du modèle",
+                help: "Les valeurs envoyées avec les boutons du modèle, dans l'ordre où ils y figurent. {{code}} est remplacé par le code envoyé.",
+                choice: {
+                    DEFAULT: "Par défaut pour l'usage",
+                    CUSTOM: "Définis pour ce modèle",
+                },
+                type: "Type de bouton",
+                parameter: "Valeur",
+                add: "Ajouter un bouton",
+                remove: "Retirer le bouton",
+                none: "Aucun bouton",
+                required: "Saisissez une valeur",
+                types: {
+                    URL: "URL (copier le code ou lien)",
+                    QUICK_REPLY: "Réponse rapide",
+                },
+            },
             templates: {
                 noMethod: "Choisissez au moins une méthode pour le modèle.",
                 parameters: "Paramètres du modèle",
@@ -6409,11 +6628,18 @@ const frenchTranslation: TranslationType = {
                 intro: {
                     WHATSAPP:
                         "WhatsApp n'envoie que les modèles approuvés par Meta pour le compte WhatsApp Business. Le message doit correspondre au modèle approuvé ; choisissez ce qui remplit ses paramètres.",
-                    VIBER: "Viber n'envoie les codes et messages transactionnels qu'avec des modèles approuvés par le partenaire Viber. Le message doit correspondre au modèle approuvé ; choisissez ce qui remplit ses paramètres.",
+                    VIBER: "Un compte Viber envoie soit des modèles approuvés par le partenaire Viber, soit du texte libre. Avec des modèles approuvés, le message doit correspondre au modèle ; choisissez ce qui remplit ses paramètres. Avec du texte libre, le texte ci-dessous est envoyé tel quel.",
                 },
                 approvedWording: "Texte approuvé",
                 approvedWordingHelp:
                     "Une copie du modèle approuvé, utilisée comme aperçu. La modifier ici ne change pas ce que le fournisseur envoie.",
+                buttonsHelp:
+                    "Utilisés par WhatsApp via Infobip avec le modèle du fournisseur ci-dessus. Sans lui, le modèle de l'événement et ses boutons sont utilisés.",
+                viberWording: "Texte",
+                viberWordingHelp:
+                    "Un compte qui envoie du texte libre envoie ce texte tel quel. Avec des modèles approuvés, c'est une copie du modèle, utilisée comme aperçu, qui ne change pas ce qui est envoyé.",
+                sendsWrittenText:
+                    "Ce compte envoie du texte libre : le texte ci-dessus est envoyé tel quel et ne nécessite aucun modèle approuvé.",
                 providerTemplateTitle: "Modèle du fournisseur",
                 providerTemplateHelp:
                     "Facultatif. Le nom ou l'ID du modèle approuvé chez le fournisseur. S'il est vide, le modèle de l'événement électoral lié à l'alias de ce modèle est utilisé, ou le modèle par défaut de l'événement pour l'usage.",
@@ -6771,6 +6997,7 @@ const frenchTranslation: TranslationType = {
                 page_name: "Nom de la page",
                 page_username: "Nom d'utilisateur de la page",
                 base_url: "URL de base de l'API",
+                sender_number: "Numéro de l'expéditeur",
                 sender: "Nom de l'expéditeur",
                 provider_approval: "Approbation du fournisseur",
                 is_default: "Compte {{channel}} par défaut pour les nouveaux événements électoraux",
@@ -6791,6 +7018,8 @@ const frenchTranslation: TranslationType = {
                     "Utilisé pour le lien m.me que les électeurs ouvrent pour obtenir leur code.",
                 api_version: "Par exemple v23.0.",
                 base_url: "L'URL de base de l'API Infobip du compte.",
+                sender_number:
+                    "Le numéro WhatsApp enregistré auprès d'Infobip, au format international, par exemple 447796344125.",
                 sender: "L'expéditeur approuvé que voient les électeurs.",
                 provider_approval:
                     "Meta n'autorise les messages WhatsApp des gouvernements que dans le cadre d'un accord approuvé. Choisissez Approbation du fournisseur confirmée une fois que Meta l'a approuvé pour ce compte ; d'ici là, les codes et les avis ne peuvent pas être activés pour ce compte.",
@@ -6832,6 +7061,19 @@ const frenchTranslation: TranslationType = {
                 templateId: "ID du modèle chez le partenaire",
                 add: "Ajouter un modèle",
                 remove: "Retirer le modèle",
+                contentMode: {
+                    title: "Contenu des messages",
+                    APPROVED_TEMPLATES: "Modèles approuvés",
+                    FREE_TEXT: "Texte libre",
+                },
+                contentModeHelp: {
+                    APPROVED_TEMPLATES:
+                        "Les codes et messages sont envoyés avec les modèles approuvés par le partenaire Viber, saisis ci-dessous.",
+                    FREE_TEXT:
+                        "Les codes et messages sont envoyés avec leur propre texte, comme les SMS. Aucun modèle approuvé n'est nécessaire.",
+                },
+                freeTextWarning:
+                    "Viber facture au tarif promotionnel les messages transactionnels envoyés sans modèle approuvé, et peut refuser un contenu promotionnel comme premier message à un électeur. Confirmez avec le partenaire que ce compte peut envoyer des codes en texte libre.",
             },
             limits: {
                 title: "Limites d'envoi",
@@ -6882,6 +7124,10 @@ const frenchTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "La clé d'API Infobip.",
                 },
+                WHATSAPP_INFOBIP: {
+                    API_KEY:
+                        "La clé d'API Infobip, avec les portées whatsapp:manage et whatsapp:message:send.",
+                },
             },
             webhook: {
                 title: "Rapports de remise",
@@ -6892,6 +7138,8 @@ const frenchTranslation: TranslationType = {
                         "Saisissez cette URL de rappel dans les paramètres de webhook de Meta. Les rapports de remise et l'appui de l'électeur sur Démarrer y arrivent et sont vérifiés avec le secret de l'application.",
                     VIBER_INFOBIP:
                         "Infobip envoie les rapports de remise Viber à cette URL de rappel via un abonnement avec authentification Basic.",
+                    WHATSAPP_INFOBIP:
+                        "Infobip envoie les rapports de remise WhatsApp à cette URL de rappel via un abonnement avec authentification Basic.",
                     AWS_SES:
                         "Abonnez cette URL de rappel (HTTPS) au sujet des notifications de remise. Les événements de remise et de rebond y arrivent et sont vérifiés avec la signature d'Amazon.",
                 },
@@ -6958,13 +7206,13 @@ const frenchTranslation: TranslationType = {
                 error: "Les identifiants des rapports n'ont pas pu être générés.",
                 step: {
                     subscription:
-                        "Dans Infobip, créez un abonnement pour les rapports de remise Viber.",
+                        "Dans Infobip, créez un abonnement pour les rapports de remise {{channel}}.",
                     url: "Définissez son URL sur l'URL de rappel de ce compte.",
                     auth: "Choisissez l'authentification Basic et saisissez le nom d'utilisateur et le mot de passe des rapports.",
                 },
                 confirmTitle: "Remplacer les identifiants des rapports ?",
                 confirmBody:
-                    "Le nom d'utilisateur et le mot de passe actuels des rapports cessent aussitôt de fonctionner. Tant que l'abonnement Infobip n'a pas les nouveaux, les rapports de remise Viber sont refusés et les messages restent Accepté.",
+                    "Le nom d'utilisateur et le mot de passe actuels des rapports cessent aussitôt de fonctionner. Tant que l'abonnement Infobip n'a pas les nouveaux, les rapports de remise {{channel}} sont refusés et les messages restent Accepté.",
                 confirm: "Remplacer",
             },
         },

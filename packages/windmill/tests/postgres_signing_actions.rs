@@ -118,6 +118,102 @@ async fn publication_gate(w: &World, who: &SigningCaller, id: &str) -> SigningRe
     outcome
 }
 
+// Without the optional local runtime, a durable scope must block the *direct*
+// tally route, even when the event rule is off. Substitute only the optional
+// schema boundary, in this transaction in the test binary's private database.
+#[cfg(not(feature = "comelec-demo-direct-hsm"))]
+#[tokio::test]
+async fn persisted_post_without_runtime_never_proceeds_or_presses_other_posts_into_hsm() {
+    use windmill::services::signing::operational_device::installed_profile;
+    use windmill::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
+
+    let w = world("scope-no-runtime").await;
+    let who = caller("operator", &[], &[]);
+    let other = Uuid::new_v4();
+    let t = w.tenant.to_string();
+    let e = w.event.to_string();
+    let publication = Uuid::new_v4();
+    let installation = Uuid::new_v4();
+    let mut client = w.pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    // Same exclusive lock used by installation; the fixture DDL is rolled back.
+    tx.query_one(
+        "SELECT pg_advisory_xact_lock(hashtextextended('operational-signing-policy:deployment',0))",
+        &[],
+    )
+    .await
+    .unwrap();
+    tx.batch_execute(&format!(
+        "CREATE FUNCTION sequent_backend.operational_signing_local_initialize_scope(uuid,uuid)
+         RETURNS TABLE(post_id uuid, publication_id uuid, installation_id uuid)
+         LANGUAGE sql STABLE AS $$ SELECT '{post}'::uuid, '{publication}'::uuid,
+         '{installation}'::uuid WHERE $1='{t}'::uuid AND $2='{e}'::uuid $$",
+        post = w.post
+    ))
+    .await
+    .unwrap();
+    assert_eq!(
+        signing_mode(&tx, w.tenant).await.unwrap(),
+        OperationalSigningMode::LegacyP12
+    );
+    for selected in [
+        vec![w.post.to_string()],
+        vec![],
+        vec![other.to_string(), w.post.to_string()],
+    ] {
+        assert!(gate_tally_creation(
+            &tx,
+            &who,
+            &t,
+            &e,
+            &selected,
+            "INITIALIZATION_REPORT",
+            false,
+            None
+        )
+        .await
+        .is_err());
+    }
+    let country = [w.area.to_string()];
+    let only = [w.post.to_string()];
+    let filtered = gate_tally_creation(
+        &tx,
+        &who,
+        &t,
+        &e,
+        &only,
+        "INITIALIZATION_REPORT",
+        false,
+        Some(&country),
+    )
+    .await
+    .unwrap_err();
+    assert!(filtered.to_string().contains("without a country filter"));
+    assert_eq!(
+        installed_profile(&tx, w.tenant, w.event, SigningAction::InitializeVoting)
+            .await
+            .unwrap(),
+        None
+    );
+    for (event, posts, kind) in [
+        (e.clone(), vec![other.to_string()], "INITIALIZATION_REPORT"),
+        (
+            Uuid::new_v4().to_string(),
+            vec![w.post.to_string()],
+            "INITIALIZATION_REPORT",
+        ),
+        (e, vec![w.post.to_string()], "ELECTORAL_RESULTS"),
+    ] {
+        assert_eq!(
+            gate_tally_creation(&tx, &who, &t, &event, &posts, kind, false, None)
+                .await
+                .unwrap(),
+            GuardOutcome::Proceed
+        );
+    }
+    tx.rollback().await.unwrap();
+}
+
 #[tokio::test]
 async fn with_the_rules_off_every_action_runs_as_today() {
     let w = world("rules-off").await;
@@ -912,6 +1008,34 @@ async fn approving_a_voter_signs_the_application_and_rejecting_it_cancels() {
 
         // Rejecting the application cancels the approval waiting for it.
         let tx = client.transaction().await.unwrap();
+        #[cfg(feature = "comelec-demo-direct-hsm")]
+        {
+            use windmill::services::signing::direct_actions::enrollment_scope;
+            let exact = enrollment_scope(&tx, &second_row).await.unwrap();
+            assert_eq!((exact.election, exact.area), (Some(w.post), Some(w.area)));
+            for wrong in [None, Some(Uuid::new_v4())] {
+                let mut changed = second_row.clone();
+                changed.area_id = wrong;
+                assert!(enrollment_scope(&tx, &changed).await.is_err());
+            }
+            let mut changed = second_row.clone();
+            changed.election_id = Some(Uuid::new_v4());
+            assert!(enrollment_scope(&tx, &changed).await.is_err());
+            // Even a genuine, unmodified request no longer authorizes a moved application.
+            tx.execute(
+                "UPDATE sequent_backend.applications SET area_id=NULL WHERE id=$1",
+                &[&application],
+            )
+            .await
+            .unwrap();
+            assert!(enrollment_scope(&tx, &second_row).await.is_err());
+            tx.execute(
+                "UPDATE sequent_backend.applications SET area_id=$2 WHERE id=$1",
+                &[&application, &w.area],
+            )
+            .await
+            .unwrap();
+        }
         let cancelled = cancel_for_rejection(
             &tx,
             &who,

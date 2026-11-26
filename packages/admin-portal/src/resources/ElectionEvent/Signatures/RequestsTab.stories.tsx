@@ -45,7 +45,8 @@ const meta = {
     },
     beforeEach: async ({args}) => {
         const organization = organizationOf(args.organization)
-        signingApi = fakeApi(await makePanel({}))
+        const [firstRequest] = organization.requests
+        signingApi = fakeApi(await makePanel({requestId: firstRequest?.id}))
         graphql = graphqlBoundary(signingHandlers(organization))
         data = signingRecords(organization)
         saved = recordDownloads()

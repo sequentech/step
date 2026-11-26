@@ -162,6 +162,8 @@ export interface ILogEntryView {
     extra: Array<{name: string; value: string}>
     /** The admin key an AdminPublicKey entry publishes. */
     publicKey: string | null
+    /** SHA-256 of the HSM approval public key, not a key that signed the log entry. */
+    approverKeyFingerprint: string | null
     signatures: ILogSignatures
 }
 
@@ -409,6 +411,37 @@ const auditDetails = (body: unknown): Json | null => {
     return parseObject(body.Audit.details_json)
 }
 
+/** Only the HSM proof of a recorded approval identifies an approver key. */
+const recordedApprovalKeyFingerprint = (
+    kind: string | null,
+    head: Json,
+    body: unknown
+): string | null => {
+    if (
+        kind !== "SigningRequestSigned" ||
+        head.kind !== kind ||
+        !isObject(body) ||
+        !isObject(body.Signing) ||
+        body.Signing.kind !== kind
+    ) {
+        return null
+    }
+    const proof = parseObject(body.Signing.details_json)
+    if (
+        !proof ||
+        (proof.proof_kind !== "initialize-voting-demo-pkcs11" &&
+            proof.proof_kind !== "direct-action-demo-pkcs11-v2")
+    ) {
+        return null
+    }
+    const fingerprint = proof.spki_sha256
+    return typeof fingerprint === "string" &&
+        fingerprint.length === 64 &&
+        /^[0-9a-f]{64}$/i.test(fingerprint)
+        ? fingerprint
+        : null
+}
+
 /**
  * The details of a TenantActivity body: a request Harvest recorded outside an
  * election event, or the opening of a tenant log.
@@ -440,6 +473,7 @@ const emptyView = (description: string, statementKind: string | null): ILogEntry
     writer: null,
     extra: [],
     publicKey: null,
+    approverKeyFingerprint: null,
     signatures: {signedBy: null, senderKey: null, senderSignature: null, systemSignature: null},
 })
 
@@ -478,6 +512,7 @@ export const logEntryView = (
             unknownAccount: unknownAccount(body),
         },
         signIn: kind === STATEMENT_KIND_KEYCLOAK_USER_EVENT ? signInOf(body) : null,
+        approverKeyFingerprint: recordedApprovalKeyFingerprint(kind, head, body),
         signatures: {
             signedBy: text(sender.name),
             senderKey: keyText(sender.pk),

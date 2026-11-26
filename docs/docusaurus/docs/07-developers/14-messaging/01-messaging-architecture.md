@@ -69,6 +69,7 @@ are. It doesn't retry or queue; providers retry when it answers non-2xx.
 | `GET /webhooks/meta/<key>` | Meta subscription handshake (`hub.mode`, `hub.verify_token`, `hub.challenge`) |
 | `POST /webhooks/meta/<key>` | WhatsApp statuses, Messenger delivery and Get Started |
 | `POST /webhooks/viber/<key>` | Infobip Viber delivery reports |
+| `POST /webhooks/infobip/<key>` | Infobip delivery reports of its other channels (WhatsApp) |
 | `POST /webhooks/aws/<key>` | SNS-wrapped SES events, and SNS subscription confirmation |
 | `GET /healthz` | Liveness; never forwards |
 
@@ -88,7 +89,7 @@ Any other path is a 404 and is never forwarded.
 - **Headers**: only `relay::FORWARDED_HEADERS` are kept, lowercased:
   `content-type`, `x-hub-signature-256`, `x-amz-sns-message-type`,
   `x-amz-sns-topic-arn`, `x-amz-sns-subscription-arn` and `authorization`
-  (Viber reports use Basic auth). Everything else is dropped.
+  (Infobip reports use Basic auth). Everything else is dropped.
 
 ### Envelope
 
@@ -96,7 +97,7 @@ Each callback is wrapped in a `relay::CallbackEnvelope` and posted to
 `http://$HARVEST_DOMAIN/messaging/callbacks` with a 10 s timeout:
 
 ```json
-{"version": 1, "provider": "META|VIBER|AWS", "key": "<64 hex>",
+{"version": 1, "provider": "META|VIBER|INFOBIP|AWS", "key": "<64 hex>",
  "method": "GET|POST", "query": "<raw query string>",
  "headers": {"x-hub-signature-256": "sha256=..."},
  "body_b64": "<raw body bytes, base64>", "received_at": "<RFC 3339>"}
@@ -163,7 +164,7 @@ the provider's own checks on those bytes:
 |---|---|
 | Meta, `GET` | The handshake's `hub.verify_token` against the account's generated verify token; answers the `hub.challenge` as `text/plain` |
 | Meta, `POST` | `X-Hub-Signature-256` with the account's app secret |
-| Viber | The `authorization` header against the account's report username and password (Basic), in constant time. A report without it, or with a wrong one, is refused |
+| Viber, Infobip | The `authorization` header against the account's report username and password (Basic), in constant time. A report without it, or with a wrong one, is refused. Each route takes only its own provider's accounts: `viber` Viber's, `infobip` WhatsApp's through Infobip |
 | AWS | SNS signature with a certificate from an SNS endpoint, and the account's notification topic. A subscription confirmation is confirmed by visiting its SNS `SubscribeURL` |
 
 Entries for another business account, number or Page are dropped. Only
@@ -190,8 +191,8 @@ sent. That row opens Messenger's 24-hour window; no other event does.
   status already applied doesn't move the message again, a Get Started
   already written is written once, and a WhatsApp number change already
   flagged is not flagged twice.
-- **Unreadable reports are dropped.** An authenticated Viber report that
-  can't be parsed is logged ("Viber report ignored: it can't be read") and
+- **Unreadable reports are dropped.** An authenticated Infobip report that
+  can't be parsed is logged ("Infobip report ignored: it can't be read") and
   answered 200, as Meta's are, so Infobip doesn't retry it for ever. An
   unauthenticated one is still refused.
 
@@ -416,7 +417,8 @@ as long as needed.
   retry still waiting 1 hour after the failed attempt stops with "Can't be
   retried: the message couldn't be prepared again".
 - The reconcile sweep pages by keyset over `QUEUED` and `UNKNOWN` rows,
-  takes only accounts whose provider can reconcile (Infobip), and backs off
+  takes only accounts whose provider can reconcile (Infobip Viber; Infobip
+  has no WhatsApp message lookup), and backs off
   per row with `last_reconciled_at`. Each pass has a cap and a time budget;
   one bad account or row is logged and skipped, never aborting the pass.
   `UNKNOWN` older than 24 hours is flagged **Unresolved**: never turned into
@@ -483,8 +485,10 @@ the provider reported: the token's validity, expiry and missing
 permissions (Meta `debug_token`); the app secret, checked with
 `appsecret_proof`; the WhatsApp number's status, display-name status,
 quality rating and messaging limit; template category and status per
-language; the Viber partner login (Infobip balance); the Messenger Page's
-`pages_messaging`, app subscription and Get Started button; and the
+language; the Infobip login, by the sender's templates (Viber: access only;
+WhatsApp through Infobip: also its approved templates per purpose and
+language, authentication for codes and utility for notices); the
+Messenger Page's `pages_messaging`, app subscription and Get Started button; and the
 callback readiness. WhatsApp approval comes from the number's status and
 display-name status; an administrator's entry counts only while the check
 reports nothing. `FLAGGED` and `RATE_LIMITED` are a quality warning, not a
@@ -692,7 +696,7 @@ marked as such.
 
 | Setting | Where | Purpose |
 |---|---|---|
-| `MESSAGING_WEBHOOKS_PUBLIC_URL` | harvest, windmill, beat (one value for all three) | Public base of the webhook component; account callback URLs are `<base>/webhooks/<meta\|viber\|aws>/<key>`. Unset: accounts show "Callback address not configured" (`callback_readiness`). The query action `messaging_callback_status` (`messaging-config-read` or `messaging-account-read`) gives each account's callback blockers and reasons (`CALLBACK_NOT_CONFIGURED`; `REPORT_CREDENTIALS_MISSING` for Viber without report credentials): receipts then read *Unavailable*, and without the address Messenger isn't ready for OTP (`callback_blocker`), in the backend and the Admin Portal alike |
+| `MESSAGING_WEBHOOKS_PUBLIC_URL` | harvest, windmill, beat (one value for all three) | Public base of the webhook component; account callback URLs are `<base>/webhooks/<meta\|viber\|infobip\|aws>/<key>`. Unset: accounts show "Callback address not configured" (`callback_readiness`). The query action `messaging_callback_status` (`messaging-config-read` or `messaging-account-read`) gives each account's callback blockers and reasons (`CALLBACK_NOT_CONFIGURED`; `REPORT_CREDENTIALS_MISSING` for an Infobip account without report credentials): receipts then read *Unavailable*, and without the address Messenger isn't ready for OTP (`callback_blocker`), in the backend and the Admin Portal alike |
 | `MESSAGING_RELAY_SECRET` | messaging-webhooks, harvest | Relay HMAC secret, at least 32 bytes. Nothing else reads it. Without a usable one the component doesn't start and harvest refuses every relayed callback with 503 |
 | `MESSAGING_RELAY_SECRET_POLICY` | messaging-webhooks, harvest | `STRICT` (default) refuses the development stack's committed secret; `ALLOW_DEV_SECRET` is set only in the development compose file |
 | `MESSAGING_WEBHOOKS_MAX_BODY_BYTES` | messaging-webhooks | Largest callback body, 262144 by default. Harvest accepts envelopes up to twice that |

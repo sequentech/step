@@ -31,7 +31,8 @@ trap cleanup EXIT
 docker run --detach --name "$name" --network none --cpus 1 --memory 1g \
     --env POSTGRES_PASSWORD=unused-local-socket-only \
     --volume "$migrations:/migrations:ro" \
-    --volume "$here:/contract-test:ro" "$image" >/dev/null
+    --volume "$here:/contract-test:ro" \
+    --volume "$here/../../../packages/windmill/src/services/signing/sql/operational_quorum.sql:/windmill-quorum.sql:ro" "$image" >/dev/null
 
 # The entrypoint restarts the server once after initialisation.
 for _ in $(seq 1 120); do
@@ -90,7 +91,7 @@ apply contract up /new-migrations "${new_versions[@]}"
 echo "== 2. role-by-role assertions"
 run --dbname=contract --file=/contract-test/10_fixture.sql
 PGOPTIONS='' psql --no-psqlrc --dbname=contract --set=ON_ERROR_STOP=1 --output=/dev/null \
-    --file=/contract-test/20_assertions.sql >/tmp/assertions.log 2>&1 || {
+    --set=quorum_sql="$(cat /windmill-quorum.sql)" --file=/contract-test/20_assertions.sql >/tmp/assertions.log 2>&1 || {
     cat /tmp/assertions.log
     echo "ASSERTIONS FAILED"
     exit 1

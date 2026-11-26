@@ -31,7 +31,7 @@ const UUID_TENANT_ID: &str = "00000000-0000-0000-0000-00000000000a";
 const SUPER_ADMIN_TENANT_ID: &str = "fixture-super-admin";
 const USER_ID: &str = "test-user";
 // Update only with a reviewed change to the checked-in route inventory.
-const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 224;
+const EXPECTED_GUARDED_POST_ROUTE_COUNT: usize = 228;
 
 const CHILD: &str = "HARVEST_ISOLATED_TEST_CHILD";
 
@@ -390,6 +390,15 @@ async fn sensitive_routes_require_authorization_before_reading_the_body_or_conta
                 .post(route_permissions::concrete(path))
                 .header(ContentType::JSON)
                 .body("{malformed body");
+            // The direct package intake first requires the first-party
+            // transport (403 otherwise). Give it a valid one, loopback plain
+            // HTTP same origin, so this case proves its bearer guard too.
+            if path == "/configuration-package-intake/unwrap" {
+                request = request
+                    .header(Header::new("Host", "localhost:3002"))
+                    .header(Header::new("Origin", "http://localhost:3002"))
+                    .header(Header::new("Sec-Fetch-Site", "same-origin"));
+            }
             if let Some(value) = authorization {
                 request = request.header(Header::new("Authorization", value));
             }
@@ -645,8 +654,16 @@ async fn fake_provider_routes_are_mounted_only_by_their_switch() {
         ("GET", "/fake-provider/meta/<path..>"),
         ("POST", "/fake-provider/meta/messenger/get-started"),
         ("POST", "/fake-provider/infobip/viber/2/messages"),
-        ("GET", "/fake-provider/infobip/account/1/balance"),
+        (
+            "GET",
+            "/fake-provider/infobip/viber/1/senders/<_sender>/templates",
+        ),
         ("GET", "/fake-provider/infobip/viber/2/logs"),
+        ("POST", "/fake-provider/infobip/whatsapp/1/message/template"),
+        (
+            "GET",
+            "/fake-provider/infobip/whatsapp/2/senders/<_sender>/templates",
+        ),
         ("POST", "/fake-provider/aws/<path..>"),
         ("GET", "/fake-provider/aws/<path..>"),
         ("POST", "/fake-provider/messages"),

@@ -65,8 +65,20 @@ class OrganizationsTest(unittest.TestCase):
             ]
             for group in realm["groups"]
         }
-        for group in organizations.load("post-qualification")["groups"]:
-            self.assertEqual(group["permissions"], signs[group["name"]], group["name"])
+        profile = organizations.load("post-qualification")
+        fixture_group = "demo-manual-verification-reviewer"
+        self.assertNotIn(fixture_group, signs)
+        for group in profile["groups"]:
+            expected = (
+                ["sign-authorize-manual-verification"]
+                if group["name"] == fixture_group
+                else signs[group["name"]]
+            )
+            self.assertEqual(group["permissions"], expected, group["name"])
+        self.assertEqual(
+            [user["username"] for user in users_of(profile) if user["group_name"] == fixture_group],
+            ["demo-manual-verification-reviewer-1"],
+        )
 
     def test_each_organization_can_satisfy_its_own_rules(self):
         # Enough distinct signers for every rule that needs signatures: per

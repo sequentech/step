@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Infobip Viber delivery reports. Incoming messages are dropped.
+//! Infobip delivery reports, for Viber and WhatsApp alike. Incoming
+//! messages are dropped.
 //!
 //! Infobip does not sign callbacks. They are accepted only on the account's
 //! unguessable webhook URL, and a report only changes an attempt this

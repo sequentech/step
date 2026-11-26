@@ -258,6 +258,7 @@ export enum IPermissions {
     SIGN_GENERATE_REPORTS = "sign-generate-reports",
     SIGN_TRANSMIT_RESULTS = "sign-transmit-results",
     SIGN_APPROVE_VOTER = "sign-approve-voter",
+    SIGN_AUTHORIZE_MANUAL_VERIFICATION = "sign-authorize-manual-verification",
     SIGN_APPROVE_CONFIGURATION = "sign-approve-configuration",
     SIGN_KEY_CEREMONY = "sign-key-ceremony",
     SIGN_TALLY_KEY = "sign-tally-key",

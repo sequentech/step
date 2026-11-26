@@ -670,6 +670,8 @@ const catalanTranslation: TranslationType = {
             ambiguous:
                 "Més d'una de les vostres paperetes coincideix amb {{ballotId}}. Utilitzeu l'ID complet de la papereta.",
             contentDesc: "Aquest és el contingut de la vostra papereta: ",
+            contentSealed:
+                "La vostra papereta està emmagatzemada de forma segellada, per això el seu contingut no es mostra aquí.",
             wrongFormatBallotId: "Format incorrecte per l'ID de la Papereta",
             ballotIdNotFoundAtFilter:
                 "No trobat, comproveu que l'ID de la Papereta sigui correcte i pertanyi a l'usuari actual.",

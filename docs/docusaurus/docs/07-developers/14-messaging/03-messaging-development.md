@@ -60,7 +60,8 @@ endpoint variables to harvest, windmill and beat.
 | Provider | Send | Checks (answered as connected and ready) |
 |---|---|---|
 | WhatsApp Cloud | `POST /fake-provider/meta/<version>/<phone_number_id>/messages` | `debug_token`, the number's fields (status, name status, quality, limit), `message_templates` |
-| Viber (Infobip) | `POST /fake-provider/infobip/viber/2/messages` | `GET /fake-provider/infobip/account/1/balance`; reconciliation reads `GET /fake-provider/infobip/viber/2/logs` |
+| WhatsApp (Infobip) | `POST /fake-provider/infobip/whatsapp/1/message/template` | `GET /fake-provider/infobip/whatsapp/2/senders/{sender}/templates` |
+| Viber (Infobip) | `POST /fake-provider/infobip/viber/2/messages` | `GET /fake-provider/infobip/viber/1/senders/{sender}/templates`; reconciliation reads `GET /fake-provider/infobip/viber/2/logs` |
 | Messenger | `POST /fake-provider/meta/<version>/<page_id>/messages` | `debug_token`, Page fields, `subscribed_apps`, `messenger_profile`, `message_templates` |
 | SMS (SNS) | `POST /fake-provider/aws/` (`Action=Publish`, XML answer) | `GetSMSSandboxAccountStatus` |
 | Email (SES v2) | `POST /fake-provider/aws/v2/email/outbound-emails` | `GET /fake-provider/aws/v2/email/account` |
@@ -95,7 +96,9 @@ for it to the webhook component, as the provider would:
   app secret (`X-Hub-Signature-256`) to
   `<MESSAGING_WEBHOOKS_PUBLIC_URL>/webhooks/meta/<key>`;
 - Viber: an Infobip report with the account's report Basic authentication
-  to `<MESSAGING_WEBHOOKS_PUBLIC_URL>/webhooks/viber/<key>`.
+  to `<MESSAGING_WEBHOOKS_PUBLIC_URL>/webhooks/viber/<key>`;
+- WhatsApp through Infobip: the same report to
+  `<MESSAGING_WEBHOOKS_PUBLIC_URL>/webhooks/infobip/<key>`.
 
 It then goes through `/messaging/callbacks`, verification and the ledger;
 the backend can't tell it came from the fake. SMS (SNS) and email (SES)

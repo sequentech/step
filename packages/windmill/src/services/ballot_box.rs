@@ -588,6 +588,16 @@ mod tests {
             BallotFormat::HashableMultiBallot.to_string(),
             "hashable-multi-ballot"
         );
+        // A sealed ballot may carry exactly these formats.
+        let formats = [
+            BallotFormat::HashableBallot,
+            BallotFormat::HashableMultiBallot,
+        ]
+        .map(|format| format.to_string());
+        assert_eq!(
+            formats,
+            electoral_log::cast_vote_seal::INNER_FORMATS.map(str::to_string)
+        );
     }
 
     /// The sequencer and its admission gate against the real test databases.

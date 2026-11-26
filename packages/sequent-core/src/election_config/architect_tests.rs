@@ -6826,6 +6826,95 @@ fn the_signing_configuration_survives_the_plans_workbook_being_reopened() {
     assert_eq!(signing_of(&compiled_export(&reopened)), signing_of(&native));
 }
 
+#[cfg(feature = "election_config_xlsx")]
+#[test]
+fn manual_verification_roundtrips_through_authoring_delivery_and_receiver() {
+    use crate::election_config::{
+        build::build, open::open_named, plan_from_event::plan_from_event,
+        plan_from_workbook::plan_from_workbook,
+        schema::ImportElectionEventSchema, xlsx::read_xlsx,
+        xlsx_write::write_xlsx,
+    };
+
+    let mut native = native_export_with_signing();
+    let manual = serde_json::json!({
+        "action": "authorize-manual-verification", "requirement": "required", "signatures": 2,
+        "requester_signing": "not-allowed", "expires_minutes": null, "revision": 3,
+    });
+    native["signing_rules"]
+        .as_array_mut()
+        .unwrap()
+        .push(manual.clone());
+
+    let schema: ImportElectionEventSchema =
+        serde_json::from_value(native.clone()).unwrap();
+    assert_eq!(
+        schema.signing_rules.unwrap().last().unwrap().action,
+        crate::signing::SigningAction::AuthorizeManualVerification
+    );
+    let read = plan_from_event(&native).unwrap();
+    assert!(!read.report.has_errors());
+
+    let plan = opened(&native);
+    let sources = Sources::default();
+    let workbook = to_workbook(&plan, &sources).unwrap();
+    let xlsx = write_xlsx(&workbook).unwrap();
+    let workbook = read_xlsx(&xlsx).unwrap();
+    let reloaded = plan_from_workbook(&workbook).unwrap();
+    assert!(!reloaded.report.has_errors());
+    assert_eq!(reloaded.plan.signing, plan.signing);
+    assert_eq!(
+        serde_json::to_value(
+            reloaded
+                .plan
+                .signing
+                .rules
+                .as_ref()
+                .unwrap()
+                .last()
+                .unwrap()
+        )
+        .unwrap(),
+        manual
+    );
+
+    // Save File is a draft artifact, not an importable package.
+    let draft =
+        crate::election_config::archive::save_file(&reloaded.plan, &sources)
+            .unwrap();
+    let saved = open_named(&draft.bytes, Some(&draft.name)).unwrap();
+    assert_eq!(saved.plan.signing, plan.signing);
+
+    let templates = TemplateSet::builtin().unwrap();
+    let built =
+        build(&workbook, &templates, &BuildOptions::default(), &sources)
+            .unwrap();
+    assert_eq!(built.export["signing_rules"][3], manual);
+
+    // The same native action is read even when inherited from the export.
+    let ordinary = to_workbook(&sound(), &sources).unwrap();
+    let inherited = build(
+        &ordinary,
+        &templates,
+        &BuildOptions {
+            base_export: Some(native),
+            ..Default::default()
+        },
+        &sources,
+    )
+    .unwrap();
+    assert_eq!(inherited.export["signing_rules"][3], manual);
+    let delivery = compile_plan(Compile {
+        plan: &reloaded.plan,
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    })
+    .unwrap();
+    assert_eq!(delivery.bundle.export["signing_rules"][3], manual);
+}
+
 #[test]
 fn explicitly_empty_rules_stay_empty_and_absent_stays_absent() {
     let mut native = native_export_with_signing();

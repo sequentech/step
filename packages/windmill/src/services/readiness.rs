@@ -258,7 +258,76 @@ fn complete_designs(approved: &[BallotDesign], published: &[DesignDigest]) -> bo
     !expected.is_empty() && expected == actual
 }
 
+/// Inspect the active publication and seals of an event in its tested role.
 pub async fn snapshot(tx: &Transaction<'_>, tenant: &str, event_id: &str) -> Result<EventEvidence> {
+    snapshot_for(tx, tenant, event_id, SnapshotScope::Tested).await
+}
+
+#[derive(Clone, Copy)]
+enum SnapshotScope {
+    Official,
+    Tested,
+}
+
+async fn tested_publication_evidence(
+    tx: &Transaction<'_>,
+    tenant: &str,
+    event_id: &str,
+) -> Result<(Option<PublicationEvidence>, BTreeSet<(String, String)>)> {
+    let mut expected_boxes = BTreeSet::new();
+    let mut publication_ids = Vec::new();
+    let mut digests = Vec::new();
+    let mut all_styles_available = true;
+    // Different elections may be published separately. Combine active styles
+    // from every actual publication, excluding drafts and retired styles.
+    let publication_rows = tx.query(
+        "SELECT id::text FROM sequent_backend.ballot_publication WHERE tenant_id = $1 AND election_event_id = $2 AND deleted_at IS NULL AND published_at IS NOT NULL ORDER BY published_at DESC, id DESC",
+        &[&Uuid::parse_str(tenant)?, &Uuid::parse_str(event_id)?],
+    ).await?;
+    for row in publication_rows {
+        let id: String = row.try_get(0)?;
+        let rows: Vec<_> =
+            ballot_style::get_publication_ballot_styles(tx, tenant, event_id, &id, None)
+                .await?
+                .into_iter()
+                .filter(|row| row.deleted_at.is_none())
+                .collect();
+        if rows.is_empty() {
+            continue;
+        }
+        let checked = check_active_publication_designs(tx, tenant, event_id, &id).await?;
+        all_styles_available &= rows.iter().all(|row| row.ballot_eml.is_some());
+        match checked {
+            Some(check) => digests.extend(check.digests),
+            None => all_styles_available = false,
+        }
+        let styles: Vec<BallotStyle> = rows
+            .iter()
+            .filter_map(|row| row.ballot_eml.as_deref())
+            .map(serde_json::from_str)
+            .collect::<std::result::Result<_, _>>()?;
+        expected_boxes.extend(expected_ballot_boxes(&styles));
+        publication_ids.push(id);
+    }
+    let manifest = configuration_packages::manifest_of_event(tx, tenant, event_id).await?;
+    let publication = publication_ids.first().map(|id| PublicationEvidence {
+        publication_id: id.clone(),
+        publication_ids: publication_ids.clone(),
+        matches_manifest: all_styles_available
+            && manifest.as_ref().is_some_and(|(manifest, _)| {
+                complete_designs(&manifest.content.ballot_designs, &digests)
+            }),
+        design_count: digests.len(),
+    });
+    Ok((publication, expected_boxes))
+}
+
+async fn snapshot_for(
+    tx: &Transaction<'_>,
+    tenant: &str,
+    event_id: &str,
+    scope: SnapshotScope,
+) -> Result<EventEvidence> {
     let event = election_event::get_election_event_by_id(tx, tenant, event_id).await?;
     let presentation = event.get_presentation()?.unwrap_or_default();
     let elections = election::get_elections(tx, tenant, event_id).await?;
@@ -307,51 +376,10 @@ pub async fn snapshot(tx: &Transaction<'_>, tenant: &str, event_id: &str) -> Res
         None => false,
     };
     let current_voter_counts = current_registry_counts(tx, tenant, event_id).await?;
-    let mut expected_boxes = BTreeSet::new();
-    let mut publication_ids = Vec::new();
-    let mut digests = Vec::new();
-    let mut all_styles_available = true;
-    // Different elections may be published separately. Combine active styles
-    // from every actual publication, excluding drafts and retired styles.
-    let publication_rows = tx.query(
-        "SELECT id::text FROM sequent_backend.ballot_publication WHERE tenant_id = $1 AND election_event_id = $2 AND deleted_at IS NULL AND published_at IS NOT NULL ORDER BY published_at DESC, id DESC",
-        &[&Uuid::parse_str(tenant)?, &Uuid::parse_str(event_id)?],
-    ).await?;
-    for row in publication_rows {
-        let id: String = row.try_get(0)?;
-        let rows: Vec<_> =
-            ballot_style::get_publication_ballot_styles(tx, tenant, event_id, &id, None)
-                .await?
-                .into_iter()
-                .filter(|row| row.deleted_at.is_none())
-                .collect();
-        if rows.is_empty() {
-            continue;
-        }
-        let checked = check_active_publication_designs(tx, tenant, event_id, &id).await?;
-        all_styles_available &= rows.iter().all(|row| row.ballot_eml.is_some());
-        match checked {
-            Some(check) => digests.extend(check.digests),
-            None => all_styles_available = false,
-        }
-        let styles: Vec<BallotStyle> = rows
-            .iter()
-            .filter_map(|row| row.ballot_eml.as_deref())
-            .map(serde_json::from_str)
-            .collect::<std::result::Result<_, _>>()?;
-        expected_boxes.extend(expected_ballot_boxes(&styles));
-        publication_ids.push(id);
-    }
-    let manifest = configuration_packages::manifest_of_event(tx, tenant, event_id).await?;
-    let publication = publication_ids.first().map(|id| PublicationEvidence {
-        publication_id: id.clone(),
-        publication_ids: publication_ids.clone(),
-        matches_manifest: all_styles_available
-            && manifest.as_ref().is_some_and(|(manifest, _)| {
-                complete_designs(&manifest.content.ballot_designs, &digests)
-            }),
-        design_count: digests.len(),
-    });
+    let (publication, expected_boxes) = match scope {
+        SnapshotScope::Official => (None, BTreeSet::new()),
+        SnapshotScope::Tested => tested_publication_evidence(tx, tenant, event_id).await?,
+    };
     let uuids: Vec<Uuid> = ids
         .iter()
         .map(|id| Uuid::parse_str(id))
@@ -431,7 +459,7 @@ pub async fn verify(
     actor: &AuditActor,
 ) -> Result<ReadinessReport> {
     let evidence = ReadinessEvidence {
-        official: snapshot(tx, tenant, official)
+        official: snapshot_for(tx, tenant, official, SnapshotScope::Official)
             .await
             .context(ReadinessStage::OfficialEvidence)?,
         tested: snapshot(tx, tenant, tested)
@@ -579,11 +607,10 @@ mod tests {
             entries: Mutex::new(Vec::new()),
             fail: false,
         };
-        let breakages: [fn(&mut ReadinessEvidence); 5] = [
+        let breakages: [fn(&mut ReadinessEvidence); 4] = [
             |evidence| evidence.tested.configuration = None,
             |evidence| evidence.tested.voter_log_delivered = false,
             |evidence| evidence.official.tally_session_count = 1,
-            |evidence| evidence.official.publication = None,
             |evidence| evidence.tested.sealed_boxes.clear(),
         ];
         for (index, breakage) in breakages.into_iter().enumerate() {

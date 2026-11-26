@@ -86,7 +86,15 @@ pub async fn get_document_password(
             internal_error("Failed to read document")
         })?
         .ok_or_else(unavailable)?;
-    if document.is_ballot_receipt() {
+    // Recognised by its issuance ledger binding as well as by its `purpose`.
+    let owner_access = windmill::services::signing::actions::manual_verification::may_read_document(
+        &transaction,
+        &document,
+        &crate::services::signing_gate::caller(&claims),
+    )
+    .await
+    .map_err(|_| internal_error("Document access policy unavailable"))?;
+    if !owner_access || document.is_ballot_receipt() {
         return Err(unavailable());
     }
     let annotations = document

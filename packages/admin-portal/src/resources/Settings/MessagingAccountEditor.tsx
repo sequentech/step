@@ -16,7 +16,11 @@ import {
     FormControlLabel,
     IconButton,
     InputAdornment,
+    FormControl,
+    FormLabel,
     MenuItem,
+    Radio,
+    RadioGroup,
     Switch,
     TextField,
     Typography,
@@ -33,6 +37,7 @@ import {
     EMessagePurpose,
     EMessagingProvider,
     EProviderApproval,
+    EViberContentMode,
     IMessagingAccount,
     MESSAGE_CHANNELS,
     MESSAGE_PURPOSES,
@@ -43,6 +48,7 @@ import {
     isMetaProvider,
     isUnsupportedProvider,
     typedCredentials,
+    usesInfobipReports,
 } from "@/services/messaging"
 import {actionRefusalReason, reasonText} from "@/services/messagingReasons"
 import {UPSERT_MESSAGING_ACCOUNT} from "@/queries/UpsertMessagingAccount"
@@ -271,14 +277,16 @@ export interface IReportCredentials {
     password: string
 }
 
-/** The steps that subscribe Infobip's Viber reports to the account's callback URL. */
-const ViberSubscriptionSteps: React.FC = () => {
+/** The steps that subscribe the channel's Infobip reports to the account's callback URL. */
+const InfobipSubscriptionSteps: React.FC<{channel: EMessageChannel}> = ({channel}) => {
     const {t} = useTranslation()
     return (
         <Box component="ol" sx={{margin: 0, paddingLeft: 3}}>
             {(["subscription", "url", "auth"] as const).map((step) => (
                 <Typography key={step} component="li" variant="body2">
-                    {t(`messagingAccounts.reports.step.${step}`)}
+                    {t(`messagingAccounts.reports.step.${step}`, {
+                        channel: t(`messaging.channel.${channel}`),
+                    })}
                 </Typography>
             ))}
         </Box>
@@ -287,6 +295,7 @@ const ViberSubscriptionSteps: React.FC = () => {
 
 interface IReportCredentialsDialogProps {
     credentials: IReportCredentials
+    channel: EMessageChannel
     callbackUrl: string | null
     onClose: () => void
 }
@@ -297,6 +306,7 @@ interface IReportCredentialsDialogProps {
  */
 export const ReportCredentialsDialog: React.FC<IReportCredentialsDialogProps> = ({
     credentials,
+    channel,
     callbackUrl,
     onClose,
 }) => {
@@ -308,7 +318,7 @@ export const ReportCredentialsDialog: React.FC<IReportCredentialsDialogProps> = 
             </DialogTitle>
             <DialogContent sx={{display: "flex", flexDirection: "column", gap: 2}}>
                 <Typography variant="body2">{t("messagingAccounts.reports.once")}</Typography>
-                <ViberSubscriptionSteps />
+                <InfobipSubscriptionSteps channel={channel} />
                 {callbackUrl ? (
                     <CopyField
                         value={callbackUrl}
@@ -345,6 +355,8 @@ const callbackDescriptionKey = (provider: EMessagingProvider): string => {
             return "messagingAccounts.webhook.description.MESSENGER_SEND_API"
         case EMessagingProvider.VIBER_INFOBIP:
             return "messagingAccounts.webhook.description.VIBER_INFOBIP"
+        case EMessagingProvider.WHATSAPP_INFOBIP:
+            return "messagingAccounts.webhook.description.WHATSAPP_INFOBIP"
         default:
             return "messagingAccounts.webhook.description.AWS_SES"
     }
@@ -353,6 +365,7 @@ const callbackDescriptionKey = (provider: EMessagingProvider): string => {
 interface ICallbackSectionProps {
     account: IMessagingAccount | undefined
     provider: EMessagingProvider
+    channel: EMessageChannel
     canWrite: boolean
     /** The callback the save that created the account returned. */
     initialCallback?: ICallbackResult | null
@@ -368,6 +381,7 @@ interface ICallbackSectionProps {
 export const CallbackSection: React.FC<ICallbackSectionProps> = ({
     account,
     provider,
+    channel,
     canWrite,
     initialCallback,
     onChanged,
@@ -396,7 +410,7 @@ export const CallbackSection: React.FC<ICallbackSectionProps> = ({
     const callbackUrl = callback?.callback_url ?? null
     const verifyTokenSet = account?.credentials?.[ECredentialName.VERIFY_TOKEN]?.replaced_at
     const reportSet = account?.credentials?.[ECredentialName.REPORT_PASSWORD]?.replaced_at
-    const isViber = provider === EMessagingProvider.VIBER_INFOBIP
+    const infobipReports = usesInfobipReports(provider)
 
     const generate = async (kind: "VERIFY_TOKEN" | "REPORT_CREDENTIALS") => {
         if (!account) {
@@ -513,9 +527,9 @@ export const CallbackSection: React.FC<ICallbackSectionProps> = ({
                     )}
                 </Box>
             )}
-            {isViber && (
+            {infobipReports && (
                 <>
-                    <ViberSubscriptionSteps />
+                    <InfobipSubscriptionSteps channel={channel} />
                     <Box
                         sx={{
                             display: "flex",
@@ -562,7 +576,9 @@ export const CallbackSection: React.FC<ICallbackSectionProps> = ({
                     </DialogTitle>
                     <DialogContent>
                         <Typography variant="body2">
-                            {t("messagingAccounts.reports.confirmBody")}
+                            {t("messagingAccounts.reports.confirmBody", {
+                                channel: t(`messaging.channel.${channel}`),
+                            })}
                         </Typography>
                     </DialogContent>
                     <DialogActions>
@@ -585,11 +601,61 @@ export const CallbackSection: React.FC<ICallbackSectionProps> = ({
             {reportCredentials && (
                 <ReportCredentialsDialog
                     credentials={reportCredentials}
+                    channel={channel}
                     callbackUrl={callbackUrl}
                     onClose={() => setReportCredentials(null)}
                 />
             )}
         </Box>
+    )
+}
+
+interface IViberContentModeInputProps {
+    values: IAccountFormValues
+    disabled: boolean
+    onChange: (values: IAccountFormValues) => void
+}
+
+/** Whether the Viber account sends approved templates or the messages' own text. */
+export const ViberContentModeInput: React.FC<IViberContentModeInputProps> = ({
+    values,
+    disabled,
+    onChange,
+}) => {
+    const {t} = useTranslation()
+    return (
+        <FormControl disabled={disabled} sx={{display: "flex", flexDirection: "column", gap: 1}}>
+            <FormLabel id="viber-content-mode">
+                <Typography variant="subtitle2" component="h3" color="text.primary">
+                    {t("messagingAccounts.viber.contentMode.title")}
+                </Typography>
+            </FormLabel>
+            <RadioGroup
+                aria-labelledby="viber-content-mode"
+                value={values.viberContentMode}
+                onChange={(event) =>
+                    onChange({
+                        ...values,
+                        viberContentMode: event.target.value as EViberContentMode,
+                    })
+                }
+            >
+                {Object.values(EViberContentMode).map((mode) => (
+                    <FormControlLabel
+                        key={mode}
+                        value={mode}
+                        control={<Radio />}
+                        label={t(`messagingAccounts.viber.contentMode.${mode}`)}
+                    />
+                ))}
+            </RadioGroup>
+            <Typography variant="body2" color="text.secondary">
+                {t(`messagingAccounts.viber.contentModeHelp.${values.viberContentMode}`)}
+            </Typography>
+            {values.viberContentMode === EViberContentMode.FREE_TEXT && (
+                <Alert severity="warning">{t("messagingAccounts.viber.freeTextWarning")}</Alert>
+            )}
+        </FormControl>
     )
 }
 
@@ -969,13 +1035,17 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
             )}
 
             {values.provider === EMessagingProvider.VIBER_INFOBIP && (
-                <ViberTemplatesEditor
-                    values={values}
-                    errors={errors}
-                    disabled={disabled}
-                    onChange={setValues}
-                />
+                <ViberContentModeInput values={values} disabled={disabled} onChange={setValues} />
             )}
+            {values.provider === EMessagingProvider.VIBER_INFOBIP &&
+                values.viberContentMode === EViberContentMode.APPROVED_TEMPLATES && (
+                    <ViberTemplatesEditor
+                        values={values}
+                        errors={errors}
+                        disabled={disabled}
+                        onChange={setValues}
+                    />
+                )}
 
             {needsApproval && approvalSource === EApprovalSource.ADMIN_ENTERED && (
                 <TextField
@@ -1106,6 +1176,7 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
                 <CallbackSection
                     account={account}
                     provider={values.provider}
+                    channel={values.channel}
                     canWrite={canWrite}
                     initialCallback={initialCallback}
                     onChanged={onChanged}

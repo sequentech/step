@@ -776,8 +776,9 @@ const BallotLocatorLogic: React.FC<BallotLocatorLogicProps> = ({
           )
         : ""
     const ambiguousBallotId = located?.status === ELocateBallotStatus.AMBIGUOUS
-    const ballotContent =
-        located?.status === ELocateBallotStatus.FOUND ? (located.content ?? null) : null
+    const ballotFound = located?.status === ELocateBallotStatus.FOUND
+    // A found ballot has no content when the event's stored ballots are sealed.
+    const ballotContent = ballotFound ? (located?.content ?? null) : null
 
     const locate = (withBallotId = false) => {
         let id = withBallotId ? typedBallotId(inputBallotId) : ""
@@ -889,7 +890,7 @@ const BallotLocatorLogic: React.FC<BallotLocatorLogicProps> = ({
                         <MessageFailed className="ballot-locator-failure">
                             {translateHtml(t, "ballotLocator.ambiguous", {ballotId})}
                         </MessageFailed>
-                    ) : ballotContent ? (
+                    ) : ballotFound ? (
                         <MessageSuccess className="ballot-locator-success">
                             {translateHtml(t, "ballotLocator.found", {ballotId})}
                         </MessageSuccess>
@@ -909,7 +910,7 @@ const BallotLocatorLogic: React.FC<BallotLocatorLogicProps> = ({
                     placeholderLabel="ballotLocator.description"
                 />
             )}
-            {hasBallotId && !checksEnded && ballotContent && (
+            {hasBallotId && !checksEnded && ballotFound && (
                 <>
                     {located?.cast_at && (
                         <Typography className="ballot-cast-at" component="div">
@@ -922,10 +923,18 @@ const BallotLocatorLogic: React.FC<BallotLocatorLogicProps> = ({
                             })}
                         </Typography>
                     )}
-                    <Typography className="ballot-content-description" component="div">
-                        {stringToHtml(t("ballotLocator.contentDesc"))}
-                    </Typography>
-                    <InfoDataBox className="ballot-content">{ballotContent}</InfoDataBox>
+                    {ballotContent ? (
+                        <>
+                            <Typography className="ballot-content-description" component="div">
+                                {stringToHtml(t("ballotLocator.contentDesc"))}
+                            </Typography>
+                            <InfoDataBox className="ballot-content">{ballotContent}</InfoDataBox>
+                        </>
+                    ) : (
+                        <Typography className="ballot-content-sealed" component="div">
+                            {t("ballotLocator.contentSealed")}
+                        </Typography>
+                    )}
                 </>
             )}
 

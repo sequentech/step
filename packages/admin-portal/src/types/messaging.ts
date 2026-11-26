@@ -44,6 +44,8 @@ export enum EMessagingProvider {
     WHATSAPP_CLOUD_API = "WHATSAPP_CLOUD_API",
     MESSENGER_SEND_API = "MESSENGER_SEND_API",
     VIBER_INFOBIP = "VIBER_INFOBIP",
+    /** WhatsApp Business through Infobip: Meta's approved templates, Infobip's API key. */
+    WHATSAPP_INFOBIP = "WHATSAPP_INFOBIP",
     /** Parse-only: an account saved with it loads as unsupported and can't send. */
     HTTP_API = "HTTP_API",
     /** Parse-only: an account saved with it loads as unsupported and can't send. */
@@ -85,6 +87,29 @@ export enum EProviderApproval {
 export enum EOutOfWindowPolicy {
     DISABLED = "DISABLED",
     UTILITY_MESSAGES = "UTILITY_MESSAGES",
+}
+
+/** The kind of a template button that takes a value when sent (`TemplateButtonType`). */
+export enum ETemplateButtonType {
+    /** The value completes the button's address; a copy-code button is sent as one. */
+    URL = "URL",
+    /** The value is the payload returned when it is pressed. */
+    QUICK_REPLY = "QUICK_REPLY",
+}
+
+/** In a button's value, replaced with the code being sent. */
+export const TEMPLATE_BUTTON_CODE = "{{code}}"
+
+/** One button of an approved template, as it is sent. */
+export interface ITemplateButton {
+    type: ETemplateButtonType
+    parameter: string
+}
+
+/** What a Viber account sends: approved templates, or the message's own text. */
+export enum EViberContentMode {
+    APPROVED_TEMPLATES = "APPROVED_TEMPLATES",
+    FREE_TEXT = "FREE_TEXT",
 }
 
 /**
@@ -341,6 +366,15 @@ export type IAccountSender =
           base_url: string
           sender: string
           approved_templates?: IViberApprovedTemplates
+          /** Absent on accounts saved before it existed: approved templates. */
+          content_mode?: EViberContentMode
+      }
+    | {
+          provider: EMessagingProvider.WHATSAPP_INFOBIP
+          base_url: string
+          /** International format without `+`, such as `447796344125`. */
+          sender_number: string
+          display_name?: string | null
       }
     /** Unsupported; its other fields are ignored. */
     | {provider: EMessagingProvider.HTTP_API; label?: string | null}
@@ -380,6 +414,11 @@ export interface ITemplateBinding {
     provider_template: string
     /** The provider's code for the language when it differs, such as `en_US` for `en`. */
     provider_language?: string | null
+    /**
+     * The values of the template's buttons, in its button order. Absent or `null`: the
+     * provider's default for the purpose (`defaultTemplateButtons`); empty: none.
+     */
+    buttons?: ITemplateButton[] | null
 }
 
 /**
@@ -437,6 +476,12 @@ export type IMessagingConfigError =
           purpose: EMessagePurpose
           language: string
       }
+    | {
+          kind: "TEMPLATE_BUTTON_WITHOUT_VALUE"
+          channel: EMessageChannel
+          purpose: EMessagePurpose
+          language: string
+      }
     | {kind: "OUT_OF_WINDOW_NOT_SUPPORTED"; channel: EMessageChannel}
     | {kind: "UTILITY_TEMPLATE_MISSING"; channel: EMessageChannel}
     | {kind: "ELECTION_CHANNEL_NOT_ENABLED"; election_id: string; channel: EMessageChannel}
@@ -487,6 +532,8 @@ export interface IInstantMessageConfig {
     /** The approved template at the provider; the event's binding is used without it. */
     provider_template?: string | null
     provider_language?: string | null
+    /** That template's buttons, in its button order. Absent: the provider's default; empty: none. */
+    buttons?: ITemplateButton[] | null
 }
 
 /** Keycloak user attributes of a voter's one channel (written after a verified code). */

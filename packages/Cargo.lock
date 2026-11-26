@@ -680,6 +680,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
+name = "avif-image-buffer"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f064a888d7b2d2d78426fe473647c14281494f8994d1e4240d83cff37e5eafc"
+
+[[package]]
+name = "avif-rust"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3daa8cfa663a0fc9d75375b069fdf42bddc9965e367515d070f124bbc33828a4"
+dependencies = [
+ "avif-image-buffer",
+ "bin-rs",
+]
+
+[[package]]
 name = "aws-config"
 version = "1.8.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1505,6 +1521,12 @@ name = "base64ct"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55248b47b0caf0546f7988906588779981c43bb1bc9d0c44087278f80cdb44ba"
+
+[[package]]
+name = "bin-rs"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "76470098509d8c31d514e231dfd885a2477a8f6a0e500ec30e0b54f125d0ea49"
 
 [[package]]
 name = "binascii"
@@ -4692,6 +4714,7 @@ dependencies = [
  "uuid",
  "voting-crypto",
  "windmill",
+ "zeroize",
 ]
 
 [[package]]
@@ -6925,6 +6948,21 @@ name = "outref"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1a80800c0488c3a21695ea981a54918fbb37abf04f4d0720c453632255e2ff0e"
+
+[[package]]
+name = "oxideav-vp8"
+version = "0.2.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c449a84e4f468bb88e40868383e297605c6ab4b591ca600b5f78345e40f281e"
+
+[[package]]
+name = "oxideav-webp"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dfca0cb5908192778a23da0b3ede28db58e663069ea70aab72b65b1cfaeb45b8"
+dependencies = [
+ "oxideav-vp8",
+]
 
 [[package]]
 name = "p12-keystore"
@@ -9442,6 +9480,7 @@ dependencies = [
  "ammonia",
  "anyhow",
  "async-trait",
+ "avif-rust",
  "aws-config",
  "aws-sdk-s3",
  "aws-sdk-sesv2",
@@ -9470,7 +9509,9 @@ dependencies = [
  "num-traits",
  "openid",
  "ordered-float 5.1.0",
+ "oxideav-webp",
  "phf 0.11.3",
+ "png 0.18.0",
  "printpdf",
  "ptree",
  "quick-error",
@@ -9516,7 +9557,10 @@ dependencies = [
  "wasmtime-wasi",
  "web-sys",
  "x509-parser 0.18.1",
+ "zeroize",
  "zip 2.4.2",
+ "zune-core",
+ "zune-jpeg",
 ]
 
 [[package]]
@@ -12667,6 +12711,7 @@ dependencies = [
  "rust_decimal",
  "rust_decimal_macros",
  "rust_xlsxwriter",
+ "rustix 1.1.2",
  "rustls 0.23.35",
  "sequent-core",
  "serde",

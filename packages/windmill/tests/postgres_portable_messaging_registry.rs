@@ -20,13 +20,15 @@ use uuid::Uuid;
 use windmill::postgres::messaging::{
     get_messaging_event_config, insert_messaging_account, list_messaging_accounts, AccountSettings,
 };
+use windmill::services::audit_log::{self, AdminAction, AuditActor};
 use windmill::services::messaging::{
     config::{
         import_event_messaging_config, preflight_import_event_messaging_config, ImportOutcome,
         MessagingConfigPermission,
     },
-    portable_registry,
+    portable_registry::{self, RegistryAction},
 };
+use windmill::services::task_audit;
 
 const SHA: &str = "0000000000000000000000000000000000000000000000000000000000000078";
 
@@ -130,7 +132,7 @@ async fn portable_registry_preview_apply_and_rebind_never_send_or_modify_existin
     tx.commit().await.unwrap();
 
     let tx = client.transaction().await.unwrap();
-    let installed = portable_registry::apply(&tx, tenant, SHA, &definitions, &preview)
+    let installed = portable_registry::apply(&tx, tenant, SHA, &definitions, &preview, None)
         .await
         .unwrap();
     assert!(installed.bindings.iter().all(|(reference, binding)| binding
@@ -140,7 +142,7 @@ async fn portable_registry_preview_apply_and_rebind_never_send_or_modify_existin
     tx.commit().await.unwrap();
 
     let tx = client.transaction().await.unwrap();
-    let observed = portable_registry::require_installed(&tx, tenant, SHA, &definitions, &preview)
+    let observed = portable_registry::require_installed(&tx, tenant, SHA, &definitions, &installed)
         .await
         .unwrap();
     assert_eq!(observed, installed);
@@ -231,7 +233,7 @@ async fn portable_registry_preview_apply_and_rebind_never_send_or_modify_existin
         .unwrap();
     assert_eq!(repeated, installed);
     assert_eq!(
-        portable_registry::apply(&tx, tenant, SHA, &definitions, &repeated)
+        portable_registry::apply(&tx, tenant, SHA, &definitions, &repeated, None)
             .await
             .unwrap(),
         repeated
@@ -267,7 +269,7 @@ async fn portable_registry_preview_apply_and_rebind_never_send_or_modify_existin
 
     let tx = client.transaction().await.unwrap();
     assert!(
-        portable_registry::apply(&tx, second, SHA, &definitions, &other_preview)
+        portable_registry::apply(&tx, second, SHA, &definitions, &other_preview, None)
             .await
             .unwrap_err()
             .to_string()
@@ -284,7 +286,7 @@ async fn portable_registry_preview_apply_and_rebind_never_send_or_modify_existin
         .await
         .unwrap();
     assert_eq!(fresh.bindings["package:email"].account_id, donor.id);
-    portable_registry::apply(&tx, second, SHA, &definitions, &fresh)
+    let second_installed = portable_registry::apply(&tx, second, SHA, &definitions, &fresh, None)
         .await
         .unwrap();
     let second_accounts = list_messaging_accounts(&tx, &second).await.unwrap();
@@ -308,13 +310,17 @@ async fn portable_registry_preview_apply_and_rebind_never_send_or_modify_existin
     tx.commit().await.unwrap();
 
     let tx = client.transaction().await.unwrap();
-    assert!(
-        portable_registry::require_installed(&tx, second, SHA, &definitions, &fresh)
-            .await
-            .unwrap_err()
-            .to_string()
-            .contains("preview the configuration package again")
-    );
+    assert!(portable_registry::require_installed(
+        &tx,
+        second,
+        SHA,
+        &definitions,
+        &second_installed
+    )
+    .await
+    .unwrap_err()
+    .to_string()
+    .contains("preview the configuration package again"));
     assert_eq!(
         list_messaging_accounts(&tx, &second).await.unwrap().len(),
         5
@@ -335,5 +341,119 @@ async fn portable_registry_preview_apply_and_rebind_never_send_or_modify_existin
             .unwrap();
         assert_eq!((counts.get::<_, i64>(0), counts.get::<_, i64>(1)), (0, 0));
     }
+    tx.rollback().await.unwrap();
+
+    // A new verified declaration can replace a tracked account without
+    // rewriting an already-persisted event or affecting another tenant.
+    let tx = client.transaction().await.unwrap();
+    let event_before = get_messaging_event_config(&tx, &tenant, &event)
+        .await
+        .unwrap()
+        .unwrap();
+    let other_before = list_messaging_accounts(&tx, &second).await.unwrap();
+    let mut revised = serde_json::to_value(&definitions).unwrap();
+    revised["accounts"][4]["sender"]["region"] = json!("us-east-2");
+    let revised = PortableMessagingAccounts::parse(&serde_json::to_vec(&revised).unwrap()).unwrap();
+    let next_digest = "bc".repeat(32);
+    let next = portable_registry::plan(&tx, tenant, &next_digest, &revised)
+        .await
+        .unwrap();
+    let binding = &next.bindings["package:email"];
+    assert_eq!(binding.action, RegistryAction::Replace);
+    assert_eq!(
+        binding.account_id,
+        installed.bindings["package:email"].account_id
+    );
+    assert_eq!(
+        next.bind(&config()).unwrap(),
+        installed.bind(&config()).unwrap()
+    );
+    let result = portable_registry::apply(&tx, tenant, &next_digest, &revised, &next, None)
+        .await
+        .unwrap();
+    assert!(!result.needs_apply());
+    assert_eq!(
+        get_messaging_event_config(&tx, &tenant, &event)
+            .await
+            .unwrap()
+            .unwrap()
+            .config,
+        event_before.config
+    );
+    assert_eq!(
+        list_messaging_accounts(&tx, &second).await.unwrap(),
+        other_before
+    );
+    tx.rollback().await.unwrap();
+
+    // Simulate upgrading an old receiver. Only an authoritative CREATE
+    // audit receipt may restore the binding; REUSE and ambiguous provenance
+    // cannot turn an installation's verified row into a package-owned one.
+    let tx = client.transaction().await.unwrap();
+    tx.batch_execute(include_str!(
+        "../../../hasura/migrations/backend-db/1795658400000_portable_messaging_account_binding/down.sql"
+    )).await.unwrap();
+    let trusted_id = Uuid::parse_str("80000000-0000-8000-8000-000000000001").unwrap();
+    let ambiguous_a = Uuid::parse_str("80000000-0000-8000-8000-000000000002").unwrap();
+    let ambiguous_b = Uuid::parse_str("80000000-0000-8000-8000-000000000003").unwrap();
+    let untracked = Uuid::parse_str("80000000-0000-8000-8000-000000000004").unwrap();
+    let old_tenant = Uuid::from_u128(103);
+    seed(&tx, old_tenant, Uuid::from_u128(203)).await;
+    for (id, label) in [
+        (trusted_id, "Legacy Email"),
+        (ambiguous_a, "Collision A"),
+        (ambiguous_b, "Collision B"),
+        (untracked, "Untracked"),
+    ] {
+        tx.execute(
+            "INSERT INTO sequent_backend.messaging_account (id, tenant_id, channel, name, provider, sender, webhook_key)
+             VALUES ($1, $2, 'EMAIL', $3, 'AWS_SES', $4, $5)",
+            &[&id, &old_tenant, &label, &json!({"provider":"AWS_SES","from_address":"legacy@example.invalid","region":"us-east-1"}), &format!("fixture-webhook-{id}")],
+        ).await.unwrap();
+    }
+    for (id, reference, action) in [
+        (trusted_id, "package:legacy-email", "create"),
+        (ambiguous_a, "package:ambiguous", "create"),
+        (ambiguous_b, "package:ambiguous", "create"),
+        (untracked, "package:untracked", "reuse"),
+    ] {
+        let details = json!({
+            "section": "messaging-accounts",
+            "changes": [{"reference": reference, "action": action}],
+            "recipientAccountIds": { (reference): id },
+        });
+        let audit = task_audit::tenant_config(
+            Some(AuditActor {
+                user_id: Some(Uuid::new_v4().to_string()),
+                ..Default::default()
+            }),
+            &old_tenant.to_string(),
+            AdminAction::Import,
+            details,
+        )
+        .unwrap();
+        audit_log::stage(&tx, &audit).await.unwrap();
+    }
+    tx.batch_execute(include_str!(
+        "../../../hasura/migrations/backend-db/1795658400000_portable_messaging_account_binding/up.sql"
+    )).await.unwrap();
+    let new_binding = tx.query_one(
+        "SELECT account_id, applied_package_sha256 FROM sequent_backend.portable_messaging_account_binding WHERE tenant_id = $1",
+        &[&old_tenant],
+    ).await.unwrap();
+    assert_eq!(new_binding.get::<_, Uuid>(0), trusted_id);
+    assert!(new_binding.get::<_, Option<String>>(1).is_none());
+    let declared = PortableMessagingAccounts::parse(
+        br#"{"format":"sequent.tenant-messaging-accounts/1","accounts":[{"reference":"legacy-email",
+        "name":"Legacy Email","sender":{"provider":"AWS_SES","from_address":"legacy@example.invalid","region":"us-east-2"}}]}"#,
+    ).unwrap();
+    let next = portable_registry::plan(&tx, old_tenant, SHA, &declared)
+        .await
+        .unwrap();
+    assert_eq!(next.bindings["package:legacy-email"].account_id, trusted_id);
+    assert_eq!(
+        next.bindings["package:legacy-email"].action,
+        RegistryAction::Replace
+    );
     tx.rollback().await.unwrap();
 }

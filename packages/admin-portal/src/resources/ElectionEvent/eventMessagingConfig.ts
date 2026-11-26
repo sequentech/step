@@ -319,6 +319,7 @@ export const errorLocation = (
                 purpose: error.purpose,
             }
         case "TEMPLATE_NOT_APPROVED":
+        case "TEMPLATE_BUTTON_WITHOUT_VALUE":
             return {
                 area: EMessagingErrorArea.TEMPLATE,
                 channel: error.channel,

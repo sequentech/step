@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+# SPDX-License-Identifier: AGPL-3.0-only
+
+# Append to the normal project's Compose files together with Beyond's
+# felix3-local-initialize overlay. Network and volume come from that overlay.
+services:
+  felix3-initialize-ca:
+    profiles: [felix3-local-initialize]
+    image: "${FELIX3_LOCAL_CA_IMAGE:?installed Harvest assessment image required}"
+    pull_policy: never
+    entrypoint: ["/usr/local/bin/harvest-felix3-initialize-ca"]
+    command: []
+    user: "1000:1000"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      FELIX3_CA_LISTEN_IP: "${FELIX3_CA_LISTEN_IP:?fixed private device-facing address required}"
+    volumes:
+      - type: bind
+        source: "${FELIX3_LOCAL_INSTALLATION:?shared normal app descriptor required}"
+        target: /run/sequent-felix3-local-initialize/installation.json
+        read_only: true
+        bind: {create_host_path: false}
+      - type: bind
+        source: "${FELIX3_LOCAL_CA_DIR:?installed assessment role directory required}"
+        target: /run/sequent-felix3-local-initialize/ca
+        read_only: true
+        bind: {create_host_path: false}
+      - type: volume
+        source: felix3-app-postgres-socket
+        target: /run/sequent-felix3-local-initialize/postgres
+        read_only: true
+        volume: {nocopy: true}
+    networks:
+      felix3-device-ca:
+        ipv4_address: "${FELIX3_CA_LISTEN_IP:?fixed private device-facing address required}"

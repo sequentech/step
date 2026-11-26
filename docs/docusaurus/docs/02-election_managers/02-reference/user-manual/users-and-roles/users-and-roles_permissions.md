@@ -135,7 +135,7 @@ several people. Each part of it has its own permission, and signing each action 
 | `signing-requests-read` | See the Requests sub-tab. Users limited by permission labels see their Posts' requests. |
 | `signing-requests-cancel` | Cancel someone else's waiting request. The person who started a request can always cancel it. |
 | `signing-requests-export` | Export the requests as CSV. |
-| `sign-<action>` | Sign that action: `sign-initialize-voting`, `sign-open-voting`, `sign-close-voting`, `sign-generate-election-returns`, `sign-generate-reports`, `sign-transmit-results`, `sign-approve-voter`, `sign-approve-configuration`, `sign-key-ceremony` and `sign-tally-key`. |
+| `sign-<action>` | Sign that action: `sign-initialize-voting`, `sign-open-voting`, `sign-close-voting`, `sign-generate-election-returns`, `sign-generate-reports`, `sign-transmit-results`, `sign-approve-voter`, `sign-authorize-manual-verification`, `sign-approve-configuration`, `sign-key-ceremony` and `sign-tally-key`. |
 
 Changing who can sign an action takes `role-write`, from the rule drawer or here. With `role-write`
 but without `user-permission-write`, a user can turn only the `sign-<action>` permissions on or off; the

@@ -164,6 +164,19 @@ pub async fn get_voter_cast_votes(
         ..*scope
     };
     let mut votes = ballot_box_voter_votes(&ballot_box.store, &private_scope, which).await?;
+    // A sealed cast vote is never shown: the HSM stays off voter-facing reads.
+    if crate::services::cast_vote_seal::sealing(
+        hasura_transaction,
+        scope.tenant_id,
+        scope.election_event_id,
+    )
+    .await?
+        != crate::services::cast_vote_seal::Sealing::Legacy
+    {
+        for vote in &mut votes {
+            vote.content = None;
+        }
+    }
     if let VoterCastVotes::All = which {
         let policy =
             get_election_event_by_id(hasura_transaction, scope.tenant_id, scope.election_event_id)

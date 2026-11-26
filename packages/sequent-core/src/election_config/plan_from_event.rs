@@ -168,7 +168,12 @@ pub fn plan_from_event(document: &Value) -> Result<ReadPlan, Report> {
     // the event's own and is kept; an absent one stays absent. A configuration
     // that does not read is refused here, as the importer would refuse it.
     match super::signing_sheet::PlannedSigning::from_export(document) {
-        Ok(signing) => plan.signing = signing,
+        Ok(signing) => {
+            if let Some(problem) = signing.receiver_notice("signing_rules") {
+                report.push(problem);
+            }
+            plan.signing = signing;
+        }
         Err(problem) => report.push(problem),
     }
 

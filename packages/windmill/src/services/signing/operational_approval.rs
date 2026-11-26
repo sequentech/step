@@ -9,7 +9,8 @@
 
 use super::approve::{ApproveInput, SigningServices};
 use super::certificates::{parse_chain, verify_signature, CertificateIdentity};
-use super::operational_quorum::check_operational_approvals;
+use super::operational_device::InstalledDevice;
+use super::operational_quorum::checked_approval_device;
 use super::pdf::{operational_pdf_artifact, S3RevisionStore};
 use super::{SigningCaller, SigningError, SigningResult};
 use crate::postgres::signing::{SigningApprovalRow, SigningRequestRow};
@@ -73,6 +74,7 @@ async fn load(
     caller: &SigningCaller,
     id: Uuid,
     purpose: &str,
+    installed: InstalledDevice,
 ) -> SigningResult<Receipt> {
     let found = tx
         .query_opt(
@@ -125,9 +127,8 @@ async fn load(
         .await
         .context("Cannot check provenance of the applied device receipt")?
         .try_get(0)?;
-    // The normal application cannot accept or count a disposable fixture
-    // signature after database restore or profile reconfiguration.
-    if device_profile.as_deref() != Some("yubihsm") {
+    // The recorded PKCS#11 profile must match this request's installed device.
+    if !installed.admits(device_profile.as_deref()) {
         return Err(refusal());
     }
     Ok(Receipt {
@@ -157,13 +158,25 @@ impl OperationalEvidence {
             DocumentKind::Eml => &["approval-payload", "eml"],
             DocumentKind::Pdf => &["approval-payload", "pdf-cms"],
         };
-        if !check_operational_approvals(tx, row, existing).await? {
-            return Err(SigningError::Conflict(
-                "An earlier approval did not use the required signing device. Start a new request."
-                    .into(),
-            ));
-        }
-        let approval = load(tx, row, caller, requested.approval_challenge, parts[0]).await?;
+        let installed = checked_approval_device(tx, row, existing).await?.ok_or_else(|| {
+            if existing.is_empty() {
+                refusal()
+            } else {
+                SigningError::Conflict(
+                    "An earlier approval did not use the required signing device. Start a new request."
+                        .into(),
+                )
+            }
+        })?;
+        let approval = load(
+            tx,
+            row,
+            caller,
+            requested.approval_challenge,
+            parts[0],
+            installed,
+        )
+        .await?;
         let enrollment = tx
             .query_opt(
                 "SELECT certificate_id, chain_pem, device_profile
@@ -190,7 +203,7 @@ impl OperationalEvidence {
         let profile: &str = enrollment
             .try_get(2)
             .context("Missing enrolled device profile")?;
-        if profile != "yubihsm" {
+        if !installed.admits(Some(profile)) {
             return Err(refusal());
         }
         let chain = parse_chain(&chain_pem)?;
@@ -230,7 +243,7 @@ impl OperationalEvidence {
         };
         let artifact = match (requested.artifact_challenge, parts.get(1)) {
             (None, None) => None,
-            (Some(id), Some(purpose)) => Some(load(tx, row, caller, id, purpose).await?),
+            (Some(id), Some(purpose)) => Some(load(tx, row, caller, id, purpose, installed).await?),
             _ => return Err(refusal()),
         };
         if let Some(receipt) = &artifact {

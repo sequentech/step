@@ -1,0 +1,371 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+import React from "react"
+import type {StoryObj} from "@storybook/react-vite"
+import {expect, userEvent, waitFor, within} from "storybook/test"
+import {GraphQLError} from "graphql"
+import {i18n} from "@sequentech/ui-core"
+import {AdminStoryProvider, EVENT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
+import type {WidgetMeta} from "@/__stories__/widgetStory"
+import {recordDownloads, type RecordedDownload} from "@/__stories__/downloads"
+import type {PublicVerificationReport} from "@/services/BrowserTrustee"
+import type {TallyVerificationBoard} from "@/services/TallyPublicVerification"
+import type {Verifier} from "@/services/VerifierWorker"
+import {TallyPublicVerification} from "./TallyPublicVerification"
+
+const SESSION = "5a4b3c2d-1e0f-4a9b-8c7d-6e5f4a3b2c1d"
+const KEY = "tally.publicVerification"
+
+const named = (name: string) => ({i18n: {en: {name}}})
+
+const board = (
+    batch: number,
+    owner: Pick<
+        TallyVerificationBoard,
+        "election_presentation" | "contest_presentation" | "area_name"
+    >
+): TallyVerificationBoard => ({
+    dkg_board: "dkg_0123456789abcdef0123456789abcdef",
+    tally_board: `tally_fedcba9876543210fedcba9876543210_${batch}`,
+    batch,
+    ...owner,
+    configuration_message: "Y29uZmlndXJhdGlvbg==",
+    ballots_message: btoa(`ballots ${batch}`),
+})
+
+const COUNCIL = {
+    election_presentation: named("Council"),
+    contest_presentation: named("Members"),
+}
+const NORTH = board(0, {...COUNCIL, area_name: "North"})
+const SOUTH = board(32, {...COUNCIL, area_name: "South"})
+// A batch no contest area of the session owns.
+const UNNAMED = board(64, {
+    election_presentation: null,
+    contest_presentation: null,
+    area_name: null,
+})
+
+/**
+ * A board's outcome: its report's status, why its transcript could not be
+ * read, or a transcript that never arrives.
+ */
+type Outcome = {status: PublicVerificationReport["status"]} | {error: string} | {pending: true}
+
+interface Scenario {
+    finished: boolean
+    boards: TallyVerificationBoard[]
+    /** Outcomes by tally board; verified unless given. */
+    outcomes: Record<string, Outcome>
+    /** The boards cannot be read from the platform. */
+    unreadable: boolean
+    /** Why the verifier cannot start in this browser; empty when it can. */
+    unavailable: string
+}
+
+const DETAIL: Record<PublicVerificationReport["status"], string> = {
+    verified:
+        "DKG, ballot proofs, ordered shuffles, endorsements, threshold decryption and plaintexts verified",
+    incomplete: "Tally transcript is incomplete",
+    invalid: "invalid shuffle proof",
+}
+
+const outcomeOf = (outcomes: Record<string, Outcome>, tally: string): Outcome =>
+    outcomes[tally] ?? {status: "verified"}
+
+/**
+ * The platform's answer for one board: its messages, which name the board for
+ * the story verifier, a GraphQL error, or none yet.
+ */
+function transcriptAnswer(outcomes: Record<string, Outcome>, tally: string) {
+    const result = outcomeOf(outcomes, tally)
+    if ("error" in result) return {errors: [new GraphQLError(result.error)]}
+    if ("pending" in result) return new Promise<never>(() => undefined)
+    return {
+        data: {
+            get_tally_public_verification_transcript: {
+                dkg_messages: [btoa("configuration")],
+                tally_messages: [tally],
+            },
+        },
+    }
+}
+
+/**
+ * The worker's contract, answering each board's outcome; `unavailable` is why
+ * it cannot start in this browser.
+ */
+function storyVerifier(outcomes: Record<string, Outcome>, unavailable: string): Verifier {
+    const outcome = (tally: string) => outcomeOf(outcomes, tally)
+    return {
+        ready: async () => {
+            if (unavailable) throw new Error(unavailable)
+        },
+        anchors: async (board) => ({
+            configuration_hash: `configuration(${board.configuration_message})`,
+            tally_id: "42",
+            ballots_hash: `ballots(${board.ballots_message})`,
+            ballot_ciphertexts: [],
+        }),
+        verify: async (transcript, anchors) => {
+            const tally: string = JSON.parse(transcript).tally_messages[0]
+            const {status} = outcome(tally) as {status: PublicVerificationReport["status"]}
+            return {
+                status,
+                detail: DETAIL[status],
+                configuration_hash: anchors.configuration_hash,
+                tally_id: "42",
+                public_key_hash: null,
+                ballot_count: status === "verified" ? 120 : null,
+                plaintexts: [],
+                ballot_inclusions: [],
+            }
+        },
+        close: () => undefined,
+    }
+}
+
+let boundary: ReturnType<typeof graphqlBoundary>
+let downloads: RecordedDownload[]
+
+function Fixture({finished, outcomes, unavailable}: Scenario) {
+    return (
+        <AdminStoryProvider boundary={boundary}>
+            <TallyPublicVerification
+                electionEventId={EVENT_ID}
+                tallySessionId={SESSION}
+                finished={finished}
+                verifier={() => storyVerifier(outcomes, unavailable)}
+            />
+        </AdminStoryProvider>
+    )
+}
+
+const meta = {
+    title: "Admin/Tally/TallyPublicVerification",
+    component: TallyPublicVerification,
+    args: {
+        finished: true,
+        boards: [NORTH, SOUTH],
+        outcomes: {},
+        unreadable: false,
+        unavailable: "",
+    },
+    beforeEach: async ({args}) => {
+        boundary = graphqlBoundary(
+            {
+                GetTallyPublicVerificationBoards: () =>
+                    args.unreadable
+                        ? {
+                              errors: [
+                                  new GraphQLError("the tally session's boards could not be read"),
+                              ],
+                          }
+                        : {
+                              data: {
+                                  get_tally_public_verification_boards: {boards: args.boards},
+                              },
+                          },
+                GetTallyPublicVerificationTranscript: ({variables}) =>
+                    transcriptAnswer(args.outcomes, String(variables.tallyBoard)),
+            },
+            {schema: true}
+        )
+        await boundary.ready
+        const recorder = recordDownloads()
+        downloads = recorder.downloads
+        return recorder.restore
+    },
+    render: (args) => <Fixture {...args} />,
+} satisfies WidgetMeta<Scenario>
+export default meta
+type Story = StoryObj<Scenario>
+
+/** The caption under an owned batch: its number and board. */
+const numbered = (board: TallyVerificationBoard) =>
+    `${i18n.t(`${KEY}.batch`, {batch: board.batch})} · ${board.tally_board}`
+
+const verify = async (canvasElement: HTMLElement) =>
+    userEvent.click(within(canvasElement).getByRole("button", {name: i18n.t(`${KEY}.verify`)}))
+
+const rows = (canvasElement: HTMLElement) =>
+    within(canvasElement)
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) =>
+            within(row)
+                .getAllByRole("cell")
+                .map((cell) => cell.textContent)
+        )
+
+export const AllBatchesVerified: Story = {
+    parameters: {widgets: ["VerificationResults"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await verify(canvasElement)
+        await expect(
+            await canvas.findByText(i18n.t(`${KEY}.summary.verified`, {count: 2, total: 2}))
+        ).toBeVisible()
+        for (const check of ["ballots", "mixing", "decryption"])
+            await expect(canvas.getByText(i18n.t(`${KEY}.checks.${check}`))).toBeVisible()
+        expect(rows(canvasElement)).toEqual([
+            [
+                `Council · Members · North${numbered(NORTH)}`,
+                "120",
+                i18n.t(`${KEY}.status.verified`),
+                i18n.t(`${KEY}.detail.verified`),
+            ],
+            [
+                `Council · Members · South${numbered(SOUTH)}`,
+                "120",
+                i18n.t(`${KEY}.status.verified`),
+                i18n.t(`${KEY}.detail.verified`),
+            ],
+        ])
+        // The anchors' records and each board's messages are read through the
+        // platform with the tally results permission.
+        const role = {"x-hasura-role": "tally-results-read"}
+        expect(boundary.calls).toEqual([
+            {
+                name: "GetTallyPublicVerificationBoards",
+                variables: {electionEventId: EVENT_ID, tallySessionId: SESSION},
+                headers: role,
+            },
+            ...[NORTH, SOUTH].map((board) => ({
+                name: "GetTallyPublicVerificationTranscript",
+                variables: {
+                    electionEventId: EVENT_ID,
+                    tallySessionId: SESSION,
+                    tallyBoard: board.tally_board,
+                },
+                headers: role,
+            })),
+        ])
+        expect(boundary.unexpected).toEqual([])
+    },
+}
+
+export const FailedProofAndUnreadableBatch: Story = {
+    parameters: {widgets: ["VerificationResults"]},
+    args: {
+        boards: [NORTH, SOUTH, UNNAMED],
+        outcomes: {
+            [NORTH.tally_board]: {status: "invalid"},
+            [SOUTH.tally_board]: {error: "The board service did not answer"},
+        },
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await verify(canvasElement)
+        await expect(
+            await canvas.findByText(i18n.t(`${KEY}.summary.invalid`, {count: 1, total: 3}))
+        ).toBeVisible()
+        expect(canvas.queryByText(i18n.t(`${KEY}.checks.title`))).toBeNull()
+        expect(rows(canvasElement)).toEqual([
+            [
+                `Council · Members · North${numbered(NORTH)}`,
+                "",
+                i18n.t(`${KEY}.status.invalid`),
+                DETAIL.invalid,
+            ],
+            [
+                `Council · Members · South${numbered(SOUTH)}`,
+                "",
+                i18n.t(`${KEY}.status.error`),
+                "The board service did not answer",
+            ],
+            [
+                `${i18n.t(`${KEY}.batch`, {batch: 64})}${UNNAMED.tally_board}`,
+                "120",
+                i18n.t(`${KEY}.status.verified`),
+                i18n.t(`${KEY}.detail.verified`),
+            ],
+        ])
+    },
+}
+
+export const IncompleteBatch: Story = {
+    parameters: {widgets: ["VerificationResults"]},
+    args: {outcomes: {[SOUTH.tally_board]: {status: "incomplete"}}},
+    play: async ({canvasElement}) => {
+        await verify(canvasElement)
+        await expect(
+            await within(canvasElement).findByText(
+                i18n.t(`${KEY}.summary.incomplete`, {count: 1, total: 2})
+            )
+        ).toBeVisible()
+    },
+}
+
+export const DownloadEvidence: Story = {
+    parameters: {widgets: ["VerificationResults"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await verify(canvasElement)
+        await userEvent.click(await canvas.findByRole("button", {name: i18n.t(`${KEY}.download`)}))
+        await waitFor(() =>
+            expect(downloads.map(({name}) => name)).toEqual([
+                `tally-${SESSION}-public-verification.json`,
+            ])
+        )
+        await expect(canvas.getByRole("button", {name: i18n.t(`${KEY}.verifyAgain`)})).toBeEnabled()
+    },
+}
+
+export const VerificationInProgress: Story = {
+    args: {outcomes: {[SOUTH.tally_board]: {pending: true}}},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await verify(canvasElement)
+        const progress = i18n.t(`${KEY}.progress`, {current: 2, total: 2})
+        await expect(await canvas.findByRole("progressbar", {name: progress})).toBeVisible()
+        await expect(canvas.getByText(progress)).toBeVisible()
+        await expect(canvas.getByRole("button", {name: i18n.t(`${KEY}.verify`)})).toBeDisabled()
+    },
+}
+
+export const TallyWithoutBoards: Story = {
+    args: {boards: []},
+    play: async ({canvasElement}) => {
+        await verify(canvasElement)
+        await expect(await within(canvasElement).findByText(i18n.t(`${KEY}.empty`))).toBeVisible()
+    },
+}
+
+export const BoardsCannotBeRead: Story = {
+    args: {unreadable: true},
+    play: async ({canvasElement}) => {
+        await verify(canvasElement)
+        await expect(
+            await within(canvasElement).findByText(
+                i18n.t(`${KEY}.failed`, {
+                    message: "the tally session's boards could not be read",
+                })
+            )
+        ).toBeVisible()
+    },
+}
+
+export const VerifierUnavailable: Story = {
+    args: {unavailable: "SharedArrayBuffer is not defined"},
+    play: async ({canvasElement}) => {
+        await verify(canvasElement)
+        await expect(
+            await within(canvasElement).findByText(
+                i18n.t(`${KEY}.verifierUnavailable`, {
+                    message: "SharedArrayBuffer is not defined",
+                })
+            )
+        ).toBeVisible()
+    },
+}
+
+export const TallyNotFinished: Story = {
+    args: {finished: false},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(canvas.getByRole("button", {name: i18n.t(`${KEY}.verify`)})).toBeDisabled()
+        await expect(canvas.getByText(i18n.t(`${KEY}.unavailable`))).toBeVisible()
+    },
+}

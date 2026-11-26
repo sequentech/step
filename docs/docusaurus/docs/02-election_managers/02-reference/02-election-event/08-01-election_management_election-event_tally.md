@@ -116,3 +116,26 @@ For each Contest, display:
 - **Ranking / Position**: Placement among candidates by vote count.
 
 > Note: According to the Election Event Weighted Voting Policy, if the policy is set to ‘Weighted Voting for Areas’, the tally will be calculated using the weights assigned to each area during the last publication prior to the tally.
+
+### Cryptographic verification
+Once an electoral results tally has finished, users with the `tally-results-read`
+permission can open **Cryptographic verification** and click **Verify bulletin
+board**. The browser verifies every batch of the tally's bulletin board:
+
+- **Ballot proofs**: the zero-knowledge proof of every encrypted ballot.
+- **Mixing**: the shuffle proof of every mix, in order, endorsed by the other
+  trustees, so that no ballot can be linked to its voter.
+- **Decryption**: every trustee's decryption proof. The browser recomputes the
+  results and compares them with the published ones.
+
+Each batch is listed by election, contest and area with its number of ballots
+and one of these results: **Verified**, **Incomplete** (required publications
+are missing), **Invalid** (a proof or signature failed) or **Not verified** (the
+board could not be read). **Download evidence** saves one JSON file with each
+batch's transcript, anchors and report.
+
+The checks are anchored to the platform's own records of the boards. For an
+independent audit, verify the downloaded transcripts with `trustee verify` and
+anchors taken from the signed configuration package, as
+[Public ceremony and tally verification](../../../07-developers/09-wbraid/public-verification.md)
+describes.

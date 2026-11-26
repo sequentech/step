@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {describe, expect, it, vi} from "vitest"
 import {
+    CameraChoice,
     CameraFacing,
     cameraCount,
     canChooseCamera,
     chooseCamera,
+    frameDevices,
+    mostCameras,
     otherFacing,
     startingFacing,
     storeFacing,
@@ -93,6 +96,24 @@ describe("the remembered choice", () => {
         expect(storedFacing(storage, CameraFacing.Rear)).toBe(CameraFacing.Front)
     })
 
+    it("keeps the holding photo's camera apart from the document scan's", () => {
+        const storage = memory()
+        // A selfie: the front camera until one is chosen on the device.
+        expect(storedFacing(storage, CameraFacing.Front, CameraChoice.Holding)).toBe(
+            CameraFacing.Front
+        )
+        storeFacing(storage, CameraFacing.Rear, CameraChoice.Holding)
+        expect(storedFacing(storage, CameraFacing.Front, CameraChoice.Holding)).toBe(
+            CameraFacing.Rear
+        )
+        // The document scan's choice is its own.
+        expect(storedFacing(storage, CameraFacing.Front)).toBe(CameraFacing.Front)
+        storeFacing(storage, CameraFacing.Front)
+        expect(storedFacing(storage, CameraFacing.Front, CameraChoice.Holding)).toBe(
+            CameraFacing.Rear
+        )
+    })
+
     it("is kept on the device", () => {
         const storage = memory()
         storeFacing(storage, CameraFacing.Front)
@@ -158,6 +179,43 @@ describe("cameraCount", () => {
                 },
             })
         ).toBe(0)
+    })
+})
+
+describe("mostCameras", () => {
+    const lists = (cameras: number) => ({
+        enumerateDevices: async () =>
+            Array.from({length: cameras}, () => ({kind: "videoinput"}) as MediaDeviceInfo),
+    })
+
+    it("is what the window that was allowed the camera is shown", async () => {
+        // Safari lists every camera only to the frame that was allowed one:
+        // this page is shown a single camera while Scanovate's page has two.
+        expect(await mostCameras([lists(1), lists(2)])).toBe(2)
+        expect(await mostCameras([lists(2), undefined])).toBe(2)
+    })
+
+    it("is none with nowhere to look", async () => {
+        expect(await mostCameras([])).toBe(0)
+        expect(await mostCameras([undefined])).toBe(0)
+    })
+})
+
+describe("frameDevices", () => {
+    it("is the camera access of the page the frame shows", () => {
+        const {target, mediaDevices} = frameWindow()
+        expect(frameDevices({contentWindow: target})).toBe(mediaDevices)
+    })
+
+    it("is nothing for no frame, or one out of reach", () => {
+        expect(frameDevices(null)).toBeUndefined()
+        expect(frameDevices({contentWindow: null})).toBeUndefined()
+        const closed = {
+            get navigator(): Navigator {
+                throw new DOMException("cross-origin", "SecurityError")
+            },
+        } as unknown as Window
+        expect(frameDevices({contentWindow: closed})).toBeUndefined()
     })
 })
 
