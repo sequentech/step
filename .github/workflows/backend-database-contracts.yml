@@ -51,6 +51,10 @@ jobs:
         run: >-
           docker run --rm --user postgres --volume "$PWD:/step:ro" --workdir /step
           postgres:18-bookworm scripts/postgres/check_migrations.sh
+      - name: Reconcile both historical meanings of migration 1600 without losing state
+        run: >-
+          docker run --rm --network none --user postgres --volume "$PWD:/step:ro" --workdir /step
+          postgres:18-bookworm scripts/postgres/demo_signing_installation/test-migration-reconciliation.sh
       - name: Operational signing ledger contract, role by role
         run: scripts/postgres/operational_signing_contract/run.sh
         env:
