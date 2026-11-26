@@ -89,7 +89,6 @@ class PullRequestBaseTests(unittest.TestCase):
             "GITHUB_SHA": self.merge,
             "PR_NUMBER": "4361",
             "PR_HEAD_SHA": self.topic,
-            "PR_MERGE_SHA": self.merge,
         }
 
     def select(self, **event):
@@ -106,7 +105,7 @@ class PullRequestBaseTests(unittest.TestCase):
         self.assertFalse(self.base.exists())
 
     def test_pair_keeps_changed_code_and_its_decrease(self):
-        result = self.select(PR_MERGE_SHA="")
+        result = self.select()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(git(self.base, "rev-parse", "HEAD"), self.first)
         self.assertEqual(git(self.head, "rev-parse", "HEAD"), self.merge)
@@ -126,6 +125,12 @@ class PullRequestBaseTests(unittest.TestCase):
         self.assertEqual(new["lines"], {"covered": 4, "count": 5})
         self.assertFalse(compare(old, new)["passes"])
 
+    def test_stale_payload_merge_sha_uses_run_first_parent(self):
+        result = self.select(PR_MERGE_SHA=self.stale)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(git(self.base, "rev-parse", "HEAD"), self.first)
+        self.assertEqual(git(self.head, "rev-parse", "HEAD"), self.merge)
+
     def test_rejects_wrong_event_ref_or_commit(self):
         for key, value in (
             ("GITHUB_EVENT_NAME", "pull_request_target"),
@@ -133,7 +138,6 @@ class PullRequestBaseTests(unittest.TestCase):
             ("GITHUB_REF", "refs/heads/target"),
             ("PR_NUMBER", "4362"),
             ("GITHUB_SHA", self.topic),
-            ("PR_MERGE_SHA", self.stale),
             ("PR_HEAD_SHA", self.first),
             ("PR_HEAD_SHA", self.merge),
             ("PR_HEAD_SHA", self.topic[:7]),
@@ -142,7 +146,6 @@ class PullRequestBaseTests(unittest.TestCase):
         ):
             with self.subTest(key=key, value=value):
                 self.reject(**{key: value})
-        self.reject(GITHUB_SHA=self.topic, PR_MERGE_SHA=self.topic)
 
     def test_rejects_single_reversed_and_extra_parents(self):
         for parents in (
@@ -155,7 +158,7 @@ class PullRequestBaseTests(unittest.TestCase):
                 tree = f"{self.merge}^{{tree}}"
                 other = git(self.head, "commit-tree", tree, *args, "-m", "other")
                 git(self.head, "checkout", "-q", "--detach", other)
-                self.reject(GITHUB_SHA=other, PR_MERGE_SHA=other)
+                self.reject(GITHUB_SHA=other)
 
     def test_shallow_boundary_cannot_supply_a_base(self):
         git(self.head, "fetch", "-q", "--depth=1", "origin", self.merge)

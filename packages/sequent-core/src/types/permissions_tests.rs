@@ -115,7 +115,7 @@ fn every_realm_grants_the_approval_matrix_to_its_administrators_only() {
 
 /// The permissions of Election Event > Signatures and of signing each
 /// protected action, with their realm role names.
-const SIGNING_PERMISSIONS: [(&str, Permissions); 21] = [
+const SIGNING_PERMISSIONS: [(&str, Permissions); 22] = [
     (
         "election-event-signatures-tab",
         Permissions::ELECTION_EVENT_SIGNATURES_TAB,
@@ -158,6 +158,10 @@ const SIGNING_PERMISSIONS: [(&str, Permissions); 21] = [
     ("sign-generate-reports", Permissions::SIGN_GENERATE_REPORTS),
     ("sign-transmit-results", Permissions::SIGN_TRANSMIT_RESULTS),
     ("sign-approve-voter", Permissions::SIGN_APPROVE_VOTER),
+    (
+        "sign-authorize-manual-verification",
+        Permissions::SIGN_AUTHORIZE_MANUAL_VERIFICATION,
+    ),
     (
         "sign-approve-configuration",
         Permissions::SIGN_APPROVE_CONFIGURATION,

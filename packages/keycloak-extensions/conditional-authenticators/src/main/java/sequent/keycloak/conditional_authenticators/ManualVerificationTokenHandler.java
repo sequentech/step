@@ -7,6 +7,7 @@ package sequent.keycloak.conditional_authenticators;
 import static sequent.keycloak.authenticator.Utils.sendConfirmation;
 
 import com.google.auto.service.AutoService;
+import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.core.Response;
 import java.util.List;
 import java.util.Optional;
@@ -76,7 +77,11 @@ public class ManualVerificationTokenHandler
     log.info("handleToken(): start");
     AuthenticationSessionModel authSession = tokenContext.getAuthenticationSession();
     UserModel user = authSession.getAuthenticatedUser();
-    log.info("handleToken(): user = " + user.getUsername());
+    if (user == null || !user.getId().equals(token.getUserId())) {
+      throw new ForbiddenException("Manual verification is not authorized");
+    }
+    // Refuse before any auth-session, user, credential or messaging side effect.
+    token.authorizeRedemption(tokenContext.getRealm().getName(), user.getId());
 
     KeycloakSession session = tokenContext.getSession();
 
@@ -84,7 +89,6 @@ public class ManualVerificationTokenHandler
         RedirectUtils.verifyRedirectUri(session, token.getRedirectUri(), authSession.getClient());
 
     if (redirectUri != null) {
-      log.infov("handleToken(): setting redirectUri={0}", redirectUri);
       authSession.setAuthNote(
           AuthenticationManager.SET_REDIRECT_URI_AFTER_REQUIRED_ACTIONS, "true");
 
@@ -112,7 +116,6 @@ public class ManualVerificationTokenHandler
 
     log.infov("handleToken(): telUserAttribute configuration {0}", telUserAttribute);
     String mobile = user.getFirstAttribute(telUserAttribute);
-    log.infov("handleToken(): user mobile {0}", mobile);
 
     var messageCourier =
         config
@@ -133,7 +136,7 @@ public class ManualVerificationTokenHandler
           mobile,
           tokenContext);
     } catch (Exception error) {
-      error.printStackTrace();
+      log.warn("Manual verification confirmation could not be delivered");
     }
 
     boolean auto2FA =

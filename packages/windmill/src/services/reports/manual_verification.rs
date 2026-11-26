@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::template_renderer::*;
 use crate::postgres::reports::{Report, ReportType};
+use crate::services::signing::actions::manual_verification::RenderPermit;
 use crate::services::temp_path::*;
 use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
@@ -14,39 +15,64 @@ use sequent_core::services::s3::get_minio_url;
 use sequent_core::util::temp_path::*;
 use serde::{Deserialize, Serialize};
 use std::env;
-use tracing::{info, instrument};
+use tracing::instrument;
 
 /// Struct returned by the API call for manual verification URL
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize)]
 pub struct ManualVerificationOutput {
     pub link: String,
 }
 
 /// Struct for User Data
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct UserData {
     pub manual_verification_url: String,
     pub qrcode: String,
     pub logo: String,
 }
 
+impl std::fmt::Debug for UserData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ManualVerificationUserData([redacted])")
+    }
+}
+
 /// Struct for System Data
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct SystemData {
     pub rendered_user_template: String,
     pub file_logo: String,
     pub file_qrcode_lib: String,
 }
 
+impl std::fmt::Debug for SystemData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ManualVerificationSystemData([redacted])")
+    }
+}
+
 /// Implementation of TemplateRenderer for Manual Verification
-#[derive(Debug)]
 pub struct ManualVerificationTemplate {
     ids: ReportOrigins,
+    permit: Option<RenderPermit>,
+}
+
+impl std::fmt::Debug for ManualVerificationTemplate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ManualVerificationTemplate")
+    }
 }
 
 impl ManualVerificationTemplate {
     pub fn new(ids: ReportOrigins) -> Self {
-        ManualVerificationTemplate { ids }
+        ManualVerificationTemplate { ids, permit: None }
+    }
+
+    pub fn for_issuance(ids: ReportOrigins, permit: RenderPermit) -> Self {
+        Self {
+            ids,
+            permit: Some(permit),
+        }
     }
 }
 
@@ -54,6 +80,10 @@ impl ManualVerificationTemplate {
 impl TemplateRenderer for ManualVerificationTemplate {
     type UserData = UserData;
     type SystemData = SystemData;
+
+    fn is_signed_manual_verification(&self) -> bool {
+        self.permit.as_ref().is_some_and(|p| p.signed)
+    }
 
     fn get_report_type(&self) -> ReportType {
         ReportType::MANUAL_VERIFICATION
@@ -78,6 +108,13 @@ impl TemplateRenderer for ManualVerificationTemplate {
         self.ids.voter_id.clone()
     }
 
+    fn should_send_email(&self, is_scheduled_task: bool) -> bool {
+        // An issuance produces a private, one-use document for its
+        // initiator to download. Its voter ID selects the rendering target,
+        // not an email recipient.
+        self.permit.is_none() && (is_scheduled_task || self.get_voter_id().is_some())
+    }
+
     fn base_name(&self) -> String {
         "manual_verification".to_string()
     }
@@ -98,7 +135,13 @@ impl TemplateRenderer for ManualVerificationTemplate {
         let manual_verification_url = get_manual_verification_url(
             &self.ids.tenant_id,
             &self.ids.election_event_id,
-            &self.ids.voter_id.clone().unwrap_or_default(),
+            self.ids
+                .voter_id
+                .as_deref()
+                .context("Missing verification target")?,
+            self.permit
+                .as_ref()
+                .context("Missing manual verification authorization")?,
         )
         .await
         .with_context(|| "Error getting manual verification URL")?;
@@ -146,11 +189,12 @@ impl TemplateRenderer for ManualVerificationTemplate {
 }
 
 /// Function to get the manual verification URL
-#[instrument(err)]
+#[instrument(skip_all, err)]
 async fn get_manual_verification_url(
     tenant_id: &str,
     election_event_id: &str,
     voter_id: &str,
+    permit: &RenderPermit,
 ) -> Result<String> {
     let keycloak_url =
         env::var("KEYCLOAK_URL").map_err(|_| anyhow!("KEYCLOAK_URL env var missing"))?;
@@ -166,15 +210,26 @@ async fn get_manual_verification_url(
 
     let keycloak = KeycloakAdminClient::pub_new().await?;
     let service_token = keycloak.token_supplier.get(&keycloak_url).await?;
-    let client = reqwest::Client::new();
+    // The issuer receives a one-time proof in a custom header. Never
+    // forward it to a redirect destination (including another origin).
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .connect_timeout(std::time::Duration::from_secs(5))
+        .timeout(std::time::Duration::from_secs(30))
+        .build()?;
 
-    info!("Requesting HTTP GET {:?}", generate_token_url);
     let response = client
         .get(generate_token_url)
         .query(&[("userId", voter_id), ("redirectUri", login_url.as_str())])
+        .header(
+            "X-Sequent-Verification-Initiation",
+            permit.initiation.to_string(),
+        )
+        .header("X-Sequent-Verification-Proof", permit.proof.to_string())
         .bearer_auth(service_token)
         .send()
-        .await?;
+        .await
+        .map_err(|_| anyhow!("Manual verification issuer unavailable"))?;
 
     if response.status() != reqwest::StatusCode::OK {
         return Err(anyhow!(
@@ -182,7 +237,56 @@ async fn get_manual_verification_url(
             response.status()
         ));
     }
-    let response_body: ManualVerificationOutput = response.json().await?;
+    let response_body: ManualVerificationOutput = response
+        .json()
+        .await
+        .map_err(|_| anyhow!("Invalid manual verification issuer response"))?;
 
     Ok(response_body.link)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use uuid::Uuid;
+
+    fn origins(voter_id: Option<&str>) -> ReportOrigins {
+        ReportOrigins {
+            tenant_id: "tenant".to_owned(),
+            election_event_id: "event".to_owned(),
+            election_id: None,
+            template_alias: None,
+            voter_id: voter_id.map(str::to_owned),
+            report_origin: ReportOriginatedFrom::ExportFunction,
+            executer_username: None,
+            tally_session_id: None,
+        }
+    }
+
+    #[test]
+    fn a_private_issuance_uses_the_voter_for_rendering_but_never_for_email() {
+        for signed in [true, false] {
+            let report = ManualVerificationTemplate::for_issuance(
+                origins(Some("voter")),
+                RenderPermit {
+                    initiation: Uuid::nil(),
+                    proof: Uuid::nil(),
+                    signed,
+                },
+            );
+            assert_eq!(report.get_voter_id().as_deref(), Some("voter"));
+            assert_eq!(report.is_signed_manual_verification(), signed);
+            assert!(!report.should_send_email(false));
+            assert!(!report.should_send_email(true));
+        }
+    }
+
+    #[test]
+    fn non_issuance_and_scheduled_report_delivery_policy_is_unchanged() {
+        let voter_report = ManualVerificationTemplate::new(origins(Some("voter")));
+        assert!(voter_report.should_send_email(false));
+        let event_report = ManualVerificationTemplate::new(origins(None));
+        assert!(!event_report.should_send_email(false));
+        assert!(event_report.should_send_email(true));
+    }
 }

@@ -29,7 +29,7 @@ keeps each route's behaviour unchanged.
   actions.
 - **The Admin Portal** signs in the browser: it opens the `.p12`, keeps the key
   non-extractable in WebCrypto and sends only signatures and the certificate chain.
-- **Keycloak** holds the 21 permissions as realm roles; who can sign is a `sign-<action>`
+- **Keycloak** holds the signing permissions as realm roles; who can sign is a `sign-<action>`
   role on groups.
 - **The electoral log** receives a USER and a SYSTEM entry for every step.
 

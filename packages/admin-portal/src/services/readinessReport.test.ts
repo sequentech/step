@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
-import {readinessReport} from "./readinessReport"
+import {liveReadinessChecks, readinessReport} from "./readinessReport"
 
 const valid = {
     passed: true,
@@ -11,7 +11,6 @@ const valid = {
         {kind: "configuration", passed: true, message: "Approved content matches"},
         {kind: "certified_voters", passed: true, message: "Certified file matches"},
         {kind: "official_zero", passed: true, message: "Official event is at zero"},
-        {kind: "publication", passed: true, message: "Publication matches"},
         {kind: "tested_finished", passed: true, message: "Tested event is closed and sealed"},
     ],
     evidence: {official: {event_id: "official", ballot_count: 0}, tested: {event_id: "tested"}},
@@ -19,6 +18,21 @@ const valid = {
 const read = (value: unknown) => readinessReport(value, "official", "tested")
 it("retains the full server evidence of a signed pass", () => {
     expect(read(valid)).toBe(valid)
+})
+it("hides only a valid retired passing check from the live checklist", () => {
+    const retired = {kind: "publication", passed: true, message: "Legacy official publication"}
+    const compatibility = {...valid, checks: [...valid.checks, retired]}
+    expect(read(compatibility)).toBe(compatibility)
+    expect(liveReadinessChecks(compatibility)).toEqual(valid.checks)
+    expect(read({...compatibility, checks: [...compatibility.checks, retired]})).toBeNull()
+    expect(
+        read({
+            ...compatibility,
+            passed: false,
+            log_entry_id: null,
+            checks: [...valid.checks, {...retired, passed: false}],
+        })
+    ).toBeNull()
 })
 it("accepts an unsigned failed comparison with every check's outcome", () => {
     const failed = {

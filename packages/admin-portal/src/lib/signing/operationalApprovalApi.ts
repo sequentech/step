@@ -5,6 +5,7 @@
 import {gql, type ApolloClient} from "@apollo/client"
 import {parseActionResponseBody} from "@/services/graphqlActionError"
 import {type IReturnPage, isId} from "./operationalGoldReturn"
+import {localInitializeRegistration} from "./localInitializeAuthority"
 
 export interface IApprovalScope {
     tenant: string
@@ -81,7 +82,6 @@ const RECONCILE = gql`
     }
 `
 
-const context = {headers: {"x-hasura-role": "sign-initialize-voting"}}
 const record = (value: unknown): Record<string, unknown> =>
     value && typeof value === "object" && !Array.isArray(value)
         ? (value as Record<string, unknown>)
@@ -161,7 +161,14 @@ export const parseSetupStatus = (raw: unknown, expected: IApprovalScope): SetupP
     return phase
 }
 
-export function trustedSigningRedirect(value: string, keycloakBase: string, tenant: string) {
+export function trustedSigningRedirect(
+    value: string,
+    keycloakBase: string,
+    tenant: string,
+    portalOrigin?: string,
+    registration?: unknown,
+    purpose: "approval" | "initialize-setup" = "approval"
+) {
     if (!isId(tenant) || value.length > 2048) throw new Error("Invalid verification redirect")
     const base = new URL(keycloakBase)
     const target = new URL(value)
@@ -169,8 +176,25 @@ export function trustedSigningRedirect(value: string, keycloakBase: string, tena
         base.pathname.replace(/\/$/, "") + `/realms/tenant-${tenant}/protocol/openid-connect/auth`
     const client = target.searchParams.get("client_id")
     const request = target.searchParams.get("request_uri")
+    const local = localInitializeRegistration(portalOrigin, registration)
+    if (purpose === "initialize-setup" && !local?.setupClient)
+        throw new Error("Setup verification unavailable")
+    if (local) {
+        // Beyond emits this two-field form. Compare its raw spelling so URL
+        // normalization cannot turn a different destination into the pin.
+        const expected = purpose === "initialize-setup" ? local.setupClient : local.approvalClient
+        if (!expected) throw new Error("Invalid verification client")
+        const query = new URLSearchParams({client_id: expected, request_uri: request ?? ""})
+        if (
+            tenant !== local.tenant ||
+            request !== request?.trim() ||
+            keycloakBase + "realms/tenant-" + tenant !== local.issuer ||
+            value !== local.issuer + "/protocol/openid-connect/auth?" + query.toString()
+        )
+            throw new Error("Invalid verification redirect")
+    }
     if (
-        base.protocol !== "https:" ||
+        (!local && (base.protocol !== "https:" || portalOrigin?.startsWith("http:"))) ||
         base.username ||
         base.password ||
         base.search ||
@@ -199,8 +223,20 @@ export class SetupGoldRequired extends Error {
 }
 
 export function createOperationalApprovalApi(
-    client: Pick<ApolloClient<unknown>, "query" | "mutate">
+    client: Pick<ApolloClient<unknown>, "query" | "mutate">,
+    localPortalOrigin?: string,
+    registration?: unknown
 ) {
+    const local = localInitializeRegistration(localPortalOrigin, registration)
+    if (localPortalOrigin !== undefined && !local) throw new Error("Invalid local approval profile")
+    const context = {
+        headers: {"x-hasura-role": "sign-initialize-voting"},
+        ...(local && {
+            uri: local.graphql,
+            credentials: "omit",
+            fetchOptions: {credentials: "omit", redirect: "error", referrerPolicy: "no-referrer"},
+        }),
+    }
     return {
         status: async (scope: IApprovalScope) => {
             const {data, errors} = await client.query({
@@ -210,9 +246,13 @@ export function createOperationalApprovalApi(
                 fetchPolicy: "no-cache",
             })
             if (errors?.length) throw new Error("Signing status unavailable")
-            return parseApprovalStatus(data?.operationalInitializeStatus, scope)
+            const status = parseApprovalStatus(data?.operationalInitializeStatus, scope)
+            if (local && status.softwareDemo !== (local.deviceProfile === "softhsm-test"))
+                throw new Error("Signing device unavailable")
+            return status
         },
         setupStatus: async (scope: IApprovalScope) => {
+            if (local) throw new Error("Setup unavailable")
             const {data, errors} = await client.query({
                 query: SETUP_STATUS,
                 variables: {request: scope.request},
@@ -223,6 +263,7 @@ export function createOperationalApprovalApi(
             return parseSetupStatus(data?.operationalInitializeSetupStatus, scope)
         },
         setup: async (scope: IApprovalScope) => {
+            if (local) throw new Error("Setup unavailable")
             const {data, errors} = await client.mutate({
                 mutation: SETUP,
                 variables: {request: scope.request},

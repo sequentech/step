@@ -7,7 +7,6 @@ export const READINESS_CHECK_KINDS = [
     "configuration",
     "certified_voters",
     "official_zero",
-    "publication",
     "tested_finished",
 ] as const
 
@@ -25,6 +24,12 @@ export interface IReadinessReport extends Record<string, unknown> {
         tested: Record<string, unknown> & {event_id: string}
     }
     log_entry_id: string | null
+}
+
+const RETIRED_OFFICIAL_PUBLICATION = "publication"
+
+export function liveReadinessChecks(report: IReadinessReport): IReadinessReport["checks"] {
+    return report.checks.filter((check) => check.kind !== RETIRED_OFFICIAL_PUBLICATION)
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -59,6 +64,11 @@ export function readinessReport(
         )
     )
         return null
+    // During a rolling update a previous service may still return this
+    // retired check. A passing row can be hidden in the live UI; a failure
+    // (or duplicate row) cannot be silently discarded.
+    const retired = checks.filter((check) => check.kind === RETIRED_OFFICIAL_PUBLICATION)
+    if (retired.length > 1 || retired.some((check) => !check.passed)) return null
     if (
         !READINESS_CHECK_KINDS.every(
             (kind) => checks.filter((check) => check.kind === kind).length === 1

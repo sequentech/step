@@ -27,6 +27,8 @@ import org.keycloak.services.resources.admin.fgap.AdminPermissionEvaluator;
 import org.keycloak.services.resources.admin.fgap.UserPermissionEvaluator;
 
 class ManualVerificationProviderTest {
+  private static final String EVENT_REALM =
+      "tenant-00000000-0000-4000-8000-000000000001-event-00000000-0000-4000-8000-000000000002";
   private KeycloakSession session;
   private KeycloakContext context;
   private RealmModel realm;
@@ -45,7 +47,7 @@ class ManualVerificationProviderTest {
     KeycloakUriInfo uri = mock(KeycloakUriInfo.class);
     when(session.getContext()).thenReturn(context);
     when(context.getRealm()).thenReturn(realm);
-    when(realm.getName()).thenReturn("target-event");
+    when(realm.getName()).thenReturn(EVENT_REALM);
     when(context.getRequestHeaders()).thenReturn(headers);
     when(headers.getRequestHeaders()).thenReturn(new MultivaluedHashMap<>());
     when(session.users()).thenReturn(users);
@@ -65,7 +67,7 @@ class ManualVerificationProviderTest {
         NotAuthorizedException.class,
         () ->
             new ManualVerificationProvider(session)
-                .generateLink("voter", "https://vote.example/login"));
+                .generateLink("voter", "https://vote.example/login", null, null));
     verifyNoInteractions(users);
     verify(context).setRealm(realm);
   }
@@ -74,7 +76,7 @@ class ManualVerificationProviderTest {
   void voterWithoutManageUsersCannotLookUpVoters() {
     assertThrows(
         ForbiddenException.class,
-        () -> authorized(false).generateLink("voter", "https://vote.example/login"));
+        () -> authorized(false).generateLink("voter", "https://vote.example/login", null, null));
     verifyNoInteractions(users);
   }
 
@@ -82,7 +84,8 @@ class ManualVerificationProviderTest {
   void authorizedAdminRejectsExternalRedirectBeforeLookingUpVoter() {
     assertThrows(
         BadRequestException.class,
-        () -> authorized(true).generateLink("voter", "https://untrusted.example/login"));
+        () ->
+            authorized(true).generateLink("voter", "https://untrusted.example/login", null, null));
     verifyNoInteractions(users);
   }
 
@@ -90,7 +93,7 @@ class ManualVerificationProviderTest {
   void authorizedAdminRejectsJavascriptRedirectBeforeLookingUpVoter() {
     assertThrows(
         BadRequestException.class,
-        () -> authorized(true).generateLink("voter", "javascript:alert(1)"));
+        () -> authorized(true).generateLink("voter", "javascript:alert(1)", null, null));
     verifyNoInteractions(users);
   }
 
@@ -99,7 +102,7 @@ class ManualVerificationProviderTest {
     when(session.clients().getClientByClientId(realm, "voting-portal")).thenReturn(null);
     assertThrows(
         InternalServerErrorException.class,
-        () -> authorized(true).generateLink("voter", "https://vote.example/login"));
+        () -> authorized(true).generateLink("voter", "https://vote.example/login", null, null));
     verifyNoInteractions(users);
   }
 
@@ -108,7 +111,7 @@ class ManualVerificationProviderTest {
     when(client.isEnabled()).thenReturn(false);
     assertThrows(
         InternalServerErrorException.class,
-        () -> authorized(true).generateLink("voter", "https://vote.example/login"));
+        () -> authorized(true).generateLink("voter", "https://vote.example/login", null, null));
     verifyNoInteractions(users);
   }
 
@@ -117,7 +120,7 @@ class ManualVerificationProviderTest {
     assertEquals(
         404,
         authorized(true)
-            .generateLink("missing", "https://vote.example/tenant/t/event/e/login")
+            .generateLink("missing", "https://vote.example/tenant/t/event/e/login", null, null)
             .getStatus());
     verify(users).getUserById(realm, "missing");
     verify(context).setRealm(realm);
@@ -125,7 +128,7 @@ class ManualVerificationProviderTest {
 
   @Test
   void authorizedAdminPreservesOptionalRedirect() {
-    assertEquals(404, authorized(true).generateLink("missing", null).getStatus());
+    assertEquals(404, authorized(true).generateLink("missing", null, null, null).getStatus());
     verify(users).getUserById(realm, "missing");
   }
 
@@ -135,22 +138,38 @@ class ManualVerificationProviderTest {
     org.keycloak.models.TokenManager tokens = mock(org.keycloak.models.TokenManager.class);
     when(users.getUserById(realm, "voter")).thenReturn(voter);
     when(voter.getId()).thenReturn("voter");
-    when(realm.getName()).thenReturn("target-event");
+    when(realm.getName()).thenReturn(EVENT_REALM);
     when(client.getClientId()).thenReturn("voting-portal");
     when(session.tokens()).thenReturn(tokens);
     when(tokens.encode(any())).thenReturn("signed-action-token");
-    var response = authorized(true).generateLink("voter", "https://vote.example/login");
+    var response = authorized(true).generateLink("voter", "https://vote.example/login", null, null);
     assertEquals(200, response.getStatus());
     var captured = org.mockito.ArgumentCaptor.forClass(ManualVerificationToken.class);
     verify(tokens).encode(captured.capture());
     assertEquals("voting-portal", captured.getValue().getIssuedFor());
     assertEquals("https://vote.example/login", captured.getValue().getRedirectUri());
-    assertEquals("https://id.example/realms/target-event", captured.getValue().getIssuer());
-    assertTrue(response.getEntity().toString().contains("/realms/target-event/"));
+    assertEquals("https://id.example/realms/" + EVENT_REALM, captured.getValue().getIssuer());
+    assertTrue(response.getEntity().toString().contains("/realms/" + EVENT_REALM + "/"));
+  }
+
+  @Test
+  void manageUsersAloneCannotMintWhenAuthorityRequiresSignatures() {
+    org.keycloak.models.UserModel voter = mock(org.keycloak.models.UserModel.class);
+    when(users.getUserById(realm, "voter")).thenReturn(voter);
+    when(voter.getId()).thenReturn("voter");
+    assertThrows(
+        ForbiddenException.class,
+        () -> authorized(true, (t, b) -> false).generateLink("voter", null, null, null));
+    verify(session, never()).tokens();
   }
 
   private ManualVerificationProvider authorized(boolean canManage) {
-    return new ManualVerificationProvider(session) {
+    return authorized(canManage, (tenant, body) -> true);
+  }
+
+  private ManualVerificationProvider authorized(
+      boolean canManage, ManualVerificationAuthority.Check authority) {
+    return new ManualVerificationProvider(session, authority) {
       @Override
       public void setup() {
         permissions = mock(AdminPermissionEvaluator.class);

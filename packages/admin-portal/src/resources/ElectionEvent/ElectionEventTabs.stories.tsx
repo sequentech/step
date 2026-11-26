@@ -301,7 +301,6 @@ const meta = {
                                           "configuration",
                                           "certified_voters",
                                           "official_zero",
-                                          "publication",
                                           "tested_finished",
                                       ].map((kind) => ({
                                           kind,
@@ -965,11 +964,11 @@ const runLockedDownReadiness =
             "configuration",
             "certified_voters",
             "official_zero",
-            "publication",
             "tested_finished",
         ]) {
             expect(dialog.getByText(i18n.t(`logsScreen.readiness.checks.${kind}`))).toBeVisible()
         }
+        expect(dialog.queryByText(i18n.t("logsScreen.readiness.checks.publication"))).toBeNull()
         expect(graphql.calls.filter(({name}) => name === "ReadinessCheck")).toEqual([
             {
                 name: "ReadinessCheck",

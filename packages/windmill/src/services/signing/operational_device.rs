@@ -1,20 +1,33 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Receipt admission, distinct from PKCS#11 device attestation. A normal
-//! binary has no software-device variant. A dedicated demo binary needs an
-//! independently installed read-only manifest and an exact database marker;
-//! neither a request field nor a stored receipt can select the provider.
+//! Receipt admission uses the installed PKCS#11 profile. Both opt-in software
+//! installations require an operator descriptor and independent database approval.
 
+use crate::postgres::signing::SigningRequestRow;
 use anyhow::Result;
 use deadpool_postgres::Transaction;
 use sequent_core::signing::SigningAction;
 use uuid::Uuid;
 
+#[cfg(all(
+    feature = "felix3-local-initialize",
+    feature = "operational-signing-demo-fixture"
+))]
+compile_error!(
+    "felix3-local-initialize and operational-signing-demo-fixture are mutually exclusive"
+);
+
+#[cfg(feature = "felix3-local-initialize")]
+pub(super) mod local_initialize;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum InstalledDevice {
     YubiHsm,
-    #[cfg(feature = "operational-signing-demo-fixture")]
+    #[cfg(any(
+        feature = "operational-signing-demo-fixture",
+        feature = "felix3-local-initialize"
+    ))]
     DisposableSoftHsm,
 }
 
@@ -22,7 +35,10 @@ impl InstalledDevice {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::YubiHsm => "yubihsm",
-            #[cfg(feature = "operational-signing-demo-fixture")]
+            #[cfg(any(
+                feature = "operational-signing-demo-fixture",
+                feature = "felix3-local-initialize"
+            ))]
             Self::DisposableSoftHsm => "softhsm-test",
         }
     }
@@ -35,7 +51,7 @@ impl InstalledDevice {
 /// Verify the fields the action will actually execute, not merely the hash of
 /// a stored string. A changed Post/country/requester with the old canonical
 /// bytes/digest must not allow the same receipt to release a different intent.
-pub(super) fn matches_canonical_request(row: &crate::postgres::signing::SigningRequestRow) -> bool {
+pub(super) fn matches_canonical_request(row: &SigningRequestRow) -> bool {
     use sequent_core::signing::{sha256_hex, SigningPayload, SigningPayloadFields};
     let fields = SigningPayloadFields {
         tenant_id: row.tenant_id.to_string(),
@@ -60,20 +76,80 @@ pub(super) fn matches_canonical_request(row: &crate::postgres::signing::SigningR
     })
 }
 
-#[cfg(not(feature = "operational-signing-demo-fixture"))]
+/// An event-only caller cannot select a device for a latched event. A real
+/// canonical row can distinguish the other Posts and preserve their baseline.
 pub async fn installed_profile(
+    tx: &Transaction<'_>,
+    tenant: Uuid,
+    event: Uuid,
+    action: SigningAction,
+) -> Result<Option<InstalledDevice>> {
+    super::operational_policy::lock_signing_policy(tx).await?;
+    if super::operational_policy::direct_hsm_approval_build() {
+        return Ok(None);
+    }
+    if super::operational_policy::local_scope::action_latch(tx, tenant, event)
+        .await?
+        .is_some()
+    {
+        return Ok(None);
+    }
+    if action == SigningAction::InitializeVoting {
+        if super::operational_policy::local_scope::read_latch(tx, tenant, event)
+            .await?
+            .is_some()
+        {
+            return Ok(None);
+        }
+    }
+    baseline_profile(tx, tenant, event, action).await
+}
+
+#[cfg(not(feature = "operational-signing-demo-fixture"))]
+async fn baseline_profile(
     _tx: &Transaction<'_>,
     _tenant: Uuid,
     _event: Uuid,
     _action: SigningAction,
 ) -> Result<Option<InstalledDevice>> {
-    // This is intentionally a compile-time partition, not a fallback from
-    // lookup failure. Ordinary installations never admit a software receipt.
+    // A caller with only an event cannot choose a device for the named
+    // Initialize installation. Receipt application and consumption have the row.
+    #[cfg(feature = "felix3-local-initialize")]
+    if local_initialize::installed()?.is_some_and(|i| i.names_event(_tenant, _event, _action)) {
+        return Ok(None);
+    }
     Ok(Some(InstalledDevice::YubiHsm))
 }
 
+/// Resolve the device for the row already reconstructed by the receipt check.
+pub(super) async fn profile_for_canonical_request(
+    tx: &Transaction<'_>,
+    row: &SigningRequestRow,
+) -> Result<Option<InstalledDevice>> {
+    if super::operational_policy::local_scope::request_mode_and_latch(tx, row)
+        .await?
+        .1
+        .is_some()
+    {
+        return Ok(None);
+    }
+    #[cfg(feature = "felix3-local-initialize")]
+    {
+        let installed = local_initialize::for_canonical_request(tx, row).await?;
+        Ok(Some(
+            installed.map_or(InstalledDevice::YubiHsm, |i| i.device()),
+        ))
+    }
+    #[cfg(not(feature = "felix3-local-initialize"))]
+    {
+        baseline_profile(tx, row.tenant_id, row.election_event_id, row.action).await
+    }
+}
+
 #[cfg(feature = "operational-signing-demo-fixture")]
-pub use demo::{installed_demo, installed_profile, DemoInstallation};
+use demo::installed_profile as baseline_profile;
+#[cfg(feature = "operational-signing-demo-fixture")]
+pub use demo::{installed_demo, DemoInstallation};
 
 #[cfg(feature = "operational-signing-demo-fixture")]
 mod demo {
@@ -261,22 +337,20 @@ mod demo {
 #[cfg(test)]
 mod canonical_tests {
     use super::*;
-    use crate::postgres::signing::SigningRequestRow;
     use chrono::{TimeZone, Utc};
     use sequent_core::signing::{
         sha256_hex, SigningPayload, SigningPayloadFields, SigningRequestStatus,
     };
     use serde_json::json;
 
-    #[test]
-    fn applied_receipt_is_bound_to_the_executed_post_country_subject_and_requester() {
+    pub(super) fn signed_request(action: SigningAction) -> SigningRequestRow {
         let id = Uuid::from_u128;
         let at = Utc.timestamp_opt(1_700_000_000, 0).single().unwrap();
         let fields = SigningPayloadFields {
             tenant_id: id(1).to_string(),
             election_event_id: id(2).to_string(),
             request_id: id(3),
-            action: SigningAction::InitializeVoting,
+            action,
             election_id: Some(id(4).to_string()),
             area_id: Some(id(5).to_string()),
             subject: json!({"publication_id":id(6)}),
@@ -288,7 +362,7 @@ mod canonical_tests {
         };
         let signed = SigningPayload::new(fields.clone()).unwrap();
         let canonical = signed.canonical().unwrap();
-        let row = SigningRequestRow {
+        SigningRequestRow {
             id: fields.request_id,
             tenant_id: id(1),
             election_event_id: id(2),
@@ -323,7 +397,13 @@ mod canonical_tests {
             open_failures: 0,
             permission_label: None,
             created_at: at,
-        };
+        }
+    }
+
+    #[test]
+    fn applied_receipt_is_bound_to_the_executed_post_country_subject_and_requester() {
+        let id = Uuid::from_u128;
+        let row = signed_request(SigningAction::InitializeVoting);
         assert!(matches_canonical_request(&row));
         for changed in [
             SigningRequestRow {
@@ -360,6 +440,26 @@ mod canonical_tests {
             },
         ] {
             assert!(!matches_canonical_request(&changed));
+        }
+    }
+
+    #[cfg(not(any(
+        feature = "operational-signing-demo-fixture",
+        feature = "felix3-local-initialize"
+    )))]
+    #[test]
+    fn ordinary_build_only_admits_recorded_yubihsm() {
+        // This pattern must remain exhaustive in an ordinary release build.
+        let device = InstalledDevice::YubiHsm;
+        let InstalledDevice::YubiHsm = device;
+        assert!(device.admits(Some("yubihsm")));
+        for other in [
+            None,
+            Some("softhsm-test"),
+            Some("legacy-p12"),
+            Some("software"),
+        ] {
+            assert!(!device.admits(other));
         }
     }
 }

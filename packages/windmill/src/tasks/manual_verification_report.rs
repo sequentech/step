@@ -2,88 +2,134 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::reports::Report;
-use crate::services::database::{get_hasura_pool, get_keycloak_pool, PgConfig};
+use crate::postgres::reports::{Report, ReportType};
+use crate::services::database::{get_hasura_pool, get_keycloak_pool};
 use crate::services::reports::manual_verification::ManualVerificationTemplate;
 use crate::services::reports::template_renderer::{
-    GenerateReportMode, ReportOriginatedFrom, ReportOrigins, TemplateRenderer,
+    get_declared_report_secret_attribute_names, GenerateReportMode, ReportOriginatedFrom,
+    ReportOrigins, TemplateRenderer,
 };
-use crate::types::error::Error;
-use crate::types::error::Result;
-use anyhow::{anyhow, Context, Result as AnyhowResult};
+use crate::services::signing::actions::manual_verification::{
+    claim_render, finish_render, RenderPermit,
+};
+use crate::types::error::{Error, Result};
+use anyhow::{anyhow, ensure, Context, Result as AnyhowResult};
 use celery::error::TaskError;
-use deadpool_postgres::{Client as DbClient, Transaction};
 use tracing::instrument;
+use uuid::Uuid;
 
-#[instrument(err)]
+#[instrument(skip_all, err)]
 pub async fn generate_report(
     document_id: &str,
     tenant_id: &str,
     election_event_id: &str,
     voter_id: &str,
-    mode: GenerateReportMode,
+    _mode: GenerateReportMode,
     report_clone: Option<Report>,
     may_read_secret_attributes: bool,
 ) -> AnyhowResult<()> {
-    let mut db_client: DbClient = get_hasura_pool()
-        .await
-        .get()
-        .await
-        .with_context(|| "Error getting DB pool")?;
-
-    let hasura_transaction = db_client
-        .transaction()
-        .await
-        .with_context(|| "Error starting transaction")?;
-
-    let mut keycloak_db_client = get_keycloak_pool()
-        .await
-        .get()
-        .await
-        .with_context(|| "Error acquiring Keycloak DB pool")?;
-
-    let keycloak_transaction = keycloak_db_client
-        .transaction()
-        .await
-        .with_context(|| "Error starting Keycloak transaction")?;
-
-    let report = ManualVerificationTemplate::new(ReportOrigins {
-        tenant_id: tenant_id.to_string(),
-        election_event_id: election_event_id.to_string(),
-        election_id: None,
-        template_alias: None,
-        voter_id: Some(voter_id.to_string()),
-        report_origin: ReportOriginatedFrom::ExportFunction,
-        executer_username: None, //TODO: fix?
-        tally_session_id: None,
-    });
-
-    report
-        .execute_report(
-            &document_id,
-            &tenant_id,
-            &election_event_id,
-            /* is_scheduled_task */ false,
-            /* recipients */ vec![],
-            GenerateReportMode::REAL,
-            report_clone,
-            &hasura_transaction,
-            &keycloak_transaction,
+    // This task never accepts an arbitrary report/template or recipients. The
+    // private voter action is the only way to reserve a document id.
+    ensure!(
+        report_clone.is_none(),
+        "Custom manual verification reports are not permitted"
+    );
+    let mut client = get_hasura_pool().await.get().await?;
+    let tx = client.transaction().await?;
+    let mut names: Vec<_> = get_declared_report_secret_attribute_names(
+        &tx,
+        tenant_id,
+        election_event_id,
+        &ReportType::MANUAL_VERIFICATION,
+        None,
+    )
+    .await?
+    .into_iter()
+    .collect();
+    names.sort();
+    ensure!(
+        may_read_secret_attributes == !names.is_empty(),
+        "Verification template changed"
+    );
+    let Some(permit) = claim_render(
+        &tx,
+        Uuid::parse_str(tenant_id)?,
+        Uuid::parse_str(election_event_id)?,
+        voter_id,
+        Uuid::parse_str(document_id)?,
+        &names,
+    )
+    .await?
+    else {
+        // Duplicate deliveries cannot mint a fresh credential.
+        return Ok(());
+    };
+    tx.commit().await?;
+    let tx = client.transaction().await?;
+    let result: AnyhowResult<()> = async {
+        let mut kc = get_keycloak_pool().await.get().await?;
+        let key_tx = kc.transaction().await?;
+        // Read the same report definition throughout generation, including any
+        // secret attribute grant; another template cannot replace it mid-render.
+        tx.batch_execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+            .await?;
+        let mut current: Vec<_> = get_declared_report_secret_attribute_names(
+            &tx,
+            tenant_id,
+            election_event_id,
+            &ReportType::MANUAL_VERIFICATION,
             None,
-            may_read_secret_attributes,
         )
-        .await
-        .map_err(|err| anyhow!("Error generating ballot receipt report: {err:?}"))?;
-
-    hasura_transaction
-        .commit()
-        .await
-        .with_context(|| "Failed to commit Hasura transaction")?;
-
-    Ok(())
+        .await?
+        .into_iter()
+        .collect();
+        current.sort();
+        ensure!(current == names, "Verification template changed");
+        let report = ManualVerificationTemplate::for_issuance(
+            ReportOrigins {
+                tenant_id: tenant_id.to_owned(),
+                election_event_id: election_event_id.to_owned(),
+                election_id: None,
+                template_alias: None,
+                voter_id: Some(voter_id.to_owned()),
+                report_origin: ReportOriginatedFrom::ExportFunction,
+                executer_username: None,
+                tally_session_id: None,
+            },
+            RenderPermit {
+                initiation: permit.initiation,
+                proof: permit.proof,
+                signed: permit.signed,
+            },
+        );
+        report
+            .execute_report(
+                document_id,
+                tenant_id,
+                election_event_id,
+                false,
+                vec![],
+                GenerateReportMode::REAL,
+                None,
+                &tx,
+                &key_tx,
+                None,
+                may_read_secret_attributes,
+            )
+            .await?;
+        tx.commit().await?;
+        Ok(())
+    }
+    .await;
+    // Keycloak's callback commits the mint while rendering on a separate
+    // connection. A new transaction deliberately observes that commit.
+    let final_tx = client.transaction().await?;
+    finish_render(&final_tx, &permit, result.is_ok()).await?;
+    final_tx.commit().await?;
+    result
 }
 
-#[instrument(err)]
+#[instrument(skip_all, err)]
 #[wrap_map_err::wrap_map_err(TaskError)]
 #[celery::task]
 pub async fn generate_manual_verification_report(
@@ -94,29 +140,21 @@ pub async fn generate_manual_verification_report(
     report: Option<Report>,
     may_read_secret_attributes: bool,
 ) -> Result<()> {
-    // Spawn the task using an async block
-    let handle = tokio::task::spawn_blocking({
-        move || {
-            tokio::runtime::Handle::current().block_on(async move {
-                generate_report(
-                    &document_id,
-                    &tenant_id,
-                    &election_event_id,
-                    &voter_id,
-                    GenerateReportMode::REAL,
-                    report,
-                    may_read_secret_attributes,
-                )
-                .await
-            })
-        }
-    });
-
-    // Await the result and handle JoinError explicitly
-    match handle.await {
-        Ok(inner_result) => inner_result.map_err(|err| Error::from(err.context("Task failed"))),
-        Err(join_error) => Err(Error::from(anyhow!("Task panicked: {}", join_error))),
-    }?;
-
-    Ok(())
+    tokio::task::spawn_blocking(move || {
+        tokio::runtime::Handle::current().block_on(async move {
+            generate_report(
+                &document_id,
+                &tenant_id,
+                &election_event_id,
+                &voter_id,
+                GenerateReportMode::REAL,
+                report,
+                may_read_secret_attributes,
+            )
+            .await
+        })
+    })
+    .await
+    .map_err(|_| Error::from(anyhow!("Verification report task stopped")))?
+    .map_err(|e| Error::from(e.context("Verification report failed")))
 }

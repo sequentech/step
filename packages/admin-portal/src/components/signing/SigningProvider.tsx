@@ -21,6 +21,7 @@ import {takeResume} from "@/lib/signing/request"
 import {readDisplayReturn, discardDisplayReturn} from "@/lib/signing/operationalGoldReturn"
 import type {SigningAction} from "@/lib/signing/types"
 import type {IPermissions} from "@/types/keycloak"
+import type {DirectApprovalAttempts} from "./DirectApprovalDialog"
 import {SigningRequestPanel} from "./SigningRequestPanel"
 
 export interface IOpenSigningRequestOptions {
@@ -139,6 +140,7 @@ export const SigningProvider: React.FC<ISigningProviderProps> = ({
     )
     const [opened, setOpened] = useState<IOpened | null>(null)
     const [visible, setVisible] = useState(false)
+    const [directApprovalAttempts] = useState<DirectApprovalAttempts>(() => new Map())
 
     const open = useCallback((requestId: string, options: IOpenSigningRequestOptions = {}) => {
         setOpened((previous) => ({requestId, ...options, nonce: (previous?.nonce ?? 0) + 1}))
@@ -193,6 +195,7 @@ export const SigningProvider: React.FC<ISigningProviderProps> = ({
                         open={visible}
                         onClose={close}
                         autoSign={opened.sign}
+                        directApprovalAttempts={directApprovalAttempts}
                         completionActions={actions}
                         onChange={opened.onChange}
                         storage={storage}

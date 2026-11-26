@@ -1,0 +1,168 @@
+type Query {
+    operationalInitializeNomineeReviewStatus(
+        request_id: uuid!
+        payload_sha256: String!
+    ): LocalNomineeReviewStatus!
+    operationalInitializeOfficerPending(
+        election_event_id: uuid!
+    ): LocalOfficerPending!
+    operationalInitializeStatus(request_id: uuid!): OperationalInitializeStatus!
+    operationalInitializeSelfSetupStatus(
+        request_id: uuid!
+        payload_sha256: String!
+    ): OperationalInitializeSelfSetupStatus!
+}
+
+type Mutation {
+    operationalInitializeNomineeResume(
+        request_id: uuid!
+        payload_sha256: String!
+    ): OperationalNomineePresence!
+    operationalInitializeNomineePresence(
+        request_id: uuid!
+        payload_sha256: String!
+    ): OperationalNomineePresence!
+    operationalInitializeOfficerReview(
+        request_id: uuid!
+        payload_sha256: String!
+        official_id: uuid!
+    ): LocalOfficerReview!
+    operationalInitializeOfficerAttach(
+        request_id: uuid!
+        payload_sha256: String!
+        official_id: uuid!
+        csr_sha256: String!
+        leaf_sha256: String!
+        leaf_der: String!
+    ): LocalOfficerReceipt!
+    operationalInitializeSelfSetupStart(
+        request_id: uuid!
+        payload_sha256: String!
+        page: OperationalInitializeReturnPageInput!
+        attempt: uuid
+    ): OperationalInitializeSelfSetupStart!
+    operationalInitializeSelfSetupConfirm(
+        request_id: uuid!
+        payload_sha256: String!
+        attempt: uuid!
+        state: String!
+        code: String!
+    ): OperationalInitializeReturn!
+    operationalInitializeSelfSetupRegister(
+        request_id: uuid!
+        payload_sha256: String!
+        attempt: uuid!
+        delivery_revision: Int!
+    ): OperationalInitializeSelfSetupStatus!
+    operationalInitializeStart(
+        request_id: uuid!
+        payload_sha256: String!
+        page: OperationalInitializeReturnPageInput!
+    ): OperationalInitializeStart!
+    operationalInitializeFinish(
+        request_id: uuid!
+        attempt: uuid!
+        state: String!
+        code: String!
+    ): OperationalInitializeReturn!
+    operationalInitializeCancel(
+        request_id: uuid!
+        attempt: uuid!
+    ): OperationalInitializeOutcome!
+    operationalInitializeReconcile(
+        request_id: uuid!
+    ): OperationalInitializeOutcome!
+}
+
+input OperationalInitializeReturnPageInput {
+    path: String!
+    panel: String!
+    election_id: uuid
+}
+
+type OperationalInitializePage {
+    path: String!
+    panel: String!
+    election_id: uuid
+}
+
+type OperationalInitializeScope {
+    tenant: uuid!
+    event: uuid!
+    request: uuid!
+    official: uuid!
+}
+
+type OperationalInitializeStatus {
+    scope: OperationalInitializeScope!
+    phase: String!
+    device_profile: String!
+    cancellable_attempt: uuid
+}
+
+type OperationalInitializeStart {
+    attempt: uuid!
+    redirect: String!
+}
+
+type OperationalInitializeReturn {
+    tenant: uuid!
+    event: uuid!
+    request: uuid!
+    official: uuid!
+    attempt: uuid!
+    phase: String!
+    page: OperationalInitializePage!
+}
+
+type OperationalInitializeOutcome {
+    phase: String!
+}
+
+type OperationalInitializeSelfSetupStatus {
+    scope: OperationalInitializeScope!
+    device_profile: String!
+    phase: String!
+    attempt: uuid
+    delivery_revision: Int
+}
+
+type OperationalInitializeSelfSetupStart {
+    attempt: uuid!
+    redirect: String!
+    page: OperationalInitializePage!
+}
+
+type OperationalNomineePresence {
+    active: Boolean!
+}
+type LocalOfficerPending {
+    items: [LocalOfficerRef!]!
+}
+type LocalOfficerRef {
+    request_id: uuid!
+    payload_sha256: String!
+    official_id: uuid!
+    election_id: uuid!
+}
+type LocalOfficerReview {
+    request_id: uuid!
+    payload_sha256: String!
+    official_id: uuid!
+    election_id: uuid!
+    enrollment: uuid!
+    csr_pem: String!
+    csr_sha256: String!
+    spki_sha256: String!
+}
+type LocalOfficerReceipt {
+    enrollment: uuid!
+    certificate: uuid!
+    leaf_sha256: String!
+    spki_sha256: String!
+    attached_at: String!
+}
+
+type LocalNomineeReviewStatus {
+    phase: String!
+}

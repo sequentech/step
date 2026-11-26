@@ -45,7 +45,8 @@ to both the person's account and their certificate.
 | Generate election returns | **Reports** | The election returns PDF of a Post and country | Releases the signed PDF for download, printing and transmission. |
 | Generate other election reports | **Reports** | The Initialization Report or participation report PDF; per-voter manual verification and activity logs are not integrated | Releases the signed report. |
 | Transmit results | **Tally** > **Transmission** | The results package of a Post and country, and its destinations | Builds the signed package; it can then be sent. |
-| Approve a voter manually | **Approvals** | The application, the registry record and the decision | Approves the voter and issues their credentials. |
+| Approve an enrollment application | **Approvals** | The application, the registry record and the decision | Approves the voter and issues their credentials. |
+| Authorize manual identity verification | **Voters** → **Manually verify identity** | The selected voter and this verification request | Releases a manual verification document for this voter. It does not approve an enrollment application. |
 | Approve a configuration version | **Publish** | The changes in the version and their digest | Publishes the version. |
 | Confirm a key share (key ceremony) | **Keys**, by each trustee | The ceremony, the trustee and the public custody proof's hash | Records the trustee's custody confirmation and approval signature. |
 | Contribute a key share (tally) | **Tally**, by each trustee | The tally, the trustee and the public custody proof's hash | Records the trustee's tally authorization and approval signature. |

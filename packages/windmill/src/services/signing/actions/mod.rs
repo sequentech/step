@@ -33,14 +33,16 @@
 pub mod configuration;
 pub mod eml;
 pub mod initialize;
+pub mod manual_verification;
 pub mod reports;
 pub mod transmission;
 pub mod voter;
 pub mod voting;
 
 use super::executors::{ExecutionOutcome, PostCommit, PostCommitTask, SigningExecutor};
-use super::guard::{effective_rule, guard, GuardOutcome, GuardRequest};
-use super::operational_policy::{signing_mode, OperationalSigningMode};
+use super::guard::{effective_rule, effective_rule_in_mode, guard, GuardOutcome, GuardRequest};
+use super::operational_policy::local_scope::request_mode_and_latch;
+use super::operational_policy::{lock_signing_policy, OperationalSigningMode};
 use super::operational_quorum::has_operational_quorum;
 use super::requests::{claim_dispatched, finish_dispatched, DispatchedResult};
 use super::{SigningCaller, SigningError, SigningResult};
@@ -70,12 +72,13 @@ use tracing::{error, instrument, warn};
 use uuid::Uuid;
 
 /// The actions this module runs.
-pub const ACTIONS: [SigningAction; 8] = [
+pub const ACTIONS: [SigningAction; 9] = [
     SigningAction::InitializeVoting,
     SigningAction::OpenVoting,
     SigningAction::CloseVoting,
     SigningAction::ApproveConfiguration,
     SigningAction::ApproveVoter,
+    SigningAction::AuthorizeManualVerification,
     SigningAction::TransmitResults,
     SigningAction::GenerateElectionReturns,
     SigningAction::GenerateReports,
@@ -112,9 +115,36 @@ where
     F: FnOnce() -> Fut,
     Fut: Future<Output = SigningResult<GuardRequest>>,
 {
+    // Initialize's early Proceed decision must see *all* selected Posts.
+    if action == SigningAction::InitializeVoting {
+        return Err(SigningError::bad_input(
+            "Initialize requires a Post selection.",
+        ));
+    }
     if !is_required(hasura_transaction, tenant_id, election_event_id, action).await? {
         return Ok(GuardOutcome::Proceed);
     }
+    gate_required(
+        hasura_transaction,
+        caller,
+        tenant_id,
+        election_event_id,
+        build,
+    )
+    .await
+}
+
+async fn gate_required<F, Fut>(
+    hasura_transaction: &Transaction<'_>,
+    caller: &SigningCaller,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    build: F,
+) -> SigningResult<GuardOutcome>
+where
+    F: FnOnce() -> Fut,
+    Fut: Future<Output = SigningResult<GuardRequest>>,
+{
     let request = build().await?;
     if let Some(election_id) = request.scope.election_id {
         let post = get_signing_post(
@@ -383,6 +413,9 @@ impl SignedActionEffects for ProductionEffects {
             SigningAction::ApproveConfiguration => {
                 configuration::publish(hasura_transaction, request, progress).await
             }
+            SigningAction::AuthorizeManualVerification => {
+                manual_verification::settle(hasura_transaction, request).await
+            }
             SigningAction::ApproveVoter => {
                 voter::approve(
                     hasura_transaction,
@@ -404,14 +437,30 @@ impl SignedActionEffects for ProductionEffects {
                 .await
             }
             SigningAction::GenerateElectionReturns | SigningAction::GenerateReports => {
-                reports::release_report(
+                let released = reports::release_report(
                     hasura_transaction,
                     &S3RevisionStore,
                     &reports::StoredReports,
                     request,
                     progress,
                 )
-                .await
+                .await;
+                // A direct approval is of the original PDF. It is never a
+                // CMS signature. The existing official release path can
+                // still release legitimate independently signed revisions.
+                match released {
+                    Err(error)
+                        if approvals.iter().any(|a| a.action_direct_proof.is_some())
+                            && error.downcast_ref::<EffectRefused>().is_some_and(|e|
+                                matches!(e.code.as_str(), "no-signed-revision" | "signatures-missing")) =>
+                    {
+                        Err(refuse(
+                            "official-artifact-certification-unavailable",
+                            "Demo HSM approvals were recorded, but the required officially signed PDF is not available.",
+                        ))
+                    }
+                    result => result,
+                }
             }
             other => Err(refuse(
                 "no-effect",
@@ -558,7 +607,7 @@ pub async fn run_claimed(
 
     // The effect: the request's row lock, not the event's signing lock.
     let transaction = client.transaction().await?;
-    let mode = signing_mode(&transaction, tenant_id).await?;
+    lock_signing_policy(&transaction).await?;
     let Some(request) =
         lock_signing_request(&transaction, tenant_id, election_event_id, request_id).await?
     else {
@@ -569,6 +618,7 @@ pub async fn run_claimed(
         transaction.rollback().await?;
         return Ok(RunOutcome::NotClaimed);
     }
+    let (mode, direct) = request_mode_and_latch(&transaction, &request).await?;
     let result =
         match request.execution_result.clone() {
             // The effect committed before; only its report is missing.
@@ -581,10 +631,28 @@ pub async fn run_claimed(
                     list_signing_approvals(&transaction, tenant_id, election_event_id, request_id)
                         .await?;
                 let progress = EffectProgress::default();
+                if direct.is_none() && approvals.iter().any(SigningApprovalRow::is_direct_demo) {
+                    transaction.rollback().await?;
+                    return settle_failure(
+                        client,
+                        task,
+                        refuse(
+                            "scope-unavailable",
+                            "The stored proof has no active direct HSM scope.",
+                        ),
+                        &progress,
+                    )
+                    .await;
+                }
                 if mode == OperationalSigningMode::HsmRequired {
-                    let current =
-                        effective_rule(&transaction, tenant_id, election_event_id, request.action)
-                            .await?;
+                    let current = effective_rule_in_mode(
+                        &transaction,
+                        tenant_id,
+                        election_event_id,
+                        request.action,
+                        mode,
+                    )
+                    .await?;
                     if !has_operational_quorum(
                         &transaction,
                         &request,
@@ -641,9 +709,8 @@ pub async fn run_claimed(
             }
         };
 
-    // The report, under the event's signing lock.
+    // finish_dispatched takes the policy lock first, then the event/row lock.
     let transaction = client.transaction().await?;
-    lock_signing_event(&transaction, tenant_id, election_event_id).await?;
     if !finish_dispatched(
         &transaction,
         tenant_id,

@@ -26,6 +26,7 @@ interface Scenario {
         | "listed"
         | "none"
         | "configuration-import"
+        | "approval-activity"
         | "privacy"
         | "long-descriptions"
         | "historical-requester"
@@ -51,7 +52,7 @@ const logRow = (
     id: number,
     kind: string,
     user: {id: string; name: string} | null,
-    head: {event_type: string; log_type: string; description: string},
+    head: {kind?: string; event_type: string; log_type: string; description: string},
     body: Record<string, unknown> = {}
 ): StoryRecord<ElectoralLogRow> & {election_event_id: string} => ({
     id,
@@ -133,6 +134,58 @@ const logs = [
         description: "Keys generated",
     }),
 ]
+
+const signingActivity = [
+    {kind: "SigningRequestCreated", description: "Started request Q-010", actor: true},
+    {
+        kind: "SigningRequestSigned",
+        description: "Approval recorded for Q-010",
+        details: {count: 1, required: 2},
+    },
+    {
+        kind: "SigningRequestCompleted",
+        description: "Quorum reached for Q-010",
+        details: {count: 2, required: 2},
+    },
+    {
+        kind: "SigningActionExecuted",
+        description: "Ran Close Voting for Q-010",
+        details: {status: "executed"},
+    },
+    {
+        kind: "SigningActionExecuted",
+        description: "Close Voting could not run for Q-011",
+        details: {status: "failed"},
+        error: true,
+    },
+    {kind: "SigningRequestCancelled", description: "Cancelled request Q-011"},
+    {kind: "SigningRequestExpired", description: "Expired request Q-012"},
+    {
+        kind: "SigningSignatureRefused",
+        description: "Signature refused on Q-012",
+        details: {step: "sign", check: "custom-check", detail: "raw detail excluded from list"},
+        error: true,
+    },
+    {
+        kind: "SigningSignatureRefused",
+        description: "Cancelling Q-013 refused",
+        details: {step: "cancel"},
+        error: true,
+    },
+].map(({kind, description, details, error, actor}, index) => {
+    const head = {
+        kind,
+        event_type: actor ? "USER" : "SYSTEM",
+        log_type: error ? "ERROR" : "INFO",
+        description,
+    }
+    return logRow(index + 20, kind, actor ? {id: STORY_IDS.user, name: "alice"} : null, head, {
+        Signing: {
+            ...head,
+            details_json: JSON.stringify({action: "close-voting", ...details}),
+        },
+    })
+})
 
 const historicalRequester = logRow(
     6,
@@ -288,6 +341,7 @@ const meta = {
                 "listed",
                 "none",
                 "configuration-import",
+                "approval-activity",
                 "privacy",
                 "long-descriptions",
                 "historical-requester",
@@ -295,23 +349,16 @@ const meta = {
         },
     },
     beforeEach: async ({args}) => {
-        data = resourceBoundary(
-            {
-                electoral_log:
-                    args.logs === "historical-requester"
-                        ? [historicalRequester]
-                        : args.logs === "long-descriptions"
-                          ? descriptionLogs
-                          : args.logs === "privacy"
-                            ? privacyLogs
-                            : args.logs === "configuration-import"
-                              ? [CONFIGURATION_IMPORT]
-                              : args.logs === "listed"
-                                ? logs
-                                : [],
-            },
-            {reads: args.reads}
-        )
+        const rowsForScenario = {
+            "approval-activity": signingActivity,
+            "historical-requester": [historicalRequester],
+            "long-descriptions": descriptionLogs,
+            "privacy": privacyLogs,
+            "configuration-import": [CONFIGURATION_IMPORT],
+            "listed": logs,
+            "none": [],
+        } satisfies Record<Scenario["logs"], unknown[]>
+        data = resourceBoundary({electoral_log: rowsForScenario[args.logs]}, {reads: args.reads})
         graphql = graphqlBoundary(
             {
                 ExportElectionEventLogs: ({variables}) => ({
@@ -437,6 +484,57 @@ export const Populated: Story = {
             }),
         ])
         await waitFor(() => expect(graphql.calls).toEqual(ledgerReads))
+    },
+}
+
+export const SigningActivity: Story = {
+    ...atViewport(1440),
+    args: {logs: "approval-activity"},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const created = await canvas.findByText("Signature request created for Close voting")
+        await expect(created).toBeVisible()
+        for (const text of [
+            "Approval signed for Close voting (1 of 2)",
+            "Required approvals collected for Close voting (2 of 2)",
+            "Close voting completed",
+            "Close voting failed",
+            "Signature request cancelled for Close voting",
+            "Signature request expired for Close voting",
+            "Signature rejected",
+            "Cancelling Q-013 refused",
+        ]) {
+            await expect(canvas.getByText(text, {exact: true})).toBeVisible()
+        }
+        expect(canvas.queryByText("raw detail excluded from list")).toBeNull()
+        expect(canvas.queryByText("Started request Q-010")).toBeNull()
+        await userEvent.click(created)
+        const entry = await within(document.body).findByRole("dialog", {name: "Log entry 20"})
+        await waitFor(() => expect(within(entry).getByText("Started request Q-010")).toBeVisible())
+        await userEvent.keyboard("{Escape}")
+        await waitFor(() => expect(within(document.body).queryByRole("dialog")).toBeNull())
+        // Signing activity is one statement kind among all, under Add filter.
+        expect(canvas.queryByRole("button", {name: "Signing activity"})).toBeNull()
+        await userEvent.click(canvas.getByRole("button", {name: "Add filter"}))
+        await userEvent.click(
+            await within(document.body).findByRole("menuitemcheckbox", {name: "Statement kind"})
+        )
+        await userEvent.click(await canvas.findByRole("combobox", {name: "Statement kind"}))
+        const options = within(await within(document.body).findByRole("listbox"))
+        await waitFor(() =>
+            expect(options.getByRole("option", {name: "Approval threshold reached"})).toBeVisible()
+        )
+        expect(options.getByRole("option", {name: "Ballot box sealed"})).toBeInTheDocument()
+        expect(options.queryByRole("option", {name: "SigningActionExecuted"})).toBeNull()
+        await userEvent.click(
+            options.getByRole("option", {name: "Approved action finalized or failed"})
+        )
+        await waitFor(() =>
+            expect(data.calls.at(-1)?.args).toMatchObject([
+                "electoral_log",
+                {filter: {election_event_id: EVENT_ID, statement_kind: "SigningActionExecuted"}},
+            ])
+        )
     },
 }
 
@@ -921,9 +1019,9 @@ export const PrivacyCompactListFiltersAndExport: Story = {
         await userEvent.click(
             await within(document.body).findByRole("menuitemcheckbox", {name: "Statement kind"})
         )
-        await userEvent.type(
-            await canvas.findByRole("textbox", {name: "Statement kind"}),
-            "CastVote"
+        await userEvent.click(await canvas.findByRole("combobox", {name: "Statement kind"}))
+        await userEvent.click(
+            await within(document.body).findByRole("option", {name: "Ballot cast"})
         )
         await waitFor(() => expect(canvas.getAllByRole("listitem")).toHaveLength(1))
         expect(canvas.queryByText("Account signed in")).toBeNull()
