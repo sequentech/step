@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {act, fireEvent, render, screen} from "@testing-library/react"
+import {act, fireEvent, render, screen, within} from "@testing-library/react"
 import {ThemeProvider} from "@mui/material/styles"
 import {adminTheme} from "../../../../ui-essentials/src/services/theme"
 import {record} from "./configurationPackage.fixture"
@@ -740,7 +740,7 @@ it("uses the exact successful server-bound Preview only after managed Apply conf
     expect(mockApply).toHaveBeenCalledTimes(1)
 })
 
-const finishPortablePreview = (sha: string | null = "a5".repeat(32)) => {
+const finishPortablePreview = (sha: string | null = "a5".repeat(32), changes?: unknown[]) => {
     const annotated = record("previewed")
     annotated.application.coverage = {
         ...annotated.application.coverage,
@@ -758,6 +758,13 @@ const finishPortablePreview = (sha: string | null = "a5".repeat(32)) => {
         managedRequirements: COMPLETE_DELIVERY,
         ...(sha === null ? {} : {messagingPlanSha256: sha}),
     })
+    if (changes) {
+        annotated.application.sections.push({
+            section: "messaging-accounts",
+            members: ["tenant_messaging_accounts.json"],
+            status: {state: "ready", preview: {needsApply: true, changes, blockers: []}},
+        })
+    }
     mockTask = task("task-p", "SUCCESS", annotated)
 }
 
@@ -788,6 +795,22 @@ it.each(["not_enabled", "site_pinned"] as const)(
         expect(mockRosterRead).not.toHaveBeenCalled()
     }
 )
+
+it("warns about a portable replacement in Preview and explicit Apply confirmation", async () => {
+    const view = await previewed()
+    finishPortablePreview(undefined, [
+        {reference: "package:ses", action: "replace", channel: "EMAIL", provider: "AWS_SES"},
+    ])
+    view.rerender(<SettingsConfigurationPackage />)
+    const warning = "configurationPackage.messagingReplaceWarning"
+    expect(within(screen.getByTestId("section-messaging-accounts")).getByText(warning)).toBeTruthy()
+    expect(applyButton().disabled).toBe(false)
+    expect(mockManagedApply).not.toHaveBeenCalled()
+    await act(async () => fireEvent.click(applyButton()))
+    expect(within(screen.getByRole("dialog")).getByText(warning)).toBeTruthy()
+    expect(mockManagedApply).not.toHaveBeenCalled()
+    expect(mockApply).toHaveBeenCalledTimes(1)
+})
 
 it("fails before Apply when a portable Preview has no server recipient-plan receipt", async () => {
     const view = await previewed()

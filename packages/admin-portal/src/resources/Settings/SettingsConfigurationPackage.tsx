@@ -78,6 +78,7 @@ import {
     readManagedPreview,
     readPortablePreview,
     changeLines,
+    hasPortableReplacement,
     rememberSubmission,
     safeText,
     sectionsToChange,
@@ -834,6 +835,15 @@ const SettingsConfigurationPackageForScope: React.FC<{
     )
 }
 
+const PortableReplacementWarning: React.FC<{changes: unknown}> = ({changes}) => {
+    const {t} = useTranslation()
+    return hasPortableReplacement(changes) ? (
+        <Alert severity="warning" sx={{my: 1}}>
+            {t("configurationPackage.messagingReplaceWarning")}
+        </Alert>
+    ) : null
+}
+
 /** What applying would change, section by section: names, actions and keys only. */
 const ProposedChanges: React.FC<{view: ApplicationView}> = ({view}) => {
     const {t} = useTranslation()
@@ -855,8 +865,14 @@ const ProposedChanges: React.FC<{view: ApplicationView}> = ({view}) => {
                         <Typography variant="body2" sx={{fontWeight: "bold"}}>
                             {String(t(`configurationPackage.sections.${section.section}`))}
                         </Typography>
+                        {section.section === "messaging-accounts" && (
+                            <PortableReplacementWarning changes={section.preview?.changes} />
+                        )}
                         <List dense>
-                            {changeLines(section.preview?.changes).map((line, index) => (
+                            {changeLines(
+                                section.preview?.changes,
+                                t("configurationPackage.messagingReplaceAction")
+                            ).map((line, index) => (
                                 <ListItem key={index}>{line}</ListItem>
                             ))}
                         </List>
@@ -900,10 +916,17 @@ const ApplicationTable: React.FC<{view: ApplicationView}> = ({view}) => {
                                 {section.preview && section.preview.needsApply ? (
                                     <div>{t("configurationPackage.needsApply")}</div>
                                 ) : null}
+                                {view.mode === "preview" &&
+                                    section.section === "messaging-accounts" && (
+                                        <PortableReplacementWarning
+                                            changes={section.preview?.changes}
+                                        />
+                                    )}
                                 {section.preview
-                                    ? changeLines(section.preview.changes).map((line, index) => (
-                                          <div key={index}>{line}</div>
-                                      ))
+                                    ? changeLines(
+                                          section.preview.changes,
+                                          t("configurationPackage.messagingReplaceAction")
+                                      ).map((line, index) => <div key={index}>{line}</div>)
                                     : null}
                                 {section.error && <div>{safeText(section.error)}</div>}
                                 {/* Only a section a run confirmed applied is called applied. */}

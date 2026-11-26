@@ -18,7 +18,7 @@
 //! Apply: a staged sidecar is read only for the same tenant and protected
 //! staging document, before its expiry and for the same package bytes,
 //! verified against the signed declarations' commitments, and its pairs
-//! written as the new accounts' vault credentials in the messaging-accounts
+//! written as the reviewed accounts' vault credentials in the messaging-accounts
 //! section's transaction. The staged secret is deleted in that same
 //! transaction, so a failure rolls back keys, accounts and deletion together.
 
@@ -333,6 +333,21 @@ fn decide(
     }
 }
 
+/// Prevent expiry, consumption or restaging between the verified Apply
+/// read and its atomic install/discard. Preview never takes this write lock.
+pub async fn lock_for_apply(tx: &Transaction<'_>, tenant: &Uuid, document_id: &Uuid) -> Result<()> {
+    let staging = tx
+        .query_opt(
+            "SELECT 1 FROM sequent_backend.configuration_package_staging
+         WHERE tenant_id = $1 AND document_id = $2 FOR UPDATE NOWAIT",
+            &[tenant, document_id],
+        )
+        .await
+        .map_err(|_| anyhow!(NOT_ACCEPTED))?;
+    ensure!(staging.is_some(), NOT_ACCEPTED);
+    Ok(())
+}
+
 /// The staged pairs, verified against the signed commitments. `None` when
 /// nothing is staged and nothing needs it. A needed sidecar that is missing,
 /// or a staged one the package never committed to, is refused.
@@ -392,7 +407,7 @@ pub async fn load(
     )
 }
 
-/// The two vault credentials of a newly created AWS account, plus their
+/// The two vault credentials of the reviewed AWS account, plus their
 /// replacement metadata (names and time only), in the caller's transaction.
 pub async fn install(
     tx: &Transaction<'_>,

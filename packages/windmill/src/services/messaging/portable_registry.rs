@@ -7,7 +7,8 @@
 
 use super::config::account_summary;
 use crate::postgres::messaging::{
-    account_endpoint, insert_messaging_account_with_id, AccountSettings, MessagingAccount,
+    account_endpoint, check_account_update, empty_status, insert_messaging_account_with_id,
+    update_messaging_account_reentering, AccountSettings, MessagingAccount,
 };
 use crate::services::import::configuration_package_credentials::{
     self as package_credentials, StagedCredentials,
@@ -28,10 +29,19 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use uuid::Uuid;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RegistryAction {
+    Create,
+    Reuse,
+    Replace,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PortableRegistryBinding {
     pub account_id: Uuid,
+    pub action: RegistryAction,
     /// Absent for a fresh row. No credential values or callback keys are included.
     pub existing_fingerprint: Option<String>,
 }
@@ -73,35 +83,15 @@ impl PortableRegistryPlan {
         Ok(config)
     }
 
-    /// Safe UI description: identifiers and credential metadata are not shown.
-    pub fn change_rows(&self, definitions: &PortableMessagingAccounts) -> Result<Vec<Value>> {
-        definitions.accounts.iter().map(|definition| {
-            let binding = self.bindings.get(&definition.reference_key())
-                .context("missing portable messaging binding")?;
-            let wanted = settings(definition)?;
-            Ok(json!({
-                "name": wanted.name, "channel": wanted.channel,
-                "provider": wanted.sender.provider(),
-                "action": if binding.existing_fingerprint.is_some() { "reuse" } else { "create" }
-            }))
-        }).collect()
-    }
-
-    pub fn warnings(&self) -> Vec<String> {
-        if self
-            .bindings
+    pub fn needs_apply(&self) -> bool {
+        self.bindings
             .values()
-            .any(|binding| binding.existing_fingerprint.is_none())
-        {
-            vec!["New portable messaging accounts are unchecked and not defaults. Configure credentials in the target and run the normal provider checks before enabling delivery.".into()]
-        } else {
-            vec![]
-        }
+            .any(|binding| binding.action != RegistryAction::Reuse)
     }
 }
 
-/// The vault credential names a new account carries after Apply: the AWS
-/// pair when its declaration commits one, otherwise none (workload role).
+/// The only vault credential names a delivery may install: an explicitly
+/// signed AWS pair. An omitted commitment never deletes or changes local keys.
 fn installed_credential_names(definition: &PortableMessagingAccount) -> BTreeSet<CredentialName> {
     if definition.credential_commitment.is_some() {
         BTreeSet::from([
@@ -159,7 +149,19 @@ fn safe_status(status: &AccountCheck) -> AccountCheck {
     status
 }
 
-fn account_fingerprint(account: &MessagingAccount) -> Result<String> {
+#[derive(Debug, Serialize)]
+struct ManagedAccount {
+    account_id: Uuid,
+    applied_package_sha256: Option<String>,
+    credential_metadata: Option<Value>,
+}
+
+type Ownership = BTreeMap<String, ManagedAccount>;
+
+fn account_fingerprint(
+    account: &MessagingAccount,
+    owner: Option<&ManagedAccount>,
+) -> Result<String> {
     // Account.credentials is metadata (credential names and replacement
     // timestamps), not the encrypted credential store. Hash only the
     // allowlisted fields; do not serialize the whole account or webhook key.
@@ -178,6 +180,7 @@ fn account_fingerprint(account: &MessagingAccount) -> Result<String> {
         "is_default": account.is_default,
         "created_at": account.created_at,
         "updated_at": account.updated_at,
+        "portable_binding": owner,
     });
     Ok(format!(
         "{:x}",
@@ -204,76 +207,213 @@ fn settings(definition: &PortableMessagingAccount) -> Result<AccountSettings> {
     Ok(settings)
 }
 
-fn plan_from_accounts(
+/// Merge only fields the portable format owns. A package cannot set the
+/// local callback endpoint, notification topic, template approval, limits,
+/// default selection or other tenant policy.
+fn replacement_settings(
+    definition: &PortableMessagingAccount,
+    current: &MessagingAccount,
+) -> Result<AccountSettings> {
+    let reference = definition.reference_key();
+    let mut next = settings(definition)?;
+    ensure!(
+        current.channel == next.channel && current.provider == next.sender.provider(),
+        "portable messaging reference {reference} is bound to a different provider or channel; choose a different reference"
+    );
+    let same_identity = current.sender.identity() == next.sender.identity();
+    match (&current.sender, &mut next.sender) {
+        (
+            AccountSender::AWS_SES {
+                notification_topic_arn: saved,
+                ..
+            },
+            AccountSender::AWS_SES {
+                notification_topic_arn,
+                ..
+            },
+        ) => {
+            ensure!(
+                same_identity || saved.is_none(),
+                "portable messaging reference {reference} cannot move a sender with a tenant-managed notification topic"
+            );
+            notification_topic_arn.clone_from(saved);
+        }
+        (
+            AccountSender::WHATSAPP_CLOUD_API {
+                api_base_url: saved,
+                ..
+            },
+            AccountSender::WHATSAPP_CLOUD_API { api_base_url, .. },
+        )
+        | (
+            AccountSender::MESSENGER_SEND_API {
+                api_base_url: saved,
+                ..
+            },
+            AccountSender::MESSENGER_SEND_API { api_base_url, .. },
+        ) => {
+            ensure!(
+                same_identity || saved.is_none(),
+                "portable messaging reference {reference} cannot move a sender with a tenant-managed API endpoint"
+            );
+            api_base_url.clone_from(saved);
+        }
+        (
+            AccountSender::VIBER_INFOBIP {
+                approved_templates: saved,
+                ..
+            },
+            AccountSender::VIBER_INFOBIP {
+                approved_templates, ..
+            },
+        ) => {
+            ensure!(
+                same_identity || saved.is_empty(),
+                "portable messaging reference {reference} cannot move a sender with tenant-managed template approvals"
+            );
+            approved_templates.clone_from(saved);
+        }
+        _ => {}
+    }
+    next.limits.clone_from(&current.limits);
+    next.is_default = current.is_default;
+    next.provider_approval = if same_identity {
+        current.provider_approval
+    } else {
+        ProviderApproval::PENDING
+    };
+    check_account_update(current, &next, &installed_credential_names(definition)).map_err(|_| {
+        anyhow!("portable messaging reference {reference} requires a separate tenant account change before importing")
+    })?;
+    Ok(next)
+}
+
+fn has_pair(account: &MessagingAccount, definition: &PortableMessagingAccount) -> bool {
+    installed_credential_names(definition)
+        .iter()
+        .all(|name| account.credentials.contains_key(name))
+}
+
+fn keys_already_installed(
+    definition: &PortableMessagingAccount,
+    account: &MessagingAccount,
+    owner: &ManagedAccount,
+    package_sha: &str,
+) -> Result<bool> {
+    Ok(definition.credential_commitment.is_none()
+        || (owner.applied_package_sha256.as_deref() == Some(package_sha)
+            && has_pair(account, definition)
+            && owner.credential_metadata.as_ref()
+                == Some(&serde_json::to_value(&account.credentials)?)))
+}
+
+fn plan_from_registry(
     tenant: Uuid,
     package_sha: &str,
     definitions: &PortableMessagingAccounts,
     existing: &[MessagingAccount],
+    ownership: &Ownership,
 ) -> Result<PortableRegistryPlan> {
     package_digest(package_sha)?;
     definitions.validate()?;
-    let mut desired: Vec<AccountSettings> = vec![];
     let mut bindings = BTreeMap::new();
     let mut bound_ids = BTreeSet::new();
     for definition in &definitions.accounts {
         let reference = definition.reference_key();
         let wanted = settings(definition)?;
         let name = normalized_name(&wanted.name);
-        ensure!(
-            !desired
-                .iter()
-                .any(|previous| normalized_name(&previous.name) == name
-                    || (previous.channel == wanted.channel
-                        && previous.sender.identity() == wanted.sender.identity())),
-            "portable messaging definitions have conflicting names or sender identities"
-        );
-        desired.push(wanted.clone());
         let incoming_id = account_id(tenant, package_sha, &reference);
+        let owner = ownership.get(&reference);
         let mut exact = None;
         for account in existing.iter().filter(|a| a.tenant_id == tenant) {
+            if owner.is_some_and(|owner| account.id == owner.account_id) {
+                ensure!(
+                    exact.replace(account).is_none(),
+                    "portable messaging reference {reference} matches more than one tenant account"
+                );
+                continue;
+            }
             let name_matches = normalized_name(&account.name) == name;
-            let channel_matches =
+            let provider_matches =
                 account.channel == wanted.channel && account.provider == wanted.sender.provider();
             let identity_matches =
-                channel_matches && account.sender.identity() == wanted.sender.identity();
+                provider_matches && account.sender.identity() == wanted.sender.identity();
             if !(name_matches || identity_matches || account.id == incoming_id) {
                 continue;
             }
+            // A second candidate is always ambiguous. A registered alias
+            // also cannot be claimed through a different package reference.
             ensure!(
-                name_matches && channel_matches && sender_matches(&account.sender, &wanted.sender),
-                "portable messaging reference {reference} conflicts with an existing tenant account"
+                owner.is_none()
+                    && !ownership.values().any(|owner| owner.account_id == account.id)
+                    && name_matches
+                    && provider_matches
+                    && sender_matches(&account.sender, &wanted.sender),
+                "portable messaging reference {reference} conflicts with an existing tenant account not bound to that reference"
             );
             ensure!(
                 exact.replace(account).is_none(),
                 "portable messaging reference {reference} matches more than one tenant account"
             );
         }
-        let binding = match exact {
-            Some(account) => PortableRegistryBinding {
-                account_id: account.id,
-                existing_fingerprint: Some(account_fingerprint(account)?),
-            },
-            None => PortableRegistryBinding {
-                account_id: incoming_id,
-                existing_fingerprint: None,
-            },
+        let (id, action, fingerprint) = match (owner, exact) {
+            (Some(owner), Some(account)) => {
+                let next = replacement_settings(definition, account)?;
+                let same = account.name == next.name && account.sender == next.sender;
+                // A legacy receiver derived its ID from these exact bytes.
+                // Backfilled rows have no prior applied-package receipt.
+                let legacy_retry = owner.applied_package_sha256.is_none()
+                    && account.id == incoming_id
+                    && account.created_at == account.updated_at
+                    && has_pair(account, definition);
+                let action = if same
+                    && (legacy_retry
+                        || keys_already_installed(definition, account, owner, package_sha)?)
+                {
+                    RegistryAction::Reuse
+                } else {
+                    RegistryAction::Replace
+                };
+                (
+                    account.id,
+                    action,
+                    Some(account_fingerprint(account, Some(owner))?),
+                )
+            }
+            (None, Some(account)) => {
+                // Do not adopt a locally managed account because it looks
+                // like this sender. Preserve exact, credential-free reuse,
+                // and keep support for finishing a legacy same-byte install.
+                ensure!(
+                    definition.credential_commitment.is_none()
+                        || (account.id == incoming_id && account.created_at == account.updated_at
+                            && has_pair(account, definition)),
+                    "portable messaging reference {reference} already exists on this tenant; its AWS keys are managed here, not by a package"
+                );
+                (
+                    account.id,
+                    RegistryAction::Reuse,
+                    Some(account_fingerprint(account, None)?),
+                )
+            }
+            (None, None) => (incoming_id, RegistryAction::Create, None),
+            (Some(_), None) => {
+                return Err(anyhow!(
+                    "portable messaging reference {reference} has no matching tenant account"
+                ));
+            }
         };
-        // A package sets AWS keys only on an account it creates (or, on a
-        // resumed Apply, the one it already created: the same derived ID).
-        // It never replaces keys an installation manages for its own account.
         ensure!(
-            definition.credential_commitment.is_none()
-                || binding.existing_fingerprint.is_none()
-                || binding.account_id == incoming_id,
-            "portable messaging reference {reference} already exists on this tenant; its AWS keys are managed here, not by a package"
-        );
-        ensure!(
-            bound_ids.insert(binding.account_id),
+            bound_ids.insert(id),
             "more than one portable messaging reference resolved to the same account"
         );
-        ensure!(
-            bindings.insert(reference, binding).is_none(),
-            "duplicate portable messaging reference"
+        bindings.insert(
+            reference,
+            PortableRegistryBinding {
+                account_id: id,
+                action,
+                existing_fingerprint: fingerprint,
+            },
         );
     }
     Ok(PortableRegistryPlan {
@@ -306,6 +446,30 @@ async fn list_registry_accounts(
     .collect()
 }
 
+async fn list_ownership(tx: &Transaction<'_>, tenant: &Uuid) -> Result<Ownership> {
+    tx.query(
+        "SELECT reference, account_id, applied_package_sha256, credential_metadata
+         FROM sequent_backend.portable_messaging_account_binding WHERE tenant_id = $1",
+        &[tenant],
+    )
+    .await?
+    .into_iter()
+    .map(|row| {
+        Ok((
+            row.try_get(0)?,
+            ManagedAccount {
+                account_id: row.try_get(1)?,
+                applied_package_sha256: row.try_get(2)?,
+                credential_metadata: row.try_get(3)?,
+            },
+        ))
+    })
+    .collect()
+}
+
+const CHANGED: &str =
+    "portable messaging accounts changed; preview the configuration package again";
+
 pub async fn plan(
     tx: &Transaction<'_>,
     tenant: Uuid,
@@ -313,11 +477,33 @@ pub async fn plan(
     definitions: &PortableMessagingAccounts,
 ) -> Result<PortableRegistryPlan> {
     let existing = list_registry_accounts(tx, &tenant).await?;
-    plan_from_accounts(tenant, package_sha, definitions, &existing)
+    let ownership = list_ownership(tx, &tenant).await?;
+    plan_from_registry(tenant, package_sha, definitions, &existing, &ownership)
 }
 
-/// Current account views plus the new, unchecked accounts the preview plans.
-/// The usual event configuration validator remains the authority on readiness.
+fn fresh_account(tenant: Uuid, id: Uuid, wanted: AccountSettings) -> MessagingAccount {
+    let now = Utc.timestamp_opt(0, 0).single().expect("Unix epoch");
+    MessagingAccount {
+        id,
+        tenant_id: tenant,
+        channel: wanted.channel,
+        provider: wanted.sender.provider(),
+        name: wanted.name,
+        sender: wanted.sender,
+        credentials: Default::default(),
+        limits: wanted.limits,
+        provider_approval: wanted.provider_approval,
+        readiness: wanted.readiness,
+        status: AccountCheck::default(),
+        webhook_key: String::new(),
+        is_default: false,
+        created_at: now,
+        updated_at: now,
+    }
+}
+
+/// Project exactly what the verified package would install, without writing
+/// or borrowing a displaced account's successful provider check.
 pub async fn account_summaries(
     tx: &Transaction<'_>,
     tenant: Uuid,
@@ -325,32 +511,40 @@ pub async fn account_summaries(
     expected: &PortableRegistryPlan,
 ) -> Result<Vec<AccountSummary>> {
     let mut existing = list_registry_accounts(tx, &tenant).await?;
+    let ownership = list_ownership(tx, &tenant).await?;
     ensure!(
-        plan_from_accounts(tenant, &expected.package_sha256, definitions, &existing)? == *expected,
-        "portable messaging accounts changed; preview the configuration package again"
+        plan_from_registry(
+            tenant,
+            &expected.package_sha256,
+            definitions,
+            &existing,
+            &ownership
+        )? == *expected,
+        CHANGED
     );
     for definition in &definitions.accounts {
         let binding = &expected.bindings[&definition.reference_key()];
-        if binding.existing_fingerprint.is_none() {
-            let settings = settings(definition)?;
-            let created_at = Utc.timestamp_opt(0, 0).single().expect("Unix epoch");
-            existing.push(MessagingAccount {
-                id: binding.account_id,
-                tenant_id: tenant,
-                channel: settings.channel,
-                provider: settings.sender.provider(),
-                name: settings.name,
-                sender: settings.sender,
-                credentials: Default::default(),
-                limits: settings.limits,
-                provider_approval: settings.provider_approval,
-                readiness: settings.readiness,
-                status: AccountCheck::default(),
-                webhook_key: String::new(),
-                is_default: false,
-                created_at,
-                updated_at: created_at,
-            });
+        match binding.action {
+            RegistryAction::Reuse => {}
+            RegistryAction::Create => {
+                existing.push(fresh_account(
+                    tenant,
+                    binding.account_id,
+                    settings(definition)?,
+                ));
+            }
+            RegistryAction::Replace => {
+                let account = existing
+                    .iter_mut()
+                    .find(|a| a.id == binding.account_id)
+                    .context(CHANGED)?;
+                let wanted = replacement_settings(definition, account)?;
+                account.name = wanted.name;
+                account.sender = wanted.sender;
+                account.provider_approval = wanted.provider_approval;
+                account.readiness = wanted.readiness;
+                account.status = AccountCheck::default();
+            }
         }
     }
     Ok(existing
@@ -362,10 +556,32 @@ pub async fn account_summaries(
         .collect())
 }
 
-/// Take the registry lock before any messaging-account row locks. Checking
-/// the freshly read plan under it prevents phantoms from ordinary inserts and
-/// status/credential metadata changes, not only concurrent package applies.
-/// The caller must use this same transaction for its ensuing registry writes.
+async fn remember_install(
+    tx: &Transaction<'_>,
+    tenant: &Uuid,
+    id: &Uuid,
+    reference: &str,
+    digest: &str,
+) -> Result<()> {
+    let changed = tx
+        .execute(
+            "INSERT INTO sequent_backend.portable_messaging_account_binding AS binding
+             (tenant_id, reference, account_id, applied_package_sha256, credential_metadata)
+         SELECT tenant_id, $3, id, $4, credentials FROM sequent_backend.messaging_account
+         WHERE tenant_id = $1 AND id = $2
+         ON CONFLICT (tenant_id, reference) DO UPDATE SET
+             applied_package_sha256 = EXCLUDED.applied_package_sha256,
+             credential_metadata = EXCLUDED.credential_metadata
+         WHERE binding.account_id = EXCLUDED.account_id",
+            &[tenant, id, &reference, &digest],
+        )
+        .await?;
+    ensure!(changed == 1, CHANGED);
+    Ok(())
+}
+
+/// Hold the registry lock before any account row locks. No settings, vault,
+/// or provenance write happens until the signed Preview plan is rechecked.
 pub async fn apply(
     tx: &Transaction<'_>,
     tenant: Uuid,
@@ -375,95 +591,115 @@ pub async fn apply(
     credentials: Option<&StagedCredentials>,
 ) -> Result<PortableRegistryPlan> {
     lock_registry(tx).await?;
-    let current = plan(tx, tenant, package_sha, definitions).await?;
-    ensure!(
-        current == *expected,
-        "portable messaging accounts changed; preview the configuration package again"
-    );
+    let existing = list_registry_accounts(tx, &tenant).await?;
+    let owners = list_ownership(tx, &tenant).await?;
+    let current = plan_from_registry(tenant, package_sha, definitions, &existing, &owners)?;
+    ensure!(current == *expected, CHANGED);
+    // Resolve all required verified input before the first write.
+    let mut pairs = BTreeMap::new();
     for definition in &definitions.accounts {
-        let binding = &current.bindings[&definition.reference_key()];
-        if binding.existing_fingerprint.is_none() {
-            insert_messaging_account_with_id(
-                tx,
-                &tenant,
-                binding.account_id,
-                &settings(definition)?,
-                &messaging::link::new_reference(),
-            )
-            .await?;
-            if definition.credential_commitment.is_some() {
-                let pair = credentials
-                    .and_then(|staged| staged.get(&definition.reference_key()))
-                    .ok_or_else(|| anyhow!(package_credentials::NOT_ACCEPTED))?;
-                package_credentials::install(tx, &tenant, &binding.account_id, pair).await?;
+        let reference = definition.reference_key();
+        if definition.credential_commitment.is_some()
+            && current.bindings[&reference].action != RegistryAction::Reuse
+        {
+            let pair = credentials
+                .and_then(|staged| staged.get(&reference))
+                .ok_or_else(|| anyhow!(package_credentials::NOT_ACCEPTED))?;
+            pairs.insert(reference, pair);
+        }
+    }
+    for definition in &definitions.accounts {
+        let reference = definition.reference_key();
+        let binding = &current.bindings[&reference];
+        let id = &binding.account_id;
+        match binding.action {
+            RegistryAction::Reuse => continue,
+            RegistryAction::Create => {
+                insert_messaging_account_with_id(
+                    tx,
+                    &tenant,
+                    *id,
+                    &settings(definition)?,
+                    &messaging::link::new_reference(),
+                )
+                .await?;
+            }
+            RegistryAction::Replace => {
+                let account = existing.iter().find(|a| a.id == *id).context(CHANGED)?;
+                update_messaging_account_reentering(
+                    tx,
+                    &tenant,
+                    id,
+                    &replacement_settings(definition, account)?,
+                    &installed_credential_names(definition),
+                )
+                .await?
+                .context(CHANGED)?;
+                // The prior sender's approval/check never becomes evidence
+                // for the replacement. Keep safety history, not readiness.
+                let changed = tx
+                    .execute(
+                        "UPDATE sequent_backend.messaging_account
+                     SET status = jsonb_set($3::jsonb, '{details,number_changes}',
+                             COALESCE(status#>'{details,number_changes}', '[]'::jsonb)),
+                         readiness = 'PROVIDER_CHECK', updated_at = now()
+                     WHERE tenant_id = $1 AND id = $2",
+                        &[&tenant, id, &empty_status()?],
+                    )
+                    .await?;
+                ensure!(changed == 1, CHANGED);
             }
         }
+        if let Some(pair) = pairs.get(&reference) {
+            package_credentials::install(tx, &tenant, id, pair).await?;
+        }
+        remember_install(tx, &tenant, id, &reference, package_sha).await?;
     }
-    let existing = list_registry_accounts(tx, &tenant).await?;
-    installed_plan(tenant, package_sha, definitions, expected, &existing)
-}
-
-fn installed_plan(
-    tenant: Uuid,
-    package_sha: &str,
-    definitions: &PortableMessagingAccounts,
-    expected: &PortableRegistryPlan,
-    existing: &[MessagingAccount],
-) -> Result<PortableRegistryPlan> {
-    const CHANGED: &str =
-        "portable messaging accounts changed; preview the configuration package again";
-    let current = plan_from_accounts(tenant, package_sha, definitions, existing)?;
-    ensure!(
-        current.tenant_id == expected.tenant_id
-            && current.package_sha256 == expected.package_sha256
-            && current.bindings.len() == expected.bindings.len(),
-        CHANGED
-    );
+    let applied = list_registry_accounts(tx, &tenant).await?;
+    let owners = list_ownership(tx, &tenant).await?;
+    let installed = plan_from_registry(tenant, package_sha, definitions, &applied, &owners)?;
+    ensure!(!installed.needs_apply(), CHANGED);
     for definition in &definitions.accounts {
-        let key = definition.reference_key();
-        let before = expected.bindings.get(&key).context(CHANGED)?;
-        let now = current.bindings.get(&key).context(CHANGED)?;
-        ensure!(now.account_id == before.account_id, CHANGED);
-        if before.existing_fingerprint.is_some() {
-            ensure!(
-                now.existing_fingerprint == before.existing_fingerprint,
-                CHANGED
-            );
+        let reference = definition.reference_key();
+        let before = &current.bindings[&reference];
+        let after = &installed.bindings[&reference];
+        ensure!(before.account_id == after.account_id, CHANGED);
+        if before.action == RegistryAction::Reuse {
+            ensure!(after == before, CHANGED);
             continue;
         }
-        ensure!(
-            now.existing_fingerprint.is_some()
-                && now.account_id == account_id(tenant, package_sha, &key),
-            CHANGED
-        );
-        let account = existing
+        let row = applied
             .iter()
-            .find(|a| a.tenant_id == tenant && a.id == now.account_id)
+            .find(|a| a.id == before.account_id)
             .context(CHANGED)?;
-        let wanted = settings(definition)?;
+        let prior = existing.iter().find(|a| a.id == before.account_id);
+        let wanted = match prior {
+            Some(prior) => replacement_settings(definition, prior)?,
+            None => settings(definition)?,
+        };
         ensure!(
-            account.created_at == account.updated_at
-                && account.name == wanted.name
-                && account.sender == wanted.sender
-                && account.channel == wanted.channel
-                && account.provider == wanted.sender.provider()
-                && account.limits == wanted.limits
-                && account.provider_approval == wanted.provider_approval
-                && account.readiness == wanted.readiness
-                && !account.is_default
-                && account.credentials.keys().copied().collect::<BTreeSet<_>>()
-                    == installed_credential_names(definition)
-                && account.status == AccountCheck::default(),
+            row.name == wanted.name
+                && row.sender == wanted.sender
+                && row.provider_approval == wanted.provider_approval
+                && row.readiness == wanted.readiness
+                && row.is_default == wanted.is_default
+                && row.limits == wanted.limits
+                && row.status == AccountCheck::default()
+                && prior.is_none_or(|prior| row.created_at == prior.created_at)
+                && (definition.credential_commitment.is_some()
+                    || prior.map_or_else(
+                        || row.credentials.is_empty(),
+                        |prior| row.credentials == prior.credentials
+                    )),
             CHANGED
         );
     }
-    Ok(current)
+    Ok(installed)
 }
 
-/// Check the installed mapping again in the native event transaction. Lock
-/// only the reviewed destination accounts, not unrelated provider accounts or
-/// other tenants, while the event importer provisions its realm and boards.
-/// An unrelated row added after this check cannot change the pinned IDs.
+/// Recheck the exact applied plan in the native event transaction. A change
+/// to a reviewed account, including its credentials or provenance, cannot
+/// silently retarget or inherit the receipt of a completed Write.
 pub async fn require_installed(
     tx: &Transaction<'_>,
     tenant: Uuid,
@@ -471,6 +707,7 @@ pub async fn require_installed(
     definitions: &PortableMessagingAccounts,
     expected: &PortableRegistryPlan,
 ) -> Result<PortableRegistryPlan> {
+    ensure!(!expected.needs_apply(), CHANGED);
     let ids: Vec<Uuid> = expected
         .bindings
         .values()
@@ -484,12 +721,10 @@ pub async fn require_installed(
         )
         .await
         .context("The destination messaging accounts cannot be locked")?;
-    ensure!(
-        locked.len() == ids.len(),
-        "The destination messaging accounts changed since Preview"
-    );
-    let existing = list_registry_accounts(tx, &tenant).await?;
-    installed_plan(tenant, package_sha, definitions, expected, &existing)
+    ensure!(locked.len() == ids.len(), CHANGED);
+    let current = plan(tx, tenant, package_sha, definitions).await?;
+    ensure!(current == *expected, CHANGED);
+    Ok(current)
 }
 
 async fn lock_registry(tx: &Transaction<'_>) -> Result<()> {
@@ -520,6 +755,27 @@ mod tests {
 
     const SHA: &str = "0000000000000000000000000000000000000000000000000000000000000000";
     const OTHER_SHA: &str = "0000000000000000000000000000000000000000000000000000000000000001";
+
+    fn plan_from_accounts(
+        tenant: Uuid,
+        digest: &str,
+        definitions: &PortableMessagingAccounts,
+        existing: &[MessagingAccount],
+    ) -> Result<PortableRegistryPlan> {
+        plan_from_registry(tenant, digest, definitions, existing, &Ownership::new())
+    }
+
+    fn owner(row: &MessagingAccount, digest: Option<&str>) -> Ownership {
+        BTreeMap::from([(
+            "package:email".into(),
+            ManagedAccount {
+                account_id: row.id,
+                applied_package_sha256: digest.map(str::to_owned),
+                credential_metadata: digest
+                    .map(|_| serde_json::to_value(&row.credentials).unwrap()),
+            },
+        )])
+    }
 
     fn definitions() -> PortableMessagingAccounts {
         serde_json::from_value(json!({
@@ -564,7 +820,7 @@ mod tests {
         assert_ne!(id, account_id(Uuid::from_u128(43), SHA, alias));
         assert_ne!(id, account_id(tenant, OTHER_SHA, alias));
         assert_ne!(id, account_id(tenant, SHA, "package:sms"));
-        assert_eq!(result.warnings().len(), 1);
+        assert!(result.needs_apply());
         let plain = Uuid::from_u128(200).to_string();
         let original =
             json!({"channels":[{"account_id":alias,"templates":[alias]},{"account_id":plain}]});
@@ -591,7 +847,7 @@ mod tests {
         assert!(reused.bindings["package:email"]
             .existing_fingerprint
             .is_some());
-        assert!(reused.warnings().is_empty());
+        assert!(!reused.needs_apply());
         let mut other = existing.clone();
         other.id = Uuid::from_u128(20);
         assert!(plan_from_accounts(tenant, SHA, &defs, &[existing.clone(), other]).is_err());
@@ -619,32 +875,52 @@ mod tests {
     }
 
     #[test]
-    fn new_records_must_remain_pristine_until_event_apply() {
+    fn only_a_tracked_same_tenant_reference_can_plan_a_replacement() {
         let tenant = Uuid::from_u128(42);
-        let defs = definitions();
-        let expect = plan_from_accounts(tenant, SHA, &defs, &[]).unwrap();
-        let id = expect.bindings["package:email"].account_id;
-        let row = with_account(id, &defs);
-        assert!(installed_plan(tenant, SHA, &defs, &expect, &[]).is_err());
-        assert!(installed_plan(tenant, SHA, &defs, &expect, &[row.clone()]).is_ok());
-        let mut rotated = row.clone();
-        rotated.credentials.insert(
-            CredentialName::AWS_ACCESS_KEY_ID,
-            CredentialRecord {
-                replaced_at: "later".into(),
-            },
+        let mut defs = definitions();
+        let row = with_account(account_id(tenant, SHA, "package:email"), &defs);
+        let mut next = serde_json::to_value(&defs).unwrap();
+        next["accounts"][0]["sender"]["region"] = json!("us-east-2");
+        defs = serde_json::from_value(next).unwrap();
+        assert!(plan_from_accounts(tenant, OTHER_SHA, &defs, &[row.clone()]).is_err());
+        let owners = owner(&row, Some(SHA));
+        let replace =
+            plan_from_registry(tenant, OTHER_SHA, &defs, &[row.clone()], &owners).unwrap();
+        assert!(replace.needs_apply());
+        assert_eq!(
+            replace.bindings["package:email"].action,
+            RegistryAction::Replace
         );
-        let mut checked = row.clone();
-        checked.status.connected = true;
-        let mut edited_and_reverted = row.clone();
-        edited_and_reverted.updated_at = Utc.timestamp_opt(2, 0).single().unwrap();
-        let mut alternate = row.clone();
-        alternate.id = Uuid::from_u128(17);
-        let mut default = row;
-        default.is_default = true;
-        for changed in [rotated, checked, edited_and_reverted, alternate, default] {
-            assert!(installed_plan(tenant, SHA, &defs, &expect, &[changed]).is_err());
-        }
+        assert_eq!(replace.bindings["package:email"].account_id, row.id);
+
+        let other_tenant = Uuid::from_u128(43);
+        let elsewhere = plan_from_accounts(other_tenant, OTHER_SHA, &defs, &[row.clone()]).unwrap();
+        assert_eq!(
+            elsewhere.bindings["package:email"].action,
+            RegistryAction::Create
+        );
+        assert_ne!(elsewhere.bindings["package:email"].account_id, row.id);
+
+        let mut wrong_name = defs.clone();
+        wrong_name.accounts[0].reference = "another-alias".into();
+        assert!(
+            plan_from_registry(tenant, OTHER_SHA, &wrong_name, &[row.clone()], &owners).is_err()
+        );
+        let mut colliding = with_account(Uuid::from_u128(22), &defs);
+        colliding.name = "Verified manual alias".into();
+        assert!(
+            plan_from_registry(tenant, OTHER_SHA, &defs, &[row.clone(), colliding], &owners)
+                .is_err()
+        );
+        let mut next = serde_json::to_value(&defs).unwrap();
+        next["accounts"][0]["sender"] = json!({"provider":"AWS_SNS","sender_id":"DEMO"});
+        let different_provider = serde_json::from_value(next).unwrap();
+        assert!(
+            plan_from_registry(tenant, OTHER_SHA, &different_provider, &[row], &owners)
+                .unwrap_err()
+                .to_string()
+                .contains("different provider or channel")
+        );
     }
 
     #[test]
@@ -663,11 +939,20 @@ mod tests {
                 replaced_at: "rotated".into(),
             },
         );
-        assert!(installed_plan(tenant, SHA, &defs, &expected, &[rotated]).is_err());
+        assert_ne!(
+            expected,
+            plan_from_accounts(tenant, SHA, &defs, &[rotated]).unwrap()
+        );
         let mut checked = ready.clone();
         checked.status.production_access = true;
-        assert!(installed_plan(tenant, SHA, &defs, &expected, &[checked]).is_err());
-        assert!(installed_plan(tenant, SHA, &defs, &expected, &[ready]).is_ok());
+        assert_ne!(
+            expected,
+            plan_from_accounts(tenant, SHA, &defs, &[checked]).unwrap()
+        );
+        assert_eq!(
+            expected,
+            plan_from_accounts(tenant, SHA, &defs, &[ready]).unwrap()
+        );
     }
 
     #[test]
@@ -710,25 +995,44 @@ mod tests {
     }
 
     #[test]
-    fn a_new_committed_account_must_hold_exactly_its_pair_after_apply() {
+    fn only_the_exact_installed_pair_receipt_is_idempotent() {
         let tenant = Uuid::from_u128(42);
         let mut defs = definitions();
         defs.accounts[0].credential_commitment = Some("ab".repeat(32));
-        let expect = plan_from_accounts(tenant, SHA, &defs, &[]).unwrap();
-        let id = expect.bindings["package:email"].account_id;
-        let record = || CredentialRecord {
-            replaced_at: "t".into(),
-        };
-        let bare = with_account(id, &defs);
-        assert!(installed_plan(tenant, SHA, &defs, &expect, &[bare.clone()]).is_err());
-        let mut half = bare.clone();
-        half.credentials
-            .insert(CredentialName::AWS_ACCESS_KEY_ID, record());
-        assert!(installed_plan(tenant, SHA, &defs, &expect, &[half.clone()]).is_err());
-        let mut both = half;
-        both.credentials
-            .insert(CredentialName::AWS_SECRET_ACCESS_KEY, record());
-        assert!(installed_plan(tenant, SHA, &defs, &expect, &[both]).is_ok());
+        let id = account_id(tenant, SHA, "package:email");
+        let mut row = with_account(id, &defs);
+        for key in installed_credential_names(&defs.accounts[0]) {
+            row.credentials.insert(
+                key,
+                CredentialRecord {
+                    replaced_at: "before".into(),
+                },
+            );
+        }
+        let owners = owner(&row, Some(SHA));
+        assert!(
+            !plan_from_registry(tenant, SHA, &defs, &[row.clone()], &owners)
+                .unwrap()
+                .needs_apply()
+        );
+        assert_eq!(
+            plan_from_registry(tenant, OTHER_SHA, &defs, &[row.clone()], &owners)
+                .unwrap()
+                .bindings["package:email"]
+                .action,
+            RegistryAction::Replace
+        );
+        row.credentials
+            .get_mut(&CredentialName::AWS_SECRET_ACCESS_KEY)
+            .unwrap()
+            .replaced_at = "manual rotation".into();
+        assert_eq!(
+            plan_from_registry(tenant, SHA, &defs, &[row], &owners)
+                .unwrap()
+                .bindings["package:email"]
+                .action,
+            RegistryAction::Replace
+        );
     }
 
     #[test]

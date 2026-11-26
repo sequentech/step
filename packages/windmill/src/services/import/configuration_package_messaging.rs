@@ -6,9 +6,10 @@
 //! The signed bytes are never rewritten. The import resolves them in its own
 //! transaction to exactly the target accounts the operator previewed.
 
+use crate::services::import::configuration_package_apply::SectionPreview;
 use crate::services::import::configuration_package_credentials as package_credentials;
 use crate::services::messaging::config::with_original_account_ids;
-use crate::services::messaging::portable_registry::{self, PortableRegistryPlan};
+use crate::services::messaging::portable_registry::{self, PortableRegistryPlan, RegistryAction};
 use anyhow::{anyhow, ensure, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::election_config::portable_messaging::{
@@ -22,7 +23,6 @@ use sequent_core::types::messaging::{
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 use uuid::Uuid;
 
@@ -41,7 +41,7 @@ pub struct PackageMessaging {
     /// in the task body): staged credentials are only for their uploader.
     actor: Option<String>,
     snapshot: OnceLock<PortableRegistryPlan>,
-    installed_here: AtomicBool,
+    installed_here: OnceLock<PortableRegistryPlan>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -72,25 +72,25 @@ impl PackageMessaging {
             staged_document,
             actor,
             snapshot: OnceLock::new(),
-            installed_here: AtomicBool::new(false),
+            installed_here: OnceLock::new(),
         }
     }
 
-    /// Whether this plan creates an account that needs delivered keys. A
-    /// resumed Apply whose committed accounts already exist needs none.
+    /// A create or replacement which commits keys requires its verified
+    /// sidecar. Reusing an exactly installed pair does not.
     fn needs_credentials(&self, plan: &PortableRegistryPlan) -> bool {
         self.definitions.accounts.iter().any(|definition| {
             definition.credential_commitment.is_some()
                 && plan
                     .bindings
                     .get(&definition.reference_key())
-                    .is_some_and(|binding| binding.existing_fingerprint.is_none())
+                    .is_some_and(|binding| binding.action != RegistryAction::Reuse)
         })
     }
 
     /// Always consulted, so a staged sidecar is checked (uploader, package,
-    /// expiry, commitments) and consumed even when no new account needs it,
-    /// as on a resumed Apply; required only when one does.
+    /// expiry, commitments); it is consumed atomically whenever this
+    /// Apply writes the section. A resumed read-only match needs none.
     async fn credentials(
         &self,
         tx: &Transaction<'_>,
@@ -117,14 +117,13 @@ impl PackageMessaging {
     }
 
     pub(crate) async fn plan(&self, tx: &Transaction<'_>) -> Result<PortableRegistryPlan> {
-        if self.installed_here.load(Ordering::Acquire) {
-            let reviewed = self.snapshot.get().ok_or_else(|| anyhow!("{STALE}"))?;
+        if let Some(installed) = self.installed_here.get() {
             return portable_registry::require_installed(
                 tx,
                 self.tenant,
                 &self.digest,
                 &self.definitions,
-                reviewed,
+                installed,
             )
             .await;
         }
@@ -143,6 +142,18 @@ impl PackageMessaging {
         Ok(plan)
     }
 
+    pub(crate) async fn preview_registry(&self, tx: &Transaction<'_>) -> Result<SectionPreview> {
+        self.registry_preview(&self.plan(tx).await?)
+    }
+
+    fn registry_preview(&self, plan: &PortableRegistryPlan) -> Result<SectionPreview> {
+        Ok(SectionPreview {
+            needs_apply: plan.needs_apply(),
+            changes: self.changes(plan)?,
+            blockers: vec![],
+        })
+    }
+
     /// Public task rows deliberately omit target-registry IDs. These task
     /// records are visible to tasks-read users, not just messaging admins.
     pub(crate) fn changes(&self, plan: &PortableRegistryPlan) -> Result<Value> {
@@ -151,13 +162,16 @@ impl PackageMessaging {
             .iter()
             .map(|definition| {
                 let reference = definition.reference_key();
-                let binding = plan.bindings.get(&reference).ok_or_else(|| anyhow!("{STALE}"))?;
+                let binding = plan
+                    .bindings
+                    .get(&reference)
+                    .ok_or_else(|| anyhow!("{STALE}"))?;
                 let provider = definition.account_sender().provider();
                 let mut row = json!({
                     "reference": reference,
                     "provider": provider,
                     "channel": provider.channel(),
-                    "action": if binding.existing_fingerprint.is_some() { "reuse" } else { "create" },
+                    "action": binding.action,
                 });
                 // Only that keys are delivered: never a value, ID or digest.
                 if definition.credential_commitment.is_some() {
@@ -180,11 +194,17 @@ impl PackageMessaging {
             .collect())
     }
 
-    pub(crate) async fn install(&self, tx: &Transaction<'_>) -> Result<Value> {
+    pub(crate) async fn install(
+        &self,
+        tx: &Transaction<'_>,
+    ) -> Result<(Value, PortableRegistryPlan)> {
         ensure!(self.confirmed.is_some(), "{STALE}");
         let planned = self.snapshot.get().ok_or_else(|| anyhow!("{STALE}"))?;
+        if let Some(document) = self.staged_document {
+            package_credentials::lock_for_apply(tx, &self.tenant, &document).await?;
+        }
         let credentials = self.credentials(tx, planned).await?;
-        portable_registry::apply(
+        let installed = portable_registry::apply(
             tx,
             self.tenant,
             &self.digest,
@@ -197,11 +217,14 @@ impl PackageMessaging {
         if let (Some(_), Some(document)) = (&credentials, &self.staged_document) {
             package_credentials::discard(tx, &self.tenant, document).await?;
         }
-        self.changes(planned)
+        Ok((self.changes(planned)?, installed))
     }
 
-    pub(crate) fn installed(&self) {
-        self.installed_here.store(true, Ordering::Release);
+    /// The caller publishes this evidence only after the transaction commits.
+    pub(crate) fn installed(&self, installed: PortableRegistryPlan) {
+        self.installed_here
+            .set(installed)
+            .expect("registry installed once");
     }
 
     pub(crate) async fn preview_event(
@@ -227,7 +250,11 @@ impl PackageMessaging {
         elections: &[String],
     ) -> Result<PreparedMessaging> {
         ensure!(tenant == self.tenant && self.confirmed.is_some(), "{STALE}");
-        let reviewed = self.snapshot.get().ok_or_else(|| anyhow!("{STALE}"))?;
+        let reviewed = self
+            .installed_here
+            .get()
+            .or_else(|| self.snapshot.get())
+            .ok_or_else(|| anyhow!("{STALE}"))?;
         let plan = portable_registry::require_installed(
             tx,
             self.tenant,
@@ -471,6 +498,7 @@ mod tests {
                 "package:email".into(),
                 PortableRegistryBinding {
                     account_id: id,
+                    action: RegistryAction::Create,
                     existing_fingerprint: None,
                 },
             )]),
@@ -501,11 +529,16 @@ mod tests {
         assert!(!rows.to_string().contains(&commitment));
         assert!(with_keys.needs_credentials(&plan));
         let mut resumed = plan.clone();
-        resumed
-            .bindings
-            .get_mut("package:email")
-            .unwrap()
-            .existing_fingerprint = Some("ef".repeat(32));
+        let existing = resumed.bindings.get_mut("package:email").unwrap();
+        existing.existing_fingerprint = Some("ef".repeat(32));
+        existing.action = RegistryAction::Replace;
+        assert!(with_keys.needs_credentials(&resumed));
+        let replacement = with_keys.registry_preview(&resumed).unwrap();
+        assert!(replacement.needs_apply);
+        assert!(replacement.blockers.is_empty());
+        assert_eq!(replacement.changes[0]["action"], "replace");
+        assert!(!replacement.changes.to_string().contains(&id.to_string()));
+        resumed.bindings.get_mut("package:email").unwrap().action = RegistryAction::Reuse;
         assert!(!with_keys.needs_credentials(&resumed));
         let preview = SectionPreview {
             changes: changes.clone(),

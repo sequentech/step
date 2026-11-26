@@ -245,6 +245,9 @@ const spanishTranslation: TranslationType = {
                 "Esto aplica el paquete previsualizado al cliente {{tenantId}}. La plataforma lo vuelve a previsualizar primero y se detiene ante cualquier bloqueo.",
             cancel: "Cancelar",
             proposedChanges: "Lo que cambiaría al aplicar",
+            messagingReplaceAction: "Sustituir la cuenta existente",
+            messagingReplaceWarning:
+                "Al aplicar, se actualiza la cuenta de mensajería existente del cliente. Las elecciones vinculadas conservan el vínculo, pero no se enviarán mensajes a través de esta cuenta hasta que se superen las comprobaciones del proveedor.",
             shaMalformed:
                 "El SHA-256 introducido no tiene 64 caracteres hexadecimales, así que el paquete no se ha previsualizado. Introduzca el resumen exacto o déjelo en blanco.",
             nothingToChange: "Nada: el cliente ya coincide con el paquete.",
