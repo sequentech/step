@@ -426,6 +426,7 @@ async fn the_sweep_lists_page_by_keyset_and_skip_what_they_cannot_act_on() {
             sender: AccountSender::VIBER_INFOBIP {
                 base_url: "https://api.example.org".to_string(),
                 sender: "Elections".to_string(),
+                content_mode: Default::default(),
                 approved_templates: BTreeMap::new(),
             },
             limits: AccountLimits::default(),

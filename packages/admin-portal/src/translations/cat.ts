@@ -6562,11 +6562,16 @@ const catalanTranslation: TranslationType = {
                 intro: {
                     WHATSAPP:
                         "WhatsApp només envia plantilles que Meta ha aprovat per al compte de WhatsApp Business. El missatge ha de coincidir amb la plantilla aprovada; tria què omple els seus paràmetres.",
-                    VIBER: "Viber només envia codis i missatges transaccionals amb plantilles aprovades pel soci de Viber. El missatge ha de coincidir amb la plantilla aprovada; tria què omple els seus paràmetres.",
+                    VIBER: "Un compte de Viber envia plantilles aprovades pel soci de Viber o text lliure. Amb plantilles aprovades, el missatge ha de coincidir amb la plantilla; tria què omple els seus paràmetres. Amb text lliure, el text de sota s'envia tal qual.",
                 },
                 approvedWording: "Text aprovat",
                 approvedWordingHelp:
                     "Una còpia de la plantilla aprovada, feta servir com a previsualització. Canviar-la aquí no canvia el que envia el proveïdor.",
+                viberWording: "Text",
+                viberWordingHelp:
+                    "Un compte que envia text lliure envia aquest text tal qual. Amb plantilles aprovades és una còpia de la plantilla, usada com a vista prèvia, i no canvia el que s'envia.",
+                sendsWrittenText:
+                    "Aquest compte envia text lliure: el text de dalt s'envia tal qual i no necessita cap plantilla aprovada.",
                 providerTemplateTitle: "Plantilla del proveïdor",
                 providerTemplateHelp:
                     "Opcional. El nom o l'ID de la plantilla aprovada al proveïdor. Si és buit, s'utilitza la plantilla de l'esdeveniment electoral vinculada a l'àlies d'aquesta plantilla, o la predeterminada de l'esdeveniment per al propòsit.",
@@ -6986,6 +6991,19 @@ const catalanTranslation: TranslationType = {
                 templateId: "ID de plantilla del soci",
                 add: "Afegeix una plantilla",
                 remove: "Treu la plantilla",
+                contentMode: {
+                    title: "Contingut dels missatges",
+                    APPROVED_TEMPLATES: "Plantilles aprovades",
+                    FREE_TEXT: "Text lliure",
+                },
+                contentModeHelp: {
+                    APPROVED_TEMPLATES:
+                        "Els codis i missatges s'envien amb les plantilles que va aprovar el soci de Viber, indicades a sota.",
+                    FREE_TEXT:
+                        "Els codis i missatges s'envien amb el seu propi text, com els SMS. No cal cap plantilla aprovada.",
+                },
+                freeTextWarning:
+                    "Viber factura els missatges transaccionals enviats sense plantilla aprovada a la seva tarifa promocional i pot rebutjar contingut promocional com a primer missatge a un votant. Confirma amb el soci que aquest compte pot enviar codis com a text lliure.",
             },
             limits: {
                 title: "Límits d'enviament",

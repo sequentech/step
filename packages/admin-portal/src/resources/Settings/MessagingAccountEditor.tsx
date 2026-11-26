@@ -16,7 +16,11 @@ import {
     FormControlLabel,
     IconButton,
     InputAdornment,
+    FormControl,
+    FormLabel,
     MenuItem,
+    Radio,
+    RadioGroup,
     Switch,
     TextField,
     Typography,
@@ -33,6 +37,7 @@ import {
     EMessagePurpose,
     EMessagingProvider,
     EProviderApproval,
+    EViberContentMode,
     IMessagingAccount,
     MESSAGE_CHANNELS,
     MESSAGE_PURPOSES,
@@ -593,6 +598,55 @@ export const CallbackSection: React.FC<ICallbackSectionProps> = ({
     )
 }
 
+interface IViberContentModeInputProps {
+    values: IAccountFormValues
+    disabled: boolean
+    onChange: (values: IAccountFormValues) => void
+}
+
+/** Whether the Viber account sends approved templates or the messages' own text. */
+export const ViberContentModeInput: React.FC<IViberContentModeInputProps> = ({
+    values,
+    disabled,
+    onChange,
+}) => {
+    const {t} = useTranslation()
+    return (
+        <FormControl disabled={disabled} sx={{display: "flex", flexDirection: "column", gap: 1}}>
+            <FormLabel id="viber-content-mode">
+                <Typography variant="subtitle2" component="h3" color="text.primary">
+                    {t("messagingAccounts.viber.contentMode.title")}
+                </Typography>
+            </FormLabel>
+            <RadioGroup
+                aria-labelledby="viber-content-mode"
+                value={values.viberContentMode}
+                onChange={(event) =>
+                    onChange({
+                        ...values,
+                        viberContentMode: event.target.value as EViberContentMode,
+                    })
+                }
+            >
+                {Object.values(EViberContentMode).map((mode) => (
+                    <FormControlLabel
+                        key={mode}
+                        value={mode}
+                        control={<Radio />}
+                        label={t(`messagingAccounts.viber.contentMode.${mode}`)}
+                    />
+                ))}
+            </RadioGroup>
+            <Typography variant="body2" color="text.secondary">
+                {t(`messagingAccounts.viber.contentModeHelp.${values.viberContentMode}`)}
+            </Typography>
+            {values.viberContentMode === EViberContentMode.FREE_TEXT && (
+                <Alert severity="warning">{t("messagingAccounts.viber.freeTextWarning")}</Alert>
+            )}
+        </FormControl>
+    )
+}
+
 interface IViberTemplatesEditorProps {
     values: IAccountFormValues
     errors: Record<string, EAccountFormError>
@@ -969,13 +1023,17 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
             )}
 
             {values.provider === EMessagingProvider.VIBER_INFOBIP && (
-                <ViberTemplatesEditor
-                    values={values}
-                    errors={errors}
-                    disabled={disabled}
-                    onChange={setValues}
-                />
+                <ViberContentModeInput values={values} disabled={disabled} onChange={setValues} />
             )}
+            {values.provider === EMessagingProvider.VIBER_INFOBIP &&
+                values.viberContentMode === EViberContentMode.APPROVED_TEMPLATES && (
+                    <ViberTemplatesEditor
+                        values={values}
+                        errors={errors}
+                        disabled={disabled}
+                        onChange={setValues}
+                    />
+                )}
 
             {needsApproval && approvalSource === EApprovalSource.ADMIN_ENTERED && (
                 <TextField

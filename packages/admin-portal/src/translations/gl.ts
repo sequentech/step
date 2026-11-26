@@ -6525,11 +6525,16 @@ const galegoTranslation: TranslationType = {
                 intro: {
                     WHATSAPP:
                         "WhatsApp só envía modelos que Meta aprobou para a conta de WhatsApp Business. A mensaxe debe coincidir co modelo aprobado; escolle o que enche os seus parámetros.",
-                    VIBER: "Viber só envía códigos e mensaxes transaccionais con modelos aprobados polo socio de Viber. A mensaxe debe coincidir co modelo aprobado; escolle o que enche os seus parámetros.",
+                    VIBER: "Unha conta de Viber envía modelos aprobados polo socio de Viber ou texto libre. Con modelos aprobados, a mensaxe debe coincidir co modelo; escolle o que enche os seus parámetros. Con texto libre, o texto de abaixo envíase tal cal.",
                 },
                 approvedWording: "Texto aprobado",
                 approvedWordingHelp:
                     "Unha copia do modelo aprobado, usada como vista previa. Cambiala aquí non cambia o que envía o provedor.",
+                viberWording: "Texto",
+                viberWordingHelp:
+                    "Unha conta que envía texto libre envía este texto tal cal. Con modelos aprobados é unha copia do modelo, usada como vista previa, e non cambia o que se envía.",
+                sendsWrittenText:
+                    "Esta conta envía texto libre: o texto de arriba envíase tal cal e non precisa modelo aprobado.",
                 providerTemplateTitle: "Modelo do provedor",
                 providerTemplateHelp:
                     "Opcional. O nome ou ID do modelo aprobado no provedor. Se está baleiro, úsase o modelo do evento electoral vinculado ao alias deste modelo, ou o predeterminado do evento para o propósito.",
@@ -6938,6 +6943,19 @@ const galegoTranslation: TranslationType = {
                 templateId: "ID do modelo do socio",
                 add: "Engadir modelo",
                 remove: "Quitar modelo",
+                contentMode: {
+                    title: "Contido das mensaxes",
+                    APPROVED_TEMPLATES: "Modelos aprobados",
+                    FREE_TEXT: "Texto libre",
+                },
+                contentModeHelp: {
+                    APPROVED_TEMPLATES:
+                        "Os códigos e mensaxes envíanse cos modelos que aprobou o socio de Viber, indicados abaixo.",
+                    FREE_TEXT:
+                        "Os códigos e mensaxes envíanse co seu propio texto, como os SMS. Non fai falta ningún modelo aprobado.",
+                },
+                freeTextWarning:
+                    "Viber factura as mensaxes transaccionais enviadas sen modelo aprobado á súa tarifa promocional e pode rexeitar contido promocional como primeira mensaxe a un votante. Confirma co socio que esta conta pode enviar códigos como texto libre.",
             },
             limits: {
                 title: "Límites de envío",

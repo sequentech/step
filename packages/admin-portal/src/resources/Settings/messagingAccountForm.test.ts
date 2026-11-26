@@ -9,6 +9,7 @@ import {
     EProviderApproval,
     EReadinessBlocker,
     EReadinessPolicy,
+    EViberContentMode,
     IMessagingAccount,
     MESSAGE_CHANNELS,
 } from "@/types/messaging"
@@ -29,6 +30,7 @@ import {
     upsertAccountVariables,
     validateAccountForm,
     withChannel,
+    withProvider,
 } from "./messagingAccountForm"
 
 const form = (
@@ -206,7 +208,38 @@ describe("senderFromForm", () => {
             base_url: "https://x.api.infobip.com",
             sender: "Staff Association",
             approved_templates: {OTP: {en: "88213", tl: "88214"}},
+            content_mode: EViberContentMode.APPROVED_TEMPLATES,
         })
+    })
+
+    it("keeps a Viber account's content mode, reading a stored account as templates", () => {
+        const viber = (content_mode?: EViberContentMode) =>
+            account({
+                channel: EMessageChannel.VIBER,
+                provider: EMessagingProvider.VIBER_INFOBIP,
+                sender: {
+                    provider: EMessagingProvider.VIBER_INFOBIP,
+                    base_url: "https://x.api.infobip.com",
+                    sender: "Staff Association",
+                    approved_templates: {OTP: {en: "88213"}},
+                    ...(content_mode ? {content_mode} : {}),
+                },
+            })
+        expect(formFromAccount(viber()).viberContentMode).toBe(EViberContentMode.APPROVED_TEMPLATES)
+        const freeText = viber(EViberContentMode.FREE_TEXT)
+        const values = formFromAccount(freeText)
+        expect(values.viberContentMode).toBe(EViberContentMode.FREE_TEXT)
+        // The templates stay, for a switch back.
+        expect(senderFromForm(values)).toEqual(freeText.sender)
+        expect(emptyAccountForm(EMessageChannel.VIBER, EMessagingProvider.VIBER_INFOBIP)).toEqual(
+            expect.objectContaining({viberContentMode: EViberContentMode.APPROVED_TEMPLATES})
+        )
+        expect(
+            withProvider(
+                {...values, provider: EMessagingProvider.AWS_SNS},
+                EMessagingProvider.VIBER_INFOBIP
+            ).viberContentMode
+        ).toBe(EViberContentMode.APPROVED_TEMPLATES)
     })
 
     it("round-trips an existing account through the form", () => {
@@ -276,6 +309,10 @@ describe("validateAccountForm", () => {
             "viberTemplates.1": EAccountFormError.DUPLICATE_LANGUAGE,
             "viberTemplates.2": EAccountFormError.REQUIRED,
         })
+        // Free text hides the templates: they can't block the save.
+        expect(
+            validateAccountForm({...values, viberContentMode: EViberContentMode.FREE_TEXT})
+        ).toEqual({})
     })
 })
 

@@ -91,7 +91,8 @@ configure on the platform side.
   `pages_messaging`.
 - **Viber (Infobip)**: create a subscription for Viber delivery reports
   with the callback URL and Basic authentication, using the report username
-  and password the account generated (shown once).
+  and password the account generated (shown once). Grant the Infobip API
+  key `viber-bm:manage` so **Check connection** can list the sender's templates.
 - **Email (SES)**: send the identity's delivery, bounce and complaint
   notifications to an SNS topic, subscribe the callback URL to it over
   HTTPS, and enter the topic ARN on the account.

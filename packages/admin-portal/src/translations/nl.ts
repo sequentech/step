@@ -6582,11 +6582,16 @@ const dutchTranslation: TranslationType = {
                 intro: {
                     WHATSAPP:
                         "WhatsApp verzendt alleen sjablonen die Meta heeft goedgekeurd voor het WhatsApp Business-account. Het bericht moet overeenkomen met de goedgekeurde sjabloon; kies wat de parameters vult.",
-                    VIBER: "Viber verzendt codes en transactionele berichten alleen met sjablonen die de Viber-partner heeft goedgekeurd. Het bericht moet overeenkomen met de goedgekeurde sjabloon; kies wat de parameters vult.",
+                    VIBER: "Een Viber-account verzendt sjablonen die de Viber-partner heeft goedgekeurd of vrije tekst. Bij goedgekeurde sjablonen moet het bericht overeenkomen met de sjabloon; kies wat de parameters vult. Bij vrije tekst wordt de tekst hieronder verzonden zoals hij is.",
                 },
                 approvedWording: "Goedgekeurde tekst",
                 approvedWordingHelp:
                     "Een kopie van de goedgekeurde sjabloon, gebruikt als voorbeeld. Hier wijzigen verandert niet wat de provider verzendt.",
+                viberWording: "Tekst",
+                viberWordingHelp:
+                    "Een account dat vrije tekst verzendt, verzendt deze tekst zoals hij is. Bij goedgekeurde sjablonen is het een kopie van de sjabloon, gebruikt als voorbeeld, en verandert het niet wat wordt verzonden.",
+                sendsWrittenText:
+                    "Dit account verzendt vrije tekst: de tekst hierboven wordt verzonden zoals hij is en heeft geen goedgekeurde sjabloon nodig.",
                 providerTemplateTitle: "Sjabloon van de provider",
                 providerTemplateHelp:
                     "Optioneel. De naam of ID van de goedgekeurde sjabloon bij de provider. Indien leeg wordt de sjabloon van het verkiezingsevenement gebruikt die aan de alias van deze sjabloon is gekoppeld, of de standaard van het evenement voor het doel.",
@@ -7009,6 +7014,19 @@ const dutchTranslation: TranslationType = {
                 templateId: "Sjabloon-ID bij de partner",
                 add: "Sjabloon toevoegen",
                 remove: "Sjabloon verwijderen",
+                contentMode: {
+                    title: "Berichtinhoud",
+                    APPROVED_TEMPLATES: "Goedgekeurde sjablonen",
+                    FREE_TEXT: "Vrije tekst",
+                },
+                contentModeHelp: {
+                    APPROVED_TEMPLATES:
+                        "Codes en berichten worden verzonden met de sjablonen die de Viber-partner heeft goedgekeurd, hieronder ingevoerd.",
+                    FREE_TEXT:
+                        "Codes en berichten worden verzonden als hun eigen tekst, zoals sms. Er is geen goedgekeurde sjabloon nodig.",
+                },
+                freeTextWarning:
+                    "Viber rekent transactionele berichten zonder goedgekeurde sjabloon af tegen het promotietarief en kan promotionele inhoud als eerste bericht aan een kiezer weigeren. Controleer met de partner of dit account codes als vrije tekst mag verzenden.",
             },
             limits: {
                 title: "Verzendlimieten",

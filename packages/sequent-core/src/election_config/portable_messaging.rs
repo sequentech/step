@@ -177,6 +177,7 @@ impl PortableMessagingAccount {
                 AccountSender::VIBER_INFOBIP {
                     base_url: base_url.clone(),
                     sender: sender.clone(),
+                    content_mode: Default::default(),
                     approved_templates: Default::default(),
                 }
             }

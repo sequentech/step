@@ -66,6 +66,7 @@ fn viber(base_url: &str) -> AccountSettings {
         sender: AccountSender::VIBER_INFOBIP {
             base_url: base_url.to_string(),
             sender: "Elections".to_string(),
+            content_mode: Default::default(),
             approved_templates: BTreeMap::new(),
         },
         limits: AccountLimits::default(),
