@@ -151,6 +151,8 @@ impl Identity {
     }
 }
 
+const UNWRAP_PATH: &str = "/configuration-package-intake/unwrap";
+
 struct Case {
     identity: Identity,
     path: &'static str,
@@ -168,11 +170,26 @@ impl Case {
         client: &Client,
         permissions: &[String],
     ) -> Result<Reply, String> {
-        let request = client
+        let mut request = client
             .post(concrete(self.path))
             .header(ContentType::JSON)
             .header(bearer(&self.identity.claims().roles(permissions)))
             .body(self.body.to_string());
+        // The direct package intake also needs the first-party transport
+        // (403 before its permissions otherwise): loopback plain HTTP, same
+        // origin, so these cases measure its permission guard.
+        if self.path == UNWRAP_PATH {
+            request = request
+                .header(rocket::http::Header::new("Host", "localhost:3002"))
+                .header(rocket::http::Header::new(
+                    "Origin",
+                    "http://localhost:3002",
+                ))
+                .header(rocket::http::Header::new(
+                    "Sec-Fetch-Site",
+                    "same-origin",
+                ));
+        }
         let response =
             tokio::time::timeout(Duration::from_secs(3), request.dispatch())
                 .await
@@ -412,6 +429,10 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/import-templates", {"tenant_id": TENANT_ID, "document_id": "test-document"}, [TEMPLATE_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/import-tenant-config", {"tenant_id": TENANT_ID, "document_id": "test-document", "import_configurations": {}}, [TENANT_WRITE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/apply-configuration-package", {"tenant_id": TENANT_ID, "document_id": "test-document", "mode": "preview"}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED),
+        // intake_permissions(): the package permissions plus provisioning
+        // package messaging. A well-formed body with UUID tenant and document
+        // passes parsing; the first backend call is the database pool.
+        case!(UuidTenant, "/configuration-package-intake/unwrap", {"document_id": ELECTION_ID, "password": "synthetic-transfer-password"}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE, MESSAGING_ACCOUNT_READ, MESSAGING_ACCOUNT_WRITE, MESSAGING_CONFIG_WRITE], BACKEND, UNAUTHORIZED),
         case!(RosterOperator, "/get-architect-signer-roster-status", {"tenant_id": TENANT_ID}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED_JSON),
         case!(RosterOperator, "/get-architect-signer-roster-status", {"tenant_id": OTHER_TENANT_ID}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], UNAUTHORIZED_JSON, UNAUTHORIZED_JSON),
         case!(RosterOperator, "/preview-architect-signer-roster", {"tenant_id": TENANT_ID, "roster_json": roster_json, "expected_sha256": roster_sha256}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED_JSON),

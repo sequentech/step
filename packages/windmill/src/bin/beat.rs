@@ -35,6 +35,9 @@ use windmill::tasks::publish_electoral_log_checkpoint::publish_periodic_electora
 use windmill::tasks::purge_queue_archives::{
     purge_interval_secs, purge_queue_archives, DEFAULT_PURGE_INTERVAL_SECS,
 };
+use windmill::tasks::purge_staged_credentials::{
+    purge_staged_credentials, PURGE_STAGED_CREDENTIALS_INTERVAL_SECS,
+};
 use windmill::tasks::recompute_schedule_instants::{
     recompute_schedule_instants, RECOMPUTE_INTERVAL_SECONDS,
 };
@@ -233,6 +236,15 @@ async fn main() -> Result<()> {
                 )),
                 args = (),
             },
+            // Bounded passes: expired staged messaging credentials leave the
+            // vault for every tenant, independently of any later upload.
+            purge_staged_credentials::NAME => {
+                purge_staged_credentials,
+                schedule = DeltaSchedule::new(Duration::from_secs(
+                    PURGE_STAGED_CREDENTIALS_INTERVAL_SECS,
+                )),
+                args = (),
+            },
             // Hourly passes; each checks only the accounts due (daily, or
             // after an identity change).
             check_messaging_accounts::NAME => {
@@ -270,6 +282,7 @@ async fn main() -> Result<()> {
             publish_periodic_electoral_log_checkpoints::NAME => Queue::Beat.queue_name(),
             schedule_ballot_box_sequencers::NAME => Queue::ElectoralLogBeat.queue_name(),
             purge_queue_archives::NAME => Queue::Beat.queue_name(),
+            purge_staged_credentials::NAME => Queue::Beat.queue_name(),
             check_messaging_accounts::NAME => Queue::Beat.queue_name(),
             recount_messaging_voters_due::NAME => Queue::Beat.queue_name(),
         ],

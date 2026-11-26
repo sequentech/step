@@ -7,7 +7,7 @@ import type {Meta, StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
 import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import {RetrieveVerificationDocument} from "./ManualVerification"
-import {recovery} from "./manualVerificationStoryFixture"
+import {recovery} from "./__stories__/manualVerificationStoryFixture"
 
 const makeBoundary = () =>
     graphqlBoundary({

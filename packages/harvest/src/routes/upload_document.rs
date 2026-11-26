@@ -91,6 +91,9 @@ pub async fn get_upload_url(
             &hasura_transaction,
             inner.size,
             &claims.hasura_claims.tenant_id,
+            // The verified token's user, as the audit actor records it: only
+            // it may later unwrap this, and Preview/Apply its credentials.
+            &claims.hasura_claims.user_id,
         )
         .await
         .map_err(|_| {
