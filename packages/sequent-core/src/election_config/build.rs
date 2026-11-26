@@ -42,6 +42,7 @@ mod realm;
 mod tables;
 
 pub use realm::PARAM_LOGIN_CUSTOM_CSS;
+pub use realm::PARAM_MAX_RECEIVER_REUSE;
 pub use tables::{
     CommunicationTemplate, JsonTable, PlainTable, VOTER_LEADING_COLUMNS,
 };
@@ -160,6 +161,7 @@ pub const HANDLED_PARAMETERS: &[&str] = &[
     realm::PARAM_LOGIN_CUSTOM_CSS,
     realm::PARAM_EVENT_REALM,
     realm::PARAM_EVENT_REALM_SOURCE_ID,
+    realm::PARAM_MAX_RECEIVER_REUSE,
 ];
 
 /// Fields of a base entity that describe *that* event rather than the platform's

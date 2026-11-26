@@ -942,6 +942,9 @@ fn shape_of_a_plan() -> Value {
     // the wizard offers it. A profile downloaded from the client profile builder
     // with that setting touched could not be loaded at all.
     plan.auth_preset = Some(String::new());
+    // And again for `max_receiver_reuse`, the same kind of field: filled, so a
+    // profile can lock or hide how many voters may share a contact.
+    plan.max_receiver_reuse = Some(1);
     // **The sixth.** `ivr` is an `Option` that serialises as `null`, which has no
     // keys to walk into, and its `flow` and `prompts` are empty collections — so a
     // shape built from defaults would make `ivr.phone_number` and every path under

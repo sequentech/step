@@ -5152,6 +5152,124 @@ fn wording_is_appended_to_a_carried_parameters_sheet() {
     );
 }
 
+// -- voters per contact ---------------------------------------------------
+
+fn parameter_values(workbook: &Workbook, key: &str) -> Vec<String> {
+    workbook
+        .rows(sheet::SHEET_PARAMETERS)
+        .iter()
+        .filter(|row| row.text("key") == Some(key))
+        .filter_map(|row| row.text("value").map(str::to_string))
+        .collect()
+}
+
+/// The limit travels as the parameter a janitor's workbook would carry, so the
+/// two reach the realm by one road.
+#[test]
+fn the_limit_on_voters_per_contact_is_written_as_a_parameter() {
+    let mut plan = sound();
+    plan.max_receiver_reuse = Some(3);
+
+    let workbook = workbook_of(&plan).expect("the plan compiles to rows");
+    assert_eq!(
+        parameter_values(&workbook, PARAM_MAX_RECEIVER_REUSE),
+        vec!["3".to_string()]
+    );
+}
+
+/// Unset leaves the environment's limit alone, and adds no sheet for it.
+#[test]
+fn no_limit_on_voters_per_contact_writes_no_parameter() {
+    let workbook = workbook_of(&sound()).expect("the plan compiles to rows");
+    assert!(workbook.sheet(sheet::SHEET_PARAMETERS).is_none());
+}
+
+/// The plan's answer replaces the one in the workbook it was opened from.
+///
+/// The builder takes the first row with a key, and the plan's would come second:
+/// without this, changing the limit in the wizard would change nothing.
+#[test]
+fn the_plans_limit_on_voters_per_contact_replaces_the_workbooks() {
+    let mut plan = sound();
+    plan.platform = vec![sheet::Sheet::from_grid(
+        "Parameters",
+        &[
+            vec![
+                Cell::text("key".to_string()),
+                Cell::text("value".to_string()),
+            ],
+            vec![
+                Cell::text("tenant_id".to_string()),
+                Cell::text("acme".to_string()),
+            ],
+            vec![
+                Cell::text(PARAM_MAX_RECEIVER_REUSE.to_string()),
+                Cell::text("1".to_string()),
+            ],
+        ],
+    )
+    .expect("a two-column sheet")];
+    plan.max_receiver_reuse = Some(4);
+
+    let workbook = workbook_of(&plan).expect("the plan compiles to rows");
+    assert_eq!(
+        parameter_values(&workbook, PARAM_MAX_RECEIVER_REUSE),
+        vec!["4".to_string()]
+    );
+    assert_eq!(parameter_values(&workbook, "tenant_id"), vec!["acme"]);
+
+    // And with the plan silent, the workbook's own stays.
+    plan.max_receiver_reuse = None;
+    let workbook = workbook_of(&plan).expect("the plan compiles to rows");
+    assert_eq!(
+        parameter_values(&workbook, PARAM_MAX_RECEIVER_REUSE),
+        vec!["1".to_string()]
+    );
+}
+
+/// The whole way: plan, workbook, builder, realm.
+#[test]
+fn the_limit_on_voters_per_contact_reaches_the_realm() {
+    let mut plan = sound();
+    plan.max_receiver_reuse = Some(5);
+    plan.base_export = Some(serde_json::json!({
+        "keycloak_event_realm": {
+            "realm": "base",
+            "authenticationFlows": [{
+                "alias": "browser",
+                "authenticationExecutions": [{
+                    "authenticator": "message-otp-authenticator",
+                    "authenticatorConfig": "code",
+                }],
+            }],
+            "authenticatorConfig": [{"alias": "code", "config": {}}],
+        },
+    }));
+
+    let bundle = compiled(&plan);
+    assert_eq!(
+        bundle.export["keycloak_event_realm"]["authenticatorConfig"][0]
+            ["config"]["max-receiver-reuse"],
+        "5"
+    );
+}
+
+/// A plan written before the field opens, and one that leaves it unset writes
+/// nothing for it.
+#[test]
+fn the_limit_on_voters_per_contact_is_optional_in_a_plan() {
+    let plan = sound();
+    let written = serde_json::to_value(&plan).unwrap();
+    assert!(written.get("max_receiver_reuse").is_none(), "{written}");
+    let reopened: Blueprint = serde_json::from_value(written).unwrap();
+    assert_eq!(reopened.max_receiver_reuse, None);
+
+    let mut plan = sound();
+    plan.max_receiver_reuse = Some(0);
+    let written = serde_json::to_value(&plan).unwrap();
+    assert_eq!(written["max_receiver_reuse"], 0);
+}
+
 // -- the login page's stylesheet -------------------------------------------
 
 /// A stylesheet reaching Keycloak is MessageFormat-escaped; wording is not.
