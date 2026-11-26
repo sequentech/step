@@ -106,7 +106,7 @@ enum Identity {
     Gold,
     /// A just-authenticated ordinary Admin Portal operator.
     RosterOperator,
-    /// A just-authenticated user who has tenant permission but not the deployment allowlist.
+    /// A just-authenticated user with tenant permissions but no current admin membership.
     UnlistedRosterOperator,
     /// An admin of the super-admin tenant the child process configures.
     SuperAdmin,
@@ -126,7 +126,8 @@ impl Identity {
             _ => TENANT_ID,
         };
         let subject = match self {
-            Self::UnlistedRosterOperator => "synthetic-unlisted-operator",
+            Self::UnlistedRosterOperator => "edfc7aed-0ef3-4c54-a155-db2bb9c54d70",
+            Self::RosterOperator => "0490df33-69ca-42cd-927d-178341a0ad92",
             _ => USER_ID,
         };
         let claims = Claims::new(tenant_id, subject).username(USERNAME);
@@ -435,8 +436,8 @@ fn cases() -> Vec<Case> {
         case!(UuidTenant, "/configuration-package-intake/unwrap", {"document_id": ELECTION_ID, "password": "synthetic-transfer-password"}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE, MESSAGING_ACCOUNT_READ, MESSAGING_ACCOUNT_WRITE, MESSAGING_CONFIG_WRITE], BACKEND, UNAUTHORIZED),
         case!(RosterOperator, "/get-architect-signer-roster-status", {"tenant_id": TENANT_ID}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED_JSON),
         case!(RosterOperator, "/get-architect-signer-roster-status", {"tenant_id": OTHER_TENANT_ID}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], UNAUTHORIZED_JSON, UNAUTHORIZED_JSON),
-        case!(RosterOperator, "/preview-architect-signer-roster", {"tenant_id": TENANT_ID, "roster_json": roster_json, "expected_sha256": roster_sha256}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED_JSON),
-        case!(RosterOperator, "/activate-architect-signer-roster", {"tenant_id": TENANT_ID, "roster_json": roster_json, "expected_sha256": roster_sha256, "generation": "0"}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED_JSON),
+        case!(RosterOperator, "/preview-architect-signer-roster", {"tenant_id": TENANT_ID, "roster_json": roster_json, "expected_sha256": roster_sha256}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], FORBIDDEN_JSON, UNAUTHORIZED_JSON),
+        case!(RosterOperator, "/activate-architect-signer-roster", {"tenant_id": TENANT_ID, "roster_json": roster_json, "expected_sha256": roster_sha256, "generation": "0"}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], FORBIDDEN_JSON, UNAUTHORIZED_JSON),
         case!(UnlistedRosterOperator, "/preview-architect-signer-roster", {"tenant_id": TENANT_ID, "roster_json": roster_json, "expected_sha256": roster_sha256}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], FORBIDDEN_JSON, UNAUTHORIZED_JSON),
         case!(UnlistedRosterOperator, "/activate-architect-signer-roster", {"tenant_id": TENANT_ID, "roster_json": roster_json, "expected_sha256": roster_sha256, "generation": "0"}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], FORBIDDEN_JSON, UNAUTHORIZED_JSON),
         case!(Admin, "/activate-architect-signer-roster", {"tenant_id": TENANT_ID, "roster_json": roster_json, "expected_sha256": roster_sha256, "generation": "0"}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], FORBIDDEN_JSON, UNAUTHORIZED_JSON),
@@ -628,8 +629,8 @@ async fn minimum_permissions_reach_the_backend_and_one_fewer_is_denied() {
         // Nothing is scripted, so every Keycloak call gets HTTP 500.
         let peer = http::HttpServer::start(vec![]);
         // Only this isolated child sees the synthetic managed receiver. A
-        // correctly scoped roster candidate reaches the unconfigured DB;
-        // missing scope, unlisted operators and stale login stop before it.
+        // writes fail closed if the directory cannot confirm membership.
+        // Missing package permissions stop even before a directory lookup.
         run_isolated_with_env(
             "request_boundaries::route_permissions::minimum_permissions_reach_the_backend_and_one_fewer_is_denied",
             &peer.url,
@@ -638,7 +639,6 @@ async fn minimum_permissions_reach_the_backend_and_one_fewer_is_denied() {
                 ("WINDMILL_WEBAUTHN_PACKAGES_TENANT_ID", TENANT_ID),
                 ("WINDMILL_WEBAUTHN_PACKAGES_EXPECTED_RP_ID", ROSTER_RP_ID),
                 ("WINDMILL_WEBAUTHN_PACKAGES_EXPECTED_ORIGIN", ROSTER_ORIGIN),
-                ("WINDMILL_WEBAUTHN_PACKAGES_ROSTER_ADMIN_SUBJECTS", USER_ID),
             ],
         );
         peer.finish();
@@ -703,7 +703,7 @@ async fn pinned_roster_is_read_only_even_for_a_fresh_tenant_operator() {
     let mut tested = 0;
     for case in cases().iter().filter(|case| {
         matches!(case.identity, Identity::RosterOperator)
-            && case.answer == BACKEND
+            && case.body["tenant_id"] == TENANT_ID
             && matches!(
                 case.path,
                 "/preview-architect-signer-roster"
