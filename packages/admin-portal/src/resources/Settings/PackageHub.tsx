@@ -428,8 +428,10 @@ export const RunStages: React.FC<{stages: RunStage[]}> = ({stages}) => {
 /** What the platform recorded as applied on this tenant, separate from the run. */
 export const TenantReceipt: React.FC<{
     receipt: AppliedReceipt | null | undefined
+    /** A later Apply that stopped partway: the tenant is partly updated beyond this receipt. */
+    partialTaskId?: string
     onHistory: () => void
-}> = ({receipt, onHistory}) => {
+}> = ({receipt, partialTaskId, onHistory}) => {
     const {t} = useTranslation()
     const headingId = useId()
     const rows: [string, string, boolean?][] = receipt
@@ -466,6 +468,16 @@ export const TenantReceipt: React.FC<{
                     {t("configurationPackage.hub.rail.history")}
                 </Button>
             </Stack>
+            {partialTaskId && (
+                <Typography
+                    variant="body2"
+                    color="warning.main"
+                    data-testid="package-receipt-partial"
+                    sx={{mt: 0.5, overflowWrap: "anywhere"}}
+                >
+                    {t("configurationPackage.hub.recovery.partial", {taskId: partialTaskId})}
+                </Typography>
+            )}
             {receipt === undefined ? (
                 <Typography variant="body2" color="text.secondary">
                     {t("configurationPackage.hub.receipt.loading")}

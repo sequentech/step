@@ -21,6 +21,7 @@ import {
     type PackageRequirements,
     type PackageSection,
     type SectionView,
+    type ActiveSubmission,
 } from "./configurationPackage"
 
 export type SectionBadge =
@@ -167,6 +168,7 @@ export const runStages = (phase: PackageImportPhase, mode?: ApplyMode): RunStage
 
 export type HeaderAction =
     | "upload"
+    | "previewRemaining"
     | "openTrust"
     | "checkAgain"
     | "previewAgain"
@@ -312,3 +314,117 @@ export const readRunIdentity = (annotations: unknown): RunIdentity | null => {
     }
     return identity
 }
+
+/** The signer roster the receiver enforces now, as the page reads it. */
+export interface CurrentTrust {
+    managed: boolean
+    binding: {sha256: string; generation: string | number; requiredApprovals: number} | null
+}
+
+export type RecoveryBlock = "unsettled" | "rosterChanged" | "requirementsUnknown"
+
+export type Recovery =
+    | {kind: "none"}
+    | {kind: "blocked"; taskId: string; reason: RecoveryBlock}
+    | {
+          kind: "recoverable"
+          taskId: string
+          /** The original signed package: the next Preview must read exactly these bytes. */
+          packageSha256: string
+          /** The original requirements, locked for the continuation. */
+          requirements: PackageRequirements
+          applied: PackageSection[]
+          remaining: PackageSection[]
+          /**
+           * The same uploaded document, only from the browser that followed the
+           * run and only for a plain upload; otherwise the same file is chosen again.
+           */
+          documentId: string | null
+      }
+
+const SHA256_HEX = /^[0-9a-f]{64}$/
+
+/**
+ * Whether the latest run in History is an Apply that stopped partway and can be
+ * continued: the same signed package (by its digest), on this tenant, with its
+ * original requirements, under the roster it began with, applying only what is
+ * left. Only that run's saved record decides; a bare failure, a refusal that
+ * changed nothing, a later run or anything malformed offers nothing. The
+ * receiver checks all of it again, and the page still needs a fresh Preview and
+ * an explicit confirmation before anything is applied.
+ */
+export const readRecovery = (
+    rows: readonly HistoryRow[] | null | undefined,
+    tenantId: string | null | undefined,
+    trust: CurrentTrust,
+    followed: Pick<
+        ActiveSubmission,
+        "taskId" | "mode" | "documentId" | "requirements" | "encryptedPayloadSha256"
+    > | null
+): Recovery => {
+    const latest = rows?.[0]
+    if (!latest || !tenantId || latest.execution_status !== "FAILED") return {kind: "none"}
+    const view = readApplication(latest.annotations)
+    const record = asRecord(asRecord(latest.annotations).application)
+    const sha = typeof view?.packageSha256 === "string" ? view.packageSha256.toLowerCase() : ""
+    if (
+        !view ||
+        view.mode !== "apply" ||
+        (view.outcome !== "failed" && view.outcome !== "unknown") ||
+        record.format !== "sequent.package-application/1" ||
+        record.tenantId !== tenantId ||
+        !SHA256_HEX.test(sha)
+    ) {
+        return {kind: "none"}
+    }
+    const isApplied = (section: SectionView) =>
+        section.state === "applied" || section.earlierApplied
+    const applied = PACKAGE_SECTIONS.filter((name) =>
+        view.sections.some((section) => section.section === name && isApplied(section))
+    )
+    const remaining = PACKAGE_SECTIONS.filter((name) =>
+        view.sections.some(
+            (section) =>
+                section.section === name &&
+                !isApplied(section) &&
+                section.state !== "not-included" &&
+                section.state !== "unchanged"
+        )
+    )
+    // Not a partial application: nothing was applied, or nothing is left.
+    if (applied.length === 0 || remaining.length === 0) return {kind: "none"}
+    const taskId = latest.id
+    // A submission whose effect is not known yet is never worked around.
+    if (
+        view.outcome === "unknown" ||
+        view.sections.some((section) => !!section.inFlight || section.state === "submitting")
+    ) {
+        return {kind: "blocked", taskId, reason: "unsettled"}
+    }
+    const began = readRunIdentity(latest.annotations)?.roster
+    const now = trust.binding
+    const sameRoster = began
+        ? trust.managed &&
+          !!now &&
+          now.sha256 === began.sha256 &&
+          String(now.generation) === String(began.generation) &&
+          now.requiredApprovals === began.requiredApprovals
+        : !trust.managed
+    if (!sameRoster) return {kind: "blocked", taskId, reason: "rosterChanged"}
+    const ownFollow =
+        followed && followed.taskId === taskId && followed.mode === "apply" ? followed : null
+    const requirements =
+        readRunIdentity(latest.annotations)?.requirements ?? ownFollow?.requirements ?? null
+    if (!requirements) return {kind: "blocked", taskId, reason: "requirementsUnknown"}
+    return {
+        kind: "recoverable",
+        taskId,
+        packageSha256: sha,
+        requirements,
+        applied,
+        remaining,
+        documentId:
+            ownFollow && !ownFollow.encryptedPayloadSha256 ? ownFollow.documentId : null,
+    }
+}
+

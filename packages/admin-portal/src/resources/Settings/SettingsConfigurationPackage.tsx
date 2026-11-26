@@ -84,8 +84,11 @@ import {
     lastAppliedReceipt,
     missingPackagePermissions,
     orderedSectionBadges,
+    readRecovery,
     readRunIdentity,
     runStages,
+    type CurrentTrust,
+    type Recovery,
 } from "./packageOverview"
 import {
     ActiveSubmission,
@@ -189,6 +192,13 @@ const SettingsConfigurationPackageForScope: React.FC<{
         if (error) setTab("overview")
     }, [error])
     const [drawerRequirements, setDrawerRequirements] = useState(false)
+    // Continuing a stopped Apply by choosing the same file again: its identity and
+    // requirements, locked while the drawer is open for it.
+    const [recoveryDraft, setRecoveryDraft] = useState<{
+        taskId: string
+        packageSha256: string
+        requirements: PackageRequirements
+    } | null>(null)
     // "Change requirements" and the document-ID menu item open the options in place.
     const [openAdvanced, setOpenAdvanced] = useState(false)
     const advancedRef = useRef<HTMLDetailsElement | null>(null)
@@ -405,7 +415,8 @@ const SettingsConfigurationPackageForScope: React.FC<{
         document: string,
         sha: string | null,
         encryptedPayloadSha256?: string,
-        restoredRequirements?: PackageRequirements
+        restoredRequirements?: PackageRequirements,
+        recoveryOf?: string
     ) => {
         if (packageRequest.current) return
         setError(null)
@@ -517,6 +528,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
                 requirements: submittedRequirements,
                 expectedSha: sha,
                 ...(encryptedPayloadSha256 ? {encryptedPayloadSha256} : {}),
+                ...(recoveryOf && mode === "preview" ? {recoveryOf} : {}),
             }
             if (mode === "preview") operatorPreview.current = {scope: requestScope, taskId}
             rememberSubmission(forTenant, active)
@@ -578,10 +590,13 @@ const SettingsConfigurationPackageForScope: React.FC<{
         )
     }
 
-    const setCensus = (census: PackageRequirements["census"]) =>
+    const setCensus = (census: PackageRequirements["census"]) => {
+        if (requirementsLocked) return
         changeRequirements({...requirements, census})
+    }
 
     const toggleSection = (section: PackageSection) =>
+        !requirementsLocked &&
         changeRequirements({
             ...requirements,
             sections: requirements.sections.includes(section)
@@ -687,6 +702,17 @@ const SettingsConfigurationPackageForScope: React.FC<{
         switch (wanted) {
             case "reviewAndApply":
                 return null // The Apply button below is the one Review and apply control.
+            case "previewRemaining":
+                return (
+                    <Button
+                        key="previewRemaining"
+                        variant={variant}
+                        data-testid="package-preview-remaining"
+                        onClick={startRecovery}
+                    >
+                        {t("configurationPackage.hub.recovery.previewRemaining")}
+                    </Button>
+                )
             case "openTrust":
                 return (
                     <Button
@@ -744,6 +770,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
                         onClick={() => {
                             if (running || !permitsImport) return
                             setDrawerRequirements(false)
+                            setRecoveryDraft(null)
                             setOpenUpload(true)
                         }}
                     >
@@ -763,8 +790,64 @@ const SettingsConfigurationPackageForScope: React.FC<{
     const trustBlock: TrustBlock =
         roster.status?.mode === "portal_managed" ? "missingRoster" : "checkFailed"
     const suggested = headerActions(phase, trustBlock)
-    const actions: {primary: HeaderAction; secondary?: HeaderAction} =
-        suggested.primary === "previewAgain" && !canPreviewAgain ? {primary: "upload"} : suggested
+    // The roster the receiver enforces now; only a portal-managed one binds a run.
+    const currentTrust: CurrentTrust =
+        roster.status?.mode === "portal_managed" && roster.status.active_sha256
+            ? {
+                  managed: true,
+                  binding: {
+                      sha256: roster.status.active_sha256,
+                      generation: roster.status.generation,
+                      requiredApprovals: roster.status.required_approvals,
+                  },
+              }
+            : {managed: roster.status?.mode === "portal_managed", binding: null}
+    const recovery = readRecovery(
+        historyData?.sequent_backend_tasks_execution,
+        tenantId,
+        currentTrust,
+        submitted
+    )
+    // Offered only while nothing else is in flight or under review.
+    const canStartRecovery =
+        recovery.kind === "recoverable" &&
+        !running &&
+        permitsImport &&
+        (phase === "attention" || phase === "choose")
+    const actions: {primary: HeaderAction; secondary?: HeaderAction} = canStartRecovery
+        ? {primary: "previewRemaining", secondary: "upload"}
+        : suggested.primary === "previewAgain" && !canPreviewAgain
+          ? {primary: "upload"}
+          : suggested
+    // A fresh Preview of the same signed package with its original requirements:
+    // never Apply, never a stale preview, one request at a time.
+    const startRecovery = () => {
+        if (!canStartRecovery || recovery.kind !== "recoverable" || packageRequest.current) return
+        setConfirming(false)
+        setPreviewed(null)
+        setRequirements(recovery.requirements)
+        if (recovery.documentId) {
+            setDocumentId(recovery.documentId)
+            setExpectedSha(recovery.packageSha256)
+            void submit(
+                "preview",
+                recovery.documentId,
+                recovery.packageSha256,
+                undefined,
+                recovery.requirements,
+                recovery.taskId
+            )
+            return
+        }
+        setRecoveryDraft({
+            taskId: recovery.taskId,
+            packageSha256: recovery.packageSha256,
+            requirements: recovery.requirements,
+        })
+        setDrawerRequirements(false)
+        setOpenUpload(true)
+    }
+    const requirementsLocked = !!recoveryDraft || !!submitted?.recoveryOf
     const trustSummary =
         phase === "waitingForTrust"
             ? {label: String(t("configurationPackage.hub.trustChecking"))}
@@ -825,6 +908,30 @@ const SettingsConfigurationPackageForScope: React.FC<{
                     <Typography variant="body2" color="text.secondary">
                         {t("configurationPackage.hub.noRun")}
                     </Typography>
+                )}
+                {canStartRecovery && recovery.kind === "recoverable" && (
+                    <Alert severity="info" data-testid="package-recovery">
+                        <Typography variant="body2" sx={{fontWeight: 500}}>
+                            {t("configurationPackage.hub.recovery.title")}
+                        </Typography>
+                        <Typography variant="body2">
+                            {t("configurationPackage.hub.recovery.remaining", {
+                                sections: recovery.remaining
+                                    .map((section) => t(`configurationPackage.sections.${section}`))
+                                    .join(", "),
+                            })}
+                        </Typography>
+                        <Typography variant="body2">
+                            {t("configurationPackage.hub.recovery.explain")}
+                        </Typography>
+                    </Alert>
+                )}
+                {recovery.kind === "blocked" &&
+                    !running &&
+                    (phase === "attention" || phase === "choose") && (
+                    <Alert severity="warning" data-testid="package-recovery-blocked">
+                        {t(`configurationPackage.hub.recovery.blocked.${recovery.reason}`)}
+                    </Alert>
                 )}
                 {showStaleReason && (
                     <Alert
@@ -944,7 +1051,11 @@ const SettingsConfigurationPackageForScope: React.FC<{
                 data-testid="package-overview-run"
             >
                 {runCard}
-                <TenantReceipt receipt={receipt} onHistory={() => setTab("history")} />
+                <TenantReceipt
+                    receipt={receipt}
+                    partialTaskId={recovery.kind === "none" ? undefined : recovery.taskId}
+                    onHistory={() => setTab("history")}
+                />
             </Stack>
             <Stack
                 spacing={1.5}
@@ -1179,6 +1290,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
                                 requirements={requirements}
                                 onToggleSection={toggleSection}
                                 onCensus={setCensus}
+                                disabled={requirementsLocked}
                             />
                         </Box>
                         {showManualEntry && (
@@ -1340,7 +1452,12 @@ const SettingsConfigurationPackageForScope: React.FC<{
             <Typography id={historyHeadingId} variant="h6" component="h3">
                 {t("configurationPackage.history")}
             </Typography>
-            <ApplicationHistory rows={historyData?.sequent_backend_tasks_execution} />
+            <ApplicationHistory
+                rows={historyData?.sequent_backend_tasks_execution}
+                recovery={recovery}
+                canContinue={canStartRecovery}
+                onContinue={startRecovery}
+            />
         </Paper>
     )
 
@@ -1441,6 +1558,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
                 onClose={() => {
                     setOpenUpload(false)
                     setDrawerRequirements(false)
+                    setRecoveryDraft(null)
                 }}
                 PaperProps={{
                     "aria-label": String(t("configurationPackage.uploadTitle")),
@@ -1462,9 +1580,28 @@ const SettingsConfigurationPackageForScope: React.FC<{
                     <Typography variant="body2" paragraph>
                         {t("configurationPackage.uploadParagraph")}
                     </Typography>
+                    {recoveryDraft && (
+                        <Alert
+                            severity="info"
+                            sx={{mb: 2, overflowWrap: "anywhere"}}
+                            data-testid="package-recovery-identity"
+                        >
+                            <Typography variant="body2" sx={{fontWeight: 500}}>
+                                {t("configurationPackage.hub.recovery.chooseSame")}
+                            </Typography>
+                            <Typography variant="body2" sx={{fontFamily: "monospace"}}>
+                                {recoveryDraft.packageSha256}
+                            </Typography>
+                            <Typography variant="body2">
+                                <RequirementsSummary requirements={recoveryDraft.requirements} />
+                                {" · "}
+                                {t("configurationPackage.hub.recovery.locked")}
+                            </Typography>
+                        </Alert>
+                    )}
                     <Paper
                         variant="outlined"
-                        sx={{p: 1.5, mb: 2}}
+                        sx={{p: 1.5, mb: 2, display: recoveryDraft ? "none" : undefined}}
                         data-testid="package-drawer-requirements"
                     >
                         <Stack
@@ -1494,7 +1631,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
                                     requirements={requirements}
                                     onToggleSection={toggleSection}
                                     onCensus={setCensus}
-                                    disabled={running}
+                                    disabled={running || requirementsLocked}
                                     testId="package-requirements-picker"
                                 />
                                 {canPreviewAgain && (
@@ -1541,6 +1678,35 @@ const SettingsConfigurationPackageForScope: React.FC<{
                                 if (entered && !SHA256.test(entered)) {
                                     setPreviewed(null)
                                     setError(t("configurationPackage.shaMalformed"))
+                                    return
+                                }
+                                const draft = recoveryDraft
+                                setRecoveryDraft(null)
+                                if (draft) {
+                                    // The same signed package or nothing: an entered or an
+                                    // authenticated digest that differs stops here.
+                                    const other = [entered, encryptedPayloadSha256].some(
+                                        (digest) =>
+                                            !!digest && digest.toLowerCase() !== draft.packageSha256
+                                    )
+                                    if (other) {
+                                        setPreviewed(null)
+                                        setError(t("configurationPackage.hub.recovery.wrongFile"))
+                                        return
+                                    }
+                                    setRequirements(draft.requirements)
+                                    setDocumentId(document)
+                                    setTypedDocumentId(document)
+                                    // The Preview must read exactly the run's package.
+                                    setExpectedSha(draft.packageSha256)
+                                    await submit(
+                                        "preview",
+                                        document,
+                                        draft.packageSha256,
+                                        encryptedPayloadSha256,
+                                        draft.requirements,
+                                        draft.taskId
+                                    )
                                     return
                                 }
                                 const sha = entered ? entered.toLowerCase() : null
@@ -1636,6 +1802,15 @@ const SettingsConfigurationPackageForScope: React.FC<{
                             <Typography variant="body2" color="text.secondary">
                                 {t("configurationPackage.hub.confirmPartial")}
                             </Typography>
+                            {submitted?.recoveryOf && (
+                                <Typography
+                                    variant="body2"
+                                    sx={{mt: 1}}
+                                    data-testid="package-confirm-recovery"
+                                >
+                                    {t("configurationPackage.hub.recovery.confirmKeep")}
+                                </Typography>
+                            )}
                         </Box>
                     )}
                     {previewed && <ProposedChanges view={previewed.view} />}
@@ -1929,7 +2104,10 @@ const ApplicationHistory: React.FC<{
               executed_by_user?: string | null
           }[]
         | undefined
-}> = ({rows}) => {
+    recovery: Recovery
+    canContinue: boolean
+    onContinue: () => void
+}> = ({rows, recovery, canContinue, onContinue}) => {
     const {t} = useTranslation()
     const [selectedId, setSelectedId] = useState<string | null>(null)
     const list = rows ?? []
@@ -2083,9 +2261,37 @@ const ApplicationHistory: React.FC<{
                         sx={{p: 2, minWidth: 0}}
                         data-testid="package-history-detail"
                     >
-                        <Typography variant="subtitle2" component="h4" sx={{mb: 1}}>
-                            {modeLabel(record?.mode)}
-                        </Typography>
+                        <Stack
+                            direction="row"
+                            spacing={1}
+                            sx={{alignItems: "center", justifyContent: "space-between", mb: 1}}
+                        >
+                            <Typography variant="subtitle2" component="h4">
+                                {modeLabel(record?.mode)}
+                            </Typography>
+                            {/* Only the latest run, when it is a recoverable stopped Apply. */}
+                            {recovery.kind === "recoverable" &&
+                                recovery.taskId === selected.id && (
+                                    <Button
+                                        variant="outlined"
+                                        size="small"
+                                        disabled={!canContinue}
+                                        data-testid="package-history-continue"
+                                        onClick={onContinue}
+                                    >
+                                        {t("configurationPackage.hub.recovery.continue")}
+                                    </Button>
+                                )}
+                        </Stack>
+                        {recovery.kind === "blocked" && recovery.taskId === selected.id && (
+                            <Alert
+                                severity="warning"
+                                sx={{mb: 1}}
+                                data-testid="package-history-recovery-blocked"
+                            >
+                                {t(`configurationPackage.hub.recovery.blocked.${recovery.reason}`)}
+                            </Alert>
+                        )}
                         <Box
                             component="dl"
                             sx={{

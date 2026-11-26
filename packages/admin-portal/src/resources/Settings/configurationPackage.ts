@@ -317,6 +317,8 @@ export interface ActiveSubmission {
     expectedSha?: string | null
     /** Whether the exact SHA is from authenticated encrypted delivery. */
     encryptedPayloadSha256?: string
+    /** The stopped Apply task this Preview continues, when it is a recovery. */
+    recoveryOf?: string
 }
 
 /** Recorded reasons for a terminal refusal; this is never an eligible preview. */

@@ -88,6 +88,29 @@ const spanishTranslation: TranslationType = {
         },
         configurationPackage: {
             hub: {
+                recovery: {
+                    title: "Esta importación se detuvo a mitad y se puede continuar",
+                    remaining: "Falta por aplicar: {{sections}}.",
+                    explain:
+                        "Corrige la causa y luego Previsualizar cambios pendientes: se vuelve a previsualizar el mismo paquete firmado con sus requisitos originales. Las secciones ya aplicadas siguen aplicadas y no se envían de nuevo.",
+                    previewRemaining: "Previsualizar cambios pendientes",
+                    continue: "Continuar esta importación",
+                    chooseSame: "Elige de nuevo el mismo archivo. Debe ser el paquete de esta ejecución:",
+                    locked: "Requisitos bloqueados a los de la ejecución original",
+                    wrongFile:
+                        "Este no es el paquete de esta ejecución, así que no se envió nada. Elige de nuevo el mismo archivo.",
+                    confirmKeep:
+                        "Las secciones que aplicó la ejecución anterior siguen aplicadas; no se envían de nuevo.",
+                    partial: "Actualizado parcialmente después por una ejecución sin terminar (tarea {{taskId}}).",
+                    blocked: {
+                        unsettled:
+                            "Un envío anterior de esta ejecución aún no está resuelto. Espera antes de continuar.",
+                        rosterChanged:
+                            "La confianza de firma cambió desde que empezó esta ejecución, así que no se puede continuar. Resuélvelo en Confianza de firma.",
+                        requirementsUnknown:
+                            "Los requisitos originales de esta ejecución no constan aquí. Continúala desde el navegador que la inició.",
+                    },
+                },
                 trustLabel: "Firma",
                 trustChecking: "Comprobando la confianza de firmantes…",
                 trustBlocked: "Importaciones bloqueadas",

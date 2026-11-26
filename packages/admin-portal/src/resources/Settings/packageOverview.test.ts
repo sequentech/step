@@ -3,7 +3,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import {IPermissions} from "@/types/keycloak"
-import {record, refusedPreview} from "./configurationPackage.fixture"
+import {
+    ORIGINAL_REQUIREMENTS,
+    ORIGINAL_SHA,
+    partialApply,
+    record,
+    refusedPreview,
+} from "./configurationPackage.fixture"
 import {
     PACKAGE_SECTIONS,
     readApplication,
@@ -11,6 +17,7 @@ import {
     type SectionView,
 } from "./configurationPackage"
 import {
+    readRecovery,
     changingSections,
     headerActions,
     isConfirmedApply,
@@ -333,3 +340,136 @@ it("badges a previewed Messaging account change as Will change, as the confirmat
         )
     ).toBe("willChange")
 })
+
+describe("readRecovery: continuing the same signed import", () => {
+    const row = (annotations: unknown, id = "task-a", execution_status = "FAILED") => ({
+        id,
+        created_at: "2026-11-26T09:44:00Z",
+        execution_status,
+        executed_by_user: "ops.lead",
+        annotations,
+    })
+    const legacy = {managed: false, binding: null}
+    const local = {
+        taskId: "task-a",
+        mode: "apply" as const,
+        documentId: "doc-1",
+        requirements: ORIGINAL_REQUIREMENTS as never,
+        expectedSha: null,
+    }
+
+    it("continues the latest stopped Apply with its own identity, keeping applied sections", () => {
+        expect(readRecovery([row(partialApply())], "t1", legacy, null)).toEqual({
+            kind: "recoverable",
+            taskId: "task-a",
+            packageSha256: ORIGINAL_SHA,
+            requirements: ORIGINAL_REQUIREMENTS,
+            applied: [
+                "tenant-configuration",
+                "tenant-settings",
+                "role-permissions",
+                "admin-accounts",
+                "messaging-accounts",
+            ],
+            remaining: ["election-event"],
+            // No document is assumed retained: the same file is chosen again.
+            documentId: null,
+        })
+    })
+
+    it("reuses the same uploaded document only from the browser that followed that run", () => {
+        const plain = readRecovery([row(partialApply())], "t1", legacy, local)
+        expect(plain.kind === "recoverable" && plain.documentId).toBe("doc-1")
+        // Encrypted bytes are never assumed retained: choose the same file again.
+        const encrypted = readRecovery([row(partialApply())], "t1", legacy, {
+            ...local,
+            encryptedPayloadSha256: ORIGINAL_SHA,
+        })
+        expect(encrypted.kind === "recoverable" && encrypted.documentId).toBeNull()
+        const otherRun = readRecovery([row(partialApply())], "t1", legacy, {
+            ...local,
+            taskId: "task-other",
+        })
+        expect(otherRun.kind === "recoverable" && otherRun.documentId).toBeNull()
+    })
+
+    it("takes legacy requirements only from the browser that followed the run", () => {
+        const unrecorded = row(partialApply({requirements: null}))
+        expect(readRecovery([unrecorded], "t1", legacy, null)).toEqual({
+            kind: "blocked",
+            taskId: "task-a",
+            reason: "requirementsUnknown",
+        })
+        const followed = readRecovery([unrecorded], "t1", legacy, local)
+        expect(followed.kind === "recoverable" && followed.requirements).toEqual(
+            ORIGINAL_REQUIREMENTS
+        )
+    })
+
+    it("waits while a submission is unsettled", () => {
+        expect(
+            readRecovery([row(partialApply({inFlight: "task-s7"}))], "t1", legacy, null)
+        ).toMatchObject({kind: "blocked", reason: "unsettled"})
+        expect(
+            readRecovery([row(partialApply({outcome: "unknown"}))], "t1", legacy, null)
+        ).toMatchObject({kind: "blocked", reason: "unsettled"})
+    })
+
+    it("fails closed when the signer roster is not the one the run began under", () => {
+        const binding = {sha256: "ab".repeat(32), generation: 3, requiredApprovals: 2}
+        const bound = row(partialApply({rosterBinding: binding}))
+        expect(
+            readRecovery([bound], "t1", {managed: true, binding: {...binding}}, null).kind
+        ).toBe("recoverable")
+        for (const current of [
+            {managed: true, binding: {...binding, generation: 4}},
+            {managed: true, binding: {...binding, sha256: "cd".repeat(32)}},
+            {managed: true, binding: {...binding, requiredApprovals: 3}},
+            legacy,
+        ]) {
+            expect(readRecovery([bound], "t1", current, null)).toMatchObject({
+                kind: "blocked",
+                reason: "rosterChanged",
+            })
+        }
+        expect(
+            readRecovery([row(partialApply())], "t1", {managed: true, binding}, null)
+        ).toMatchObject({kind: "blocked", reason: "rosterChanged"})
+    })
+
+    it.each([
+        ["a newer run is latest", [row(record("previewed"), "task-p", "SUCCESS"), row(partialApply())]],
+        ["the latest Apply succeeded", [row(partialApply(), "task-a", "SUCCESS")]],
+        ["the task is still running", [row(partialApply(), "task-a", "IN_PROGRESS")]],
+        ["it is another tenant's record", [row(partialApply({tenantId: "t2"}))]],
+        ["its digest is malformed", [row(partialApply({sha: "abc"}))]],
+        ["it is a refused Preview", [row(refusedPreview(["x"]))]],
+        [
+            "it is an Apply refused before any section",
+            [row({application: {...partialApply().application, outcome: "refused"}})],
+        ],
+        ["it is a generic failure without a record", [row({})]],
+    ])("offers nothing when %s", (_, rows) => {
+        expect(readRecovery(rows, "t1", legacy, null)).toEqual({kind: "none"})
+    })
+
+    it("offers nothing for a failed Apply that applied nothing yet", () => {
+        const {application} = partialApply()
+        const untouched = {
+            application: {
+                ...application,
+                sections: application.sections.map((section) => ({
+                    ...section,
+                    status: {state: "pending"},
+                    history: {submissions: [], inFlight: null, applied: false},
+                })),
+            },
+        }
+        expect(readRecovery([row(untouched)], "t1", legacy, null)).toEqual({kind: "none"})
+    })
+
+    it("is unknown until the history has answered", () => {
+        expect(readRecovery(undefined, "t1", legacy, null)).toEqual({kind: "none"})
+    })
+})
+

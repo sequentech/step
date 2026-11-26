@@ -81,6 +81,29 @@ const englishTranslation = {
         },
         configurationPackage: {
             hub: {
+                recovery: {
+                    title: "This import stopped partway and can be continued",
+                    remaining: "Left to apply: {{sections}}.",
+                    explain:
+                        "Fix the cause, then Preview remaining changes: the same signed package is previewed again with its original requirements. Sections already applied stay applied and are not submitted again.",
+                    previewRemaining: "Preview remaining changes",
+                    continue: "Continue this import",
+                    chooseSame: "Choose the same file again. It must be the package this run used:",
+                    locked: "Requirements locked to the original run",
+                    wrongFile:
+                        "This is not the package this run used, so nothing was submitted. Choose the same file again.",
+                    confirmKeep:
+                        "Sections the earlier run applied stay applied; they are not submitted again.",
+                    partial: "Partly updated since by an unfinished run (task {{taskId}}).",
+                    blocked: {
+                        unsettled:
+                            "An earlier submission of this run is not settled yet. Wait for it before continuing.",
+                        rosterChanged:
+                            "Signing trust changed since this run began, so it cannot be continued. Resolve it under Signing trust.",
+                        requirementsUnknown:
+                            "This run's original requirements are not recorded here. Continue it from the browser that started it.",
+                    },
+                },
                 trustLabel: "Signing",
                 trustChecking: "Checking signer trust…",
                 trustBlocked: "Imports blocked",

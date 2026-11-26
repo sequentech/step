@@ -5,7 +5,14 @@ import React from "react"
 import {act, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {ThemeProvider} from "@mui/material/styles"
 import {adminTheme} from "../../../../ui-essentials/src/services/theme"
-import {record, refusedPreview} from "./configurationPackage.fixture"
+import {
+    ORIGINAL_REQUIREMENTS,
+    ORIGINAL_SHA,
+    partialApply,
+    record,
+    refusedPreview,
+    remainingPreview,
+} from "./configurationPackage.fixture"
 import {COMPLETE_DELIVERY} from "./configurationPackage"
 import {
     notifyConfigurationPackageElectionImported,
@@ -1876,4 +1883,216 @@ describe("configuration package hub layout", () => {
         fireEvent.click(tile)
         expect(screen.getByTestId("package-trust-panel")).toBeTruthy()
     })
+
+    describe("continuing a stopped signed import", () => {
+        const stoppedRow = (annotations: unknown, id = "task-a") => ({
+            id,
+            created_at: "2026-11-26T09:44:00Z",
+            execution_status: "FAILED",
+            executed_by_user: "operator-a",
+            annotations,
+        })
+        const completedRow = {
+            id: "task-r14",
+            created_at: "2026-11-24T14:02:00Z",
+            execution_status: "SUCCESS",
+            executed_by_user: "ops.lead",
+            annotations: record("applied"),
+        }
+        const badgeOf = (section: string) =>
+            screen
+                .getByTestId(`package-section-row-${section}`)
+                .querySelector("[data-badge]")
+                ?.getAttribute("data-badge")
+
+        it("previews only what is left of the same import, then applies it after confirmation", async () => {
+            mockApply.mockResolvedValueOnce(accepted("task-p"))
+            const view = render(<SettingsConfigurationPackage />)
+            // Everything except Trustees: Trustees optional, Messaging accounts required.
+            showAdvanced()
+            fireEvent.click(screen.getByRole("checkbox", {name: "trustees"}))
+            fireEvent.click(screen.getByRole("checkbox", {name: "messaging-accounts"}))
+            await upload()
+            const first = record("previewed")
+            first.application.packageSha256 = ORIGINAL_SHA
+            mockTask = task("task-p", "SUCCESS", first)
+            view.rerender(<SettingsConfigurationPackage />)
+            mockApply.mockResolvedValueOnce(accepted("task-a"))
+            await apply()
+            // The event failed (its default S3 template was missing); the record keeps no
+            // requirements for this legacy delivery, so they come from this browser's run.
+            const stopped = partialApply({requirements: null})
+            mockTask = task("task-a", "FAILED", stopped)
+            mockHistory = [stoppedRow(stopped), completedRow]
+            view.rerender(<SettingsConfigurationPackage />)
+
+            expect(screen.getByTestId("package-recovery").textContent).toContain(
+                "configurationPackage.sections.election-event"
+            )
+            expect(badgeOf("tenant-configuration")).toBe("applied")
+            expect(badgeOf("election-event")).toBe("failed")
+            // The completed receipt stays; the partial update is said, not claimed.
+            expect(screen.getByTestId("package-receipt").textContent).toContain("task-r14")
+            expect(screen.getByTestId("package-receipt-partial").textContent).toContain("task-a")
+
+            // The template is repaired outside; continue the same import.
+            mockApply.mockResolvedValueOnce(accepted("task-r"))
+            const remaining = screen.getByTestId("package-preview-remaining")
+            await act(async () => {
+                fireEvent.click(remaining)
+                // A second click while the first is in flight submits nothing more.
+                fireEvent.click(remaining)
+            })
+            expect(mockApply).toHaveBeenCalledTimes(3)
+            expect(mockApply.mock.calls[2][0].variables).toEqual({
+                tenantId: "t1",
+                documentId: "doc-1",
+                mode: "preview",
+                requirements: ORIGINAL_REQUIREMENTS,
+            })
+            // Requirements are locked to the original run.
+            showAdvanced()
+            expect(
+                (screen.getByRole("checkbox", {name: "census"}) as HTMLInputElement).disabled
+            ).toBe(true)
+            fireEvent.click(screen.getByRole("checkbox", {name: "trustees"}))
+            expect(
+                (screen.getByRole("checkbox", {name: "trustees"}) as HTMLInputElement).checked
+            ).toBe(false)
+            // Nothing to apply until that new Preview succeeds.
+            expect(applyButton().disabled).toBe(true)
+
+            mockTask = task("task-r", "SUCCESS", remainingPreview())
+            view.rerender(<SettingsConfigurationPackage />)
+            expect(screen.queryByTestId("package-preview-remaining")).toBeNull()
+            expect(applyButton().disabled).toBe(false)
+            fireEvent.click(applyButton())
+            expect(
+                Array.from(
+                    screen.getByTestId("package-confirm-order").querySelectorAll("li")
+                ).map((item) => item.textContent)
+            ).toEqual(["configurationPackage.sections.election-event"])
+            expect(screen.getByTestId("package-confirm-recovery")).toBeTruthy()
+            expect(mockApply).toHaveBeenCalledTimes(3)
+            mockApply.mockResolvedValueOnce(accepted("task-a2"))
+            await act(async () => {
+                fireEvent.click(screen.getByTestId("package-apply-confirm"))
+            })
+            expect(mockApply.mock.calls[3][0].variables).toEqual({
+                tenantId: "t1",
+                documentId: "doc-1",
+                mode: "apply",
+                requirements: ORIGINAL_REQUIREMENTS,
+            })
+            expect(mockManagedApply).not.toHaveBeenCalled()
+        })
+
+        it("asks for the same file elsewhere and refuses any other package", async () => {
+            mockHistory = [stoppedRow(partialApply()), completedRow]
+            render(<SettingsConfigurationPackage />)
+            fireEvent.click(screen.getByTestId("package-preview-remaining"))
+            const identity = screen.getByTestId("package-recovery-identity")
+            expect(identity.textContent).toContain(ORIGINAL_SHA)
+            expect(screen.queryByTestId("package-requirements-picker")).toBeNull()
+
+            // An entered SHA-256 of another package.
+            mockSha = "d1".repeat(32)
+            await act(async () => {
+                fireEvent.click(screen.getByTestId("drawer-upload"))
+            })
+            expect(screen.getByTestId("package-error").textContent).toBe(
+                "configurationPackage.hub.recovery.wrongFile"
+            )
+            // An encrypted delivery whose authenticated bytes are another package.
+            mockSha = ""
+            mockEncryptedSha = "e2".repeat(32)
+            fireEvent.click(screen.getByTestId("package-preview-remaining"))
+            await act(async () => {
+                fireEvent.click(screen.getByTestId("drawer-upload"))
+            })
+            expect(screen.getByTestId("package-error").textContent).toBe(
+                "configurationPackage.hub.recovery.wrongFile"
+            )
+            expect(mockApply).not.toHaveBeenCalled()
+
+            // The same package: a Preview with the original requirements.
+            mockEncryptedSha = ORIGINAL_SHA
+            mockApply.mockResolvedValueOnce(accepted("task-r"))
+            fireEvent.click(screen.getByTestId("package-preview-remaining"))
+            await act(async () => {
+                fireEvent.click(screen.getByTestId("drawer-upload"))
+            })
+            expect(mockApply.mock.calls.map(([options]) => options.variables)).toEqual([
+                {
+                    tenantId: "t1",
+                    documentId: "doc-1",
+                    mode: "preview",
+                    requirements: ORIGINAL_REQUIREMENTS,
+                    encryptedPayloadSha256: ORIGINAL_SHA,
+                },
+            ])
+        })
+
+        it("never applies a continuation that read other bytes", async () => {
+            mockHistory = [stoppedRow(partialApply())]
+            const view = render(<SettingsConfigurationPackage />)
+            fireEvent.click(screen.getByTestId("package-preview-remaining"))
+            mockApply.mockResolvedValueOnce(accepted("task-r"))
+            await act(async () => {
+                fireEvent.click(screen.getByTestId("drawer-upload"))
+            })
+            mockTask = task("task-r", "SUCCESS", remainingPreview("f3".repeat(32)))
+            view.rerender(<SettingsConfigurationPackage />)
+            expect(screen.getByTestId("package-sha-mismatch")).toBeTruthy()
+            expect(applyButton().disabled).toBe(true)
+            expect(mockApply).toHaveBeenCalledTimes(1)
+        })
+
+        it.each([
+            ["an unsettled submission", partialApply({inFlight: "task-s7"}), "unsettled"],
+            ["an unknown outcome", partialApply({outcome: "unknown"}), "unsettled"],
+            [
+                "a roster binding the receiver no longer enforces",
+                partialApply({
+                    rosterBinding: {sha256: "ab".repeat(32), generation: 1, requiredApprovals: 2},
+                }),
+                "rosterChanged",
+            ],
+        ])("waits or fails closed on %s", (_, annotations, reason) => {
+            mockHistory = [stoppedRow(annotations)]
+            render(<SettingsConfigurationPackage />)
+            expect(screen.queryByTestId("package-preview-remaining")).toBeNull()
+            expect(screen.getByTestId("package-recovery-blocked").textContent).toBe(
+                `configurationPackage.hub.recovery.blocked.${reason}`
+            )
+            fireEvent.click(screen.getByTestId("package-rail-history"))
+            expect(screen.queryByTestId("package-history-continue")).toBeNull()
+            expect(screen.getByTestId("package-history-recovery-blocked")).toBeTruthy()
+            expect(mockApply).not.toHaveBeenCalled()
+        })
+
+        it("offers Continue this import only on the latest History row", () => {
+            mockHistory = [stoppedRow(partialApply()), completedRow]
+            const view = render(<SettingsConfigurationPackage />)
+            fireEvent.click(screen.getByTestId("package-rail-history"))
+            fireEvent.click(screen.getByTestId("package-history-row-task-r14"))
+            expect(screen.queryByTestId("package-history-continue")).toBeNull()
+            fireEvent.click(screen.getByTestId("package-history-row-task-a"))
+            fireEvent.click(screen.getByTestId("package-history-continue"))
+            expect(screen.getByTestId("package-recovery-identity")).toBeTruthy()
+            view.unmount()
+
+            // A newer run makes the stopped Apply history only.
+            mockHistory = [
+                {...completedRow, id: "task-newer", annotations: record("previewed")},
+                stoppedRow(partialApply()),
+            ]
+            render(<SettingsConfigurationPackage />)
+            expect(screen.queryByTestId("package-preview-remaining")).toBeNull()
+            fireEvent.click(screen.getByTestId("package-rail-history"))
+            fireEvent.click(screen.getByTestId("package-history-row-task-a"))
+            expect(screen.queryByTestId("package-history-continue")).toBeNull()
+        })
+    })
 })
+
