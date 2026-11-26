@@ -97,6 +97,31 @@ export async function cameraCount(
     }
 }
 
+/**
+ * The camera access of the page a frame shows; nothing for a page of another
+ * origin, which the browser keeps out of reach.
+ */
+export function frameDevices(
+    frame: Pick<HTMLIFrameElement, "contentWindow"> | null | undefined
+): MediaDevices | undefined {
+    try {
+        return frame?.contentWindow?.navigator.mediaDevices
+    } catch {
+        return undefined
+    }
+}
+
+/**
+ * The most cameras any of the windows is shown. Safari lists them all only
+ * to the frame that was allowed the camera, which is Scanovate's page: this
+ * page is shown one, whatever the device has.
+ */
+export async function mostCameras(
+    sources: (Pick<MediaDevices, "enumerateDevices"> | undefined)[]
+): Promise<number> {
+    return Math.max(0, ...(await Promise.all(sources.map(cameraCount))))
+}
+
 /** Whether the embedded page is of this page's origin, and so within reach. */
 export function canChooseCamera(frameUrl: string, pageUrl: string): boolean {
     try {
