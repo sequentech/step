@@ -666,6 +666,55 @@ impl std::fmt::Debug for DeviceNonce {
     }
 }
 
+/// Sealing of [`BoundPollResult`]: only this module names it, so only the
+/// types it lists here can be bound poll results.
+mod sealed {
+    pub trait Sealed {}
+}
+
+impl sealed::Sealed for crate::device_transport::AwaitingVerification {}
+
+/// The key to a [`BoundPollResult`]: only this module makes one, so only
+/// this module (and its children) can open a result.
+pub(crate) struct Opener(());
+
+/// What a bound poll result opens to: the poll's own ticket, the pair it
+/// fetched, and the nonce of the device request the poll belongs to.
+pub(crate) struct BoundParts<'a> {
+    pub(crate) ticket: &'a PollTicket,
+    pub(crate) access_token: &'a str,
+    pub(crate) id_token: &'a str,
+    pub(crate) nonce: &'a DeviceNonce,
+}
+
+/// The owned, opaque result of one successful bound poll, settled once by
+/// the verifier. Sealed: only the transport's own awaiting reply (built only
+/// through a bound grant's accepted ticket) implements it, and only the
+/// verifier, holding an [`Opener`], can read its parts.
+#[allow(private_bounds)] // The sealing supertrait is private on purpose.
+pub(crate) trait BoundPollResult: sealed::Sealed {
+    /// The poll's own ticket alone: no token or nonce. Read first, to
+    /// check which machine the result belongs to before anything else.
+    fn ticket(&self, opener: &Opener) -> &PollTicket;
+    fn open(&self, opener: &Opener) -> BoundParts<'_>;
+}
+
+/// Whether `ticket` was issued by `machine`: its identity, nothing secret.
+fn is_own_ticket(machine: &DeviceLogin, ticket: &PollTicket) -> bool {
+    Arc::ptr_eq(&machine.owner.0, &ticket.owner.0)
+}
+
+/// What a terminal settlement did with the sealed result it was given.
+pub(crate) enum Settlement<R> {
+    /// Settled on the result's own machine, or refused there; either way
+    /// the result is spent.
+    Settled(Result<DeviceStatus, DeviceError>),
+    /// Offered to a machine that did not issue its ticket. Only the
+    /// ticket's machine identity was read; the result comes back unspent
+    /// for its own machine, which it still can settle.
+    WrongMachine(R),
+}
+
 /// The OIDC `at_hash` of an access token signed with RS256: the left half
 /// of the SHA-256 of its exact ASCII bytes, unpadded base64url.
 fn rs256_access_hash(access_token: &str) -> String {
@@ -1017,13 +1066,40 @@ impl NativeVerifier {
         Ok(verifier)
     }
 
+    /// The terminal settlement of one successful bound poll: consumes its
+    /// sealed result, opened only here, and settles the poll its own ticket
+    /// holds with the pair that poll fetched and the nonce of its own
+    /// device request. No caller hands in tokens, a ticket or a nonce. A
+    /// result offered to another machine is handed back unspent, unopened
+    /// beyond its ticket's machine identity; every other refusal spends it.
+    pub(crate) fn settle_bound<R: BoundPollResult>(
+        &self,
+        machine: &mut DeviceLogin,
+        clock: Clock,
+        result: R,
+    ) -> Settlement<R> {
+        let opener = Opener(());
+        if !is_own_ticket(machine, result.ticket(&opener)) {
+            return Settlement::WrongMachine(result);
+        }
+        let parts = result.open(&opener);
+        Settlement::Settled(self.settle_pair(
+            machine,
+            clock,
+            parts.ticket,
+            (parts.access_token, parts.id_token),
+            parts.nonce,
+        ))
+    }
+
     /// Settles the poll `ticket` holds on `machine` with the pair that poll
     /// fetched: approved with the verified login, which the model then
     /// judges, or denied when any check fails. A verifier made for another
     /// machine verifies nothing and denies.
     /// `device_nonce` is the nonce of the pending device request this poll
-    /// belongs to; tokens not issued for it are denied.
-    pub(crate) fn settle_pair(
+    /// belongs to; tokens not issued for it are denied. Private to this
+    /// module and its children: everyone else settles a sealed result.
+    fn settle_pair(
         &self,
         machine: &mut DeviceLogin,
         clock: Clock,

@@ -40,7 +40,10 @@ use reqwest::header::{ACCEPT, CONTENT_TYPE};
 use reqwest::Url;
 use serde::Deserialize;
 
-use crate::device::verify::{DeviceNonce, NativeVerifier};
+use crate::device::verify::{
+    BoundParts, BoundPollResult, DeviceNonce, NativeVerifier, Opener,
+    Settlement,
+};
 use crate::device::{
     ChallengeBinding, Clock, DeviceError, DeviceLogin, DeviceStatus,
     PollOutcome, PollTicket,
@@ -597,24 +600,15 @@ impl AwaitingVerification {
     /// `at_hash`); that identifies the transaction, it proves no factor.
     /// With the second factor unproven, a valid pair is discarded by the
     /// model too: no grant can result.
+    /// Offered to a machine that did not issue its ticket, it comes back
+    /// unspent ([`Settlement::WrongMachine`]) for its own machine.
     pub(crate) fn verify_and_settle(
         self,
         machine: &mut DeviceLogin,
         clock: Clock,
         verifier: &NativeVerifier,
-    ) -> Result<DeviceStatus, DeviceError> {
-        let AwaitingVerification {
-            ticket,
-            reply,
-            nonce,
-        } = self;
-        verifier.settle_pair(
-            machine,
-            clock,
-            &ticket,
-            (&reply.access_token.0, &reply.id_token.0),
-            &nonce,
-        )
+    ) -> Settlement<AwaitingVerification> {
+        verifier.settle_bound(machine, clock, self)
     }
 
     /// Drops the unverified reply and ends the flow without a grant.
@@ -626,6 +620,24 @@ impl AwaitingVerification {
         let AwaitingVerification { ticket, reply, .. } = self;
         drop(reply);
         machine.settle(clock, &ticket, PollOutcome::AccessDenied)
+    }
+}
+
+/// The sealed result the verifier settles: this awaiting reply's own
+/// ticket, pair and device request nonce, readable only with the
+/// verifier's opener. Nothing else in the crate can read them.
+impl BoundPollResult for AwaitingVerification {
+    fn ticket(&self, _opener: &Opener) -> &PollTicket {
+        &self.ticket
+    }
+
+    fn open(&self, _opener: &Opener) -> BoundParts<'_> {
+        BoundParts {
+            ticket: &self.ticket,
+            access_token: &self.reply.access_token.0,
+            id_token: &self.reply.id_token.0,
+            nonce: &self.nonce,
+        }
     }
 }
 

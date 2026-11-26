@@ -772,10 +772,13 @@ fn real_snapshot_requires_delivered_valid_receipt_and_current_full_census_withou
             "Separate published elections must compose: {:#?}",
             split.checks
         );
+        // The official scope never inspects publications; only the tested
+        // event's own publications and seals are evidence.
+        assert!(split.evidence.official.publication.is_none());
         assert_eq!(
             split
                 .evidence
-                .official
+                .tested
                 .publication
                 .as_ref()
                 .unwrap()
@@ -784,6 +787,10 @@ fn real_snapshot_requires_delivered_valid_receipt_and_current_full_census_withou
             2
         );
         assert_eq!(split.evidence.tested.expected_boxes.len(), 2);
+        assert_eq!(
+            split.evidence.tested.expected_boxes,
+            split.evidence.tested.sealed_boxes
+        );
         // A retained publication may also contain retired styles after a
         // partial replacement. Even unreadable retired content is irrelevant
         // to the current published design set.

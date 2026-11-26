@@ -110,14 +110,13 @@ use serde::Deserialize;
 use aws_lc_rs::rand::{SecureRandom, SystemRandom};
 
 use super::{
-    is_uuid, is_visible_ascii, Admission, AmrMapperShape, ChallengeId,
-    ClaimPolicy, ClientAccess, ClientShape, Clock, DeviceError, DeviceLogin,
-    DeviceNonce, DeviceStatus, DriftEvidence, ExecutionShape, FlowProvider,
+    is_uuid, is_visible_ascii, Admission, AmrMapperShape, BoundPollResult,
+    ChallengeId, ClaimPolicy, ClientAccess, ClientShape, Clock, DeviceError,
+    DeviceLogin, DeviceStatus, DriftEvidence, ExecutionShape, FlowProvider,
     FlowReceipt, FlowShape, Grant, MapperHost, MapperProvider, NativeVerifier,
-    OtpAlgorithm, OtpCredentialShape, OtpKind, OtpPolicyShape, Phase,
-    PollTicket, Readback, RequestBinding, RequiredActionShape, Requirement,
-    State, Step, SubjectFactors, UnixSeconds, PASSWORD_REFERENCE,
-    TOTP_REFERENCE,
+    Opener, OtpAlgorithm, OtpCredentialShape, OtpKind, OtpPolicyShape, Phase,
+    Readback, RequestBinding, RequiredActionShape, Requirement, State, Step,
+    SubjectFactors, UnixSeconds, PASSWORD_REFERENCE, TOTP_REFERENCE,
 };
 
 const SCHEMA: &str = "sequent.keycloak-device-policy-observation.v1";
@@ -946,39 +945,51 @@ pub(crate) fn observe_before(
     observe_subject(expected, &observation, &verifier.policy.subject, &request)
 }
 
-/// What one call of [`settle_observed`] did.
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum Observed {
-    /// The poll was settled.
+/// What one call of [`settle_observed`] did with the sealed result it was
+/// given.
+pub(crate) enum Observed<R> {
+    /// The poll was settled; the result is spent.
     Settled(DeviceStatus),
     /// The after-tokens reply was stamped in the same whole second as the
-    /// later token, so it is not yet after it. The poll stays in flight,
-    /// its ticket unspent; ask again, with a fresh request, in a later
-    /// second. Nothing was admitted, and the challenge's own expiry still
-    /// ends it.
-    Retained,
+    /// later token, so it is not yet after it. The poll stays in flight and
+    /// the sealed result comes back unspent; settle it again, with a fresh
+    /// request, in a later second. Nothing was admitted, and the
+    /// challenge's own expiry still ends it.
+    Retained(R),
+    /// Offered to a machine that did not issue its ticket: nothing was
+    /// asked of the collector, only the ticket's machine identity was read,
+    /// and the result comes back unspent for its own machine.
+    WrongMachine(R),
 }
 
-/// Settles the poll `ticket` holds with the pair it fetched. With factors
-/// observed before the authentication, it asks the collector, with a fresh
-/// request bound to the same challenge, for the flow and the factors after
-/// the tokens, and settles with that evidence, unless the reply lands in
-/// the tokens' own second, when the poll is retained instead. Without any
+/// Settles one successful bound poll's sealed result. With factors observed
+/// before the authentication, it asks the collector, with a fresh request
+/// bound to the same challenge, for the flow and the factors after the
+/// tokens, and settles with that evidence, unless the reply lands in the
+/// tokens' own second, when the result is handed back instead. Without any
 /// evidence the poll is settled with none, which never proves a factor.
-/// `device_nonce` is the nonce of this challenge's own pending device
-/// request; every settlement, admitted or not, checks the tokens against it.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn settle_observed(
+/// The ticket, the pair and the device request's nonce are the result's
+/// own, read only through the verifier's opener; every settlement, admitted
+/// or not, checks the tokens against that nonce.
+pub(crate) fn settle_observed<R: BoundPollResult>(
     verifier: &NativeVerifier,
     machine: &mut DeviceLogin,
     clock: Clock,
-    ticket: &PollTicket,
-    tokens: (&str, &str),
+    result: R,
     expected: &ExpectedInstall,
     collector: &dyn AuthenticatedCollector,
     before: Option<&SubjectFactors>,
-    device_nonce: &DeviceNonce,
-) -> Result<Observed, DeviceError> {
+) -> Result<Observed<R>, DeviceError> {
+    let opener = Opener(());
+    if !super::is_own_ticket(machine, result.ticket(&opener)) {
+        return Ok(Observed::WrongMachine(result));
+    }
+    let parts = result.open(&opener);
+    let (ticket, tokens, device_nonce) = (
+        parts.ticket,
+        (parts.access_token, parts.id_token),
+        parts.nonce,
+    );
     let after_tokens = || -> Option<(DriftEvidence, SubjectFactors)> {
         let challenge = pending_challenge(machine)?;
         let request =
@@ -1012,7 +1023,7 @@ pub(crate) fn settle_observed(
                 &admission,
             ) == Err(super::VerifyError::ReadbackSameSecond)
             {
-                return Ok(Observed::Retained);
+                return Ok(Observed::Retained(result));
             }
             verifier.settle_pair_admitted(
                 machine,

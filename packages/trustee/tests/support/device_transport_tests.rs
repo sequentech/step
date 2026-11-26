@@ -631,6 +631,149 @@ fn a_bound_grant_shows_no_secret() {
 }
 
 #[test]
+fn a_sealed_result_settles_only_its_own_machines_pending_poll() {
+    // A result of one machine's bound poll, offered to another machine at
+    // an equal-looking challenge: handed back unspent, and that machine's
+    // own poll is untouched.
+    let mut own = signed::fixture();
+    let mut other = signed::fixture();
+    let own_challenge = own.challenge;
+    let waiting =
+        awaiting_pair(&mut own, &signed::access_claims(), &signed::id_claims());
+    // The other machine's own poll is taken now, at its own offset 5,
+    // before anything observes it later: modeled time only moves forward.
+    let other_waiting = awaiting_pair(
+        &mut other,
+        &signed::access_claims(),
+        &signed::id_claims(),
+    );
+    let clock = signed::clock(6, signed::NOW);
+    let Settlement::WrongMachine(waiting) =
+        waiting.verify_and_settle(&mut other.machine, clock, &other.verifier)
+    else {
+        panic!("a result of another machine was spent");
+    };
+    assert!(matches!(
+        other.machine.status(clock),
+        DeviceStatus::Pending { .. }
+    ));
+    // The rightful machine then settles it as usual: not orphaned.
+    assert_eq!(
+        done(waiting.verify_and_settle(&mut own.machine, clock, &own.verifier)),
+        Ok(DeviceStatus::Closed {
+            challenge: own_challenge,
+            closure: crate::device::Closure::Discarded(
+                crate::device::DiscardReason::MfaAbsent
+            ),
+        })
+    );
+    // And the other machine's own poll is still its own to settle.
+    assert!(matches!(
+        done(other_waiting.verify_and_settle(
+            &mut other.machine,
+            clock,
+            &other.verifier
+        )),
+        Ok(DeviceStatus::Closed { .. })
+    ));
+}
+
+/// The outcome of a settlement on the result's own machine; a returned
+/// (wrong-machine) result is a test failure here.
+fn done(
+    settlement: Settlement<AwaitingVerification>,
+) -> Result<DeviceStatus, DeviceError> {
+    match settlement {
+        Settlement::Settled(outcome) => outcome,
+        Settlement::WrongMachine(_) => panic!("returned for a wrong machine"),
+    }
+}
+
+#[test]
+fn a_sealed_result_of_an_expired_or_replaced_challenge_grants_nothing() {
+    // Settled after its challenge expired: closed as expired, no grant.
+    let mut fixture = signed::fixture();
+    let challenge = fixture.challenge;
+    let waiting = awaiting_pair(
+        &mut fixture,
+        &signed::access_claims(),
+        &signed::id_claims(),
+    );
+    let late = signed::clock(700, signed::NOW);
+    assert_eq!(
+        done(waiting.verify_and_settle(
+            &mut fixture.machine,
+            late,
+            &fixture.verifier
+        )),
+        Ok(DeviceStatus::Closed {
+            challenge,
+            closure: crate::device::Closure::Expired,
+        })
+    );
+    assert_eq!(fixture.machine.authorize(late), Err(DeviceError::NoGrant));
+
+    // Its challenge expired and the machine began another: the old result
+    // is refused, and the new challenge stays pending.
+    let mut fixture = signed::fixture();
+    let waiting = awaiting_pair(
+        &mut fixture,
+        &signed::access_claims(),
+        &signed::id_claims(),
+    );
+    let later = signed::clock(700, signed::NOW);
+    assert!(matches!(
+        fixture.machine.status(later),
+        DeviceStatus::Closed { .. }
+    ));
+    let replacement = match grant().begin(&mut fixture.machine, later) {
+        Ok(bound) => bound,
+        Err((error, _)) => panic!("begin: {error:?}"),
+    };
+    assert_eq!(
+        done(waiting.verify_and_settle(
+            &mut fixture.machine,
+            later,
+            &fixture.verifier
+        )),
+        Err(DeviceError::WrongChallenge)
+    );
+    assert!(matches!(
+        fixture.machine.status(later),
+        DeviceStatus::Pending { .. }
+    ));
+    drop(replacement);
+}
+
+#[test]
+fn settling_a_sealed_result_emits_no_credential() {
+    let mut fixture = signed::fixture();
+    let nonce = fixture.device_nonce.form_value().to_owned();
+    let body =
+        fixture.token_reply(&signed::access_claims(), &signed::id_claims());
+    let reply: Value = serde_json::from_slice(&body).unwrap();
+    let waiting = awaiting_pair(
+        &mut fixture,
+        &signed::access_claims(),
+        &signed::id_claims(),
+    );
+    let clock = signed::clock(6, signed::NOW);
+    let settled = done(waiting.verify_and_settle(
+        &mut fixture.machine,
+        clock,
+        &fixture.verifier,
+    ));
+    let shown = format!("{settled:?}");
+    for secret in [
+        reply["access_token"].as_str().unwrap(),
+        reply["id_token"].as_str().unwrap(),
+        nonce.as_str(),
+    ] {
+        assert!(!shown.contains(secret), "{shown}");
+    }
+}
+
+#[test]
 fn the_bound_path_settles_valid_and_wrong_scope_pairs() {
     // A valid pair through the bound path: discarded for want of a factor.
     let mut fixture = signed::fixture();
@@ -642,11 +785,11 @@ fn the_bound_path_settles_valid_and_wrong_scope_pairs() {
     );
     let clock = signed::clock(6, signed::NOW);
     assert_eq!(
-        waiting.verify_and_settle(
+        done(waiting.verify_and_settle(
             &mut fixture.machine,
             clock,
             &fixture.verifier
-        ),
+        )),
         Ok(DeviceStatus::Closed {
             challenge,
             closure: crate::device::Closure::Discarded(
@@ -661,11 +804,11 @@ fn the_bound_path_settles_valid_and_wrong_scope_pairs() {
     signed::set(&mut other, "sub", json!(signed::OTHER_UUID));
     let waiting = awaiting_pair(&mut fixture, &other, &signed::id_claims());
     assert_eq!(
-        waiting.verify_and_settle(
+        done(waiting.verify_and_settle(
             &mut fixture.machine,
             clock,
             &fixture.verifier
-        ),
+        )),
         Ok(DeviceStatus::Closed {
             challenge,
             closure: crate::device::Closure::Denied,
@@ -684,11 +827,11 @@ fn a_signed_pair_settles_its_own_ticket_and_is_discarded_unproven() {
     );
     let clock = signed::clock(6, signed::NOW);
     assert_eq!(
-        waiting.verify_and_settle(
+        done(waiting.verify_and_settle(
             &mut fixture.machine,
             clock,
             &fixture.verifier
-        ),
+        )),
         Ok(DeviceStatus::Closed {
             challenge,
             closure: crate::device::Closure::Discarded(
@@ -713,11 +856,11 @@ fn a_pair_of_another_device_request_closes_this_ticket_as_denied() {
     );
     let clock = signed::clock(5, signed::NOW);
     assert_eq!(
-        waiting.verify_and_settle(
+        done(waiting.verify_and_settle(
             &mut fixture.machine,
             clock,
             &fixture.verifier
-        ),
+        )),
         Ok(DeviceStatus::Closed {
             challenge,
             closure: crate::device::Closure::Denied,
@@ -742,11 +885,11 @@ fn an_unverifiable_pair_closes_its_own_ticket_as_denied() {
     signed::set(&mut other, "sub", json!(signed::OTHER_UUID));
     let waiting = awaiting_pair(&mut fixture, &other, &signed::id_claims());
     assert_eq!(
-        waiting.verify_and_settle(
+        done(waiting.verify_and_settle(
             &mut fixture.machine,
             clock,
             &fixture.verifier
-        ),
+        )),
         denied(challenge)
     );
     assert_eq!(fixture.machine.authorize(clock), Err(DeviceError::NoGrant));
@@ -760,12 +903,14 @@ fn an_unverifiable_pair_closes_its_own_ticket_as_denied() {
         &signed::access_claims(),
         &signed::id_claims(),
     );
+    // The result's own machine, a verifier of another machine: a refusal
+    // on the rightful machine, so the result is spent and the poll denied.
     assert_eq!(
-        waiting.verify_and_settle(
+        done(waiting.verify_and_settle(
             &mut fixture.machine,
             clock,
             &stranger.verifier
-        ),
+        )),
         denied(challenge)
     );
 
@@ -779,11 +924,11 @@ fn an_unverifiable_pair_closes_its_own_ticket_as_denied() {
     );
     let late = signed::clock(6, signed::NOW + 280);
     assert_eq!(
-        waiting.verify_and_settle(
+        done(waiting.verify_and_settle(
             &mut fixture.machine,
             late,
             &fixture.verifier
-        ),
+        )),
         denied(challenge)
     );
 }

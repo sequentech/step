@@ -7,11 +7,11 @@
 
 use super::super::tests::{fixture, ISSUER, START, SUBJECT, TENANT};
 use super::super::{
-    FlowPolicyProof, SecondFactorPolicy, MAX_MFA_AGE, PASSWORD_REFERENCE,
-    TOTP_REFERENCE,
+    DeviceNonce, FlowPolicyProof, SecondFactorPolicy, MAX_MFA_AGE,
+    PASSWORD_REFERENCE, TOTP_REFERENCE,
 };
 use super::*;
-use crate::device::{DeviceScope, ScopeInput};
+use crate::device::{DeviceScope, PollTicket, ScopeInput};
 use serde_json::{json, Value};
 
 const REALM_ID: &str = "00000000-0000-4000-8000-0000000000d4";
@@ -1006,13 +1006,48 @@ const ISSUED: UnixSeconds = START + 40;
 /// A reply well after the tokens.
 const LATER: UnixSeconds = super::super::tests::NOW - 5;
 
-/// A poll in flight through the seam: its machine and ticket, a verifier,
-/// the dedicated signed pair, and the factors seen before authentication.
+/// A synthetic sealed bound poll result, for this test module only: the
+/// poll's own ticket, the pair it fetched, and its request's nonce. Only
+/// the verifier's opener reads them, as for the transport's own result.
+struct SyntheticPoll {
+    ticket: PollTicket,
+    access: String,
+    id: String,
+    nonce: DeviceNonce,
+}
+
+impl super::super::sealed::Sealed for SyntheticPoll {}
+
+impl BoundPollResult for SyntheticPoll {
+    fn ticket(&self, _opener: &Opener) -> &PollTicket {
+        &self.ticket
+    }
+
+    fn open(&self, _opener: &Opener) -> super::super::BoundParts<'_> {
+        super::super::BoundParts {
+            ticket: &self.ticket,
+            access_token: &self.access,
+            id_token: &self.id,
+            nonce: &self.nonce,
+        }
+    }
+}
+
+/// What one settlement attempt did, without the sealed result itself.
+#[derive(Debug, PartialEq, Eq)]
+enum Outcome {
+    Settled(DeviceStatus),
+    Retained,
+    WrongMachine,
+}
+
+/// A poll in flight through the seam: its machine, a verifier, the sealed
+/// result of its bound poll (until spent), and the factors seen before
+/// authentication.
 struct SeamRun {
     machine: DeviceLogin,
     verifier: NativeVerifier,
-    ticket: PollTicket,
-    tokens: (String, String),
+    result: Option<SyntheticPoll>,
     before: Option<SubjectFactors>,
     challenge: crate::device::ChallengeId,
 }
@@ -1083,40 +1118,94 @@ impl SeamRun {
             json!(super::super::rs256_access_hash(&access)),
         );
         SeamRun {
-            tokens: (access, signer.sign(&id)),
+            result: Some(SyntheticPoll {
+                ticket,
+                access,
+                id: signer.sign(&id),
+                nonce: DeviceNonce(DEVICE_NONCE.to_owned()),
+            }),
             machine,
             verifier,
-            ticket,
             before,
             challenge,
         }
     }
 
-    /// One settlement attempt, with the collector answering `answer` from
-    /// `template`, stamped `after_at`.
+    /// One settlement attempt of the sealed result, with the collector
+    /// answering `answer` from `template`, stamped `after_at`. A settled
+    /// result is spent; a retained one comes back for a later attempt.
     fn settle(
         &mut self,
         template: &Value,
         answer: Answer,
         after_at: UnixSeconds,
-    ) -> Result<Observed, DeviceError> {
+    ) -> Result<Outcome, DeviceError> {
         use super::super::tests::{clock, NOW};
         let collector = SyntheticCollector {
             template: template.clone(),
             answer,
             after_at,
         };
-        settle_observed(
+        let result = self.result.take().expect("an unspent sealed result");
+        match settle_observed(
             &self.verifier,
             &mut self.machine,
             clock(5, NOW),
-            &self.ticket,
-            (self.tokens.0.as_str(), self.tokens.1.as_str()),
+            result,
             &expected(),
             &collector,
             self.before.as_ref(),
-            &DeviceNonce(DEVICE_NONCE.to_owned()),
-        )
+        )? {
+            Observed::Settled(status) => Ok(Outcome::Settled(status)),
+            Observed::Retained(result) => {
+                self.result = Some(result);
+                Ok(Outcome::Retained)
+            }
+            Observed::WrongMachine(result) => {
+                self.result = Some(result);
+                Ok(Outcome::WrongMachine)
+            }
+        }
+    }
+
+    /// Offers this run's sealed result to `other`'s machine instead of its
+    /// own, keeping whatever comes back.
+    fn misdirect(
+        &mut self,
+        other: &mut SeamRun,
+        template: &Value,
+    ) -> Result<Outcome, DeviceError> {
+        use super::super::tests::{clock, NOW};
+        let collector = SyntheticCollector {
+            template: template.clone(),
+            answer: Answer::Echo,
+            after_at: LATER,
+        };
+        let result = self.result.take().expect("an unspent sealed result");
+        match settle_observed(
+            &other.verifier,
+            &mut other.machine,
+            clock(5, NOW),
+            result,
+            &expected(),
+            &collector,
+            self.before.as_ref(),
+        )? {
+            Observed::WrongMachine(result) => {
+                self.result = Some(result);
+                Ok(Outcome::WrongMachine)
+            }
+            Observed::Settled(status) => Ok(Outcome::Settled(status)),
+            Observed::Retained(result) => {
+                self.result = Some(result);
+                Ok(Outcome::Retained)
+            }
+        }
+    }
+
+    /// Whether the sealed result was spent: nothing is left to replay.
+    fn spent(&self) -> bool {
+        self.result.is_none()
     }
 }
 
@@ -1126,7 +1215,7 @@ fn seam_run(
     after: Answer,
     with_before: bool,
     prove: bool,
-) -> (Result<Observed, DeviceError>, crate::device::ChallengeId) {
+) -> (Result<Outcome, DeviceError>, crate::device::ChallengeId) {
     let mut run = SeamRun::new(&template, with_before, prove);
     let status = run.settle(&template, after, LATER);
     (status, run.challenge)
@@ -1134,20 +1223,20 @@ fn seam_run(
 
 fn denied(
     challenge: crate::device::ChallengeId,
-) -> Result<Observed, DeviceError> {
-    Ok(Observed::Settled(DeviceStatus::Closed {
+) -> Result<Outcome, DeviceError> {
+    Ok(Outcome::Settled(DeviceStatus::Closed {
         challenge,
         closure: crate::device::Closure::Denied,
     }))
 }
 
 fn approved(
-    status: &Result<Observed, DeviceError>,
+    status: &Result<Outcome, DeviceError>,
     challenge: crate::device::ChallengeId,
 ) -> bool {
     matches!(
         status,
-        Ok(Observed::Settled(DeviceStatus::Approved { challenge: admitted, .. }))
+        Ok(Outcome::Settled(DeviceStatus::Approved { challenge: admitted, .. }))
             if *admitted == challenge
     )
 }
@@ -1207,7 +1296,7 @@ fn the_seam_admits_with_bound_fresh_evidence_only() {
 #[test]
 fn the_seam_proves_nothing_for_the_unproven_verifier() {
     let discarded = |challenge| {
-        Ok(Observed::Settled(DeviceStatus::Closed {
+        Ok(Outcome::Settled(DeviceStatus::Closed {
             challenge,
             closure: crate::device::Closure::Discarded(
                 crate::device::DiscardReason::MfaAbsent,
@@ -1233,12 +1322,14 @@ fn a_same_second_reply_retains_the_poll_until_a_later_one() {
     let mut run = SeamRun::new(&envelope(), true, true);
     assert_eq!(
         run.settle(&envelope(), Answer::Echo, ISSUED),
-        Ok(Observed::Retained)
+        Ok(Outcome::Retained)
     );
     assert_eq!(
         run.settle(&envelope(), Answer::Echo, ISSUED),
-        Ok(Observed::Retained)
+        Ok(Outcome::Retained)
     );
+    // The sealed result came back unspent each time.
+    assert!(!run.spent());
     // Still pending, the ticket in flight, no grant.
     assert!(matches!(
         run.machine.status(super::super::tests::clock(5, LATER)),
@@ -1274,27 +1365,69 @@ fn only_the_tokens_own_second_is_retained() {
         run.settle(&envelope(), Answer::Echo, ISSUED),
         denied(run.challenge)
     );
-    assert_eq!(
-        run.settle(&envelope(), Answer::Echo, LATER),
-        Err(DeviceError::AlreadySettled)
-    );
+    assert!(run.spent());
 
     // A retained poll is no oracle: a reply to another request, even in a
     // later second, is never evidence and settles denied.
     let mut run = SeamRun::new(&envelope(), true, true);
     assert_eq!(
         run.settle(&envelope(), Answer::Echo, ISSUED),
-        Ok(Observed::Retained)
+        Ok(Outcome::Retained)
     );
     assert_eq!(
         run.settle(&envelope(), Answer::WrongNonce, LATER),
         denied(run.challenge)
     );
-    // Once settled, the ticket settles nothing again.
+    // Once settled, the sealed result is spent: nothing can replay it, and
+    // the machine's challenge is closed.
+    assert!(run.spent());
+    assert!(matches!(
+        run.machine
+            .status(super::super::tests::clock(6, super::super::tests::NOW)),
+        DeviceStatus::Closed { .. }
+    ));
+}
+
+#[test]
+fn a_misdirected_sealed_result_comes_back_for_its_own_machine() {
+    let mut own = SeamRun::new(&envelope(), true, true);
+    let mut other = SeamRun::new(&envelope(), true, true);
+    // Offered to another machine (an equal-looking challenge): returned
+    // unspent; that machine's own poll is untouched.
+    assert_eq!(
+        own.misdirect(&mut other, &envelope()),
+        Ok(Outcome::WrongMachine)
+    );
+    assert!(!own.spent());
+    assert!(matches!(
+        other
+            .machine
+            .status(super::super::tests::clock(5, super::super::tests::NOW)),
+        DeviceStatus::Pending { .. }
+    ));
+    // Its own machine then settles it as usual.
+    let status = own.settle(&envelope(), Answer::Echo, LATER);
+    assert!(approved(&status, own.challenge));
+    assert!(own.spent());
+    // And the other machine's own result is still its own to settle.
+    let status = other.settle(&envelope(), Answer::Echo, LATER);
+    assert!(approved(&status, other.challenge));
+}
+
+#[test]
+fn only_a_wrong_machine_returns_the_result() {
+    // Another device request's tokens, on the right machine: spent, denied.
+    let mut run = SeamRun::issued_for(
+        &envelope(),
+        true,
+        true,
+        Some("synthetic-other-device-request-nonce-000000"),
+    );
     assert_eq!(
         run.settle(&envelope(), Answer::Echo, LATER),
-        Err(DeviceError::AlreadySettled)
+        denied(run.challenge)
     );
+    assert!(run.spent());
 }
 
 #[test]
