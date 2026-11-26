@@ -364,8 +364,8 @@ pub struct CertificateCheckResult {
 /// [`SigningRule::requester_signing_effective`], which apply the trustee
 /// override.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SigningRule {
-    pub action: SigningAction,
+pub struct SigningRule<Action = SigningAction> {
+    pub action: Action,
     pub requirement: SigningRequirement,
     /// How many different people must sign, as configured.
     pub signatures: u16,

@@ -1095,6 +1095,10 @@ const tagalogTranslation: TranslationType = {
                         lead: "Hindi dinala ang certificate trust",
                         text: "Hindi dinala ang certificate trust — may '{{member}}' ang binuksang archive, na hindi dinadala ng Architect. Maaaring pumalya ang mga pirmang umaasa rito hanggang maibalik ito sa awtorisadong certificate setup ng platform.",
                     },
+                    "manual-verification-receiver-required": {
+                        lead: "Kailangan ang katugmang receiver",
+                        text: "Kailangan ang katugmang receiver — hindi maipapatupad ng receiver na ito ang ‘{{action}}’. Nananatili ang patakaran sa workbook at plano. Para gumawa ng delivery, gumamit ng Architect at receiver na sumusuporta sa pagpirma para sa manual na beripikasyon.",
+                    },
                     "workbook-needs-current-architect": {
                         lead: "Kailangan ng bagong Architect ang workbook",
                         text: "Kailangan ng bagong Architect ang workbook — itinatago ng workbook ang signing policy na ito sa mga sheet na binabalewala ng mas lumang Architect. Buksan muli mula sa blueprint.json o sa delivery zip para mapanatili ito.",

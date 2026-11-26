@@ -1094,6 +1094,10 @@ const galegoTranslation: TranslationType = {
                         lead: "Confianza de certificados non conservada",
                         text: "Confianza de certificados non conservada — o arquivo aberto tiña '{{member}}', que o Architect non conserva. As sinaturas que dependan diso poden fallar ata que se restaure coa configuración de certificados autorizada da plataforma.",
                     },
+                    "manual-verification-receiver-required": {
+                        lead: "Precísase un receptor compatible",
+                        text: "Precísase un receptor compatible — este receptor non pode aplicar «{{action}}». A regra mantense no libro e no plan. Para xerar unha entrega, utiliza un Architect e un receptor que admitan a sinatura da verificación manual.",
+                    },
                     "workbook-needs-current-architect": {
                         lead: "O libro precisa un Architect actual",
                         text: "O libro precisa un Architect actual — o libro garda esta política de sinatura en follas que un Architect anterior ignora. Reábreo desde blueprint.json ou o zip de entrega para conservala.",

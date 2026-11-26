@@ -129,7 +129,12 @@ pub fn plan_from_workbook(workbook: &Workbook) -> Result<ReadPlan, Report> {
     plan.trustees = read_trustees(workbook);
     plan.notes = read_notes(workbook);
     match super::signing_sheet::PlannedSigning::from_workbook(workbook) {
-        Ok(signing) => plan.signing = signing,
+        Ok(signing) => {
+            if let Some(problem) = signing.receiver_notice("SigningRules") {
+                report.push(problem);
+            }
+            plan.signing = signing;
+        }
         Err(problems) => {
             for problem in problems {
                 report.push(problem);

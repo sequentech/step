@@ -870,6 +870,13 @@ impl<'a> Builder<'a> {
             }
         }
 
+        if let Err(problem) =
+            super::signing_sheet::require_signing_receiver(&export)
+        {
+            self.report.push(problem);
+            return Err(self.report);
+        }
+
         // Built after the entities, because every one of these resolves an
         // external_id against them.
         let voters = self.build_voters();

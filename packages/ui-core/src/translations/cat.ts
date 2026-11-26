@@ -1091,6 +1091,10 @@ const catalanTranslation: TranslationType = {
                         lead: "Confiança de certificats no conservada",
                         text: "Confiança de certificats no conservada — l'arxiu obert tenia '{{member}}', que l'Architect no conserva. Les signatures que en depenguin poden fallar fins que es restauri amb la configuració de certificats autoritzada de la plataforma.",
                     },
+                    "manual-verification-receiver-required": {
+                        lead: "Cal un receptor compatible",
+                        text: "Cal un receptor compatible — aquest receptor no pot aplicar «{{action}}». La regla es conserva al llibre i al pla. Per generar un lliurament, fes servir un Architect i un receptor que admetin la signatura de la verificació manual.",
+                    },
                     "workbook-needs-current-architect": {
                         lead: "El llibre necessita un Architect actual",
                         text: "El llibre necessita un Architect actual — el llibre desa aquesta política de signatura en fulls que un Architect anterior ignora. Torneu-lo a obrir des de blueprint.json o el zip de lliurament per conservar-la.",

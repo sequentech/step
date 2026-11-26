@@ -6826,6 +6826,109 @@ fn the_signing_configuration_survives_the_plans_workbook_being_reopened() {
     assert_eq!(signing_of(&compiled_export(&reopened)), signing_of(&native));
 }
 
+#[cfg(feature = "election_config_xlsx")]
+#[test]
+fn manual_verification_authoring_roundtrips_without_creating_a_delivery() {
+    use crate::election_config::{
+        build::build, open::open_named, plan_from_event::plan_from_event,
+        plan_from_workbook::plan_from_workbook,
+        schema::ImportElectionEventSchema, xlsx::read_xlsx,
+        xlsx_write::write_xlsx,
+    };
+
+    let mut native = native_export_with_signing();
+    let manual = serde_json::json!({
+        "action": "authorize-manual-verification", "requirement": "required", "signatures": 2,
+        "requester_signing": "not-allowed", "expires_minutes": null, "revision": 3,
+    });
+    native["signing_rules"]
+        .as_array_mut()
+        .unwrap()
+        .push(manual.clone());
+
+    // Authoring the row must not add its action to the receiver's catalog.
+    assert!(serde_json::from_value::<ImportElectionEventSchema>(
+        native.clone()
+    )
+    .is_err());
+    let notice = |report: &Report| {
+        report.problems.iter().any(|p| {
+            p.id.as_deref()
+                == Some("signing.manual-verification-receiver-required")
+        })
+    };
+    let read = plan_from_event(&native).unwrap();
+    assert!(notice(&read.report));
+    assert!(!read.report.has_errors());
+
+    let plan = opened(&native);
+    let sources = Sources::default();
+    let workbook = to_workbook(&plan, &sources).unwrap();
+    let xlsx = write_xlsx(&workbook).unwrap();
+    let workbook = read_xlsx(&xlsx).unwrap();
+    let reloaded = plan_from_workbook(&workbook).unwrap();
+    assert!(notice(&reloaded.report));
+    assert!(!reloaded.report.has_errors());
+    assert_eq!(reloaded.plan.signing, plan.signing);
+    assert_eq!(
+        serde_json::to_value(
+            reloaded
+                .plan
+                .signing
+                .rules
+                .as_ref()
+                .unwrap()
+                .last()
+                .unwrap()
+        )
+        .unwrap(),
+        manual
+    );
+
+    // Save File is a draft artifact, not an importable package.
+    let draft =
+        crate::election_config::archive::save_file(&reloaded.plan, &sources)
+            .unwrap();
+    let saved = open_named(&draft.bytes, Some(&draft.name)).unwrap();
+    assert_eq!(saved.plan.signing, plan.signing);
+
+    let templates = TemplateSet::builtin().unwrap();
+    let rejected =
+        |result: Result<crate::election_config::build::Bundle, Report>| {
+            let Err(report) = result else {
+                panic!("unsupported signing rule reached the bundle")
+            };
+            assert!(report.has_errors() && notice(&report), "{report}");
+        };
+    rejected(build(
+        &workbook,
+        &templates,
+        &BuildOptions::default(),
+        &sources,
+    ));
+    // The gate also sees the effective rule when no workbook sheet overrides it.
+    let ordinary = to_workbook(&sound(), &sources).unwrap();
+    rejected(build(
+        &ordinary,
+        &templates,
+        &BuildOptions {
+            base_export: Some(native),
+            ..Default::default()
+        },
+        &sources,
+    ));
+    let Err(report) = compile_plan(Compile {
+        plan: &reloaded.plan,
+        templates: &templates,
+        options: &BuildOptions::default(),
+        profile: None,
+        sources: None,
+    }) else {
+        panic!("unsupported signing rule reached the delivery")
+    };
+    assert!(report.has_errors() && notice(&report), "{report}");
+}
+
 #[test]
 fn explicitly_empty_rules_stay_empty_and_absent_stays_absent() {
     let mut native = native_export_with_signing();

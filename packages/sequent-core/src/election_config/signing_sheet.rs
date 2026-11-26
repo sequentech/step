@@ -38,11 +38,12 @@
 //! No credentials of any kind belong here: these are policy enums and numbers.
 
 use super::paths::Cell;
-use super::problem::{Code, Problem};
+use super::problem::{Code, Problem, Severity};
 use super::sheet::{Row, Sheet, Workbook};
-use crate::signing::{SigningChecks, SigningRule};
+use crate::signing::{SigningAction, SigningChecks, SigningRule};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use std::fmt;
 
 pub const SHEET_SIGNING_RULES: &str = "signingrules";
 pub const SHEET_SIGNING_CHECKS: &str = "signingchecks";
@@ -72,6 +73,88 @@ const CHECK_COLUMNS: [&str; 5] = [
 /// Also read as an explicit "never expires", beside the workbook's `null`.
 pub const NO_EXPIRY: &str = "none";
 
+/// An action the canonical HSM receiver can enforce, but this platform
+/// build cannot. Preserve its exact wire value in authoring, not in the
+/// native receiver's `SigningAction` catalog.
+const MANUAL_VERIFICATION_ACTION: &str = "authorize-manual-verification";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub enum PlannedSigningAction {
+    Current(SigningAction),
+    AuthorizeManualVerification,
+}
+
+impl TryFrom<String> for PlannedSigningAction {
+    type Error = String;
+
+    fn try_from(action: String) -> Result<Self, Self::Error> {
+        if action == MANUAL_VERIFICATION_ACTION {
+            return Ok(Self::AuthorizeManualVerification);
+        }
+        action
+            .parse::<SigningAction>()
+            .map(Self::Current)
+            .map_err(|_| format!("unknown signing action {action:?}"))
+    }
+}
+
+impl From<PlannedSigningAction> for String {
+    fn from(action: PlannedSigningAction) -> Self {
+        action.to_string()
+    }
+}
+
+impl fmt::Display for PlannedSigningAction {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Current(action) => fmt::Display::fmt(action, formatter),
+            Self::AuthorizeManualVerification => {
+                formatter.write_str(MANUAL_VERIFICATION_ACTION)
+            }
+        }
+    }
+}
+
+pub type PlannedSigningRule = SigningRule<PlannedSigningAction>;
+
+fn manual_receiver_required(path: String) -> Problem {
+    Problem::error(
+        Code::IncompatibleVersion,
+        path,
+        concat!(
+            "This receiver cannot enforce the 'authorize-manual-verification' signing rule. ",
+            "The rule is kept in your workbook and plan. To build a delivery, ",
+            "use an Architect and receiver that support manual-verification signing.",
+        ),
+    )
+    .id("signing.manual-verification-receiver-required")
+    .detail("action", MANUAL_VERIFICATION_ACTION)
+}
+
+/// Check the final, effective policy, including inherited export values.
+/// Keep this guard in the common builder: a direct historical/workbook build
+/// must be as strict as the wizard. Lift it only in a paired implementation
+/// with the enforcement path, permission, and database constraints verified;
+/// neither an authoring enum nor the shared v11 version proves support.
+pub(super) fn require_signing_receiver(export: &Value) -> Result<(), Problem> {
+    let index = export
+        .get("signing_rules")
+        .and_then(Value::as_array)
+        .and_then(|rules| {
+            rules.iter().position(|rule| {
+                rule.get("action").and_then(Value::as_str)
+                    == Some(MANUAL_VERIFICATION_ACTION)
+            })
+        });
+    match index {
+        Some(index) => Err(manual_receiver_required(format!(
+            "signing_rules[{index}].action"
+        ))),
+        None => Ok(()),
+    }
+}
+
 /// An event's signing configuration as a plan holds it.
 ///
 /// Each field is `None` when the source said nothing about it, and `Some`
@@ -82,7 +165,7 @@ pub const NO_EXPIRY: &str = "none";
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlannedSigning {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub rules: Option<Vec<SigningRule>>,
+    pub rules: Option<Vec<PlannedSigningRule>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub checks: Option<SigningChecks>,
     /// The enrollment approval matrix, carried as the source stated it.
@@ -109,6 +192,18 @@ impl PlannedSigning {
         self.rules.is_none()
             && self.checks.is_none()
             && self.approval_matrix.is_none()
+    }
+
+    /// The authoring form may open and save a preserved rule even when the
+    /// artifact builder cannot deliver it to this receiver.
+    pub(super) fn receiver_notice(&self, path: &str) -> Option<Problem> {
+        let index = self.rules.as_ref()?.iter().position(|rule| {
+            rule.action == PlannedSigningAction::AuthorizeManualVerification
+        })?;
+        let mut problem =
+            manual_receiver_required(format!("{path}[{index}].action"));
+        problem.severity = Severity::Warning;
+        Some(problem)
     }
 
     /// The configuration a bundle carries, field by field.
@@ -220,7 +315,7 @@ impl PlannedSigning {
                 .iter()
                 .enumerate()
                 .filter_map(|(index, row)| {
-                    read_row::<SigningRule>(
+                    read_row::<PlannedSigningRule>(
                         row,
                         &format!("{}[{index}]", sheet.name),
                         &RULE_COLUMNS,
@@ -314,7 +409,7 @@ fn enum_text<T: Serialize>(value: &T) -> Cell {
     }
 }
 
-fn rules_sheet(rules: &[SigningRule]) -> Sheet {
+fn rules_sheet(rules: &[PlannedSigningRule]) -> Sheet {
     let rows: Vec<Vec<Cell>> = rules
         .iter()
         .map(|rule| {

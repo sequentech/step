@@ -1093,6 +1093,10 @@ const englishTranslation = {
                         lead: "Certificate trust not carried",
                         text: "Certificate trust not carried — the opened archive had '{{member}}', which the Architect does not carry. Signatures relying on it may fail until it is restored through the platform's authorized certificate setup.",
                     },
+                    "manual-verification-receiver-required": {
+                        lead: "Compatible receiver required",
+                        text: "Compatible receiver required — this receiver cannot enforce '{{action}}'. The rule stays in the workbook and plan. Use an Architect and receiver with manual-verification signing to build a delivery.",
+                    },
                     "workbook-needs-current-architect": {
                         lead: "Workbook needs current Architect",
                         text: "Workbook needs current Architect — the workbook keeps this signing policy in sheets an older Architect ignores. Reopen it from blueprint.json or the delivery zip to keep it.",

@@ -1090,6 +1090,10 @@ const basqueTranslation: TranslationType = {
                         lead: "Ziurtagiri-konfiantza ez da gordetzen",
                         text: "Ziurtagiri-konfiantza ez da gordetzen — irekitako artxiboak '{{member}}' zuen, eta Architect-ek ez du gordetzen. Horren mende dauden sinadurek huts egin dezakete plataformaren ziurtagiri-konfigurazio baimenduaren bidez berrezarri arte.",
                     },
+                    "manual-verification-receiver-required": {
+                        lead: "Hartzaile bateragarria behar da",
+                        text: "Hartzaile bateragarria behar da — hartzaile honek ezin du «{{action}}» aplikatu. Araua liburuan eta planean gordetzen da. Entrega bat sortzeko, erabili eskuzko egiaztapena sinatzea onartzen duten Architect eta hartzaile bat.",
+                    },
                     "workbook-needs-current-architect": {
                         lead: "Liburuak Architect berria behar du",
                         text: "Liburuak Architect berria behar du — liburuak sinadura-politika hau Architect zaharrago batek baztertzen dituen orrietan gordetzen du. Ireki berriro blueprint.json edo entrega-zip-etik gordetzeko.",
