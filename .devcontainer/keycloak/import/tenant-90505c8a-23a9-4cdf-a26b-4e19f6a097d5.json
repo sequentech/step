@@ -2397,6 +2397,16 @@
       }
     ],
     "client": {
+      "sequent-native-trustee": [
+        {
+          "id": "012e3cc5-7c51-54ad-a3cf-24fa6904b345",
+          "name": "runner",
+          "description": "Explicit native trustee runner admission",
+          "composite": false,
+          "clientRole": true,
+          "containerId": "ee55fefd-0dc9-5c11-8646-302d631b9063"
+        }
+      ],
       "cli-account-admin": [
         {
           "id": "e57bd4a4-847e-45d3-bcf1-e05e028fdd0d",
@@ -3453,6 +3463,12 @@
   ],
   "scopeMappings": [
     {
+      "client": "sequent-native-trustee",
+      "roles": [
+        "trustee-ceremony"
+      ]
+    },
+    {
       "client": "sequent-trustee-runner",
       "roles": [
         "trustee-ceremony"
@@ -3477,6 +3493,168 @@
     ]
   },
   "clients": [
+    {
+      "id": "ee55fefd-0dc9-5c11-8646-302d631b9063",
+      "clientId": "sequent-native-trustee",
+      "name": "Native trustee runner (provision explicitly)",
+      "protocol": "openid-connect",
+      "enabled": false,
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": false,
+      "redirectUris": [],
+      "webOrigins": [],
+      "defaultClientScopes": [],
+      "optionalClientScopes": [],
+      "authenticationFlowBindingOverrides": {
+        "direct_grant": "36869683-b446-5c80-a66b-f17bd403ba83"
+      },
+      "protocolMappers": [
+        {
+          "id": "24bbb700-72fe-5d33-b92a-a018feb9a174",
+          "name": "acr loa level",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-acr-mapper",
+          "consentRequired": false,
+          "config": {
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "id": "8aa9f9a3-4629-5620-937f-87b33e9f24bc",
+          "name": "email verified",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "emailVerified",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "email_verified",
+            "jsonType.label": "boolean"
+          }
+        },
+        {
+          "id": "96752a53-1082-5966-b3a5-288e497dcf29",
+          "name": "sub",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-sub-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "id": "765b12b8-c006-576b-b2d1-31594ae686c3",
+          "name": "trustee",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "trustee",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "trustee",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "711a42db-8753-54ae-9707-946c9b94c7be",
+          "name": "x-hasura-user-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "id",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-user-id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "45599930-4b5f-505b-a713-81c9f97de1fb",
+          "name": "x-hasura-tenant-id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "user.attribute": "tenant-id",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-tenant-id",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "3f35e198-ab86-57aa-92c7-9ee1487a30af",
+          "name": "x-hasura-allowed-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-allowed-roles",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "id": "d548de17-7259-554c-b93e-04a3cb6b3263",
+          "name": "x-hasura-default-role",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "introspection.token.claim": "true",
+            "claim.value": "trustee-ceremony",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/claims.x-hasura-default-role",
+            "jsonType.label": "String",
+            "access.tokenResponse.claim": "false"
+          }
+        },
+        {
+          "id": "939e9b7a-cc71-5427-9863-e7d48ec25c1f",
+          "name": "auth_time",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usersessionmodel-note-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.session.note": "AUTH_TIME",
+            "introspection.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "lightweight.claim": "false",
+            "access.token.claim": "true",
+            "claim.name": "https://hasura\\.io/jwt/auth_time",
+            "jsonType.label": "long",
+            "access.tokenResponse.claim": "false"
+          }
+        }
+      ]
+    },
     {
       "id": "c9c68b0a-47fb-4d1b-9fee-470aece210ea",
       "clientId": "sequent-trustee-runner",
@@ -5620,6 +5798,160 @@
   "defaultLocale": "en",
   "authenticationFlows": [
     {
+      "id": "d00068ba-cbcc-5e48-b99c-11349f06ec34",
+      "alias": "Native Trustee - Enrolled OTP",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "conditional-user-configured"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "direct-grant-validate-otp"
+        }
+      ]
+    },
+    {
+      "id": "13a5c245-cddb-5071-844c-717b652f3e05",
+      "alias": "Native Trustee - Deny absent OTP enrollment",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "conditional-sub-flow-executed",
+          "authenticatorConfig": "Native Trustee - OTP flow success required"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "deny-access-authenticator"
+        }
+      ]
+    },
+    {
+      "id": "a228e672-db43-5a58-9ede-711d0a99a708",
+      "alias": "Native Trustee - Authorized member",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "conditional-user-role",
+          "authenticatorConfig": "Native Trustee - required runner member"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "conditional-user-role",
+          "authenticatorConfig": "Native Trustee - required user role"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 30,
+          "userSetupAllowed": false,
+          "authenticator": "allow-access-authenticator"
+        }
+      ]
+    },
+    {
+      "id": "be06ad24-f1be-5d77-9ff2-265d786f6a95",
+      "alias": "Native Trustee - Deny unknown member",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "conditional-sub-flow-executed",
+          "authenticatorConfig": "Native Trustee - admission success required"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "deny-access-authenticator"
+        }
+      ]
+    },
+    {
+      "id": "36869683-b446-5c80-a66b-f17bd403ba83",
+      "alias": "Native Trustee - Direct Grant",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "direct-grant-validate-username"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "direct-grant-validate-password"
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 30,
+          "userSetupAllowed": false,
+          "flowAlias": "Native Trustee - Authorized member"
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 40,
+          "userSetupAllowed": false,
+          "flowAlias": "Native Trustee - Deny unknown member"
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 50,
+          "userSetupAllowed": false,
+          "flowAlias": "Native Trustee - Enrolled OTP"
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 60,
+          "userSetupAllowed": false,
+          "flowAlias": "Native Trustee - Deny absent OTP enrollment"
+        }
+      ]
+    },
+    {
       "id": "5f8c6124-2c11-46a0-aa15-e8458893edcd",
       "alias": "Sequent Trustee Runner Password Grant",
       "description": "Dedicated username and password verification for the default tenant headless trustees only.",
@@ -6656,6 +6988,38 @@
     }
   ],
   "authenticatorConfig": [
+    {
+      "id": "09a4d9c4-e23b-585e-9e3e-312b94b323ca",
+      "alias": "Native Trustee - OTP flow success required",
+      "config": {
+        "flow_to_check": "Native Trustee - Enrolled OTP",
+        "check_result": "not-executed"
+      }
+    },
+    {
+      "id": "850a55c6-dd05-5e1b-be77-ca053aba0ed5",
+      "alias": "Native Trustee - required runner member",
+      "config": {
+        "condUserRole": "sequent-native-trustee.runner",
+        "negate": "false"
+      }
+    },
+    {
+      "id": "4422e1c3-224e-5352-bb55-c7857c874152",
+      "alias": "Native Trustee - required user role",
+      "config": {
+        "condUserRole": "trustee-ceremony",
+        "negate": "false"
+      }
+    },
+    {
+      "id": "6e5235fa-856b-57f4-aaba-7a2e4c24dcaf",
+      "alias": "Native Trustee - admission success required",
+      "config": {
+        "flow_to_check": "Native Trustee - Authorized member",
+        "check_result": "not-executed"
+      }
+    },
     {
       "id": "959c7fad-9092-499a-ac3a-dd27cfdafc48",
       "alias": "SMS Auth Config",
