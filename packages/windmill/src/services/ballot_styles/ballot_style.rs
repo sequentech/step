@@ -6,7 +6,7 @@ use super::publication_files;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_publication::get_ballot_publication_by_id;
-use crate::postgres::ballot_style::insert_ballot_style;
+use crate::postgres::ballot_style::{insert_ballot_styles, NewBallotStyle};
 use crate::postgres::candidate::export_candidates;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::export_elections;
@@ -22,7 +22,9 @@ use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
 use rocket::http::Status;
-use sequent_core::ballot::{ContestEncryptionPolicy, ElectionEventPresentation};
+use sequent_core::ballot::{
+    ContestEncryptionPolicy, ElectionEventPresentation, StringifiedPeriodDates,
+};
 use sequent_core::ballot_codec::multi_ballot::BallotChoices;
 use sequent_core::types::hasura::core::{
     self as hasura_type, Area, AreaContest, BallotPublication, BallotStyle, Candidate, Contest,
@@ -51,141 +53,197 @@ pub struct ElectionEventConfig {
     pub election_event_presentation: ElectionEventPresentation,
 }
 
-/**
- * Returns a HashMap<election_id, set<contest_id>> with all
- * the election ids and contest ids related to an area,
- * taking into consideration the parent areas as well.
- */
-pub fn get_elections_contests_map_for_area(
-    area: &Area,
-    areas_tree: &TreeNode,
-    ballot_publication: &BallotPublication,
-    contests_map: &HashMap<String, Contest>,
-    area_contests_map: &HashMap<String, AreaContest>,
-) -> AnyhowResult<HashMap<String, HashSet<String>>> {
-    let election_ids = ballot_publication.election_ids.clone().unwrap_or(vec![]);
-    if 0 == election_ids.len() {
-        return Err(anyhow!("No election ids"));
-    }
-    let area_ids: Vec<String> = areas_tree
-        .find_path_to_area(&area.id)
-        .ok_or(anyhow!("area not found in tree"))?
-        .into_iter()
-        .map(|area| area.id)
-        .collect();
-    let area_contests: Vec<AreaContest> = area_contests_map
-        .values()
-        .filter(|area_contest| area_ids.contains(&area_contest.area_id))
-        .map(|val| val.clone())
-        .collect();
-    // election_id, set<contest>
-    let mut election_contest_map: HashMap<String, HashSet<String>> = HashMap::new();
+/// Ballot styles inserted per statement.
+const INSERT_BATCH_SIZE: usize = 64;
 
-    for area_contest in area_contests.iter() {
-        let Some(contest) = contests_map.get(&area_contest.contest_id) else {
-            event!(
-                Level::INFO,
-                "missing contest for area contest: {}",
-                area_contest.id
-            );
-            continue;
-        };
-        if !election_ids.contains(&contest.election_id) {
-            continue;
-        }
-        election_contest_map
-            .entry(contest.election_id.clone())
-            .and_modify(|contest_ids| {
-                contest_ids.insert(contest.id.clone());
-            })
-            .or_insert_with(|| {
-                let mut set = HashSet::new();
-                set.insert(contest.id.clone());
-                set
-            });
-    }
-    Ok(election_contest_map)
+/// The event's rows, indexed once per generation so that building an area's
+/// ballot styles only reads the rows of that area.
+struct GenerationIndex<'a> {
+    publication_elections: HashSet<&'a str>,
+    elections: HashMap<&'a str, &'a Election>,
+    contests: HashMap<&'a str, &'a Contest>,
+    candidates_by_contest: HashMap<&'a str, Vec<&'a Candidate>>,
+    contests_by_area: HashMap<&'a str, Vec<&'a str>>,
+    /// Each area with its ancestors, from the root down.
+    area_paths: HashMap<&'a str, Vec<&'a str>>,
 }
 
-pub async fn create_ballot_style_postgres(
-    transaction: &Transaction<'_>,
+impl<'a> GenerationIndex<'a> {
+    fn new(
+        ballot_publication: &'a BallotPublication,
+        elections: &'a [Election],
+        contests: &'a [Contest],
+        candidates: &'a [Candidate],
+        area_contests: &'a [AreaContest],
+        areas_tree: &'a TreeNode,
+    ) -> Self {
+        let mut candidates_by_contest: HashMap<&str, Vec<&Candidate>> = HashMap::new();
+        for candidate in candidates {
+            if let Some(contest_id) = candidate.contest_id.as_deref() {
+                candidates_by_contest
+                    .entry(contest_id)
+                    .or_default()
+                    .push(candidate);
+            }
+        }
+        let mut contests_by_area: HashMap<&str, Vec<&str>> = HashMap::new();
+        for area_contest in area_contests {
+            contests_by_area
+                .entry(area_contest.area_id.as_str())
+                .or_default()
+                .push(area_contest.contest_id.as_str());
+        }
+        let mut area_paths = HashMap::new();
+        let mut pending: Vec<(&TreeNode, Vec<&str>)> = vec![(areas_tree, Vec::new())];
+        while let Some((node, mut path)) = pending.pop() {
+            if let Some(area) = &node.area {
+                path.push(area.id.as_str());
+                area_paths.insert(area.id.as_str(), path.clone());
+            }
+            for child in &node.children {
+                pending.push((child, path.clone()));
+            }
+        }
+        GenerationIndex {
+            publication_elections: ballot_publication
+                .election_ids
+                .iter()
+                .flatten()
+                .map(String::as_str)
+                .collect(),
+            elections: elections
+                .iter()
+                .map(|election| (election.id.as_str(), election))
+                .collect(),
+            contests: contests
+                .iter()
+                .map(|contest| (contest.id.as_str(), contest))
+                .collect(),
+            candidates_by_contest,
+            contests_by_area,
+            area_paths,
+        }
+    }
+
+    /// The contests of the publication's elections that apply to the area,
+    /// including those of its ancestors, grouped by election.
+    fn election_contests(&self, area_id: &str) -> AnyhowResult<HashMap<&'a str, HashSet<&'a str>>> {
+        if self.publication_elections.is_empty() {
+            return Err(anyhow!("No election ids"));
+        }
+        let path = self
+            .area_paths
+            .get(area_id)
+            .ok_or(anyhow!("area not found in tree"))?;
+        let mut election_contests: HashMap<&str, HashSet<&str>> = HashMap::new();
+        for contest_id in path
+            .iter()
+            .filter_map(|area| self.contests_by_area.get(area))
+            .flatten()
+        {
+            let Some(contest) = self.contests.get(contest_id) else {
+                event!(
+                    Level::INFO,
+                    "missing contest {} for area {}",
+                    contest_id,
+                    area_id
+                );
+                continue;
+            };
+            if !self
+                .publication_elections
+                .contains(contest.election_id.as_str())
+            {
+                continue;
+            }
+            election_contests
+                .entry(contest.election_id.as_str())
+                .or_default()
+                .insert(contest.id.as_str());
+        }
+        Ok(election_contests)
+    }
+
+    fn candidates(&self, contest_ids: &HashSet<&str>) -> Vec<Candidate> {
+        contest_ids
+            .iter()
+            .filter_map(|contest_id| self.candidates_by_contest.get(contest_id))
+            .flatten()
+            .map(|candidate| (*candidate).clone())
+            .collect()
+    }
+}
+
+/// What the voters of one election see: its dates and its public key.
+struct ElectionInputs {
+    dates: StringifiedPeriodDates,
+    public_key: Option<String>,
+}
+
+fn election_inputs(
+    elections: &[Election],
+    scheduled_events: &[ScheduledEvent],
+    keys_ceremonies: &[KeysCeremony],
+) -> HashMap<String, ElectionInputs> {
+    elections
+        .iter()
+        .map(|election| {
+            let public_key = election.keys_ceremony_id.as_ref().and_then(|id| {
+                keys_ceremonies
+                    .iter()
+                    .find(|keys_ceremony| &keys_ceremony.id == id)
+                    .and_then(|keys_ceremony| keys_ceremony.status().ok())
+                    .and_then(|status| status.public_key)
+            });
+            let inputs = ElectionInputs {
+                dates: get_election_dates(election, scheduled_events.to_vec()).unwrap_or_default(),
+                public_key,
+            };
+            (election.id.clone(), inputs)
+        })
+        .collect()
+}
+
+/// Builds the ballot style of each of the publication's elections that has
+/// contests in the area.
+fn area_ballot_styles(
     area: &Area,
-    areas_tree: &TreeNode,
-    tenant_id: &str,
-    election_event: &ElectionEvent,
-    ballot_publication: &BallotPublication,
-    elections_map: &HashMap<String, Election>,
-    contests_map: &HashMap<String, Contest>,
-    candidates_map: &HashMap<String, Candidate>,
-    area_contests_map: &HashMap<String, AreaContest>,
-    scheduled_events: &Vec<ScheduledEvent>,
-    keys_ceremonies_map: &HashMap<String, KeysCeremony>,
-) -> Result<()> {
-    let election_contest_map = get_elections_contests_map_for_area(
-        area,
-        areas_tree,
-        ballot_publication,
-        contests_map,
-        area_contests_map,
-    )?;
-
-    // For create_ballot_style's election-wide encoding-mode resolution.
-    let all_election_event_contests: Vec<Contest> = contests_map.values().cloned().collect();
-
-    for (election_id, contest_ids) in election_contest_map.into_iter() {
-        let election = elections_map
-            .get(&election_id)
+    index: &GenerationIndex<'_>,
+    voter_election_event: &ElectionEvent,
+    all_contests: &[Contest],
+    election_inputs: &HashMap<String, ElectionInputs>,
+) -> Result<Vec<NewBallotStyle>> {
+    let mut styles = Vec::new();
+    for (election_id, contest_ids) in index.election_contests(&area.id)? {
+        let election = index
+            .elections
+            .get(election_id)
             .ok_or(anyhow!("election id not found {}", election_id))?;
-        let contests: Vec<Contest> = contest_ids
+        let inputs = election_inputs
+            .get(election_id)
+            .ok_or(anyhow!("election id not found {}", election_id))?;
+        let contests = contest_ids
             .iter()
             .map(|contest_id| {
-                contests_map
+                index
+                    .contests
                     .get(contest_id)
-                    .map(|val| val.clone())
+                    .map(|contest| (*contest).clone())
                     .ok_or(Error::String(format!("Can't find contest {}", contest_id)))
             })
             .collect::<Result<Vec<Contest>>>()?;
-        let candidates: Vec<Candidate> = candidates_map
-            .values()
-            .filter(|candidate| {
-                let Some(contest_id) = candidate.contest_id.clone() else {
-                    return false;
-                };
-                contest_ids.contains(&contest_id)
-            })
-            .map(|candidate| candidate.clone())
-            .collect();
-        let public_key = if let Some(keys_ceremony_id) = election.keys_ceremony_id.clone() {
-            if let Some(keys_ceremony) = keys_ceremonies_map.get(&keys_ceremony_id) {
-                if let Some(status) = keys_ceremony.status().ok() {
-                    status.public_key
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-
-        let election_dates =
-            get_election_dates(election, scheduled_events.clone()).unwrap_or_default();
-
-        let mut voter_election_event = election_event.clone();
-        remove_datafix_annotations(voter_election_event.annotations.as_mut());
 
         let ballot_style_id = Uuid::new_v4();
         let election_dto = sequent_core::ballot_style::create_ballot_style(
-            ballot_style_id.clone().to_string(),
+            ballot_style_id.to_string(),
             area.clone(),
-            voter_election_event,
-            election.clone(),
-            contests.clone(),
-            &all_election_event_contests,
-            candidates.clone(),
-            election_dates.clone(),
-            public_key.clone(),
+            voter_election_event.clone(),
+            (*election).clone(),
+            contests,
+            all_contests,
+            index.candidates(&contest_ids),
+            inputs.dates.clone(),
+            inputs.public_key.clone(),
         )?;
 
         let is_multi_contest = election_dto
@@ -213,23 +271,15 @@ pub async fn create_ballot_style_postgres(
             }
         }
 
-        let election_dto_json_string = publication_files::ordered_json_string(&election_dto)
-            .map_err(|error| Error::String(error.to_string()))?;
-        let _created_ballot_style = insert_ballot_style(
-            transaction,
-            &ballot_style_id.to_string(),
-            tenant_id,
-            &election_event.id,
-            &election.id,
-            &area.id,
-            Some(election_dto_json_string),
-            None,
-            &ballot_publication.id,
-        )
-        .await?;
+        styles.push(NewBallotStyle {
+            id: ballot_style_id,
+            election_id: Uuid::parse_str(&election.id).context("Invalid election id")?,
+            area_id: Uuid::parse_str(&area.id).context("Invalid area id")?,
+            ballot_eml: publication_files::ordered_json_string(&election_dto)
+                .map_err(|error| Error::String(error.to_string()))?,
+        });
     }
-
-    Ok(())
+    Ok(styles)
 }
 
 #[instrument(err)]
@@ -325,6 +375,37 @@ async fn generate_election_event_ballot_styles(
     ).await?.is_some() {
         return Err(anyhow!("Previous ballot generation did not complete; generate a new publication"));
     }
+    insert_publication_ballot_styles(
+        &transaction,
+        tenant_id,
+        election_event_id,
+        &ballot_publication,
+    )
+    .await?;
+    let data = publication_files::publication_data(
+        &transaction,
+        tenant_id,
+        election_event_id,
+        ballot_publication_id,
+    )
+    .await?;
+    publication_files::renew_generation(&transaction, lease).await?;
+
+    transaction
+        .commit()
+        .await
+        .with_context(|| "Commit failed")?;
+    Ok(Some(data))
+}
+
+/// Builds and inserts the ballot style of every area and election of the
+/// publication, in the caller's transaction.
+async fn insert_publication_ballot_styles(
+    transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication: &BallotPublication,
+) -> AnyhowResult<()> {
     let (
         election_event,
         elections,
@@ -346,71 +427,51 @@ async fn generate_election_event_ballot_styles(
     )?;
 
     let elections_map: HashMap<String, Election> = elections
-        .into_iter()
-        .map(|election: Election| (election.id.clone(), election.clone()))
+        .iter()
+        .map(|election| (election.id.clone(), election.clone()))
         .collect();
-
-    let contests_map: HashMap<String, Contest> = contests
-        .into_iter()
-        .map(|contest| (contest.id.clone(), contest.clone()))
-        .collect();
-
-    let candidates_map: HashMap<String, Candidate> = candidates
-        .into_iter()
-        .map(|candidate: Candidate| (candidate.id.clone(), candidate.clone()))
-        .collect();
-
-    let area_contests_map: HashMap<String, AreaContest> = area_contests
-        .into_iter()
-        .map(|area_contest| (area_contest.id.clone(), area_contest.clone()))
-        .collect();
-
-    let keys_ceremonies_map: HashMap<String, KeysCeremony> = keys_ceremonies
-        .into_iter()
-        .map(|keys_ceremony: KeysCeremony| (keys_ceremony.id.clone(), keys_ceremony.clone()))
-        .collect();
-
     super::slates::validate_elections_slates(
         &ballot_publication.election_ids.clone().unwrap_or_default(),
         &elections_map,
-        &contests_map.values().cloned().collect::<Vec<Contest>>(),
-        &candidates_map.values().cloned().collect::<Vec<Candidate>>(),
+        &contests,
+        &candidates,
     )?;
 
     let basic_areas = areas.iter().map(|area| area.into()).collect();
     let areas_tree = TreeNode::from_areas(basic_areas)?;
+    let index = GenerationIndex::new(
+        ballot_publication,
+        &elections,
+        &contests,
+        &candidates,
+        &area_contests,
+        &areas_tree,
+    );
+    let election_inputs = election_inputs(&elections, &scheduled_events, &keys_ceremonies);
+    let mut voter_election_event = election_event.clone();
+    remove_datafix_annotations(voter_election_event.annotations.as_mut());
 
+    let tenant = Uuid::parse_str(tenant_id)?;
+    let event = Uuid::parse_str(election_event_id)?;
+    let publication = Uuid::parse_str(&ballot_publication.id)?;
+    let mut batch = Vec::with_capacity(INSERT_BATCH_SIZE);
     for area in &areas {
-        create_ballot_style_postgres(
-            &transaction,
+        batch.extend(area_ballot_styles(
             area,
-            &areas_tree,
-            &tenant_id,
-            &election_event,
-            &ballot_publication,
-            &elections_map,
-            &contests_map,
-            &candidates_map,
-            &area_contests_map,
-            &scheduled_events,
-            &keys_ceremonies_map,
-        )
-        .await?;
+            &index,
+            &voter_election_event,
+            &contests,
+            &election_inputs,
+        )?);
+        if batch.len() >= INSERT_BATCH_SIZE {
+            insert_ballot_styles(transaction, tenant, event, publication, &batch).await?;
+            batch.clear();
+        }
     }
-    let data = publication_files::publication_data(
-        &transaction,
-        tenant_id,
-        election_event_id,
-        ballot_publication_id,
-    )
-    .await?;
-    publication_files::renew_generation(&transaction, lease).await?;
-
-    transaction
-        .commit()
-        .await
-        .with_context(|| "Commit failed")?;
-    Ok(Some(data))
+    if !batch.is_empty() {
+        insert_ballot_styles(transaction, tenant, event, publication, &batch).await?;
+    }
+    Ok(())
 }
 
 /// Completed publications are immutable; repeated task delivery is a no-op.
@@ -457,5 +518,131 @@ mod generation_tests {
         publication.is_generated = Some(true);
         publication.deleted_at = Some(ISO8601::now());
         assert!(publication_needs_generation(&publication).is_err());
+    }
+
+    fn row<T: serde::de::DeserializeOwned>(fields: serde_json::Value) -> T {
+        let mut row = serde_json::json!({"tenant_id": "tenant", "election_event_id": "event"});
+        row.as_object_mut()
+            .unwrap()
+            .extend(fields.as_object().unwrap().clone());
+        serde_json::from_value(row).unwrap()
+    }
+
+    /// Areas `root` > `child` > `leaf` and `other`; the publication holds
+    /// elections `e1` and `e2` but not `e3`.
+    struct Event {
+        publication: BallotPublication,
+        elections: Vec<Election>,
+        contests: Vec<Contest>,
+        candidates: Vec<Candidate>,
+        area_contests: Vec<AreaContest>,
+        tree: TreeNode,
+    }
+
+    fn event() -> Event {
+        let mut publication = publication();
+        publication.election_ids = Some(vec!["e1".into(), "e2".into()]);
+        let areas: Vec<Area> = [
+            ("root", None),
+            ("child", Some("root")),
+            ("leaf", Some("child")),
+            ("other", None),
+        ]
+        .into_iter()
+        .map(|(id, parent)| row(serde_json::json!({"id": id, "parent_id": parent})))
+        .collect();
+        let contest = |id: &str, election: &str| -> Contest {
+            row(serde_json::json!({"id": id, "election_id": election}))
+        };
+        let area_contest = |area: &str, contest: &str| AreaContest {
+            id: format!("{area}-{contest}"),
+            area_id: area.into(),
+            contest_id: contest.into(),
+        };
+        Event {
+            publication,
+            elections: ["e1", "e2", "e3"]
+                .into_iter()
+                .map(|id| row(serde_json::json!({ "id": id })))
+                .collect(),
+            contests: vec![
+                contest("root-e1", "e1"),
+                contest("leaf-e1", "e1"),
+                contest("child-e2", "e2"),
+                contest("leaf-e3", "e3"),
+            ],
+            candidates: [
+                ("a", Some("root-e1")),
+                ("b", Some("leaf-e1")),
+                ("c", Some("child-e2")),
+                ("d", None),
+            ]
+            .into_iter()
+            .map(|(id, contest)| row(serde_json::json!({"id": id, "contest_id": contest})))
+            .collect(),
+            area_contests: vec![
+                area_contest("root", "root-e1"),
+                area_contest("leaf", "leaf-e1"),
+                area_contest("child", "child-e2"),
+                area_contest("leaf", "leaf-e3"),
+                area_contest("leaf", "removed"),
+            ],
+            tree: TreeNode::from_areas(areas.iter().map(|area| area.into()).collect()).unwrap(),
+        }
+    }
+
+    fn index(event: &Event) -> GenerationIndex<'_> {
+        GenerationIndex::new(
+            &event.publication,
+            &event.elections,
+            &event.contests,
+            &event.candidates,
+            &event.area_contests,
+            &event.tree,
+        )
+    }
+
+    fn sorted<'a>(ids: impl IntoIterator<Item = &'a str>) -> Vec<&'a str> {
+        let mut ids: Vec<&str> = ids.into_iter().collect();
+        ids.sort();
+        ids
+    }
+
+    #[test]
+    fn an_area_gets_its_own_and_its_ancestors_contests_of_the_publication() {
+        let event = event();
+        let contests = index(&event).election_contests("leaf").unwrap();
+        assert_eq!(sorted(contests.keys().copied()), ["e1", "e2"]);
+        assert_eq!(
+            sorted(contests["e1"].iter().copied()),
+            ["leaf-e1", "root-e1"]
+        );
+        assert_eq!(sorted(contests["e2"].iter().copied()), ["child-e2"]);
+
+        let contests = index(&event).election_contests("child").unwrap();
+        assert_eq!(sorted(contests["e1"].iter().copied()), ["root-e1"]);
+        assert!(index(&event).election_contests("other").unwrap().is_empty());
+    }
+
+    #[test]
+    fn an_area_outside_the_tree_or_a_publication_without_elections_is_an_error() {
+        let mut event = event();
+        let error = index(&event).election_contests("unknown").unwrap_err();
+        assert_eq!(error.to_string(), "area not found in tree");
+
+        event.publication.election_ids = Some(vec![]);
+        let error = index(&event).election_contests("leaf").unwrap_err();
+        assert_eq!(error.to_string(), "No election ids");
+    }
+
+    #[test]
+    fn a_ballot_style_gets_the_candidates_of_its_contests_only() {
+        let event = event();
+        let contests = HashSet::from(["root-e1", "leaf-e1"]);
+        let candidates = index(&event).candidates(&contests);
+        assert_eq!(
+            sorted(candidates.iter().map(|candidate| candidate.id.as_str())),
+            ["a", "b"]
+        );
     }
 }

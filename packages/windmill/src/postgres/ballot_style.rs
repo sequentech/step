@@ -40,72 +40,61 @@ impl TryFrom<Row> for BallotStyleWrapper {
     }
 }
 
-#[instrument(err, skip(hasura_transaction, ballot_eml))]
-pub async fn insert_ballot_style(
+/// A generated ballot style, before it is stored.
+pub struct NewBallotStyle {
+    pub id: Uuid,
+    pub election_id: Uuid,
+    pub area_id: Uuid,
+    pub ballot_eml: String,
+}
+
+/// Inserts the ballot styles of one publication with a single statement.
+#[instrument(err, skip(hasura_transaction, styles), fields(styles = styles.len()))]
+pub async fn insert_ballot_styles(
     hasura_transaction: &Transaction<'_>,
-    ballot_style_id: &str,
-    tenant_id: &str,
-    election_event_id: &str,
-    election_id: &str,
-    area_id: &str,
-    ballot_eml: Option<String>,
-    status: Option<String>,
-    ballot_publication_id: &str,
-) -> Result<BallotStyle> {
-    let statement = hasura_transaction
-        .prepare(
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    ballot_publication_id: Uuid,
+    styles: &[NewBallotStyle],
+) -> Result<()> {
+    let ids: Vec<Uuid> = styles.iter().map(|style| style.id).collect();
+    let election_ids: Vec<Uuid> = styles.iter().map(|style| style.election_id).collect();
+    let area_ids: Vec<Uuid> = styles.iter().map(|style| style.area_id).collect();
+    let emls: Vec<&str> = styles
+        .iter()
+        .map(|style| style.ballot_eml.as_str())
+        .collect();
+    let inserted = hasura_transaction
+        .execute(
             r#"
                 INSERT INTO
                     sequent_backend.ballot_style
-                (id, tenant_id, election_event_id, election_id, area_id, ballot_eml, status, ballot_publication_id, created_at, last_updated_at)
-                VALUES(
-                    $1,
-                    $2,
-                    $3,
-                    $4,
-                    $5,
-                    $6,
-                    $7,
-                    $8,
-                    NOW(),
-                    NOW()
-                )
-                RETURNING
-                    *;
+                (id, tenant_id, election_event_id, election_id, area_id, ballot_eml, ballot_publication_id, created_at, last_updated_at)
+                SELECT
+                    style.id, $1, $2, style.election_id, style.area_id, style.ballot_eml, $3, NOW(), NOW()
+                FROM
+                    UNNEST($4::uuid[], $5::uuid[], $6::uuid[], $7::text[])
+                    AS style(id, election_id, area_id, ballot_eml);
             "#,
-        )
-        .await
-        .map_err(|err| anyhow!("Error preparing insert statement: {}", err))?;
-    let rows: Vec<Row> = hasura_transaction
-        .query(
-            &statement,
             &[
-                &parse_uuid_v4(ballot_style_id)?,
-                &parse_uuid_v4(tenant_id)?,
-                &parse_uuid_v4(election_event_id)?,
-                &parse_uuid_v4(election_id)?,
-                &parse_uuid_v4(area_id)?,
-                &ballot_eml,
-                &status,
-                &parse_uuid_v4(ballot_publication_id)?,
+                &tenant_id,
+                &election_event_id,
+                &ballot_publication_id,
+                &ids,
+                &election_ids,
+                &area_ids,
+                &emls,
             ],
         )
         .await
-        .map_err(|err| anyhow!("Error inserting row: {}", err))?;
-
-    let elements: Vec<BallotStyle> = rows
-        .into_iter()
-        .map(|row| -> Result<BallotStyle> {
-            row.try_into()
-                .map(|res: BallotStyleWrapper| -> BallotStyle { res.0 })
-        })
-        .collect::<Result<Vec<BallotStyle>>>()
-        .with_context(|| "Error converting rows into documents")?;
-
-    elements
-        .get(0)
-        .map(|val| val.clone())
-        .ok_or(anyhow!("Row not inserted"))
+        .context("Error inserting ballot styles")?;
+    if inserted != styles.len() as u64 {
+        return Err(anyhow!(
+            "Inserted {inserted} of {} ballot styles",
+            styles.len()
+        ));
+    }
+    Ok(())
 }
 
 #[instrument(skip(hasura_transaction), err)]
