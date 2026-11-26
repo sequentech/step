@@ -7,7 +7,7 @@
 # server. Point PG_BIN at a complete local PostgreSQL installation.
 set -euo pipefail
 umask 077
-root=$(cd "$(dirname "$0")/.." && pwd)
+root=$(cd "$(dirname "$0")/../.." && pwd)
 fixtures="$root/hasura/tests"
 migrations="$root/hasura/migrations/backend-db"
 work=$(mktemp -d "/tmp/verified-cast-key-test.XXXXXXXX")
