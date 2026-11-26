@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import React, {useEffect, useMemo, useState} from "react"
+import React, {useContext, useEffect, useMemo, useRef, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {Identifier, useDataProvider, useGetOne, useNotify, useRefresh} from "react-admin"
 import {useMutation, useQuery} from "@apollo/client"
@@ -38,6 +38,7 @@ import {
     Sequent_Backend_Election_Event,
 } from "@/gql/graphql"
 import {useSignedAction} from "@/hooks/useSignedAction"
+import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {CHANGE_APPLICATION_STATUS} from "@/queries/ChangeApplicationStatus"
 import {USER_PROFILE_ATTRIBUTES} from "@/queries/GetUserProfileAttributes"
@@ -46,6 +47,14 @@ import {ApplicationsError, IApplicationsStatus, RejectReason} from "@/types/appl
 import {ApprovalStatusChip} from "./ApprovalChips"
 import {ApprovalVoterStep, NO_VOTER} from "./ApprovalVoterStep"
 import {convertToCamelCase} from "./UtilsApprovals"
+import {
+    PendingApproval,
+    clearPendingApproval,
+    isStepUpRefusal,
+    requiresApprovalStepUp,
+    savePendingApproval,
+    stepUpReturnUrl,
+} from "./approvalStepUp"
 import {
     EIdentityMethod,
     conditionLabels,
@@ -213,6 +222,8 @@ export interface ViewApprovalProps {
     /** Opens the approval matrix with the example of this enrollment's recorded decision. */
     onViewRule?: (application: Sequent_Backend_Applications) => void
     electionEventRecord?: Sequent_Backend_Election_Event
+    /** The approval to send on opening, back from signing in with the second factor. */
+    resumeApproval?: PendingApproval | null
 }
 
 export const ViewApproval: React.FC<ViewApprovalProps> = ({
@@ -221,6 +232,8 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
     currApprovalId,
     goBack,
     onViewRule,
+    electionEventRecord,
+    resumeApproval,
 }) => {
     const {t, i18n} = useTranslation()
     const [tenantId] = useTenantStore()
@@ -228,6 +241,11 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
     const refresh = useRefresh()
     const dataProvider = useDataProvider()
     const openSigning = useSignedAction()
+    const {isGoldUser, reauthWithGold} = useContext(AuthContext)
+    const stepUp = requiresApprovalStepUp(electionEventRecord?.presentation)
+    // Sends the approval that waited for the second factor, set once the enrollment is shown.
+    const resume = useRef<((voterId: string) => Promise<void>) | null>(null)
+    const resumed = useRef(false)
 
     const [step, setStep] = useState<Step | null>("identity")
     const [faceToFace, setFaceToFace] = useState(false)
@@ -260,6 +278,20 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
         const timer = setTimeout(() => setLookedUp(search.trim()), 400)
         return () => clearTimeout(timer)
     }, [search])
+
+    useEffect(() => {
+        if (
+            !resumeApproval ||
+            resumed.current ||
+            !resume.current ||
+            String(task?.id) !== resumeApproval.applicationId
+        ) {
+            return
+        }
+        resumed.current = true
+        clearPendingApproval()
+        resume.current(resumeApproval.voterId)
+    })
 
     const profileAttributes = userAttributes?.get_user_profile_attributes
     const fieldLabel = useMemo(
@@ -440,22 +472,47 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
               })
     }
 
-    const approve = async () => {
-        setConfirmApprove(false)
-        if (!chosenCandidate) {
-            return
+    /** Signs in again with the second factor; Keycloak returns here and the approval resumes. */
+    const signInAgain = async (voterId: string) => {
+        try {
+            savePendingApproval({
+                tenantId: String(tenantId),
+                electionEventId,
+                applicationId: String(task.id),
+                voterId,
+            })
+            await reauthWithGold(stepUpReturnUrl(window.location.href))
+        } catch {
+            notify(t("approvalsScreen.notifications.stepUpError"), {type: "error"})
         }
+    }
+
+    /** Harvest asks for the second factor, also when the portal didn't know the event wants it. */
+    const stepUpRefused = async (voterId: string, afterStepUp: boolean) => {
+        if (afterStepUp) {
+            // Back from signing in and still refused: asking again would loop.
+            notify(t("approvalsScreen.notifications.stepUpError"), {type: "error"})
+        } else {
+            await signInAgain(voterId)
+        }
+    }
+
+    const sendApproval = async (voterId: string, afterStepUp = false) => {
         setSending(true)
         try {
             const {data: reply, errors} = await changeStatus({
                 variables: {
                     tenant_id: tenantId,
                     id: task.id,
-                    user_id: chosenCandidate.voter.id,
+                    user_id: voterId,
                     area_id: task.area_id,
                     election_event_id: electionEventId,
                 },
             })
+            if (errors && isStepUpRefusal({graphQLErrors: errors})) {
+                await stepUpRefused(voterId, afterStepUp)
+                return
+            }
             if (reply?.ApplicationChangeStatus?.error || errors) {
                 notify(
                     reply?.ApplicationChangeStatus?.error === ApplicationsError.APPROVED_VOTER
@@ -472,11 +529,36 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                 })
             }
             goBack()
-        } catch {
-            notify(t("approvalsScreen.notifications.approveError"), {type: "error"})
+        } catch (error) {
+            if (isStepUpRefusal(error)) {
+                await stepUpRefused(voterId, afterStepUp)
+            } else {
+                notify(t("approvalsScreen.notifications.approveError"), {type: "error"})
+            }
         } finally {
             setSending(false)
         }
+    }
+    resume.current = async (voterId: string) => {
+        if (isGoldUser()) {
+            await sendApproval(voterId, true)
+        } else {
+            notify(t("approvalsScreen.notifications.stepUpError"), {type: "error"})
+        }
+    }
+
+    const approve = async () => {
+        setConfirmApprove(false)
+        const voterId = chosenCandidate?.voter.id
+        if (!voterId) {
+            return
+        }
+        // The event asks for a fresh second factor before approving.
+        if (stepUp && !isGoldUser()) {
+            await signInAgain(voterId)
+            return
+        }
+        await sendApproval(voterId)
     }
 
     const reject = async () => {
@@ -960,6 +1042,9 @@ export const ViewApproval: React.FC<ViewApprovalProps> = ({
                 )}
                 {typedByHand && faceToFace && (
                     <p>{t("approvalsScreen.review.approveDialog.checked")}</p>
+                )}
+                {stepUp && !isGoldUser() && (
+                    <p>{t("approvalsScreen.review.approveDialog.stepUp")}</p>
                 )}
                 <Box component="p" sx={{marginBottom: 0}}>
                     <Muted>{t("approvalsScreen.review.approveDialog.irreversible")}</Muted>

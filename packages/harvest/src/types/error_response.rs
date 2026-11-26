@@ -84,6 +84,9 @@ pub enum ErrorCode {
     ArchitectRosterInvalid,
     #[strum(serialize = "architect-roster-unavailable")]
     ArchitectRosterUnavailable,
+    /// 403: approving an enrollment needs a fresh second factor (the
+    /// event's `approval_step_up_policy` is `enabled`).
+    ApprovalStepUpRequired,
     // Add any other needed error codes
 }
 

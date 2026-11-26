@@ -10,6 +10,7 @@ import {ApprovalMatrix} from "../Approvals/ApprovalMatrix"
 import {Sequent_Backend_Applications, Sequent_Backend_Election_Event} from "@/gql/graphql"
 import {useElectionEventTallyStore} from "@/providers/ElectionEventTallyProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
+import {PendingApproval, readPendingApproval} from "../Approvals/approvalStepUp"
 
 enum ViewMode {
     View,
@@ -38,9 +39,12 @@ export const EditElectionEventApprovals: React.FC<TApproval> = ({
     // The enrollment the matrix was opened from; none when it was opened from the toolbar.
     const [source, setSource] = useState<Sequent_Backend_Applications | null>(null)
     const {taskId, setTaskId} = useElectionEventTallyStore()
+    // The approval that waited for the second factor, sent once its enrollment opens.
+    const [resumeApproval, setResumeApproval] = useState<PendingApproval | null>(null)
 
     const onViewApproval = (id: Identifier) => {
         setViewContext(context)
+        setResumeApproval(null)
         setViewMode(ViewMode.View)
         setCurrApprovalId(id)
         setTaskId(id)
@@ -48,6 +52,7 @@ export const EditElectionEventApprovals: React.FC<TApproval> = ({
 
     const onViewList = () => {
         setViewContext(context)
+        setResumeApproval(null)
         setViewMode(ViewMode.List)
         // Back in the queue no enrollment is open.
         setCurrApprovalId(null)
@@ -72,6 +77,15 @@ export const EditElectionEventApprovals: React.FC<TApproval> = ({
             onViewList()
         }
     }, [taskId])
+
+    // Back from signing in with the second factor, the approval it was for opens and resumes.
+    useEffect(() => {
+        const pending = readPendingApproval(tenantId, electionEventId)
+        if (pending) {
+            onViewApproval(pending.applicationId)
+            setResumeApproval(pending)
+        }
+    }, [tenantId, electionEventId])
 
     // Another tenant's or event's approvals never show this one's matrix or
     // enrollment, not even for the render before the reset below.
@@ -112,6 +126,7 @@ export const EditElectionEventApprovals: React.FC<TApproval> = ({
                     electionEventRecord={electionEventRecord}
                     goBack={onViewList}
                     onViewRule={onViewMatrix}
+                    resumeApproval={resumeApproval}
                 />
             )}
         </>

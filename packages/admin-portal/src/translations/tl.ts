@@ -4283,6 +4283,7 @@ const tagalogTranslation: TranslationType = {
                     body: "Iuugnay nito ang pagpapatala sa botante sa talaan na nasa ibaba. Sasabihan ang botante sa email o text message at makakapag-sign in siya upang bumoto kapag nagbukas ang botohan.",
                     checked: "Sinuri mo nang harapan ang ID ng botante.",
                     irreversible: "Hindi na ito mababawi.",
+                    stepUp: "Hihilingin sa iyong mag-sign in muli gamit ang iyong second factor bago ipadala ang pag-apruba.",
                     confirm: "Aprubahan",
                 },
                 reject: "Tanggihan ang pagpapatala",
@@ -4336,6 +4337,8 @@ const tagalogTranslation: TranslationType = {
                 rejectError: "Hindi matanggihan ang pagpapatala",
                 rejectSuccess: "Tinanggihan si {{name}}. Nasabihan na ang botante.",
                 VoterApprovedAlready: "Nakatala na ang botanteng ito.",
+                stepUpError:
+                    "Kailangan mong mag-sign in muli gamit ang iyong second factor para sa pag-apruba. Subukang muli.",
             },
             export: {
                 success: "Matagumpay na natapos ang pag-export ng mga aplikasyon",

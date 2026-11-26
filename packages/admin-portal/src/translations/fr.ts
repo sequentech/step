@@ -4291,6 +4291,7 @@ const frenchTranslation: TranslationType = {
                     body: "L'inscription sera associée à l'électeur du registre ci-dessous. L'électeur est prévenu par e-mail ou SMS et pourra se connecter pour voter à l'ouverture du vote.",
                     checked: "Vous avez vérifié la pièce d'identité de l'électeur en face à face.",
                     irreversible: "Cette action est irréversible.",
+                    stepUp: "Vous devrez vous reconnecter avec votre second facteur avant l'envoi de l'approbation.",
                     confirm: "Approuver",
                 },
                 reject: "Rejeter l'inscription",
@@ -4345,6 +4346,8 @@ const frenchTranslation: TranslationType = {
                 rejectError: "L'inscription n'a pas pu être rejetée",
                 rejectSuccess: "Inscription de {{name}} rejetée. L'électeur a été prévenu.",
                 VoterApprovedAlready: "Cet électeur est déjà inscrit.",
+                stepUpError:
+                    "L'approbation exige de vous reconnecter avec votre second facteur. Réessayez.",
             },
             export: {
                 success: "L'exportation des demandes s'est terminée avec succès",

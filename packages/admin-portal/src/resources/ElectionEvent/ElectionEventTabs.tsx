@@ -34,6 +34,7 @@ import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {LOGS_TAB_ID} from "@/components/logs/messagingLogFilters"
 import {showMessagingTab} from "./messagingTabAccess"
 import {LockdownBanner} from "./LockdownBanner"
+import {APPROVALS_TAB_ID} from "../Approvals/approvalStepUp"
 import {ElectionEventDataTab} from "./ElectionEventDataTab"
 import {ElectionEventDashboardTab as DashboardTab} from "./ElectionEventDashboardTab"
 import {EEventDataMode, useElectionEventDataMode} from "./useElectionEventDataMode"
@@ -535,6 +536,7 @@ export const ElectionEventTabs: React.FC = () => {
         // Approvals
         if (showApprovalsExecution) {
             result.push({
+                id: APPROVALS_TAB_ID,
                 label: t("electionEventScreen.tabs.approvals"),
                 component: ApprovalsTab,
                 props: {showList: showApprovalList},
@@ -574,6 +576,14 @@ export const ElectionEventTabs: React.FC = () => {
         clearPendingTallySheetImportId,
     ])
 
+    const approvalsTabIndex = tabs.findIndex((tab) => tab.id === APPROVALS_TAB_ID)
+    // An approval's second factor returns with `tabId=approvals`.
+    useEffect(() => {
+        const tabId = new URLSearchParams(location.search).get("tabId")
+        if (tabId === APPROVALS_TAB_ID && approvalsTabIndex >= 0) {
+            setSelectedTab(approvalsTabIndex)
+        }
+    }, [location.search, approvalsTabIndex])
     const tallySheetImportsTabIndex = tabs.findIndex((tab) => tab.id === "tally-sheet-imports")
     const dataTabIndex = tabs.findIndex((tab) => tab.id === "data")
     useEffect(() => {

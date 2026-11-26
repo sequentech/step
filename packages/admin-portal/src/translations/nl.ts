@@ -4263,6 +4263,7 @@ const dutchTranslation: TranslationType = {
                     checked:
                         "U hebt het identiteitsbewijs van de kiezer in een persoonlijk gesprek gecontroleerd.",
                     irreversible: "Dit kan niet ongedaan worden gemaakt.",
+                    stepUp: "U wordt gevraagd opnieuw in te loggen met uw tweede factor voordat de goedkeuring wordt verzonden.",
                     confirm: "Goedkeuren",
                 },
                 reject: "Inschrijving afwijzen",
@@ -4317,6 +4318,8 @@ const dutchTranslation: TranslationType = {
                 rejectError: "De inschrijving kon niet worden afgewezen",
                 rejectSuccess: "{{name}} afgewezen. De kiezer heeft bericht gekregen.",
                 VoterApprovedAlready: "Deze kiezer is al ingeschreven.",
+                stepUpError:
+                    "Voor de goedkeuring moet u opnieuw inloggen met uw tweede factor. Probeer het opnieuw.",
             },
             export: {
                 success: "Export van aanvragen succesvol voltooid",
