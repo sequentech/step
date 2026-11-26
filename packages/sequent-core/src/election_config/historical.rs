@@ -21,7 +21,7 @@ use chrono::{DateTime, FixedOffset, NaiveDateTime};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{btree_map::Entry, BTreeMap, BTreeSet};
 
 #[path = "historical_defaults.rs"]
 mod defaults;
@@ -137,8 +137,8 @@ pub enum VoterAreaJoin {
     PopulationPrecinctTuple,
     /// `voters.(MAILCOUNTRY, MAILEMBASSY)` equals `pop.(PROV_CODE, MUN_CODE)`,
     /// for the post-qualification schema, whose voters carry no precinct. Every
-    /// in-scope polling row with that location must resolve to the same area;
-    /// a location shared by two areas is a conflict, never a choice.
+    /// source row for a voter's location must agree on its area and scope. A
+    /// conflicting location is rejected for every voter using it, never guessed.
     MailCountryEmbassy,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1769,15 +1769,8 @@ fn map(
     let mut output_links = BTreeMap::new();
     let mut used_candidates = BTreeSet::new();
     let mut unresolved_affiliations = BTreeSet::new();
-    // (PROV_CODE, MUN_CODE, PRECINCT) -> area external_id for an in-scope pop row,
-    // or None for an out-of-scope one, recorded from the same crosswalk the areas
-    // are built from so source voters can join to an area. EVERY pop row is recorded
-    // (before the scope filters) so a key shared by an excluded row is caught as a
-    // conflict instead of silently assigning its voters to the in-scope area.
-    let mut precinct_area_index: BTreeMap<
-        (String, String, String),
-        Option<VoterArea>,
-    > = BTreeMap::new();
+    let mut precinct_area_index =
+        VoterAreaIndex::new(summary.source_schema, options.voter_area_join);
     for pop in 0..populations.table.rows.len() {
         // Only the voter-preserving census needs this crosswalk (and, for the
         // precinct join, the source PRECINCT column); other policies leave the
@@ -1827,7 +1820,7 @@ fn map(
         };
         let Some(contexts) = ei.get(&post) else {
             if let Some(key) = &precinct_key {
-                record_precinct_area(&mut precinct_area_index, key, None, pop)?;
+                precinct_area_index.record(key, None, pop)?;
             }
             summary.excluded_precinct_rows += 1;
             continue;
@@ -1837,7 +1830,7 @@ fn map(
             && options.precinct_coverage == PostCoverage::WorkbookPostsOnly
         {
             if let Some(key) = &precinct_key {
-                record_precinct_area(&mut precinct_area_index, key, None, pop)?;
+                precinct_area_index.record(key, None, pop)?;
             }
             summary.excluded_precinct_rows += 1;
             continue;
@@ -1853,8 +1846,7 @@ fn map(
         set(&mut area, "external_id", json!(area_id));
         if let Some(key) = &precinct_key {
             let (country, embassy) = voter_location(&area);
-            record_precinct_area(
-                &mut precinct_area_index,
+            precinct_area_index.record(
                 key,
                 Some(VoterArea {
                     external_id: area_id.clone(),
@@ -2425,29 +2417,59 @@ fn voter_location(area: &Row) -> (String, String) {
     (format!("{country_head}/{embassy}"), embassy)
 }
 
-/// Record a pop row's `(PROV_CODE, MUN_CODE, PRECINCT)` key against the area it
-/// resolves to (`Some`) or against being out of scope (`None`). Every pop row is
-/// recorded, so a key that two rows share with different outcomes (two areas, or an
-/// in-scope and an out-of-scope row) is a conflict rather than a silent
-/// misassignment.
-fn record_precinct_area(
-    index: &mut BTreeMap<(String, String, String), Option<VoterArea>>,
-    key: &(String, String, String),
-    area: Option<VoterArea>,
-    row: usize,
-) -> Result<(), Problem> {
-    match index.get(key) {
-        Some(existing) if *existing != area => Err(problem(
-            "pop",
-            row,
-            "PRECINCT",
-            Code::DuplicateId,
-            "a voter location (province, municipality and, by precinct, the precinct) maps to two different areas or scopes",
-        )),
-        _ => {
-            index.insert(key.clone(), area);
-            Ok(())
+#[derive(PartialEq, Eq)]
+enum VoterAreaMatch {
+    InScope(VoterArea),
+    OutOfScope,
+    Ambiguous,
+}
+
+/// Records all source rows, including excluded ones, before looking up voters.
+/// For the coarser post-qualification mail key, keep disagreements as unusable
+/// keys and report them only for voters who use them. Other joins stay strict
+/// even for unused keys.
+struct VoterAreaIndex {
+    locations: BTreeMap<(String, String, String), VoterAreaMatch>,
+    defer_mail_conflicts: bool,
+}
+
+impl VoterAreaIndex {
+    fn new(schema: SourceSchema, join: Option<VoterAreaJoin>) -> Self {
+        Self {
+            locations: BTreeMap::new(),
+            defer_mail_conflicts: schema == SourceSchema::PostQualification
+                && join == Some(VoterAreaJoin::MailCountryEmbassy),
         }
+    }
+
+    fn record(
+        &mut self,
+        key: &(String, String, String),
+        area: Option<VoterArea>,
+        row: usize,
+    ) -> Result<(), Problem> {
+        let outcome =
+            area.map_or(VoterAreaMatch::OutOfScope, VoterAreaMatch::InScope);
+        match self.locations.entry(key.clone()) {
+            Entry::Vacant(entry) => {
+                entry.insert(outcome);
+            }
+            Entry::Occupied(mut entry) if entry.get() != &outcome => {
+                if !self.defer_mail_conflicts {
+                    return Err(problem(
+                        "pop",
+                        row,
+                        "PRECINCT",
+                        Code::DuplicateId,
+                        "a voter location (province, municipality and, by precinct, the precinct) maps to two different areas or scopes",
+                    ));
+                }
+                // Do not let a later agreeing row pick one side of a conflict.
+                entry.insert(VoterAreaMatch::Ambiguous);
+            }
+            Entry::Occupied(_) => {}
+        }
+        Ok(())
     }
 }
 
@@ -2489,7 +2511,7 @@ fn record_precinct_area(
 fn build_source_voter_rows(
     dump: &SqlDump,
     join: VoterAreaJoin,
-    precinct_area_index: &BTreeMap<(String, String, String), Option<VoterArea>>,
+    precinct_area_index: &VoterAreaIndex,
     summary: &mut Summary,
 ) -> Result<Vec<Row>, Report> {
     let columns: &[&str] = match join {
@@ -2536,7 +2558,7 @@ fn source_voter_row(
     voters: &Data<'_>,
     v: usize,
     join: VoterAreaJoin,
-    precinct_area_index: &BTreeMap<(String, String, String), Option<VoterArea>>,
+    precinct_area_index: &VoterAreaIndex,
     usernames: &mut BTreeSet<String>,
 ) -> Result<Row, Problem> {
     {
@@ -2571,14 +2593,22 @@ fn source_voter_row(
             .map(|column| voters.text(v, column))
             .transpose()?
             .unwrap_or_default();
-        let area = match precinct_area_index.get(&(
+        let area = match precinct_area_index.locations.get(&(
             country.clone(),
             embassy.clone(),
             precinct.clone(),
         )) {
-            Some(Some(area)) => area,
-            // Absent key or an out-of-scope (None) row: surface, never guess.
-            _ => {
+            Some(VoterAreaMatch::InScope(area)) => area,
+            Some(VoterAreaMatch::Ambiguous) => {
+                return Err(problem(
+                    "voters",
+                    v,
+                    embassy_column,
+                    Code::DuplicateId,
+                    "voter mail location maps to different areas or scopes in the source; resolve the conflicting source mappings before import",
+                ));
+            }
+            Some(VoterAreaMatch::OutOfScope) | None => {
                 return Err(problem(
                     "voters",
                     v,
