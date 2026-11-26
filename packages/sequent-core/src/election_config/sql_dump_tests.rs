@@ -345,3 +345,22 @@ fn source_and_token_limits_refuse_before_any_archive_is_produced() {
         "sql.limit"
     );
 }
+
+#[test]
+fn mysqldump_hex_blob_requires_full_byte_pairs_and_no_expressions() {
+    for spelling in ["0xff00A3", "x'Ff00a3'"] {
+        let s = format!(
+            "CREATE TABLE t (b longblob); INSERT INTO t VALUES ({spelling});"
+        );
+        assert_eq!(
+            read_mysql_dump(s.as_bytes()).unwrap().tables["t"].rows[0][0],
+            SqlValue::Bytes(vec![0xff, 0, 0xa3])
+        );
+    }
+    for invalid in ["0xf", "0xzz", "0xff+1", "UNHEX('ff')"] {
+        let s = format!(
+            "CREATE TABLE t (b longblob); INSERT INTO t VALUES ({invalid});"
+        );
+        assert!(read_mysql_dump(s.as_bytes()).is_err());
+    }
+}

@@ -5,9 +5,11 @@ use crate::postgres::tally_session_execution::insert_tally_session_execution;
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::tally_session::lock_tally_session_for_update;
 use crate::services::database::get_hasura_pool;
+use crate::services::protocol_board::apply_tally_event;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Client as DbClient;
 use deadpool_postgres::Transaction;
+use protocol_board::TallyEvent;
 use sequent_core::services::date::ISO8601;
 use sequent_core::types::ceremonies::Log;
 use tracing::{event, info, instrument, Level};
@@ -93,5 +95,41 @@ pub async fn handle_tally_session_error(
         .await
         .with_context(|| "error comitting transaction")?;
 
+    Ok(())
+}
+
+/// Fails the tally session over stored sealed cast votes it can't count
+/// (`detail` names them): retrying would read the same rows and open the
+/// rest of the event's ballots through the HSM again.
+#[instrument(err)]
+pub async fn fail_tally_session_over_sealed_ballots(
+    detail: &str,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+) -> Result<()> {
+    let mut hasura_db_client: DbClient = get_hasura_pool()
+        .await
+        .get()
+        .await
+        .with_context(|| "Error acquiring hasura connection pool")?;
+    let hasura_transaction = hasura_db_client
+        .transaction()
+        .await
+        .with_context(|| "Error acquiring hasura transaction")?;
+    apply_tally_event(
+        &hasura_transaction,
+        tenant_id,
+        election_event_id,
+        tally_session_id,
+        TallyEvent::SealedBallotsRefused {
+            detail: detail.to_string(),
+        },
+    )
+    .await?;
+    hasura_transaction
+        .commit()
+        .await
+        .with_context(|| "error comitting transaction")?;
     Ok(())
 }

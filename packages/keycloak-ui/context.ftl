@@ -79,6 +79,7 @@ window.kcContext.enrollmentOutcome = {
     "messageOtp.auth.sentTo", "messageOtp.auth.sentToChannel", "messageOtp.auth.openApp",
     "messageOtp.auth.tooManyAttempts", "messageOtp.auth.restart", "messageOtp.auth.neutralSent",
     "messageOtp.delivery.unknown", "messageOtp.delivery.failed",
+    "messageOtp.delivery.failedCode", "messageOtp.delivery.retry",
     "messageOtp.messenger.title", "messageOtp.messenger.ifMessenger",
     "messageOtp.messenger.intro", "messageOtp.messenger.introPage",
     "messageOtp.messenger.connect",

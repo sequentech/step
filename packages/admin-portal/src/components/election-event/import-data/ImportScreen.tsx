@@ -30,8 +30,13 @@ import {EFileIntegrityPolicy} from "@sequentech/ui-core"
 import {selectImportFiles} from "@/services/ImportFileSelection"
 import {ImportRequestError} from "@/services/ImportRequestError"
 import {
+    CREDENTIALS_DELIVERY_VERSION,
     isEncryptedSignedDeliveryFile,
+    passwordTransportAllowed,
+    signedDeliveryVersion,
     unlockSignedDelivery,
+    unwrapOnServer,
+    type ServerUnwrapReply,
 } from "@/services/SignedDeliveryWorkerClient"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 
@@ -46,6 +51,12 @@ interface ImportScreenProps {
     ) => Promise<void>
     /** Only the complete configuration package drawer supports the new signed envelope. */
     signedDeliveryUpload?: boolean
+    /**
+     * The signed-in session's access token, from the authenticated caller.
+     * Only for the direct same-origin unwrap of encrypted packages that carry
+     * messaging credentials; without it that unwrap is refused, never tried.
+     */
+    getAccessToken?: () => string | undefined
     uploadCallback?: (documentId: string, password?: string, shaField?: string) => Promise<void>
     doCancel: () => void
     onSourceChange?: () => void
@@ -121,6 +132,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             allowHistoricalSource,
             formatLabel,
             signedDeliveryUpload,
+            getAccessToken,
         } = props
         const requiresSha = props.fileIntegrityPolicy === EFileIntegrityPolicy.REQUIRED_SHA256
         const {globalSettings} = React.useContext(SettingsContext)
@@ -145,6 +157,9 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
         const [unlocking, setUnlocking] = useState(false)
         const [passwordError, setPasswordError] = useState("")
         const signedRequest = useRef<AbortController | null>(null)
+        // The selected encrypted package's envelope version, read once when it
+        // is chosen: V2 (messaging credentials) is unwrapped only by the server.
+        const deliveryVersion = useRef<number | undefined>(undefined)
         useEffect(() => () => signedRequest.current?.abort(), [])
         const [theFile, setTheFile] = useState<File | undefined>()
         const [generatedHash, setGeneratedHash] = useState<string | null>(null)
@@ -237,7 +252,10 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             theFile: File,
             uploadPassword: string,
             packageHash = shaField,
-            signal?: AbortSignal
+            signal?: AbortSignal,
+            // Server unwrap of an encrypted package with messaging credentials:
+            // the signed ZIP's SHA-256, or undefined when it was refused.
+            unwrap?: (documentId: string) => Promise<string | undefined>
         ) => {
             setIsUploading(true)
             setStage("uploading")
@@ -268,6 +286,16 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 return
             }
             try {
+                if (unwrap) {
+                    setStage("validating")
+                    const unwrappedHash = await unwrap(uploadedId)
+                    if (signal?.aborted) return
+                    if (!unwrappedHash) {
+                        setStage("select")
+                        return
+                    }
+                    packageHash = unwrappedHash
+                }
                 if (uploadCallback) {
                     setStage("validating")
                     await uploadCallback(uploadedId, uploadPassword, packageHash)
@@ -340,6 +368,7 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
             setHistoricalFiles([])
             const theFile = selected[0]
             setTheFile(theFile)
+            deliveryVersion.current = undefined
             let isEncrypted = theFile?.name.endsWith(".ezip") || false
             if (signedDeliveryUpload && theFile) {
                 const request = new AbortController()
@@ -347,6 +376,10 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 setUnlocking(true)
                 try {
                     isEncrypted = await isEncryptedSignedDeliveryFile(theFile)
+                    if (request.signal.aborted) return
+                    deliveryVersion.current = isEncrypted
+                        ? await signedDeliveryVersion(theFile)
+                        : undefined
                     if (request.signal.aborted) return
                 } catch {
                     if (!request.signal.aborted) {
@@ -409,6 +442,106 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                 setUnlocking(true)
                 setPasswordError("")
                 try {
+                    if (deliveryVersion.current === CREDENTIALS_DELIVERY_VERSION) {
+                        // Messaging credentials are unwrapped by the server only:
+                        // check the transport before anything is uploaded.
+                        let target: URL | undefined
+                        try {
+                            target = new URL(globalThis.location.origin)
+                        } catch {
+                            target = undefined
+                        }
+                        if (
+                            !globalThis.isSecureContext ||
+                            !target ||
+                            !passwordTransportAllowed(target)
+                        ) {
+                            setPasswordError(
+                                String(
+                                    t("configurationPackage.encrypted.serverInsecure", {
+                                        defaultValue:
+                                            "This package carries messaging credentials. Open the Admin Portal over HTTPS (or on this computer) to upload it. Nothing was uploaded.",
+                                    })
+                                )
+                            )
+                            return
+                        }
+                        if (!getAccessToken?.()) {
+                            setPasswordError(
+                                String(
+                                    t("configurationPackage.encrypted.serverRefused", {
+                                        defaultValue:
+                                            "The server could not accept this package's messaging credentials. Upload it again over HTTPS.",
+                                    })
+                                )
+                            )
+                            return
+                        }
+                        const transfer = password
+                        setPassword("")
+                        setPasswordDialogOpen(false)
+                        setTheFile(undefined)
+                        setShaField("")
+                        const outcome: {
+                            refused?: Exclude<ServerUnwrapReply, {ok: true}>["reason"]
+                            sha256?: string
+                        } = {}
+                        const id = await uploadFileToS3(
+                            theFile,
+                            "",
+                            undefined,
+                            request.signal,
+                            async (documentId) => {
+                                // The entered digest, if any, is checked by the
+                                // server before it stages anything.
+                                const reply = await unwrapOnServer(
+                                    documentId,
+                                    transfer,
+                                    getAccessToken?.(),
+                                    request.signal,
+                                    undefined,
+                                    undefined,
+                                    undefined,
+                                    entered || undefined
+                                )
+                                if (!reply.ok) {
+                                    outcome.refused = reply.reason
+                                    return undefined
+                                }
+                                outcome.sha256 = reply.sha256
+                                return reply.sha256
+                            }
+                        )
+                        if (request.signal.aborted) return
+                        const reason = outcome.refused
+                        if (reason) {
+                            setSelectionError(
+                                String(
+                                    reason === "decrypt"
+                                        ? t("configurationPackage.encrypted.serverDecryptFailed", {
+                                              defaultValue:
+                                                  "Could not unlock this configuration package. Check the password and file, then upload it again.",
+                                          })
+                                        : reason === "mismatch"
+                                          ? t("configurationPackage.encrypted.serverHashMismatch", {
+                                                defaultValue:
+                                                    "The entered SHA-256 does not match the signed ZIP. Upload the package again.",
+                                            })
+                                          : t("configurationPackage.encrypted.serverRefused", {
+                                                defaultValue:
+                                                    "The server could not accept this package's messaging credentials. Upload it again over HTTPS.",
+                                            })
+                                )
+                            )
+                            return
+                        }
+                        // Only a successful upload and unwrap can pin a document.
+                        if (id && outcome.sha256) {
+                            setSignedUpload({documentId: id, sha256: outcome.sha256})
+                        }
+                        return
+                    }
+                    if (request.signal.aborted) return
                     // Start the worker first, then discard the password from the form.
                     const unlocking = unlockSignedDelivery(theFile, password, request.signal)
                     setPassword("")

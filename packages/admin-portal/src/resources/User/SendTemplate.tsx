@@ -44,6 +44,7 @@ import {
     sendNoticeChannels,
     sendableTemplates,
     sendingAccountFor,
+    sendsWrittenText,
 } from "./sendTemplatePayload"
 import {SendTemplateAudience} from "./SendTemplateAudience"
 import {ESendsFrom, type IAudiencePreview} from "@/queries/GetMessagingAudiencePreview"
@@ -525,7 +526,10 @@ export const SendTemplate: React.FC<SendTemplateProps> = ({
                                 return null
                             }
                             const value = content[key]
-                            const editable = method === EMessageChannel.MESSENGER
+                            const editable = sendsWrittenText(
+                                method,
+                                sendingAccountFor(storedConfig, accounts, method)
+                            )
                             if (!value) {
                                 return null
                             }

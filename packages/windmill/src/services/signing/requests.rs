@@ -14,6 +14,10 @@ use super::approve::{log_step_refusal, DocumentSigner, RefusedStep};
 use super::custody_proofs::{custody_proof_labels, CustodyProofLabels};
 use super::executors::SigningExecutorRegistry;
 use super::log::{stage, Actor, LogStep, SystemOutcome};
+use super::operational_policy::local_scope::{request_mode_and_latch, DirectProtocol};
+use super::operational_policy::{
+    lock_signing_policy, require_legacy_request, LegacySigningBlocked, OperationalSigningMode,
+};
 use super::pdf::DocumentRevisionView;
 use super::signers::{list_signers, signer_titles, GroupChange};
 use super::{
@@ -537,6 +541,7 @@ pub struct SigningDetail {
 /// Everything the signing panel shows.
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct SigningPanel {
+    pub operational_signing_mode: &'static str,
     pub request: SigningRequestView,
     /// The rule as it was when the request started.
     pub rule: SigningRule,
@@ -643,6 +648,25 @@ pub async fn get_panel(
             "You can't see this signing request.".into(),
         ));
     }
+    let operational_signing_mode = match request_mode_and_latch(hasura_transaction, &request).await
+    {
+        Ok((_, Some(latch))) => match latch.protocol {
+            DirectProtocol::InitializeV1 => "hsm-demo-raw",
+            DirectProtocol::ActionV2 => "hsm-demo-direct-action",
+        },
+        Ok((OperationalSigningMode::LegacyP12, None))
+            if !super::operational_policy::direct_hsm_approval_build() =>
+        {
+            "legacy-p12"
+        }
+        Ok((OperationalSigningMode::LegacyP12, None)) => "unavailable",
+        Ok((OperationalSigningMode::HsmRequired, None)) => "hsm-required",
+        Err(LegacySigningBlocked::ScopeUnavailable) => "unavailable",
+        // Evidence remains readable even when this dedicated installation
+        // cannot accept new approvals or release a waiting request.
+        Err(_) if super::operational_policy::direct_hsm_approval_build() => "unavailable",
+        Err(error) => return Err(anyhow!(error).into()),
+    };
     let rule: SigningRule = serde_json::from_value(request.rule_snapshot.clone())
         .context("Error reading the request's rule")?;
     let approvals = list_signing_approvals(
@@ -687,7 +711,11 @@ pub async fn get_panel(
         })
         .collect();
     for approval in &approvals {
-        let (subject, common_name) = certificate_names(&approval.certificate_pem);
+        let (subject, common_name) = approval
+            .certificate_pem
+            .as_deref()
+            .map(certificate_names)
+            .unwrap_or_default();
         let index = match views
             .iter()
             .position(|view| view.user_id == approval.user_id)
@@ -745,6 +773,7 @@ pub async fn get_panel(
     let (seals_ballots, ballot_boxes) =
         closing_seals(hasura_transaction, tenant_id, &request).await?;
     Ok(SigningPanel {
+        operational_signing_mode,
         request: SigningRequestView::from(&request),
         rule,
         count: approvals.len() as i64,
@@ -980,6 +1009,9 @@ pub async fn report_open_failure(
     file_name: &str,
     reason: CertificateOpenFailure,
 ) -> SigningResult<i32> {
+    lock_signing_policy(hasura_transaction)
+        .await
+        .context("Lock signing policy")?;
     let found = read_request(hasura_transaction, tenant_id, request_id).await?;
     if !may_sign(hasura_transaction, caller, &found).await? {
         return Err(forbid(
@@ -992,6 +1024,9 @@ pub async fn report_open_failure(
         .await?);
     }
     let request = relock(hasura_transaction, &found).await?;
+    require_legacy_request(hasura_transaction, &request)
+        .await
+        .map_err(|error| SigningError::Forbidden(error.to_string()))?;
     require_waiting(&request)?;
     let file_name = file_name_only(file_name);
     let failures = increment_signing_request_open_failures(
@@ -1248,6 +1283,9 @@ pub async fn finish_dispatched(
     task_execution_id: Uuid,
     result: DispatchedResult,
 ) -> Result<bool> {
+    if matches!(&result, DispatchedResult::Executed(_)) {
+        lock_signing_policy(hasura_transaction).await?;
+    }
     lock_signing_event(hasura_transaction, tenant_id, election_event_id).await?;
     let Some(request) =
         lock_signing_request(hasura_transaction, tenant_id, election_event_id, request_id).await?
@@ -1263,6 +1301,48 @@ pub async fn finish_dispatched(
     }
     match result {
         DispatchedResult::Executed(result) => {
+            if request.action == SigningAction::InitializeVoting {
+                use super::guard::effective_rule_in_mode;
+                use super::operational_policy::local_scope::{for_target, Target};
+                use super::operational_quorum::has_operational_quorum;
+                let (mode, latch) = for_target(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    request.action,
+                    Target::Intent(request.election_id, request.area_id, &request.subject),
+                )
+                .await?;
+                let approvals = list_signing_approvals(
+                    hasura_transaction,
+                    tenant_id,
+                    election_event_id,
+                    request.id,
+                )
+                .await?;
+                anyhow::ensure!(
+                    latch.is_some()
+                        || !approvals
+                            .iter()
+                            .any(|a| a.initialize_direct_proof.is_some()),
+                    "Cannot report a raw approval without its current exact policy"
+                );
+                if latch.is_some() {
+                    let current = effective_rule_in_mode(
+                        hasura_transaction,
+                        tenant_id,
+                        election_event_id,
+                        request.action,
+                        mode,
+                    )
+                    .await?;
+                    anyhow::ensure!(result.as_ref().and_then(|r| r.get("tally_session_id"))
+                            .and_then(Value::as_str).is_some() && result == request.execution_result &&
+                        has_operational_quorum(hasura_transaction, &request, &approvals,
+                            i64::from(current.required())).await?,
+                        "Cannot report Initialize: committed effect or operational quorum unavailable");
+                }
+            }
             let updated = update_signing_request_status(
                 hasura_transaction,
                 tenant_id,

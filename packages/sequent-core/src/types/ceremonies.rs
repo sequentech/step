@@ -264,6 +264,11 @@ pub enum TallyFailureReason {
     /// A trustee halted its session over a tally board and reported it; the
     /// detail names the trustee and carries braid's error.
     TRUSTEE_HALTED,
+    /// Stored cast votes sealed to the election event's HSM key can't be
+    /// counted as stored: they don't open, don't match their hashes or their
+    /// ballot box's seal, or are stored in plaintext. The detail names the
+    /// areas and the ballots.
+    SEALED_BALLOTS_REFUSED,
 }
 
 /// What ended a tally session, kept so the failure survives the task that saw

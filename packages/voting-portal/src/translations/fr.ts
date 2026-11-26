@@ -666,6 +666,8 @@ const frenchTranslation: TranslationType = {
             ambiguous:
                 "Plusieurs de vos bulletins correspondent à {{ballotId}}. Utilisez le numéro d'identification complet du bulletin.",
             contentDesc: "Voici le contenu de votre bulletin : ",
+            contentSealed:
+                "Votre bulletin est conservé scellé ; son contenu n'est donc pas affiché ici.",
             wrongFormatBallotId: "Format incorrect pour le numéro d'identification du bulletin",
             ballotIdNotFoundAtFilter:
                 "Non trouvé, veuillez vérifier que le numéro d'identification du bulletin soit correct et appartenir à cet utilisateur.",

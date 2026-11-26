@@ -6,8 +6,10 @@
 //! The signed bytes are never rewritten. The import resolves them in its own
 //! transaction to exactly the target accounts the operator previewed.
 
+use crate::services::import::configuration_package_apply::SectionPreview;
+use crate::services::import::configuration_package_credentials as package_credentials;
 use crate::services::messaging::config::with_original_account_ids;
-use crate::services::messaging::portable_registry::{self, PortableRegistryPlan};
+use crate::services::messaging::portable_registry::{self, PortableRegistryPlan, RegistryAction};
 use anyhow::{anyhow, ensure, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::election_config::portable_messaging::{
@@ -21,7 +23,6 @@ use sequent_core::types::messaging::{
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::OnceLock;
 use uuid::Uuid;
 
@@ -33,8 +34,14 @@ pub struct PackageMessaging {
     digest: String,
     definitions: PortableMessagingAccounts,
     confirmed: Option<String>,
+    /// The protected staging document whose vault entry holds any AWS key
+    /// pairs delivered with this package. Set by the server, never the package.
+    staged_document: Option<Uuid>,
+    /// The task's verified actor (the JWT-derived audit user ID Harvest put
+    /// in the task body): staged credentials are only for their uploader.
+    actor: Option<String>,
     snapshot: OnceLock<PortableRegistryPlan>,
-    installed_here: AtomicBool,
+    installed_here: OnceLock<PortableRegistryPlan>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -54,15 +61,51 @@ impl PackageMessaging {
         digest: String,
         definitions: PortableMessagingAccounts,
         confirmed: Option<String>,
+        staged_document: Option<Uuid>,
+        actor: Option<String>,
     ) -> Self {
         Self {
             tenant,
             digest,
             definitions,
             confirmed,
+            staged_document,
+            actor,
             snapshot: OnceLock::new(),
-            installed_here: AtomicBool::new(false),
+            installed_here: OnceLock::new(),
         }
+    }
+
+    /// A create or replacement which commits keys requires its verified
+    /// sidecar. Reusing an exactly installed pair does not.
+    fn needs_credentials(&self, plan: &PortableRegistryPlan) -> bool {
+        self.definitions.accounts.iter().any(|definition| {
+            definition.credential_commitment.is_some()
+                && plan
+                    .bindings
+                    .get(&definition.reference_key())
+                    .is_some_and(|binding| binding.action != RegistryAction::Reuse)
+        })
+    }
+
+    /// Always consulted, so a staged sidecar is checked (uploader, package,
+    /// expiry, commitments); it is consumed atomically whenever this
+    /// Apply writes the section. A resumed read-only match needs none.
+    async fn credentials(
+        &self,
+        tx: &Transaction<'_>,
+        plan: &PortableRegistryPlan,
+    ) -> Result<Option<package_credentials::StagedCredentials>> {
+        package_credentials::load(
+            tx,
+            &self.tenant,
+            &self.digest,
+            self.staged_document.as_ref(),
+            &self.definitions,
+            self.needs_credentials(plan),
+            self.actor.as_deref(),
+        )
+        .await
     }
 
     pub(crate) fn fingerprint(&self) -> Option<String> {
@@ -74,14 +117,13 @@ impl PackageMessaging {
     }
 
     pub(crate) async fn plan(&self, tx: &Transaction<'_>) -> Result<PortableRegistryPlan> {
-        if self.installed_here.load(Ordering::Acquire) {
-            let reviewed = self.snapshot.get().ok_or_else(|| anyhow!("{STALE}"))?;
+        if let Some(installed) = self.installed_here.get() {
             return portable_registry::require_installed(
                 tx,
                 self.tenant,
                 &self.digest,
                 &self.definitions,
-                reviewed,
+                installed,
             )
             .await;
         }
@@ -95,7 +137,21 @@ impl PackageMessaging {
         }
         let pinned = self.snapshot.get_or_init(|| plan.clone());
         ensure!(pinned == &plan, "{STALE}");
+        // Preview refuses a missing or mismatched sidecar now, not at Apply.
+        self.credentials(tx, &plan).await?;
         Ok(plan)
+    }
+
+    pub(crate) async fn preview_registry(&self, tx: &Transaction<'_>) -> Result<SectionPreview> {
+        self.registry_preview(&self.plan(tx).await?)
+    }
+
+    fn registry_preview(&self, plan: &PortableRegistryPlan) -> Result<SectionPreview> {
+        Ok(SectionPreview {
+            needs_apply: plan.needs_apply(),
+            changes: self.changes(plan)?,
+            blockers: vec![],
+        })
     }
 
     /// Public task rows deliberately omit target-registry IDs. These task
@@ -106,14 +162,22 @@ impl PackageMessaging {
             .iter()
             .map(|definition| {
                 let reference = definition.reference_key();
-                let binding = plan.bindings.get(&reference).ok_or_else(|| anyhow!("{STALE}"))?;
+                let binding = plan
+                    .bindings
+                    .get(&reference)
+                    .ok_or_else(|| anyhow!("{STALE}"))?;
                 let provider = definition.account_sender().provider();
-                Ok(json!({
+                let mut row = json!({
                     "reference": reference,
                     "provider": provider,
                     "channel": provider.channel(),
-                    "action": if binding.existing_fingerprint.is_some() { "reuse" } else { "create" },
-                }))
+                    "action": binding.action,
+                });
+                // Only that keys are delivered: never a value, ID or digest.
+                if definition.credential_commitment.is_some() {
+                    row["credentials"] = json!("AWS_STATIC_KEY_PAIR");
+                }
+                Ok(row)
             })
             .collect::<Result<Vec<_>>>()
             .map(Value::Array)
@@ -130,15 +194,37 @@ impl PackageMessaging {
             .collect())
     }
 
-    pub(crate) async fn install(&self, tx: &Transaction<'_>) -> Result<Value> {
+    pub(crate) async fn install(
+        &self,
+        tx: &Transaction<'_>,
+    ) -> Result<(Value, PortableRegistryPlan)> {
         ensure!(self.confirmed.is_some(), "{STALE}");
         let planned = self.snapshot.get().ok_or_else(|| anyhow!("{STALE}"))?;
-        portable_registry::apply(tx, self.tenant, &self.digest, &self.definitions, planned).await?;
-        self.changes(planned)
+        if let Some(document) = self.staged_document {
+            package_credentials::lock_for_apply(tx, &self.tenant, &document).await?;
+        }
+        let credentials = self.credentials(tx, planned).await?;
+        let installed = portable_registry::apply(
+            tx,
+            self.tenant,
+            &self.digest,
+            &self.definitions,
+            planned,
+            credentials.as_ref(),
+        )
+        .await?;
+        // Same transaction: the staged pair goes only once its keys are in.
+        if let (Some(_), Some(document)) = (&credentials, &self.staged_document) {
+            package_credentials::discard(tx, &self.tenant, document).await?;
+        }
+        Ok((self.changes(planned)?, installed))
     }
 
-    pub(crate) fn installed(&self) {
-        self.installed_here.store(true, Ordering::Release);
+    /// The caller publishes this evidence only after the transaction commits.
+    pub(crate) fn installed(&self, installed: PortableRegistryPlan) {
+        self.installed_here
+            .set(installed)
+            .expect("registry installed once");
     }
 
     pub(crate) async fn preview_event(
@@ -164,7 +250,11 @@ impl PackageMessaging {
         elections: &[String],
     ) -> Result<PreparedMessaging> {
         ensure!(tenant == self.tenant && self.confirmed.is_some(), "{STALE}");
-        let reviewed = self.snapshot.get().ok_or_else(|| anyhow!("{STALE}"))?;
+        let reviewed = self
+            .installed_here
+            .get()
+            .or_else(|| self.snapshot.get())
+            .ok_or_else(|| anyhow!("{STALE}"))?;
         let plan = portable_registry::require_installed(
             tx,
             self.tenant,
@@ -295,6 +385,9 @@ pub(crate) fn explain(error: &MessagingConfigError) -> String {
         TEMPLATE_NOT_APPROVED {
             channel, purpose, ..
         } => format!("{channel} {purpose}: a required template is not approved"),
+        TEMPLATE_BUTTON_WITHOUT_VALUE {
+            channel, purpose, ..
+        } => format!("{channel} {purpose}: a template button has no value"),
         OUT_OF_WINDOW_NOT_SUPPORTED { channel } => {
             format!("{channel}: the out-of-window setting is not supported")
         }
@@ -408,17 +501,48 @@ mod tests {
                 "package:email".into(),
                 PortableRegistryBinding {
                     account_id: id,
+                    action: RegistryAction::Create,
                     existing_fingerprint: None,
                 },
             )]),
         };
-        let context = PackageMessaging::new(tenant, digest, definitions, None);
+        let context = PackageMessaging::new(tenant, digest.clone(), definitions, None, None, None);
         context.snapshot.set(plan.clone()).unwrap();
         let changes = context.changes(&plan).unwrap();
         assert_eq!(
             changes,
             json!([{"reference":"package:email","provider":"AWS_SES","channel":"EMAIL","action":"create"}])
         );
+        assert!(!context.needs_credentials(&plan));
+        // A committed pair shows only its kind, and a new account needs it.
+        let commitment = "cd".repeat(32);
+        let committed = portable_messaging::parse(format!(
+            r#"{{"format":"sequent.tenant-messaging-accounts/1","accounts":[{{"reference":"email","name":"Demo email","sender":{{"provider":"AWS_SES","from_address":"demo@example.invalid","region":"us-east-1"}},"credential_commitment":"{commitment}"}}]}}"#
+        ).as_bytes()).unwrap();
+        let with_keys = PackageMessaging::new(
+            tenant,
+            digest,
+            committed,
+            None,
+            Some(Uuid::from_u128(7)),
+            Some("user-a".into()),
+        );
+        let rows = with_keys.changes(&plan).unwrap();
+        assert_eq!(rows[0]["credentials"], "AWS_STATIC_KEY_PAIR");
+        assert!(!rows.to_string().contains(&commitment));
+        assert!(with_keys.needs_credentials(&plan));
+        let mut resumed = plan.clone();
+        let existing = resumed.bindings.get_mut("package:email").unwrap();
+        existing.existing_fingerprint = Some("ef".repeat(32));
+        existing.action = RegistryAction::Replace;
+        assert!(with_keys.needs_credentials(&resumed));
+        let replacement = with_keys.registry_preview(&resumed).unwrap();
+        assert!(replacement.needs_apply);
+        assert!(replacement.blockers.is_empty());
+        assert_eq!(replacement.changes[0]["action"], "replace");
+        assert!(!replacement.changes.to_string().contains(&id.to_string()));
+        resumed.bindings.get_mut("package:email").unwrap().action = RegistryAction::Reuse;
+        assert!(!with_keys.needs_credentials(&resumed));
         let preview = SectionPreview {
             changes: changes.clone(),
             needs_apply: true,

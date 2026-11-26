@@ -7,9 +7,11 @@ use super::encrypter::{
 };
 use super::renamer::rename_folders;
 use crate::postgres::document::get_document;
+use crate::postgres::keys_ceremony::get_keys_ceremony_by_id;
 use crate::postgres::reports::Report;
 use crate::postgres::reports::{get_reports_by_election_event_id, ReportType};
 use crate::postgres::results_election_area::insert_results_election_area_documents;
+use crate::postgres::signing::get_signing_rule;
 use crate::services::ceremonies::renamer::*;
 use crate::{
     postgres::{
@@ -36,7 +38,7 @@ use sequent_core::sqlite::results_contest::update_results_contest_documents_sqli
 use sequent_core::sqlite::results_election::update_results_election_documents_sqlite;
 use sequent_core::sqlite::results_election_area::create_results_election_area_sqlite;
 use sequent_core::sqlite::results_event::update_results_event_documents_sqlite;
-use sequent_core::types::ceremonies::TallyType;
+use sequent_core::types::ceremonies::{CeremoniesPolicy, KeysCeremonyExecutionStatus, TallyType};
 use sequent_core::types::hasura::core::Area;
 use sequent_core::types::results::ResultDocuments;
 use sequent_core::util::temp_path::get_file_size;
@@ -62,6 +64,9 @@ use crate::services::signing::actions::reports::{
     hold_tally_report, ChromiumReportRenderer, ReportRenderer, TallyReport, TallyRequester,
 };
 use crate::services::signing::guard::effective_rule;
+use crate::services::signing::operational_policy::{
+    direct_hsm_approval_build, verified_automated_zero_report,
+};
 use crate::services::signing::pdf::RevisionStore;
 use crate::services::signing::pdf::{tally_signing_action, S3RevisionStore};
 use crate::tasks::render_document_pdf::tally_pdf_options;
@@ -781,6 +786,125 @@ pub fn generate_ids_map(
     Ok(rename_map)
 }
 
+// Only the worker's internal initialization artifact can use the already
+// approved zero tally. Other report routes still require their own action.
+fn may_use_initialization_approval(
+    dedicated: bool,
+    kind: &TallyType,
+    action: SigningAction,
+    execution_complete: bool,
+) -> bool {
+    dedicated
+        && *kind == TallyType::INITIALIZATION_REPORT
+        && action == SigningAction::GenerateReports
+        && execution_complete
+}
+
+fn is_exact_zero_initialization_result(
+    results: &[ElectionReportDataComputed],
+    tenant: &str,
+    event: &str,
+    post: &str,
+) -> bool {
+    let [result] = results else {
+        return false;
+    };
+    result.election_id == post
+        && result.area.is_none()
+        && result.total_votes == 0
+        && result.blank_ballots.unwrap_or(0) == 0
+        && !result.reports.is_empty()
+        && result.reports.iter().all(|report| {
+            report.tenant_id == tenant
+                && report.election_event_id == event
+                && report.election_id == post
+                && report.tally_sheet_id.is_none()
+                && report.contest_result.as_ref().is_some_and(|contest| {
+                    contest.total_votes == 0
+                        && contest.total_valid_votes == 0
+                        && contest.total_invalid_votes == 0
+                        && contest.total_blank_votes == 0
+                        && contest.extended_metrics.as_ref().is_none_or(|metrics| {
+                            metrics.total_ballots == 0 && metrics.total_weight == 0
+                        })
+                })
+        })
+}
+
+// No report-certification rule may be bypassed. For an existing, exact
+// zero-initialization effect, a missing rule means no independent PDF
+// certification was configured; the persisted Initialize proof authorizes
+// the worker to store its ordinary initialization report, not a signed PDF.
+#[allow(clippy::too_many_arguments)]
+async fn tally_report_needs_approval(
+    tx: &Transaction<'_>,
+    tenant_id: &str,
+    event_id: &str,
+    session_id: &str,
+    tally_type: &TallyType,
+    action: SigningAction,
+    results: &[ElectionReportDataComputed],
+    execution_complete: bool,
+) -> Result<bool> {
+    let tenant = Uuid::parse_str(tenant_id).context("Invalid tenant id")?;
+    let event = Uuid::parse_str(event_id).context("Invalid event id")?;
+    if may_use_initialization_approval(
+        direct_hsm_approval_build(),
+        tally_type,
+        action,
+        execution_complete,
+    ) && get_signing_rule(tx, tenant, event, action).await?.is_none()
+    {
+        let session = get_tally_session_by_id(tx, tenant_id, event_id, session_id).await?;
+        let Some([post]) = session.election_ids.as_deref() else {
+            anyhow::bail!("An automated initialization report must cover its one approved Post");
+        };
+        anyhow::ensure!(
+            session.id == session_id
+                && session.tenant_id == tenant_id
+                && session.election_event_id == event_id
+                && session
+                    .tally_type
+                    .as_deref()
+                    .and_then(|kind| TallyType::try_from(kind).ok())
+                    == Some(TallyType::INITIALIZATION_REPORT)
+                && is_exact_zero_initialization_result(results, tenant_id, event_id, post),
+            "The initialization report is not the exact authorized zero result"
+        );
+        let keys =
+            get_keys_ceremony_by_id(tx, tenant_id, event_id, &session.keys_ceremony_id).await?;
+        anyhow::ensure!(
+            keys.id == session.keys_ceremony_id
+                && keys.tenant_id == tenant_id
+                && keys.election_event_id == event_id
+                && keys.policy() == CeremoniesPolicy::AUTOMATED_CEREMONIES
+                && keys.threshold > 0
+                && keys.execution_status()? == KeysCeremonyExecutionStatus::SUCCESS,
+            "An automated initialization report needs its exact successful keys ceremony"
+        );
+        anyhow::ensure!(
+            verified_automated_zero_report(
+                tx,
+                tenant,
+                event,
+                Uuid::parse_str(post)?,
+                Uuid::parse_str(session_id)?,
+            )
+            .await?,
+            "Awaiting the exact executed HSM Initialize approval for this zero report"
+        );
+        // The proof check kept the shared event and policy locks. Recheck
+        // absence under both so a newly configured certification rule is
+        // never missed. Never wait on the event lock while holding tally rows.
+        if get_signing_rule(tx, tenant, event, action).await?.is_none() {
+            return Ok(false);
+        }
+    }
+    Ok(effective_rule(tx, tenant, event, action)
+        .await?
+        .is_required())
+}
+
 #[instrument(skip(hasura_transaction, results, areas), err)]
 pub async fn save_result_documents(
     hasura_transaction: &Transaction<'_>,
@@ -794,6 +918,7 @@ pub async fn save_result_documents(
     default_language: &str,
     tally_type_enum: TallyType,
     sqlite_transaction_opt: Option<&SqliteTransaction<'_>>,
+    execution_complete: bool,
 ) -> Result<()> {
     // Reports that need signatures are held before anything is stored or
     // archived.
@@ -801,11 +926,17 @@ pub async fn save_result_documents(
         .as_ref()
         .and_then(tally_signing_action)
     {
-        let tenant_uuid = Uuid::parse_str(tenant_id).context("Invalid tenant id")?;
-        let event_uuid = Uuid::parse_str(election_event_id).context("Invalid event id")?;
-        if effective_rule(hasura_transaction, tenant_uuid, event_uuid, action)
-            .await?
-            .is_required()
+        if tally_report_needs_approval(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            tally_session_id,
+            &tally_type_enum,
+            action,
+            &results,
+            execution_complete,
+        )
+        .await?
         {
             let renderer = ChromiumReportRenderer {
                 options: tally_pdf_options(base_tally_path)?
@@ -1295,6 +1426,97 @@ mod tests {
             blank_ballots: None,
             reports: vec![report],
         }
+    }
+
+    // Verifies that the gate can only reuse authorization for the internal
+    // zero report. An unfinished round and electoral returns stay separate.
+    #[test]
+    fn derived_zero_report_policy_only_applies_after_exact_tally_completion() {
+        let zero = TallyType::INITIALIZATION_REPORT;
+        let results = TallyType::ELECTORAL_RESULTS;
+        assert!(may_use_initialization_approval(
+            true,
+            &zero,
+            SigningAction::GenerateReports,
+            true
+        ));
+        assert!(!may_use_initialization_approval(
+            true,
+            &zero,
+            SigningAction::GenerateReports,
+            false
+        ));
+        assert!(!may_use_initialization_approval(
+            false,
+            &zero,
+            SigningAction::GenerateReports,
+            true
+        ));
+        assert!(!may_use_initialization_approval(
+            true,
+            &results,
+            SigningAction::GenerateReports,
+            true
+        ));
+        assert!(!may_use_initialization_approval(
+            true,
+            &zero,
+            SigningAction::GenerateElectionReturns,
+            true
+        ));
+    }
+
+    #[test]
+    fn derived_zero_report_uses_one_exact_post_and_refuses_nonzero_or_manual_data() {
+        let post = "post";
+        let tenant = "tenant";
+        let event = "event";
+        let mut exact = make_test_result_with_alias("Post", "", post, "contest", "Contest", None);
+        exact.reports[0].tenant_id = tenant.to_owned();
+        exact.reports[0].election_event_id = event.to_owned();
+        exact.reports[0].contest_result = Some(Default::default());
+        let matches = |results: &[ElectionReportDataComputed]| {
+            is_exact_zero_initialization_result(results, tenant, event, post)
+        };
+        assert!(matches(std::slice::from_ref(&exact)));
+        assert!(!matches(&[]));
+        let mut no_reports = exact.clone();
+        no_reports.reports.clear();
+        assert!(!matches(std::slice::from_ref(&no_reports)));
+        assert!(!matches(&[exact.clone(), exact.clone()]));
+        assert!(!is_exact_zero_initialization_result(
+            std::slice::from_ref(&exact),
+            tenant,
+            "other-event",
+            post
+        ));
+        assert!(!is_exact_zero_initialization_result(
+            std::slice::from_ref(&exact),
+            "other-tenant",
+            event,
+            post
+        ));
+        assert!(!is_exact_zero_initialization_result(
+            std::slice::from_ref(&exact),
+            tenant,
+            event,
+            "other-post"
+        ));
+        let mut wrong = exact.clone();
+        wrong.total_votes = 1;
+        assert!(!matches(std::slice::from_ref(&wrong)));
+        let mut wrong = exact.clone();
+        wrong.reports[0]
+            .contest_result
+            .as_mut()
+            .unwrap()
+            .total_votes = 1;
+        assert!(!matches(std::slice::from_ref(&wrong)));
+        let mut wrong = exact.clone();
+        wrong.reports[0].tally_sheet_id = Some("manual".to_owned());
+        assert!(!matches(std::slice::from_ref(&wrong)));
+        exact.reports[0].contest_result = None;
+        assert!(!matches(std::slice::from_ref(&exact)));
     }
 
     // Verifies the prefix-length math is correct and self-consistent.

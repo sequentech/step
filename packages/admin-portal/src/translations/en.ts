@@ -173,6 +173,14 @@ const englishTranslation = {
                     "Could not load the local package unlocker. Use HTTPS or localhost and reopen the drawer. Nothing was uploaded.",
                 innerHashMismatch:
                     "The entered SHA-256 does not match the decrypted signed ZIP. Nothing was uploaded.",
+                serverInsecure:
+                    "This package carries messaging credentials. Open the Admin Portal over HTTPS (or on this computer) to upload it. Nothing was uploaded.",
+                serverDecryptFailed:
+                    "Could not unlock this configuration package. Check the password and file, then upload it again.",
+                serverHashMismatch:
+                    "The entered SHA-256 does not match the signed ZIP. Upload the package again.",
+                serverRefused:
+                    "The server could not accept this package's messaging credentials. Upload it again over HTTPS.",
                 innerHashHelp:
                     "For an encrypted package, enter the optional SHA-256 of the signed ZIP inside it.",
             },
@@ -215,6 +223,15 @@ const englishTranslation = {
                 "Task {{taskId}} already applied this package to election event {{electionEventId}}. This signed revision can be imported only once.",
             earlierTasks: "Tasks begun for this section: {{tasks}}",
             inFlight: "A submission is not settled yet (task {{taskId}})",
+            retryRequirements: {
+                refused:
+                    "This preview used different requirements from the original import. This retry changed nothing.",
+                original: "Originally required sections: {{sections}}",
+                none: "None",
+                required: "Census: required",
+                optional: "Census: optional",
+                preview: "Preview with original requirements",
+            },
             stoppedWithoutRecord:
                 "Stopped without a record: sections may have been applied by this or earlier runs; preview again to see the tenant's state",
             lastLog: "Last message: {{message}}",
@@ -231,6 +248,9 @@ const englishTranslation = {
                 "This applies the previewed package to tenant {{tenantId}}. The platform previews it again first and stops at any blocker.",
             cancel: "Cancel",
             proposedChanges: "What applying would change",
+            messagingReplaceAction: "Replace existing account",
+            messagingReplaceWarning:
+                "Applying updates the existing tenant messaging account in place. Elections linked to it keep that link, but delivery through this account is paused until provider checks pass.",
             shaMalformed:
                 "The SHA-256 entered is not 64 hexadecimal characters, so the package was not previewed. Enter the digest exactly, or leave it blank.",
             nothingToChange: "Nothing: the tenant already matches the package.",
@@ -1165,6 +1185,7 @@ const englishTranslation = {
                     adminKey: "{{name}}'s admin key",
                     systemOnly: "The log's system key only",
                     systemSignature: "System signature",
+                    approverKeyFingerprint: "Approver key fingerprint",
                     publicKey: "Published admin key",
                 },
             },
@@ -1225,6 +1246,98 @@ const englishTranslation = {
                 statementTimestampFrom: "Statement Timestamp from",
                 statementTimestampTo: "Statement Timestamp to",
                 timeZone: "Timezone",
+            },
+            statementKind: {
+                Unknown: "Unknown entry",
+                CastVote: "Ballot cast",
+                CastVoteError: "Ballot cast failed",
+                ElectionPublish: "Election published",
+                ElectionVotingPeriodOpen: "Voting opened (election)",
+                ElectionVotingPeriodClose: "Voting closed (election)",
+                ElectionVotingPeriodPause: "Voting paused (election)",
+                ElectionEventVotingPeriodOpen: "Voting opened (event)",
+                ElectionEventVotingPeriodClose: "Voting closed (event)",
+                ElectionEventVotingPeriodPause: "Voting paused (event)",
+                KeyGeneration: "Keys generated",
+                KeyInsertionStart: "Key insertion started",
+                KeyInsertionCeremony: "Key insertion ceremony",
+                TallyOpen: "Tally started",
+                TallyClose: "Tally finished",
+                TallyResumedWithResolution: "Tally resumed after a resolution",
+                TallyPausedPendingResolution: "Tally paused pending a resolution",
+                TallyTieResolved: "Tie resolved",
+                TallyTieResolutionUpdated: "Tie resolution updated",
+                SendTemplate: "Template sent",
+                SendCommunications: "Messages sent",
+                KeycloakUserEvent: "User account event",
+                VoterPublicKey: "Voter public key",
+                AdminPublicKey: "Administrator public key",
+                CertificateAuthEvent: "Certificate sign-in",
+                PhoneBlacklistUpdated: "Phone block list updated",
+                ResultsPublicationAction: "Results publication",
+                ExternalApiRequest: "External API request",
+                ExternalReconciliation: "External reconciliation",
+                BallotPublicationFailure: "Ballot publication failed",
+                ElectoralLogCheckpoint: "Log checkpoint",
+                ElectoralLogContinuation: "Log continuation",
+                MonitoringConfigChanged: "Monitoring settings changed",
+                SigningRequestCreated: "Signing request created",
+                SigningCertificateOpenFailed: "Signing certificate could not be opened",
+                SigningRequestSigned: "Approval signed",
+                SigningSignatureRefused: "Signature refused",
+                SigningCertificateRegistered: "Signing certificate registered",
+                SigningHandover: "Signing handed over",
+                SigningRequestCancelled: "Signing request cancelled",
+                SigningRequestExpired: "Signing request expired",
+                SigningRequestCompleted: "Approval threshold reached",
+                SigningActionExecuted: "Approved action finalized or failed",
+                SigningRuleChanged: "Signing rule changed",
+                SigningPermissionChanged: "Signing permission changed",
+                SigningIssuerChanged: "Signing issuer changed",
+                SigningChecksChanged: "Signing checks changed",
+                SigningCertificateRevoked: "Signing certificate revoked",
+                SigningRequestsExported: "Signing requests exported",
+                LifecycleWindowChanged: "Voting schedule window changed",
+                ScheduleRecomputeApplied: "Schedule recalculated",
+                ScheduleImported: "Schedule imported",
+                ScheduledOutcomeChanged: "Scheduled outcome changed",
+                ElectionInitialized: "Election initialized",
+                LockdownChanged: "Lockdown changed",
+                ConfigurationPackageImported: "Configuration package imported",
+                ReportGenerated: "Report generated",
+                ApprovalMatrixUpdated: "Approval matrix updated",
+                BallotBoxSealed: "Ballot box sealed",
+                BallotBoxSealFailed: "Ballot box seal failed",
+                TallyBallotBoxVerified: "Ballot box verified for tally",
+                TallyBallotBoxRejected: "Ballot box rejected for tally",
+                TenantLogOpened: "Tenant log opened",
+                TenantAdminAction: "Tenant administration action",
+                AdminChange: "Administrative change",
+                KeycloakAdminEvent: "Identity administration event",
+                LogsExported: "Logs exported",
+                LogWriterStarted: "Log writer started",
+                LogWriterStopped: "Log writer stopped",
+                TransmissionFileDownloaded: "Transmission file downloaded",
+                VotersImported: "Voters imported",
+                ReadinessVerified: "Readiness verified",
+                BallotReceived: "Ballot received",
+                BallotAudited: "Ballot audited",
+                PseudonymResolved: "Pseudonym resolved",
+                ForensicRead: "Forensic read",
+                CastVoteSealKeyPublished: "Cast ballot encryption key published",
+            },
+            signingActivity: {
+                row: {
+                    created: "Signature request created for {{action}}",
+                    approved: "Approval signed for {{action}}",
+                    quorum: "Required approvals collected for {{action}}",
+                    completed: "{{action}} completed",
+                    failed: "{{action}} failed",
+                    cancelled: "Signature request cancelled for {{action}}",
+                    expired: "Signature request expired for {{action}}",
+                    rejected: "Signature rejected",
+                    progress: "({{approved}} of {{required}})",
+                },
             },
             scheduledOutcome: {
                 outcome: {
@@ -2503,11 +2616,13 @@ const englishTranslation = {
                     subtitle: "Create Voter",
                 },
                 manualVerification: {
-                    label: "Manually Verify",
-                    verify: "Manually Verify this voter",
-                    body: "Manually Verify this voter. You will obtain a PDF with a QR Code link that allows the voter to login skipping online KYC.",
+                    label: "Manually verify identity",
+                    verify: "Request verification document",
+                    body: "Request a private PDF with a QR code for this voter. If signatures are required, the document is issued only after approval. This does not approve an enrollment application.",
                     noEmailOrPhone:
                         "This voter can not be manually verified because they do not have an email address or phone number attributed to them.",
+                    waiting: "The document is waiting for signatures.",
+                    download: "Download verification document",
                 },
                 voterInformationLetter: {
                     label: "Voter Information Letter",
@@ -2566,9 +2681,9 @@ const englishTranslation = {
                     deleteError: "Error deleting voter",
                     deleteSuccess: "Voter deleted",
                     multipleDeleteSuccess: "Voters deleted",
-                    manualVerificationError: "Error manually verifying the voter",
+                    manualVerificationError: "Error requesting manual identity verification",
                     manualVerificationSuccess:
-                        "Sucessfully verified manually the voter, downloading PDF..",
+                        "Downloading the manual identity verification document.",
                 },
             },
             roles: {
@@ -2620,7 +2735,9 @@ const englishTranslation = {
                 "sign-generate-election-returns": "Sign: generate election returns",
                 "sign-generate-reports": "Sign: generate other election reports",
                 "sign-transmit-results": "Sign: transmit results",
-                "sign-approve-voter": "Sign: approve a voter manually",
+                "sign-approve-voter": "Sign: approve an enrollment application",
+                "sign-authorize-manual-verification":
+                    "Sign: authorize manual identity verification",
                 "sign-approve-configuration": "Sign: approve a configuration version",
                 "sign-key-ceremony": "Sign: confirm custody",
                 "sign-tally-key": "Sign: authorize tally custody",
@@ -3487,6 +3604,51 @@ const englishTranslation = {
         tally: {
             errorUploadingSignature: "There was an error uploading signature",
             downloadTransmissionPackage: "Download Transmission Package",
+            publicVerification: {
+                sectionTitle: "Cryptographic verification",
+                description:
+                    "Verify this tally's bulletin board in your browser: the zero-knowledge proof of every encrypted ballot, the shuffle proof of every mix, and every trustee's decryption proof. The checks are anchored to this platform's records of the boards. For an independent audit, run the trustee verify command with anchors taken from the signed configuration package.",
+                verify: "Verify bulletin board",
+                verifyAgain: "Verify again",
+                unavailable: "Available once the tally has finished.",
+                loading: "Reading the tally's boards…",
+                progress: "Verifying batch {{current}} of {{total}}…",
+                empty: "This tally has no bulletin board batches to verify.",
+                failed: "The verification could not run: {{message}}",
+                verifierUnavailable: "This browser could not start the verifier: {{message}}",
+                summary: {
+                    verified: "All batches verified: {{count}} of {{total}}.",
+                    invalid: "Batches that failed verification: {{count}} of {{total}}.",
+                    error: "Batches that could not be verified: {{count}} of {{total}}. Each row gives the reason.",
+                    incomplete:
+                        "Incomplete batches: {{count}} of {{total}}. Their required publications are missing, so they are not verified.",
+                },
+                checks: {
+                    title: "Verified in every batch:",
+                    ballots: "The zero-knowledge proof of every encrypted ballot",
+                    mixing: "The shuffle proof of every mix, in order, endorsed by the other trustees",
+                    decryption:
+                        "Every trustee's decryption proof, with the results recomputed and matched",
+                },
+                columns: {
+                    batch: "Batch",
+                    ballots: "Ballots",
+                    result: "Result",
+                    detail: "Detail",
+                },
+                batch: "Batch {{batch}}",
+                status: {
+                    verified: "Verified",
+                    incomplete: "Incomplete",
+                    invalid: "Invalid",
+                    error: "Not verified",
+                },
+                detail: {
+                    verified: "Every proof and publication of the batch was checked.",
+                    incomplete: "Required publications are missing from the board.",
+                },
+                download: "Download evidence",
+            },
             resultsPublication: {
                 sectionTitle: "Publish to results website",
                 policyTitle: "Results Website",
@@ -3675,6 +3837,19 @@ const englishTranslation = {
                     "End voting in each selected election and stop its active voting channels before creating the tally.",
                 sealBallotBoxes:
                     "An election can be tallied once every ballot box is sealed and its seal record is published.",
+            },
+            failure: {
+                title: "The tally failed",
+                detail: "Details",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "A tally board doesn't match the configuration recorded at the keys ceremony.",
+                    INVALID_BOARD_CONTENT: "A tally board holds content that can't be used.",
+                    TRUSTEE_HALTED: "A trustee stopped the tally and reported an error.",
+                    SEALED_BALLOTS_REFUSED:
+                        "Some stored ballots can't be counted: they don't open, or they don't match their records. No ballots were counted. Resolve the cause, then start a new tally.",
+                    unknown: "The tally couldn't be completed.",
+                },
             },
             createTallySuccess: "Tally created",
             createTallyError: "Could not create Tally",
@@ -5389,6 +5564,66 @@ const englishTranslation = {
                 'Are you sure you want to delete the certificate "{{name}}" (fingerprint: {{fingerprint}})?',
         },
         signing: {
+            localSetup: {
+                continue: "Continue setup sign-in",
+                register: "Register my signing key",
+                phase: {
+                    "setup-available":
+                        "Set up your signing key for this Post. First verify your password and one-time code.",
+                    "waiting-for-setup-gold":
+                        "Continue signing in to verify your identity for this setup.",
+                    "setup-confirmation-required":
+                        "Identity verified. Select Register my signing key to create the key for this Post.",
+                    "setup-retry-available":
+                        "The device has not claimed this registration. You may send the same request again.",
+                    "setup-pending":
+                        "Setup is pending. A signing key and a registered staff certificate are required before you can approve.",
+                    "setup-recovery-required":
+                        "Setup needs an administrator’s review. No approval has been recorded.",
+                },
+            },
+            operational: {
+                signingAs: "Signing with your HSM key as {{name}}",
+                review: "Review",
+                rule_one: "Approval from {{count}} authorized signer is required.",
+                rule_other: "Approvals from {{count}} authorized signers are required.",
+                retryApproval: "Your approval could not be confirmed. You can try signing again.",
+                title: "Review approval",
+                setup: "Set up signing",
+                approve: "Approve",
+                cancelUnused: "Cancel unused challenge",
+                confirmCancelUnused:
+                    "Discard this unused challenge? No approval will be submitted.",
+                keepChallenge: "Keep challenge",
+                confirmDiscard: "Discard challenge",
+                checkStatus: "Check status",
+                quorum: "{{count}} of {{required}} approvals recorded",
+                error: "Could not confirm the operation. Check its status before trying again.",
+                isolatedDemo: "Isolated demo signing. Not for production use.",
+                retrySetup: "Retry signing setup",
+                softwareDemo:
+                    "Demo only: signatures use a software test token, not a hardware device.",
+                phase: {
+                    "loading": "Checking signing status…",
+                    "setup-required": "Set up signing for this account before you approve.",
+                    "setup-retry-available":
+                        "An unused setup attempt can be resumed after identity verification. No approval will be submitted.",
+                    "setup-recovery-required":
+                        "Signing setup needs help from the demo operator. This request is still pending and cannot be signed here.",
+                    "setup-pending":
+                        "Signing setup is pending. Your approval has not been recorded.",
+                    "challenge-available":
+                        "Review the action, then approve and verify your identity.",
+                    "waiting-for-identity":
+                        "Waiting for identity verification. Your approval is not yet recorded.",
+                    "pending": "The approval is still pending.",
+                    "approval-recorded": "Your approval was recorded.",
+                    "reconcile":
+                        "The outcome has not been confirmed. Check the status rather than approving again.",
+                    "unavailable":
+                        "Signing is unavailable for this request. No approval was submitted here.",
+                },
+            },
             terms: {
                 post: "Post",
                 posts: "Posts",
@@ -5396,6 +5631,8 @@ const englishTranslation = {
             tab: {
                 title: "Signatures",
                 intro: "Protected actions run only after enough authorized people sign them with their digital certificates. Each signature is checked against the trusted issuers and recorded in the log.",
+                hsmIntro:
+                    "Authorized people approve protected actions. Each approval is recorded in the electoral log.",
                 protectedActions: "Protected actions",
                 certificates: "Certificates",
                 requests: "Requests",
@@ -5481,13 +5718,22 @@ const englishTranslation = {
                         "Started in Tally, Transmission. Builds the signed results package for its destinations; the signatures fill its signature list.",
                 },
                 "approve-voter": {
-                    label: "Approve a voter manually",
-                    short: "Voter approval",
-                    permissionName: "approve a voter manually",
-                    object: "voter approval",
+                    label: "Approve an enrollment application",
+                    short: "Enrollment approval",
+                    permissionName: "approve an enrollment application",
+                    object: "enrollment approval",
                     appliesTo: "The voter's $t(signing.terms.post)",
                     description:
-                        "Started in Approvals. Approves the voter and issues their credentials.",
+                        "In the Approvals tab, this approves the application and issues the voter’s credentials.",
+                },
+                "authorize-manual-verification": {
+                    label: "Authorize manual identity verification",
+                    short: "Manual identity verification",
+                    permissionName: "authorize manual identity verification",
+                    object: "manual identity verification",
+                    appliesTo: "The voter's $t(signing.terms.post)",
+                    description:
+                        "In the Voters list, this allows staff to issue a document with a verification link. It does not approve an enrollment application.",
                 },
                 "approve-configuration": {
                     label: "Approve a configuration version",
@@ -5518,6 +5764,7 @@ const englishTranslation = {
             },
             protectedActions: {
                 intro: "Each signature is made with the digital certificate on the signer's security token.",
+                hsmIntro: "See who can approve each action and how many approvals are required.",
                 columns: {
                     action: "Action",
                     appliesTo: "Applies to",
@@ -5919,6 +6166,12 @@ const englishTranslation = {
                 scheduled_events: "New scheduled events",
                 ballots_and_contests: "Ballots and contests",
                 application_id: "Application",
+                voter_id: "Voter account",
+                initiation_id: "Verification request",
+                post_id: "$t(signing.terms.post)",
+                area_id: "Voter area",
+                requester_id: "Requesting staff account",
+                secret_attributes: "Protected attribute names",
                 applicant_registry_id: "Registry account",
                 decision: "Decision",
                 submitted_at: "Submitted",
@@ -5955,6 +6208,8 @@ const englishTranslation = {
                     "generate-reports": "$t(signing.actions.generate-reports.label)",
                     "transmit-results": "$t(signing.actions.transmit-results.label)",
                     "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "authorize-manual-verification":
+                        "$t(signing.actions.authorize-manual-verification.label)",
                     "approve-configuration": "$t(signing.actions.approve-configuration.label)",
                     "key-ceremony": "$t(signing.actions.key-ceremony.label)",
                     "tally-key": "$t(signing.actions.tally-key.label)",
@@ -6511,6 +6766,8 @@ const englishTranslation = {
                     "{{channel}} cannot send {{purpose}} yet. Missing: {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "The {{channel}} template for {{purpose}} in {{language}} is not approved by the provider.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "A {{channel}} template button for {{purpose}} in {{language}} has no value.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} cannot send outside a conversation window with this account: it has no conversation window, or its notices already need a template.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -6540,6 +6797,7 @@ const englishTranslation = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                WHATSAPP_INFOBIP: "WhatsApp Business (Infobip)",
                 CONSOLE: "Console (no longer supported)",
                 HTTP_API: "Custom HTTP API (no longer supported)",
             },
@@ -6601,6 +6859,24 @@ const englishTranslation = {
                 REPORT_PASSWORD: "Report password",
             },
             deliveryUnavailable: "Delivery unavailable",
+            templateButtons: {
+                title: "Template buttons",
+                help: "The values the template's buttons are sent with, in the order they appear in the template. {{code}} becomes the code being sent.",
+                choice: {
+                    DEFAULT: "Default for the purpose",
+                    CUSTOM: "Set for this template",
+                },
+                type: "Button type",
+                parameter: "Value",
+                add: "Add button",
+                remove: "Remove button",
+                none: "No buttons",
+                required: "Enter a value",
+                types: {
+                    URL: "URL (copy code or link)",
+                    QUICK_REPLY: "Quick reply",
+                },
+            },
             templates: {
                 noMethod: "Choose at least one method for the template.",
                 parameters: "Template parameters",
@@ -6627,11 +6903,18 @@ const englishTranslation = {
                 intro: {
                     WHATSAPP:
                         "WhatsApp sends only templates that Meta approved for the account's WhatsApp Business Account. The message must match the approved template; choose what fills its parameters.",
-                    VIBER: "Viber sends codes and transactional messages only with templates the Viber partner approved. The message must match the approved template; choose what fills its parameters.",
+                    VIBER: "A Viber account sends either templates the Viber partner approved or free text. With approved templates, the message must match the template; choose what fills its parameters. With free text, the wording below is sent as written.",
                 },
                 approvedWording: "Approved wording",
                 approvedWordingHelp:
                     "A copy of the approved template, used as a preview. Changing it here does not change what the provider sends.",
+                buttonsHelp:
+                    "Used by WhatsApp through Infobip with the provider template above. Without one, the event's template and its buttons are used.",
+                viberWording: "Wording",
+                viberWordingHelp:
+                    "An account that sends free text sends this wording as written. With approved templates it is a copy of the template, used as a preview, and does not change what is sent.",
+                sendsWrittenText:
+                    "This account sends free text: the wording above is sent as written and needs no approved template.",
                 providerTemplateTitle: "Provider template",
                 providerTemplateHelp:
                     "Optional. The name or ID of the approved template at the provider. When empty, the election event's template bound to this template's alias is used, or the event's default for the purpose.",
@@ -6980,6 +7263,7 @@ const englishTranslation = {
                 page_name: "Page name",
                 page_username: "Page username",
                 base_url: "API base URL",
+                sender_number: "Sender number",
                 sender: "Sender name",
                 provider_approval: "Provider approval",
                 is_default: "Default {{channel}} account for new election events",
@@ -6998,6 +7282,8 @@ const englishTranslation = {
                 page_username: "Used for the m.me link voters open to get their code.",
                 api_version: "For example v23.0.",
                 base_url: "The account's Infobip API base URL.",
+                sender_number:
+                    "The WhatsApp number registered with Infobip, in international format, such as 447796344125.",
                 sender: "The approved sender voters see.",
                 provider_approval:
                     "Meta allows government messaging on WhatsApp only through an approved arrangement. Choose Provider approval confirmed once Meta has approved it for this account; until then OTPs and notices cannot be enabled for it.",
@@ -7036,6 +7322,19 @@ const englishTranslation = {
                 templateId: "Partner template ID",
                 add: "Add template",
                 remove: "Remove template",
+                contentMode: {
+                    title: "Message content",
+                    APPROVED_TEMPLATES: "Approved templates",
+                    FREE_TEXT: "Free text",
+                },
+                contentModeHelp: {
+                    APPROVED_TEMPLATES:
+                        "Codes and messages are sent with the templates the Viber partner approved, entered below.",
+                    FREE_TEXT:
+                        "Codes and messages are sent as their own text, like SMS. No approved template is needed.",
+                },
+                freeTextWarning:
+                    "Viber bills transactional messages sent without an approved template at its promotional rate, and may refuse promotional content as the first message to a voter. Confirm with the partner that this account may send codes as free text.",
             },
             limits: {
                 title: "Sending limits",
@@ -7084,6 +7383,10 @@ const englishTranslation = {
                 VIBER_INFOBIP: {
                     API_KEY: "The Infobip API key.",
                 },
+                WHATSAPP_INFOBIP: {
+                    API_KEY:
+                        "The Infobip API key, with the whatsapp:manage and whatsapp:message:send scopes.",
+                },
             },
             webhook: {
                 title: "Delivery reports",
@@ -7094,6 +7397,8 @@ const englishTranslation = {
                         "Enter this callback URL in Meta's webhook settings. Delivery reports and the voter's Get Started tap arrive here and are checked with the app secret.",
                     VIBER_INFOBIP:
                         "Infobip sends Viber delivery reports to this callback URL through a subscription with Basic authentication.",
+                    WHATSAPP_INFOBIP:
+                        "Infobip sends WhatsApp delivery reports to this callback URL through a subscription with Basic authentication.",
                     AWS_SES:
                         "Subscribe this callback URL (HTTPS) to the delivery notifications topic. Delivery and bounce events arrive here and are checked with Amazon's signature.",
                 },
@@ -7158,13 +7463,14 @@ const englishTranslation = {
                 copyPassword: "Copy report password",
                 error: "The report credentials could not be generated.",
                 step: {
-                    subscription: "In Infobip, create a subscription for Viber delivery reports.",
+                    subscription:
+                        "In Infobip, create a subscription for {{channel}} delivery reports.",
                     url: "Set its URL to this account's callback URL.",
                     auth: "Choose Basic authentication and enter the report user name and password.",
                 },
                 confirmTitle: "Replace the report credentials?",
                 confirmBody:
-                    "The current report user name and password stop working at once. Until Infobip's subscription has the new ones, Viber delivery reports are refused and messages stay Accepted.",
+                    "The current report user name and password stop working at once. Until Infobip's subscription has the new ones, {{channel}} delivery reports are refused and messages stay Accepted.",
                 confirm: "Replace",
             },
         },

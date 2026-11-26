@@ -12,6 +12,8 @@ use protocol_board::{BoardName, TrusteeBoard};
 use sequent_core::services::uuid_validation::parse_uuid_v4;
 use sequent_core::types::ceremonies::{KeysCeremonyExecutionStatus, TallyExecutionStatus};
 use sequent_core::types::hasura::core::ProtocolBoard;
+use sequent_core::types::keycloak::VOTE_WEIGHT_BATCHES;
+use serde_json::Value;
 use tokio_postgres::row::Row;
 use tracing::instrument;
 use uuid::Uuid;
@@ -192,6 +194,107 @@ pub async fn get_tally_boards_by_session(
     rows.into_iter()
         .map(|row| row.try_into().map(|res: ProtocolBoardWrapper| res.0))
         .collect()
+}
+
+/// A tally board of a tally session with its DKG board, the manager messages
+/// a public verifier derives its trust anchors from, and the names of the
+/// contest area that owns the batch: its election's and contest's
+/// `presentation`, which hold their names, and its area's name.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TallyBoardWithDkg {
+    pub dkg_board: String,
+    pub tally_board: String,
+    pub batch: i32,
+    pub election_presentation: Option<Value>,
+    pub contest_presentation: Option<Value>,
+    pub area_name: Option<String>,
+    /// The DKG board's `Configuration` message.
+    pub configuration_message: Vec<u8>,
+    /// The tally board's `Ballots` message.
+    pub ballots_message: Vec<u8>,
+}
+
+/// The tally boards of tally session `tally_session_id`, by batch, each with
+/// its DKG board and the contest area that owns the batch: a contest area
+/// owns the `VOTE_WEIGHT_BATCHES` batches that start at its `session_id`.
+pub async fn get_tally_boards_with_dkg(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    tally_session_id: &str,
+) -> Result<Vec<TallyBoardWithDkg>> {
+    let rows = hasura_transaction
+        .query(
+            r#"
+                SELECT
+                    dkg.name AS dkg_board,
+                    tally.name AS tally_board,
+                    tally.batch,
+                    election.presentation AS election_presentation,
+                    contest.presentation AS contest_presentation,
+                    area.name AS area_name,
+                    dkg.manager_message AS configuration_message,
+                    tally.manager_message AS ballots_message
+                FROM
+                    sequent_backend.protocol_board AS tally
+                JOIN sequent_backend.protocol_board AS dkg ON
+                    dkg.id = tally.parent_id AND
+                    dkg.tenant_id = tally.tenant_id
+                LEFT JOIN LATERAL (
+                    SELECT
+                        tsc.election_id,
+                        tsc.contest_id,
+                        tsc.area_id
+                    FROM
+                        sequent_backend.tally_session_contest AS tsc
+                    WHERE
+                        tsc.tenant_id = tally.tenant_id AND
+                        tsc.election_event_id = tally.election_event_id AND
+                        tsc.tally_session_id = tally.tally_session_id AND
+                        tsc.session_id <= tally.batch AND
+                        tally.batch < tsc.session_id + $4::bigint
+                    ORDER BY
+                        tsc.session_id DESC
+                    LIMIT 1
+                ) AS tsc ON TRUE
+                LEFT JOIN sequent_backend.election AS election ON
+                    election.id = tsc.election_id AND
+                    election.tenant_id = tally.tenant_id
+                LEFT JOIN sequent_backend.contest AS contest ON
+                    contest.id = tsc.contest_id AND
+                    contest.tenant_id = tally.tenant_id
+                LEFT JOIN sequent_backend.area AS area ON
+                    area.id = tsc.area_id AND
+                    area.tenant_id = tally.tenant_id
+                WHERE
+                    tally.tenant_id = $1 AND
+                    tally.election_event_id = $2 AND
+                    tally.tally_session_id = $3
+                ORDER BY
+                    tally.batch;
+            "#,
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(tally_session_id)?,
+                &i64::from(VOTE_WEIGHT_BATCHES),
+            ],
+        )
+        .await?;
+    // The query names and types every column.
+    Ok(rows
+        .iter()
+        .map(|row| TallyBoardWithDkg {
+            dkg_board: row.get("dkg_board"),
+            tally_board: row.get("tally_board"),
+            batch: row.get("batch"),
+            election_presentation: row.get("election_presentation"),
+            contest_presentation: row.get("contest_presentation"),
+            area_name: row.get("area_name"),
+            configuration_message: row.get("configuration_message"),
+            ballots_message: row.get("ballots_message"),
+        })
+        .collect())
 }
 
 /// The boards trustee `trustee_id` has work on, oldest first: the DKG boards

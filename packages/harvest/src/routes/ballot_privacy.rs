@@ -24,7 +24,9 @@ use electoral_log::messages::{
 use electoral_log::ports::ElectoralLogStore;
 use rocket::{http::Status, serde::json::Json, State};
 use sequent_core::ballot::ShowCastVoteLogs;
-use sequent_core::ballot_privacy::{BallotPrivacyProof, BallotPrivacyTrust};
+use sequent_core::ballot_privacy::{
+    BallotPrivacyProof, BallotPrivacyTrust, CastVoteSealTrust,
+};
 use sequent_core::services::jwt::JwtClaims;
 use sequent_core::types::hasura::core::ElectionEvent;
 use sequent_core::types::permissions::{Permissions, VoterPermissions};
@@ -765,6 +767,24 @@ pub async fn ballot_box_keys(
     if keys.next().is_some() {
         return Err(bad("Give a Ballot ID to select its published key"));
     }
+    // The verifier checks the pin entry itself, under the published system
+    // key; an event whose log pins no key gets its sealed ballots refused.
+    let system_pk = voting_crypto::signing::VerificationKey::from_b64_string(
+        &key.system_public_key,
+    )
+    .map_err(unavailable)?;
+    let cast_vote_seal =
+        match windmill::services::cast_vote_seal::read_pin_entry(
+            &store, &board, &system_pk,
+        )
+        .await
+        .map_err(unavailable)?
+        {
+            Some(entry) => CastVoteSealTrust::Sealed {
+                key_entry: STANDARD.encode(entry),
+            },
+            None => CastVoteSealTrust::NotSealed,
+        };
     payload(BallotPrivacyTrust {
         tenant_id: event.tenant_id,
         election_event_id: event.id,
@@ -774,6 +794,7 @@ pub async fn ballot_box_keys(
             key_id: key.ballot_box_key_id,
             public_key: key.ballot_box_public_key,
         },
+        cast_vote_seal,
     })
 }
 

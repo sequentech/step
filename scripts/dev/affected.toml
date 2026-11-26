@@ -313,6 +313,11 @@ units = ["test-support"]
 globs = ["scripts/transmission-sample/**"]
 units = ["windmill", "step-cli", "scripts-e2e"]
 
+# Scoped operational-signing demo fixtures exercise the app/database boundary, not hosted configuration.
+[[paths]]
+globs = ["scripts/operational-signing-demo/**"]
+units = ["admin-portal", "harvest", "windmill", "hasura"]
+
 # Writes the synthetic signing certificates the admin portal tests read.
 [[paths]]
 globs = ["scripts/signing/**"]

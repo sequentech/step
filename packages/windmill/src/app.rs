@@ -161,7 +161,9 @@ fn read_worker_threads(opt: &CeleryOpt) -> usize {
 
 /// Runs the worker: parses the command line and starts its runtime.
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenv().ok();
+    if std::env::var_os("OPERATIONAL_SIGNING_DEMO_WORKER").is_none() {
+        dotenv().ok();
+    }
 
     let opt = CeleryOpt::parse();
 
@@ -183,6 +185,15 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn async_main(opt: CeleryOpt) -> Result<()> {
     init_log(true);
+    let demo = std::env::var_os("OPERATIONAL_SIGNING_DEMO_WORKER").is_some();
+    if demo {
+        #[cfg(not(feature = "operational-signing-demo-fixture"))]
+        return Err(anyhow!(
+            "this binary does not support the isolated signing worker"
+        ));
+        #[cfg(feature = "operational-signing-demo-fixture")]
+        demo_worker::configuration(&opt)?;
+    }
     if let CeleryOpt::SetupQueueDatabase = opt {
         let installation = set_up_task_queue_database().await?;
         event!(
@@ -241,6 +252,21 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
     }
     if matches!(&opt, CeleryOpt::Consume { .. }) {
         let client = get_hasura_pool().await.get().await?;
+        let database: String = client
+            .query_one("SELECT current_database()", &[])
+            .await?
+            .try_get(0)?;
+        if (database == "operational_demo_14990") != demo {
+            return Err(anyhow!(
+                "the isolated signing database requires its dedicated worker launcher"
+            ));
+        }
+        #[cfg(feature = "operational-signing-demo-fixture")]
+        let client = if demo {
+            demo_worker::ready(client).await?
+        } else {
+            client
+        };
         crate::services::signing::operational_policy::assert_startup_policy(&client)
             .await
             .context("Verify the shared operational signing policy before consuming tasks")?;
@@ -363,6 +389,15 @@ async fn async_main(opt: CeleryOpt) -> Result<()> {
         | CeleryOpt::ReplayElectoralLogOutboxEntry { .. } => {}
     };
     Ok(())
+}
+
+#[cfg(feature = "operational-signing-demo-fixture")]
+#[path = "operational_demo_worker.rs"]
+mod demo_worker;
+
+#[cfg(feature = "operational-signing-demo-fixture")]
+pub async fn check_isolated_signing_producer() -> anyhow::Result<()> {
+    demo_worker::producer_ready().await
 }
 
 #[cfg(test)]

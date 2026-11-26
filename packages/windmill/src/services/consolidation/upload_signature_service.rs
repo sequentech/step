@@ -28,7 +28,7 @@ use super::{
 use crate::postgres::election_event::update_election_event_annotations;
 use crate::services::reports::generation::ReportRequester;
 use crate::services::signing::actions::transmission::upload_signature_refusal;
-use crate::services::signing::operational_policy::require_legacy_signing;
+use crate::services::signing::operational_policy::require_legacy_event;
 use crate::{
     postgres::{
         area::get_area_by_id, document::get_document, election::get_election_by_id,
@@ -37,7 +37,10 @@ use crate::{
     },
     services::{
         database::get_hasura_pool,
-        documents::{get_document_as_temp_file, upload_and_return_document},
+        documents::{
+            get_document_as_temp_file, get_operational_miru_document_as_temp_file,
+            upload_and_return_document,
+        },
     },
     types::miru_plugin::{
         MiruCcsServer, MiruServerDocument, MiruTallySessionData, MiruTransmissionPackageData,
@@ -278,7 +281,6 @@ pub async fn upload_transmission_package_signature_service(
         .with_context(|| "Error acquiring hasura transaction")?;
 
     let tenant = Uuid::parse_str(tenant_id).context("Invalid tenant id")?;
-    require_legacy_signing(&hasura_transaction, tenant).await?;
 
     // get time
     let now_utc = Utc::now();
@@ -289,6 +291,8 @@ pub async fn upload_transmission_package_signature_service(
             .await
             .with_context(|| "Error fetching election event")?;
 
+    let event = Uuid::parse_str(&election_event.id).context("Invalid event id")?;
+    require_legacy_event(&hasura_transaction, tenant, event).await?;
     let election_event_annotations = election_event.get_annotations()?;
     // The package is dated in the event's primary zone.
     let zone =
@@ -396,7 +400,7 @@ pub async fn upload_transmission_package_signature_service(
         )
     })?;
 
-    let mut eml_data = get_document_as_temp_file(tenant_id, &document).await?;
+    let mut eml_data = get_operational_miru_document_as_temp_file(tenant_id, &document).await?;
     let eml_bytes = read_temp_file(&mut eml_data)?;
     let eml = String::from_utf8(eml_bytes)?;
 

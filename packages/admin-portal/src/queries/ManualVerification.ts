@@ -4,12 +4,25 @@
 import {gql} from "@apollo/client"
 
 export const MANUAL_VERIFICATION = gql`
-    mutation ManualVerification($tenantId: String!, $electionEventId: String!, $voterId: String!) {
+    mutation ManualVerification(
+        $tenantId: String!
+        $electionEventId: String!
+        $voterId: String!
+        $initiationId: String!
+        $recoverRequestId: String
+    ) {
         get_manual_verification_pdf(
-            body: {tenant_id: $tenantId, election_event_id: $electionEventId, voter_id: $voterId}
+            body: {
+                tenant_id: $tenantId
+                election_event_id: $electionEventId
+                voter_id: $voterId
+                initiation_id: $initiationId
+                recover_request_id: $recoverRequestId
+            }
         ) {
             document_id
             status
+            signing_request
         }
     }
 `

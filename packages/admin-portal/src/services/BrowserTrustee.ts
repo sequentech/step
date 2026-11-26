@@ -62,6 +62,7 @@ export interface TrusteeModule {
         verifyTranscript(evidence: string, anchors: string): string
         configurationHash(trustedConfigurationMessage: string): string
         ballotsHash(trustedBallotsMessage: string): string
+        tallyIdentifier(trustedConfigurationMessage: string, trustedBallotsMessage: string): string
     }
 }
 let loading: Promise<TrusteeModule> | undefined

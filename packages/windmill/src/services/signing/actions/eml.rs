@@ -14,7 +14,9 @@ use super::super::{InvalidReason, SigningCaller, SigningError, SigningResult};
 use super::transmission::{sbei_refusal, sha256_hex, SbeiDirectory};
 use crate::postgres::signing::SigningRequestRow;
 use crate::postgres::signing_document_revision::signing_document_access_restricted;
-use crate::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
+use crate::services::signing::operational_policy::{
+    signing_mode_for_event, OperationalSigningMode,
+};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -85,7 +87,7 @@ impl DocumentSigner for EmlDocumentSigner {
         // A pending hard-mode request must not distribute its raw EML
         // via a second presign path. The immutable subject still names
         // the digest; the device reads and verifies its exact bytes.
-        if signing_mode(hasura_transaction, tenant_id)
+        if signing_mode_for_event(hasura_transaction, tenant_id, event_id)
             .await
             .map_err(anyhow::Error::from)?
             == OperationalSigningMode::HsmRequired

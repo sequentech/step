@@ -1194,6 +1194,59 @@ fn a_seed_never_replaces_what_a_plan_states_even_an_empty_list() {
 }
 
 #[test]
+fn a_fixed_profile_cannot_drop_or_change_the_manual_verification_rule() {
+    let mut authored = plan();
+    let manual = serde_json::json!([{
+        "action": "authorize-manual-verification",
+        "requirement": "required",
+        "signatures": 2,
+        "requester_signing": "not-allowed",
+        "expires_minutes": null,
+        "revision": 0,
+    }]);
+    authored.signing.rules =
+        Some(serde_json::from_value(manual.clone()).unwrap());
+
+    for (path, replacement) in [
+        ("signing.rules", serde_json::json!([])),
+        ("signing", signing_seed()),
+        ("signing.rules", {
+            let mut changed = manual.clone();
+            changed[0]["requirement"] = serde_json::json!("not-required");
+            changed
+        }),
+    ] {
+        let profile = profile_of(ClientProfile {
+            id: "fixed-signing".into(),
+            defaults: defaults(&[(path, replacement)]),
+            locked: vec![path.into()],
+            ..Default::default()
+        });
+        let report = apply_profile(&authored, &profile).unwrap_err();
+        assert!(
+            report.problems.iter().any(|problem| {
+                problem.id.as_deref()
+                    == Some("signing.manual-verification-profile-conflict")
+            }),
+            "{report}"
+        );
+        assert_eq!(
+            serde_json::to_value(&authored.signing.rules).unwrap(),
+            manual
+        );
+    }
+
+    let same = profile_of(ClientProfile {
+        id: "same-signing".into(),
+        defaults: defaults(&[("signing.rules", manual)]),
+        locked: vec!["signing.rules".into()],
+        ..Default::default()
+    });
+    let applied = apply_profile(&authored, &same).unwrap();
+    assert_eq!(applied.signing.rules, authored.signing.rules);
+}
+
+#[test]
 fn a_seed_on_a_locked_path_is_refused() {
     let report = refused(ClientProfile {
         id: "locked-seed".into(),

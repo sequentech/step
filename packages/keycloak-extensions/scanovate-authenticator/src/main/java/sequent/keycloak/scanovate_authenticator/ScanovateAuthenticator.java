@@ -31,6 +31,7 @@ import org.keycloak.models.UserModel;
 import org.keycloak.representations.userprofile.config.UPAttribute;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.userprofile.UserProfileProvider;
+import sequent.keycloak.authenticator.EnrollmentDocumentPolicy;
 import sequent.keycloak.authenticator.StepBack;
 import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics;
 import sequent.keycloak.authenticator.diagnostics.ScanovateDiagnostics.ConfigComponent;
@@ -339,11 +340,13 @@ public class ScanovateAuthenticator implements Authenticator {
       headers.options().allowFrameSrc(services.onPrem().origin());
     }
     context.challenge(
-        context
-            .form()
-            .setAttribute(FTL_SCANOVATE, capture)
-            .setAttribute(StepBack.ATTRIBUTE, StepBack.available(context))
-            .createForm(CAPTURE_FORM));
+        EnrollmentDocumentPolicy.forRegistrationRoute(
+            context,
+            context
+                .form()
+                .setAttribute(FTL_SCANOVATE, capture)
+                .setAttribute(StepBack.ATTRIBUTE, StepBack.available(context))
+                .createForm(CAPTURE_FORM)));
   }
 
   /**
@@ -652,13 +655,15 @@ public class ScanovateAuthenticator implements Authenticator {
     }
     authSession.setAuthNote(CONFIRMATION_CASE_NOTE, caseId);
     context.challenge(
-        context
-            .form()
-            .setAttribute(
-                FTL_STORED_ATTRIBUTES,
-                storedAttributes.stream().map(StoredAttribute::toTemplateModel).toList())
-            .setAttribute(FTL_DOCUMENT_TYPE, documentTypeName(docType))
-            .createForm(CONFIRMATION_FORM));
+        EnrollmentDocumentPolicy.forRegistrationRoute(
+            context,
+            context
+                .form()
+                .setAttribute(
+                    FTL_STORED_ATTRIBUTES,
+                    storedAttributes.stream().map(StoredAttribute::toTemplateModel).toList())
+                .setAttribute(FTL_DOCUMENT_TYPE, documentTypeName(docType))
+                .createForm(CONFIRMATION_FORM)));
   }
 
   private void confirm(AuthenticationFlowContext context) {
@@ -707,16 +712,21 @@ public class ScanovateAuthenticator implements Authenticator {
       return;
     }
     context.challenge(
-        context
-            .form()
-            .setAttribute(FTL_ERROR, messageKey)
-            .setAttribute(FTL_CAN_RETRY, canRetry)
-            .setAttribute(StepBack.ATTRIBUTE, StepBack.available(context))
-            .setAttribute(FTL_ATTEMPTS_LEFT, attemptsLeft(context, maxAttempts(config(context))))
-            .setAttribute(
-                FTL_CODE_ID,
-                context.getAuthenticationSession().getAuthNote(ScanovateDiagnostics.ATTEMPT_NOTE))
-            .createForm(ERROR_FORM));
+        EnrollmentDocumentPolicy.forRegistrationRoute(
+            context,
+            context
+                .form()
+                .setAttribute(FTL_ERROR, messageKey)
+                .setAttribute(FTL_CAN_RETRY, canRetry)
+                .setAttribute(StepBack.ATTRIBUTE, StepBack.available(context))
+                .setAttribute(
+                    FTL_ATTEMPTS_LEFT, attemptsLeft(context, maxAttempts(config(context))))
+                .setAttribute(
+                    FTL_CODE_ID,
+                    context
+                        .getAuthenticationSession()
+                        .getAuthNote(ScanovateDiagnostics.ATTEMPT_NOTE))
+                .createForm(ERROR_FORM)));
   }
 
   private void clearVerification(AuthenticationFlowContext context) {

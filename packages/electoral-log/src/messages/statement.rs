@@ -46,6 +46,14 @@ impl StatementHead {
         };
 
         match body {
+            StatementBody::CastVoteSealKeyPublished(pin) => StatementHead {
+                kind: StatementType::CastVoteSealKeyPublished,
+                description: format!(
+                    "Cast votes are sealed to HSM key {} version {} (fingerprint {}).",
+                    pin.key_id, pin.key_version, pin.fingerprint
+                ),
+                ..default_head
+            },
             StatementBody::BallotReceived(_) => StatementHead {
                 kind: StatementType::BallotReceived,
                 description: "Ballot received under a pseudonym.".into(),
@@ -870,6 +878,9 @@ pub enum StatementBody {
     PseudonymResolved(PseudonymResolution),
     ForensicRead(ForensicRead),
     PrivateBallotEvent(PrivateBallotEvent),
+    /// The election event's cast votes are sealed to this HSM key
+    /// (`hsm-seal-v1`); a cast refuses any other key.
+    CastVoteSealKeyPublished(crate::cast_vote_seal::CastVoteSealKeyPin),
 }
 
 // Note: When creating new variants, consider that the length limit STATEMENT_KIND_VARCHAR_LENGTH is 40.
@@ -952,6 +963,7 @@ pub enum StatementType {
     BallotAudited,
     PseudonymResolved,
     ForensicRead,
+    CastVoteSealKeyPublished,
 }
 
 #[derive(

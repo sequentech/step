@@ -322,6 +322,18 @@ const englishTranslation = {
                     },
                 },
                 "candidate": {
+                    "inline-photo": {
+                        lead: "Invalid candidate photo",
+                        text: "Invalid candidate photo — Use one static PNG or JPEG per candidate, except for write-ins. Check the file and workbook limits.",
+                    },
+                    "sql-photo": {
+                        lead: "Invalid SQL photo",
+                        text: "Invalid SQL photo — PICTURE must be a BLOB with a static PNG, JPEG, WebP or AVIF within the import limits. Export it without EXIF rotation or AVIF display transforms.",
+                    },
+                    "photo-source-conflict": {
+                        lead: "Two candidate photo sources",
+                        text: "Two candidate photo sources — Keep the photo in SQL PICTURE or Excel image_data_url, not both.",
+                    },
                     "contest-missing": {
                         lead: "Candidate's contest missing",
                         text: "Candidate's contest missing — the candidate belongs to a contest that is not in this file.",
@@ -1080,6 +1092,14 @@ const englishTranslation = {
                     "trust-not-carried": {
                         lead: "Certificate trust not carried",
                         text: "Certificate trust not carried — the opened archive had '{{member}}', which the Architect does not carry. Signatures relying on it may fail until it is restored through the platform's authorized certificate setup.",
+                    },
+                    "manual-verification-profile-conflict": {
+                        lead: "Conflicting signing profile",
+                        text: "Conflicting signing profile — this profile would replace '{{action}}'. The rule was not changed. Open without the conflicting profile to keep editing.",
+                    },
+                    "manual-verification-receiver-required": {
+                        lead: "Compatible receiver required",
+                        text: "Compatible receiver required — this receiver cannot enforce '{{action}}'. The rule stays in the workbook and plan. Use an Architect and receiver with manual-verification signing to build a delivery.",
                     },
                     "workbook-needs-current-architect": {
                         lead: "Workbook needs current Architect",

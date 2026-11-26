@@ -66,6 +66,69 @@ const audit = (kind: string, details: unknown, options: IOptions = {}) =>
         options
     )
 
+describe("the recorded HSM approver key fingerprint", () => {
+    const signed = "SigningRequestSigned"
+    const initializeProof = "initialize-voting-demo-pkcs11"
+    const actionProof = "direct-action-demo-pkcs11-v2"
+    const fingerprint = "0123456789abcdef".repeat(4)
+    const proof = {proof_kind: actionProof, spki_sha256: fingerprint}
+    const entry = (details: unknown, kind = signed, signingKind = kind, options?: IOptions) =>
+        row(
+            kind,
+            {
+                Signing: {
+                    kind: signingKind,
+                    details_json: typeof details === "string" ? details : JSON.stringify(details),
+                },
+            },
+            options
+        )
+
+    it.each([initializeProof, actionProof])("reads the recorded key for %s", (proofKind) => {
+        const view = logEntryView(entry({...proof, proof_kind: proofKind}))
+        expect(view.approverKeyFingerprint).toBe(fingerprint)
+        expect(view.signatures.systemSignature).toBe("c3lzdGVt")
+    })
+
+    it.each<[string, unknown]>([
+        ["missing", undefined],
+        ["null", null],
+        ["numeric", 42],
+        ["list-shaped", [fingerprint]],
+        ["short", fingerprint.slice(1)],
+        ["newline-terminated", `${fingerprint}\n`],
+        ["non-hex", "g".repeat(64)],
+    ])("omits a %s fingerprint", (_, value) => {
+        expect(
+            logEntryView(entry({...proof, spki_sha256: value})).approverKeyFingerprint
+        ).toBeNull()
+    })
+
+    it("rejects legacy or unknown proofs and never uses a certificate, other hash or log key", () => {
+        for (const details of [
+            {...proof, proof_kind: "unknown-pkcs11"},
+            {spki_sha256: fingerprint},
+            {certificate: {spki_sha256: fingerprint}},
+            {proof_kind: actionProof, payload_sha256: fingerprint, signature_sha256: fingerprint},
+            "{invalid JSON",
+            [proof],
+        ]) {
+            expect(logEntryView(entry(details)).approverKeyFingerprint).toBeNull()
+        }
+    })
+
+    it("requires a matching signed statement and Signing body", () => {
+        for (const record of [
+            entry(proof, "SigningRequestCompleted"),
+            entry(proof, signed, "SigningRequestCompleted"),
+            entry(proof, signed, signed, {head: {kind: "SigningSignatureRefused"}}),
+            audit(signed, proof),
+        ]) {
+            expect(logEntryView(record).approverKeyFingerprint).toBeNull()
+        }
+    })
+})
+
 describe("the head and who of any entry", () => {
     it.each(["ForensicRead", "PseudonymResolved"])(
         "uses a backfilled display name for historical %s without changing its message",

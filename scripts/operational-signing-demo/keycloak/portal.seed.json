@@ -1,0 +1,66 @@
+{
+  "clientId": "admin-portal",
+  "protocol": "openid-connect",
+  "enabled": true,
+  "publicClient": true,
+  "bearerOnly": false,
+  "standardFlowEnabled": true,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "serviceAccountsEnabled": false,
+  "fullScopeAllowed": false,
+  "redirectUris": [
+    "https://127.0.0.1:13443/",
+    "https://127.0.0.1:13443/silent-check-sso.html"
+  ],
+  "webOrigins": [
+    "https://127.0.0.1:13443"
+  ],
+  "defaultClientScopes": [
+    "basic",
+    "profile",
+    "email"
+  ],
+  "optionalClientScopes": [],
+  "attributes": {
+    "pkce.code.challenge.method": "S256",
+    "standard.token.exchange.enabled": "false"
+  },
+  "protocolMappers": [
+    {
+      "name": "14990 normal portal audience, not Gold",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "config": {
+        "included.client.audience": "admin-portal",
+        "access.token.claim": "true",
+        "id.token.claim": "false"
+      }
+    },
+    {
+      "name": "14990 test-only admin-managed Hasura claim",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-usermodel-attribute-mapper",
+      "config": {
+        "user.attribute": "fixture-14990-hasura-claims",
+        "claim.name": "https://hasura\\.io/jwt/claims",
+        "jsonType.label": "JSON",
+        "access.token.claim": "true",
+        "id.token.claim": "false",
+        "userinfo.token.claim": "false",
+        "introspection.token.claim": "false",
+        "multivalued": "false",
+        "aggregate.attrs": "false"
+      }
+    },
+    {
+      "name": "14990 normal ACR",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-acr-mapper",
+      "config": {
+        "id.token.claim": "true",
+        "access.token.claim": "true"
+      }
+    }
+  ]
+}

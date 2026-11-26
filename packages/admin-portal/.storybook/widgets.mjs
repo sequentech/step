@@ -37,7 +37,7 @@ export default {
         return humanize(area.replace(/\.tsx?$/, ""))
     },
     excluded: {
-        "src/index.tsx#Portal":
+        "src/PortalEntrypoint.tsx#Portal":
             "Application root: wraps the providers and the app in the data router; the " +
             "production journeys render it.",
         "src/plugins/NavigationGuard.tsx#NavigationGuard":

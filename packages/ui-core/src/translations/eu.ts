@@ -319,6 +319,18 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 "candidate": {
+                    "inline-photo": {
+                        lead: "Hautagaiaren argazki baliogabea",
+                        text: "Hautagaiaren argazki baliogabea — Erabili PNG edo JPEG estatiko bakarra hautagai bakoitzerako, eskuz idazteko aukeretarako izan ezik. Egiaztatu fitxategiaren eta lan-liburuaren mugak.",
+                    },
+                    "sql-photo": {
+                        lead: "SQL argazki baliogabea",
+                        text: "SQL argazki baliogabea — PICTURE eremuak BLOB motakoa izan behar du, eta PNG, JPEG, WebP edo AVIF irudi estatiko bat eduki behar du, inportazio-mugen barruan. Esportatu irudia EXIF biraketarik eta AVIF bistaratze-transformaziorik gabe.",
+                    },
+                    "photo-source-conflict": {
+                        lead: "Argazkiaren bi iturri",
+                        text: "Argazkiaren bi iturri — Gorde argazkia SQLko PICTURE eremuan edo Exceleko image_data_url zutabean, baina ez bietan.",
+                    },
                     "contest-missing": {
                         lead: "Hautagaiaren bozketa falta da",
                         text: "Hautagaiaren bozketa falta da — hautagaia fitxategi honetan ez dagoen bozketa batena da.",
@@ -1077,6 +1089,14 @@ const basqueTranslation: TranslationType = {
                     "trust-not-carried": {
                         lead: "Ziurtagiri-konfiantza ez da gordetzen",
                         text: "Ziurtagiri-konfiantza ez da gordetzen — irekitako artxiboak '{{member}}' zuen, eta Architect-ek ez du gordetzen. Horren mende dauden sinadurek huts egin dezakete plataformaren ziurtagiri-konfigurazio baimenduaren bidez berrezarri arte.",
+                    },
+                    "manual-verification-profile-conflict": {
+                        lead: "Sinadura-profilen arteko gatazka",
+                        text: "Sinadura-profilen arteko gatazka — profil honek «{{action}}» ordezkatuko luke. Araua ez da aldatu. Editatzen jarraitzeko, ireki plana gatazka sortzen duen profilik gabe.",
+                    },
+                    "manual-verification-receiver-required": {
+                        lead: "Hartzaile bateragarria behar da",
+                        text: "Hartzaile bateragarria behar da — hartzaile honek ezin du «{{action}}» aplikatu. Araua liburuan eta planean gordetzen da. Entrega bat sortzeko, erabili eskuzko egiaztapena sinatzea onartzen duten Architect eta hartzaile bat.",
                     },
                     "workbook-needs-current-architect": {
                         lead: "Liburuak Architect berria behar du",

@@ -16,6 +16,7 @@ export enum SigningAction {
     GenerateReports = "generate-reports",
     TransmitResults = "transmit-results",
     ApproveVoter = "approve-voter",
+    AuthorizeManualVerification = "authorize-manual-verification",
     ApproveConfiguration = "approve-configuration",
     ConfirmCustodyProof = "key-ceremony",
     ContributeCustodyProof = "tally-key",
@@ -207,6 +208,13 @@ export const SIGNING_ACTIONS: Record<SigningAction, ISigningActionInfo> = {
         mode: ExecutionMode.Deferred,
         document: DocumentKind.NoDocument,
         signPermission: IPermissions.SIGN_APPROVE_VOTER,
+    },
+    [SigningAction.AuthorizeManualVerification]: {
+        group: SigningActionGroup.Enrollment,
+        scope: SigningScope.Post,
+        mode: ExecutionMode.Deferred,
+        document: DocumentKind.NoDocument,
+        signPermission: IPermissions.SIGN_AUTHORIZE_MANUAL_VERIFICATION,
     },
     [SigningAction.ApproveConfiguration]: {
         group: SigningActionGroup.ConfigurationAndKeys,

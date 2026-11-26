@@ -134,6 +134,9 @@ export const AccountStatusDetails: React.FC<IAccountStatusDetailsProps> = ({acco
     const isWhatsApp = account.provider === EMessagingProvider.WHATSAPP_CLOUD_API
     const isMessenger = account.provider === EMessagingProvider.MESSENGER_SEND_API
     const isViber = account.provider === EMessagingProvider.VIBER_INFOBIP
+    const isInfobipWhatsApp = account.provider === EMessagingProvider.WHATSAPP_INFOBIP
+    // Providers whose check reads the templates from their API.
+    const readsTemplates = isWhatsApp || isMessenger || isInfobipWhatsApp
     const {approval, source} = accountApproval(account.provider_approval, check)
     const token = details?.token
     const number = details?.whatsapp_number
@@ -275,7 +278,7 @@ export const AccountStatusDetails: React.FC<IAccountStatusDetailsProps> = ({acco
                     />
                 </>
             ) : null}
-            {isViber && check?.checked_at ? (
+            {(isViber || isInfobipWhatsApp) && check?.checked_at ? (
                 <Row
                     label={t("messagingAccounts.status.partnerLogin")}
                     value={
@@ -316,7 +319,7 @@ export const AccountStatusDetails: React.FC<IAccountStatusDetailsProps> = ({acco
                         .join(" · ")}
                 />
             ) : null}
-            {(isWhatsApp || isMessenger) && check?.checked_at && !unchecked ? (
+            {readsTemplates && check?.checked_at && !unchecked ? (
                 <Box>
                     <Typography variant="body2" sx={{fontWeight: 500}}>
                         {t("messagingAccounts.status.templates.title")}

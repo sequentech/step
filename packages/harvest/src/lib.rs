@@ -16,6 +16,16 @@ use windmill::services::{
     probe::{setup_probe, AppName},
 };
 
+// Opt-in typed installation, absent from all ordinary Harvest entrypoints.
+#[cfg(feature = "operational-signing-demo-fixture")]
+pub mod operational_demo_composition;
+
+#[cfg(all(
+    feature = "felix3-local-initialize-ca",
+    not(feature = "operational-signing-demo-fixture")
+))]
+pub mod local_initialize_ca;
+
 mod adapters;
 mod ports;
 mod routes;
@@ -87,7 +97,20 @@ pub async fn rocket() -> rocket::Rocket<rocket::Build> {
         }
     });
 
-    build_application_with(services)
+    let application = build_application_with(services);
+    #[cfg(all(
+        feature = "felix3-local-initialize",
+        not(feature = "operational-signing-demo-fixture")
+    ))]
+    let application = routes::operational_initialize::local::mount(application)
+        .await
+        .expect(
+            "Verify the installed local Harvest registration before launch",
+        );
+    #[cfg(feature = "comelec-demo-direct-hsm")]
+    let application = routes::signing::mount_direct_initialize(application)
+        .expect("Verify the registered private direct HSM peer before starting this demo build");
+    application
 }
 
 /// Register the same routes and managed state for production and local HTTP
@@ -250,6 +273,7 @@ fn build_application_with(
                 routes::messaging_insights::messaging_monthly_volumes,
                 routes::messaging_insights::find_by_support_reference,
                 routes::upload_document::get_upload_url,
+                routes::configuration_package_intake::unwrap_configuration_package,
                 routes::keys_ceremony::create_keys_ceremony,
                 routes::keys_ceremony::get_custody_request,
                 routes::keys_ceremony::confirm_key_custody,
@@ -309,6 +333,7 @@ fn build_application_with(
                 routes::reports::generate_report,
                 routes::reports::generate_transmission_report,
                 routes::manual_verification_pdf::get_manual_verification_pdf,
+                routes::manual_verification_pdf::manual_verification_authority,
                 routes::reports::encrypt_report_route,
                 routes::results_publication::configure_results_website_policy,
                 routes::results_publication::publish_results_website,
@@ -330,6 +355,8 @@ fn build_application_with(
                 routes::voter_information_letter::generate_voter_information_letter,
                 routes::set_voter_authentication::set_voter_authentication,
                 routes::export_tally_results::export_tally_results_route,
+                routes::tally_public_verification::tally_public_verification_boards,
+                routes::tally_public_verification::tally_public_verification_transcript,
                 routes::google_meet::generate_google_meeting,
                 routes::google_meet::set_google_service_account_key,
                 routes::architect_approval_policy::get_architect_approval_policy,

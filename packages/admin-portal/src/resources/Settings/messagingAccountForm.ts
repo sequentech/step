@@ -7,6 +7,7 @@ import {
     EMessagePurpose,
     EMessagingProvider,
     EProviderApproval,
+    EViberContentMode,
     IAccountLimits,
     IAccountSender,
     IMessagingAccount,
@@ -68,6 +69,8 @@ export const senderFields = (provider: EMessagingProvider): ISenderField[] => {
             ]
         case EMessagingProvider.VIBER_INFOBIP:
             return [field("base_url", true), field("sender", true)]
+        case EMessagingProvider.WHATSAPP_INFOBIP:
+            return [field("base_url", true), field("sender_number", true), field("display_name")]
         case EMessagingProvider.HTTP_API:
         case EMessagingProvider.CONSOLE:
             // Unsupported: nothing to edit; the account is shown to be replaced.
@@ -98,6 +101,7 @@ export interface IAccountFormValues {
     name: string
     sender: Record<string, string>
     viberTemplates: IViberTemplateRow[]
+    viberContentMode: EViberContentMode
     limits: IAccountFormLimits
     providerApproval: EProviderApproval
     isDefault: boolean
@@ -121,6 +125,7 @@ export const emptyAccountForm = (
     name: "",
     sender: initialSender(provider),
     viberTemplates: [],
+    viberContentMode: EViberContentMode.APPROVED_TEMPLATES,
     limits: {
         messagesPerSecond: "",
         otpReservedPerSecond: "",
@@ -141,6 +146,7 @@ export const withProvider = (
     provider,
     sender: initialSender(provider),
     viberTemplates: [],
+    viberContentMode: EViberContentMode.APPROVED_TEMPLATES,
     credentials: {},
 })
 
@@ -188,6 +194,10 @@ export const formFromAccount = (account: IMessagingAccount): IAccountFormValues 
         account.sender.provider === EMessagingProvider.VIBER_INFOBIP
             ? viberRows(account.sender.approved_templates)
             : [],
+    viberContentMode:
+        (account.sender.provider === EMessagingProvider.VIBER_INFOBIP &&
+            account.sender.content_mode) ||
+        EViberContentMode.APPROVED_TEMPLATES,
     limits: {
         messagesPerSecond: countText(account.limits?.messages_per_second),
         otpReservedPerSecond: countText(account.limits?.otp_reserved_per_second),
@@ -284,6 +294,14 @@ export const senderFromForm = (values: IAccountFormValues): IAccountSender => {
                 base_url: required(values, "base_url"),
                 sender: required(values, "sender"),
                 approved_templates: viberTemplates(values.viberTemplates),
+                content_mode: values.viberContentMode,
+            }
+        case EMessagingProvider.WHATSAPP_INFOBIP:
+            return {
+                provider: EMessagingProvider.WHATSAPP_INFOBIP,
+                base_url: required(values, "base_url"),
+                sender_number: required(values, "sender_number"),
+                display_name: optional(values, "display_name"),
             }
         case EMessagingProvider.HTTP_API:
             return {provider: EMessagingProvider.HTTP_API}
@@ -332,6 +350,7 @@ export const endpointField = (provider: EMessagingProvider): string | null => {
         case EMessagingProvider.MESSENGER_SEND_API:
             return "api_base_url"
         case EMessagingProvider.VIBER_INFOBIP:
+        case EMessagingProvider.WHATSAPP_INFOBIP:
             return "base_url"
         case EMessagingProvider.SMTP:
             return "server_url"
@@ -413,7 +432,10 @@ export const validateAccountForm = (
     if (parseCallingCodes(allowedCallingCodes).invalid.length) {
         errors["limits.allowedCallingCodes"] = EAccountFormError.INVALID_CALLING_CODE
     }
-    if (values.provider === EMessagingProvider.VIBER_INFOBIP) {
+    if (
+        values.provider === EMessagingProvider.VIBER_INFOBIP &&
+        values.viberContentMode === EViberContentMode.APPROVED_TEMPLATES
+    ) {
         const seen = new Set<string>()
         values.viberTemplates.forEach((row, index) => {
             const language = row.language.trim()
