@@ -691,14 +691,18 @@ const SettingsConfigurationPackageForScope: React.FC<{
         submitted?.mode === "preview" &&
         submitted.actor === authContext.userId &&
         !!documentId &&
-        submitted.documentId === documentId
+        submitted.documentId === documentId &&
+        (!submitted.recoveryOf || !!submitted.expectedSha)
     const previewAgain = () => {
         if (!canPreviewAgain || !submitted || !documentId) return
+        const pinnedSha = submitted.recoveryOf ? (submitted.expectedSha ?? null) : expectedSha
+        // Old or incomplete local follow state must never make recovery unpinned.
+        if (submitted.recoveryOf && !pinnedSha) return
         setConfirming(false)
         void submit(
             "preview",
             documentId,
-            submitted.recoveryOf ? submitted.expectedSha : expectedSha,
+            pinnedSha,
             submitted.encryptedPayloadSha256,
             submitted.recoveryOf ? submitted.requirements : undefined,
             submitted.recoveryOf

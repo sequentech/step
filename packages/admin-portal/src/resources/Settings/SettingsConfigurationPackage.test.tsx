@@ -1959,10 +1959,11 @@ describe("configuration package hub layout", () => {
             // Nothing to apply until that new Preview succeeds.
             expect(applyButton().disabled).toBe(true)
 
-            const retryPreview = refusedPreview(["default template still unavailable"])
-            retryPreview.application.packageSha256 = ORIGINAL_SHA
-            mockTask = task("task-r", "FAILED", retryPreview)
+            // The saved Preview exists, but its task did not finish successfully.
+            // It cannot be applied and the existing same-document retry is offered.
+            mockTask = task("task-r", "FAILED", remainingPreview())
             view.rerender(<SettingsConfigurationPackage />)
+            expect(applyButton().disabled).toBe(true)
             mockApply.mockResolvedValueOnce(accepted("task-r2"))
             await act(async () => {
                 fireEvent.click(screen.getByTestId("package-preview-again"))
