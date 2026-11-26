@@ -13,24 +13,16 @@ import {i18n} from "@sequentech/ui-core"
 import {AdminStoryProvider, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {atViewport} from "../../../../test-support/storybook/viewport"
-import {
-    COMPLETE_DELIVERY,
-    PACKAGE_SECTIONS,
-    readApplication,
-    type PackageRequirements,
-} from "./configurationPackage"
+import {readApplication} from "./configurationPackage"
 import {record, refusedPreview} from "./configurationPackage.fixture"
 import type {PackageImportPhase} from "./PackageImportWorkflow"
 import {
     type HubTab,
     PackageRail,
     PackageStatusHeader,
-    RequirementsPicker,
-    RequirementsSummary,
     RunStages,
     SectionBadgeChip,
     TenantReceipt,
-    WizardSteps,
 } from "./PackageHub"
 import {headerActions, lastAppliedReceipt, orderedSectionBadges, runStages} from "./packageOverview"
 
@@ -152,16 +144,7 @@ const meta = {
     title: "Admin/Settings/PackageHub",
     component: PackageStatusHeader,
     args: {phase: "review", run: "previewed", mode: "preview", trustLabel: "Roster active"},
-    parameters: {
-        widgets: [
-            "PackageStatusHeader",
-            "PackageRail",
-            "BadgeDot",
-            "RunStages",
-            "SectionBadgeChip",
-            "TenantReceipt",
-        ],
-    },
+    // The page story proves sibling widgets in their real production parent.
     beforeEach: () => {
         boundary = graphqlBoundary({})
     },
@@ -252,50 +235,5 @@ export const PhoneBlocked: Story = {
                 name: i18n.t("configurationPackage.hub.actions.importFixed"),
             })
         ).toBeVisible()
-    },
-}
-
-const RequirementsStep: React.FC = () => {
-    const [requirements, setRequirements] = useState<PackageRequirements>(COMPLETE_DELIVERY)
-    return (
-        <AdminStoryProvider boundary={boundary}>
-            <Stack spacing={2} sx={{p: 2, maxWidth: 640}}>
-                <WizardSteps current={0} />
-                <span data-testid="story-requirements-summary">
-                    <RequirementsSummary requirements={requirements} />
-                </span>
-                <RequirementsPicker
-                    requirements={requirements}
-                    onToggleSection={(section) =>
-                        setRequirements({
-                            ...requirements,
-                            sections: requirements.sections.includes(section)
-                                ? requirements.sections.filter((s) => s !== section)
-                                : PACKAGE_SECTIONS.filter(
-                                      (s) => s === section || requirements.sections.includes(s)
-                                  ),
-                        })
-                    }
-                    onCensus={(census) => setRequirements({...requirements, census})}
-                />
-            </Stack>
-        </AdminStoryProvider>
-    )
-}
-
-export const UploadRequirements: Story = {
-    parameters: {widgets: ["WizardSteps", "RequirementsSummary", "RequirementsPicker"]},
-    render: () => <RequirementsStep />,
-    play: async ({canvasElement}) => {
-        const canvas = within(canvasElement)
-        await expect(
-            canvas.getByTestId("package-wizard-steps").querySelector('[aria-current="step"]')
-        ).toHaveTextContent(i18n.t("configurationPackage.hub.stages.package"))
-        // Messaging accounts is opt-in by default; selecting it is one click.
-        const messaging = canvas.getByRole("checkbox", {name: "messaging-accounts"})
-        await expect(messaging).not.toBeChecked()
-        await userEvent.click(messaging)
-        await expect(messaging).toBeChecked()
-        await expect(canvas.getByTestId("story-requirements-summary")).toHaveTextContent("7")
     },
 }

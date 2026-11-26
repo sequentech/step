@@ -98,7 +98,7 @@ test("unlocks an encrypted configuration in the real Worker and uploads only the
     await openSettings(page, portal)
     expect(await page.evaluate(() => window.isSecureContext)).toBe(true)
     await page.getByRole("tab", {name: /^configuration package$/i}).click()
-    await page.getByRole("button", {name: "Upload package"}).click()
+    await page.getByRole("button", {name: "Import package", exact: true}).click()
     const drawer = page.getByTestId("package-upload-drawer")
     await drawer.getByRole("textbox", {name: "Integrity Check (SHA-256)"}).fill(SHA256)
     await drawer.locator('input[type="file"]').setInputFiles({
