@@ -266,6 +266,38 @@ pub async fn get_ballot_styles_by_elections(
     Ok(results)
 }
 
+/// One page of a publication's ballot styles in id order, starting after
+/// `after_id`: each style's id and stored `ballot_eml`.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn get_publication_ballot_eml_page(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication_id: &str,
+    election_id: Option<&str>,
+    after_id: Option<Uuid>,
+    page_size: i64,
+) -> Result<Vec<(Uuid, Option<String>)>> {
+    let election_uuid = election_id.map(parse_uuid_v4).transpose()?;
+    let rows = hasura_transaction
+        .query(
+            include_str!("sql/publication_ballot_eml_page.sql"),
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &parse_uuid_v4(ballot_publication_id)?,
+                &election_uuid,
+                &after_id,
+                &page_size,
+            ],
+        )
+        .await?;
+
+    rows.into_iter()
+        .map(|row| Ok((row.try_get("id")?, row.try_get("ballot_eml")?)))
+        .collect()
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn get_publication_ballot_styles(
     hasura_transaction: &Transaction<'_>,
