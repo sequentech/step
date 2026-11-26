@@ -116,8 +116,7 @@ export const PackageStatusHeader: React.FC<{
                 columnGap: 2,
                 rowGap: 1.5,
                 borderInlineStart: 4,
-                borderInlineStartColor:
-                    color === "default" ? "divider" : `${color as string}.main`,
+                borderInlineStartColor: color === "default" ? "divider" : `${color as string}.main`,
             }}
         >
             <Box sx={{flex: "1 1 320px", minWidth: 0}}>
@@ -128,11 +127,7 @@ export const PackageStatusHeader: React.FC<{
                     {t(`configurationPackage.workflow.phases.${phase}.help`)}
                 </Typography>
             </Box>
-            <Divider
-                orientation="vertical"
-                flexItem
-                sx={{display: {xs: "none", md: "block"}}}
-            />
+            <Divider orientation="vertical" flexItem sx={{display: {xs: "none", md: "block"}}} />
             <Button
                 variant="text"
                 onClick={onTrust}
@@ -164,11 +159,7 @@ export const PackageStatusHeader: React.FC<{
                     </Typography>
                 )}
             </Button>
-            <Divider
-                orientation="vertical"
-                flexItem
-                sx={{display: {xs: "none", md: "block"}}}
-            />
+            <Divider orientation="vertical" flexItem sx={{display: {xs: "none", md: "block"}}} />
             <Stack
                 direction="row"
                 spacing={1}
@@ -232,7 +223,9 @@ export const PackageRail: React.FC<{
                 "gap": 1.25,
                 "minHeight": 40,
                 "flex": {xs: "0 0 auto", md: "initial"},
-                "&.Mui-selected": {boxShadow: (theme) => `inset 3px 0 0 ${theme.palette.primary.main}`},
+                "&.Mui-selected": {
+                    boxShadow: (theme) => `inset 3px 0 0 ${theme.palette.primary.main}`,
+                },
             }}
         >
             <Box
@@ -254,7 +247,12 @@ export const PackageRail: React.FC<{
             >
                 {lead}
             </Box>
-            <Typography variant="body2" component="span" sx={{flex: "1 1 auto", minWidth: 0}} noWrap>
+            <Typography
+                variant="body2"
+                component="span"
+                sx={{flex: "1 1 auto", minWidth: 0}}
+                noWrap
+            >
                 {label}
             </Typography>
             {trail}
@@ -384,7 +382,9 @@ export const RunStages: React.FC<{stages: RunStage[]}> = ({stages}) => {
                     <Box
                         component="li"
                         key={step}
-                        aria-current={state === "current" || state === "running" ? "step" : undefined}
+                        aria-current={
+                            state === "current" || state === "running" ? "step" : undefined
+                        }
                         data-state={state}
                         sx={{display: "flex", flexDirection: "column", gap: 0.5, minWidth: 0}}
                     >
@@ -559,7 +559,9 @@ export const RequirementsPicker: React.FC<{
                 control={
                     <Checkbox
                         checked={requirements.census === "required"}
-                        onChange={(event) => onCensus(event.target.checked ? "required" : "optional")}
+                        onChange={(event) =>
+                            onCensus(event.target.checked ? "required" : "optional")
+                        }
                         inputProps={{"aria-label": "census"}}
                     />
                 }

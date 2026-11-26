@@ -382,7 +382,9 @@ const SettingsConfigurationPackageForScope: React.FC<{
                         })}
                     </Typography>
                 ) : (
-                    <Typography variant="body2">{t("configurationPackage.notPermitted")}</Typography>
+                    <Typography variant="body2">
+                        {t("configurationPackage.notPermitted")}
+                    </Typography>
                 )}
             </Alert>
         )
@@ -804,92 +806,90 @@ const SettingsConfigurationPackageForScope: React.FC<{
                         {t("configurationPackage.hub.noRun")}
                     </Typography>
                 )}
-                        {!canApply && (refusal || blockers.length > 0) ? (
-                            <Alert
-                                severity={previewStale ? "info" : "warning"}
-                                role="status"
-                                id={`${applyReasonId}-blocked`}
-                                data-testid="package-blocked"
-                                data-historical={previewStale ? "true" : undefined}
+                {!canApply && (refusal || blockers.length > 0) ? (
+                    <Alert
+                        severity={previewStale ? "info" : "warning"}
+                        role="status"
+                        id={`${applyReasonId}-blocked`}
+                        data-testid="package-blocked"
+                        data-historical={previewStale ? "true" : undefined}
+                    >
+                        {previewStale && (
+                            <Typography
+                                variant="body2"
+                                sx={{fontWeight: "medium"}}
+                                data-testid="package-blocked-historical"
                             >
-                                {previewStale && (
+                                {t("configurationPackage.hub.historicalBlockers")}
+                            </Typography>
+                        )}
+                        <Typography
+                            variant="body2"
+                            sx={{fontWeight: previewStale ? undefined : "medium"}}
+                        >
+                            {t(
+                                hasRefusalDetails
+                                    ? "configurationPackage.blocked"
+                                    : "configurationPackage.workflow.previewRefusalWithoutDetails"
+                            )}
+                        </Typography>
+                        {hasRefusalDetails && (
+                            <Box component="ul" sx={{m: 0, mt: 0.5, pl: 2.5}}>
+                                {blockers.map((blocker, index) => (
                                     <Typography
+                                        component="li"
                                         variant="body2"
-                                        sx={{fontWeight: "medium"}}
-                                        data-testid="package-blocked-historical"
+                                        key={`${index}:${blocker}`}
                                     >
-                                        {t("configurationPackage.hub.historicalBlockers")}
+                                        {safeText(blocker)}
+                                    </Typography>
+                                ))}
+                                {missingSections.map((section, index) => (
+                                    <Typography
+                                        component="li"
+                                        variant="body2"
+                                        key={`missing:${index}:${section}`}
+                                    >
+                                        {t("configurationPackage.workflow.missingSection", {
+                                            section: knownSections.includes(section)
+                                                ? t(`configurationPackage.sections.${section}`)
+                                                : safeText(section),
+                                        })}
+                                    </Typography>
+                                ))}
+                                {refusal?.censusMissing && (
+                                    <Typography component="li" variant="body2">
+                                        {t("configurationPackage.workflow.missingCensus")}
                                     </Typography>
                                 )}
-                                <Typography
-                                    variant="body2"
-                                    sx={{fontWeight: previewStale ? undefined : "medium"}}
-                                >
-                                    {t(
-                                        hasRefusalDetails
-                                            ? "configurationPackage.blocked"
-                                            : "configurationPackage.workflow.previewRefusalWithoutDetails"
-                                    )}
-                                </Typography>
-                                {hasRefusalDetails && (
-                                    <Box component="ul" sx={{m: 0, mt: 0.5, pl: 2.5}}>
-                                        {blockers.map((blocker, index) => (
-                                            <Typography
-                                                component="li"
-                                                variant="body2"
-                                                key={`${index}:${blocker}`}
-                                            >
-                                                {safeText(blocker)}
-                                            </Typography>
-                                        ))}
-                                        {missingSections.map((section, index) => (
-                                            <Typography
-                                                component="li"
-                                                variant="body2"
-                                                key={`missing:${index}:${section}`}
-                                            >
-                                                {t("configurationPackage.workflow.missingSection", {
-                                                    section: knownSections.includes(section)
-                                                        ? t(
-                                                              `configurationPackage.sections.${section}`
-                                                          )
-                                                        : safeText(section),
-                                                })}
-                                            </Typography>
-                                        ))}
-                                        {refusal?.censusMissing && (
-                                            <Typography component="li" variant="body2">
-                                                {t("configurationPackage.workflow.missingCensus")}
-                                            </Typography>
-                                        )}
-                                    </Box>
-                                )}
-                            </Alert>
-                        ) : null}
-                        {previewTrustChanged && (
-                            <Alert severity="warning" role="status" id={`${applyReasonId}-trust`}>
-                                {t("configurationPackage.roster.previewAgain")}
-                            </Alert>
+                            </Box>
                         )}
-                        {shaMismatch && (
-                            <Alert
-                                severity="error"
-                                sx={{overflowWrap: "anywhere"}}
-                                data-testid="package-sha-mismatch"
-                                id={`${applyReasonId}-sha`}
-                            >
-                                {t("configurationPackage.shaMismatch", {expected: expectedSha})}
-                            </Alert>
-                        )}
-                        {error && (
-                            <Alert
-                                severity="error"
-                                sx={{overflowWrap: "anywhere"}}
-                                data-testid="package-error"
-                            >
-                                {safeText(error)}
-                            </Alert>
-                        )}
+                    </Alert>
+                ) : null}
+                {previewTrustChanged && (
+                    <Alert severity="warning" role="status" id={`${applyReasonId}-trust`}>
+                        {t("configurationPackage.roster.previewAgain")}
+                    </Alert>
+                )}
+                {shaMismatch && (
+                    <Alert
+                        severity="error"
+                        sx={{overflowWrap: "anywhere"}}
+                        data-testid="package-sha-mismatch"
+                        id={`${applyReasonId}-sha`}
+                    >
+                        {t("configurationPackage.shaMismatch", {expected: expectedSha})}
+                    </Alert>
+                )}
+                {error && (
+                    <Alert
+                        severity="error"
+                        sx={{overflowWrap: "anywhere"}}
+                        data-testid="package-error"
+                    >
+                        {safeText(error)}
+                    </Alert>
+                )}
             </Stack>
         </Paper>
     )
@@ -999,230 +999,229 @@ const SettingsConfigurationPackageForScope: React.FC<{
                         })}
                     </List>
                 </Paper>
-                    {submitted && (
-                        <Paper
-                            component="section"
-                            variant="outlined"
-                            aria-labelledby={runHeadingId}
-                            sx={{p: 2, minWidth: 0, overflowWrap: "anywhere"}}
-                            data-testid="package-run"
-                        >
-                            <Typography id={runHeadingId} variant="h6" component="h3">
-                                {t("configurationPackage.workflow.result")}
-                            </Typography>
-                            <Typography variant="subtitle1" component="h4" sx={{mt: 1}}>
-                                {t(`configurationPackage.mode.${submitted.mode}`)}
-                            </Typography>
-                            <Typography
-                                variant="body2"
-                                data-testid="package-outcome"
-                                hidden={!!retry}
-                                aria-live="polite"
-                                aria-atomic="true"
-                                sx={{fontWeight: "medium"}}
-                            >
-                                {unreadable
-                                    ? t("configurationPackage.unreadable", {
-                                          reason: taskError?.message
-                                              ? safeText(taskError.message)
-                                              : t("configurationPackage.notFound"),
-                                      })
-                                    : noRecord
-                                      ? t("configurationPackage.stoppedWithoutRecord")
-                                      : finished
-                                        ? t(
-                                              `configurationPackage.outcome.${view?.outcome ?? "unknown"}`
-                                          )
-                                        : t("configurationPackage.running")}
-                            </Typography>
-                            {retry && (
-                                <Alert
-                                    severity="warning"
-                                    sx={{mt: 1}}
-                                    data-testid="package-retry-requirements"
-                                >
-                                    <Typography variant="body2" data-testid="package-retry-outcome">
-                                        {t("configurationPackage.retryRequirements.refused")}
-                                    </Typography>
-                                    <Typography variant="body2">
-                                        {t("configurationPackage.retryRequirements.original", {
-                                            sections:
-                                                retry.requirements.sections
-                                                    .map((section) =>
-                                                        t(
-                                                            `configurationPackage.sections.${section}`
-                                                        )
-                                                    )
-                                                    .join(", ") ||
-                                                t("configurationPackage.retryRequirements.none"),
-                                        })}
-                                    </Typography>
-                                    <Typography variant="body2">
-                                        {t(
-                                            `configurationPackage.retryRequirements.${retry.requirements.census}`
-                                        )}
-                                    </Typography>
-                                    <Button
-                                        variant="outlined"
-                                        size="small"
-                                        sx={{mt: 1}}
-                                        disabled={running || !permitsImport}
-                                        onClick={previewOriginalRequirements}
-                                    >
-                                        {t("configurationPackage.retryRequirements.preview")}
-                                    </Button>
-                                </Alert>
-                            )}
-                            {noRecord && !retry && lastLogLine(task?.logs) && (
-                                <Typography variant="body2" data-testid="package-last-log">
-                                    {t("configurationPackage.lastLog", {
-                                        message: safeText(lastLogLine(task?.logs) ?? ""),
-                                    })}
-                                </Typography>
-                            )}
-                            {view && finished && view.outcome === "previewed" && (
-                                <Typography variant="body2">
-                                    {t("configurationPackage.toChange", {
-                                        count: sectionsToChange(view),
-                                    })}
-                                </Typography>
-                            )}
-                            {view && (
-                                <Box sx={{my: 1.5}}>
-                                    <ApplicationTable view={view} />
-                                </Box>
-                            )}
-                            <Typography variant="body2" data-testid="package-task">
-                                {t("configurationPackage.task", {taskId: submitted.taskId})}
-                            </Typography>
-                            <Button
-                                size="small"
-                                sx={{mt: 1}}
-                                data-testid="package-stop-following"
-                                onClick={stopFollowing}
-                            >
-                                {t("configurationPackage.stopFollowing")}
-                            </Button>
-                        </Paper>
-                    )}
+                {submitted && (
                     <Paper
                         component="section"
                         variant="outlined"
-                        aria-labelledby={advancedHeadingId}
-                        sx={{p: 2, minWidth: 0}}
-                        data-testid="package-advanced"
+                        aria-labelledby={runHeadingId}
+                        sx={{p: 2, minWidth: 0, overflowWrap: "anywhere"}}
+                        data-testid="package-run"
                     >
-                        {/* Uncontrolled: closed by default; only Change requirements opens it, never state. */}
-                        <Box component="details" ref={advancedRef} data-testid="package-advanced-details">
+                        <Typography id={runHeadingId} variant="h6" component="h3">
+                            {t("configurationPackage.workflow.result")}
+                        </Typography>
+                        <Typography variant="subtitle1" component="h4" sx={{mt: 1}}>
+                            {t(`configurationPackage.mode.${submitted.mode}`)}
+                        </Typography>
+                        <Typography
+                            variant="body2"
+                            data-testid="package-outcome"
+                            hidden={!!retry}
+                            aria-live="polite"
+                            aria-atomic="true"
+                            sx={{fontWeight: "medium"}}
+                        >
+                            {unreadable
+                                ? t("configurationPackage.unreadable", {
+                                      reason: taskError?.message
+                                          ? safeText(taskError.message)
+                                          : t("configurationPackage.notFound"),
+                                  })
+                                : noRecord
+                                  ? t("configurationPackage.stoppedWithoutRecord")
+                                  : finished
+                                    ? t(
+                                          `configurationPackage.outcome.${view?.outcome ?? "unknown"}`
+                                      )
+                                    : t("configurationPackage.running")}
+                        </Typography>
+                        {retry && (
+                            <Alert
+                                severity="warning"
+                                sx={{mt: 1}}
+                                data-testid="package-retry-requirements"
+                            >
+                                <Typography variant="body2" data-testid="package-retry-outcome">
+                                    {t("configurationPackage.retryRequirements.refused")}
+                                </Typography>
+                                <Typography variant="body2">
+                                    {t("configurationPackage.retryRequirements.original", {
+                                        sections:
+                                            retry.requirements.sections
+                                                .map((section) =>
+                                                    t(`configurationPackage.sections.${section}`)
+                                                )
+                                                .join(", ") ||
+                                            t("configurationPackage.retryRequirements.none"),
+                                    })}
+                                </Typography>
+                                <Typography variant="body2">
+                                    {t(
+                                        `configurationPackage.retryRequirements.${retry.requirements.census}`
+                                    )}
+                                </Typography>
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    sx={{mt: 1}}
+                                    disabled={running || !permitsImport}
+                                    onClick={previewOriginalRequirements}
+                                >
+                                    {t("configurationPackage.retryRequirements.preview")}
+                                </Button>
+                            </Alert>
+                        )}
+                        {noRecord && !retry && lastLogLine(task?.logs) && (
+                            <Typography variant="body2" data-testid="package-last-log">
+                                {t("configurationPackage.lastLog", {
+                                    message: safeText(lastLogLine(task?.logs) ?? ""),
+                                })}
+                            </Typography>
+                        )}
+                        {view && finished && view.outcome === "previewed" && (
+                            <Typography variant="body2">
+                                {t("configurationPackage.toChange", {
+                                    count: sectionsToChange(view),
+                                })}
+                            </Typography>
+                        )}
+                        {view && (
+                            <Box sx={{my: 1.5}}>
+                                <ApplicationTable view={view} />
+                            </Box>
+                        )}
+                        <Typography variant="body2" data-testid="package-task">
+                            {t("configurationPackage.task", {taskId: submitted.taskId})}
+                        </Typography>
+                        <Button
+                            size="small"
+                            sx={{mt: 1}}
+                            data-testid="package-stop-following"
+                            onClick={stopFollowing}
+                        >
+                            {t("configurationPackage.stopFollowing")}
+                        </Button>
+                    </Paper>
+                )}
+                <Paper
+                    component="section"
+                    variant="outlined"
+                    aria-labelledby={advancedHeadingId}
+                    sx={{p: 2, minWidth: 0}}
+                    data-testid="package-advanced"
+                >
+                    {/* Uncontrolled: closed by default; only Change requirements opens it, never state. */}
+                    <Box
+                        component="details"
+                        ref={advancedRef}
+                        data-testid="package-advanced-details"
+                    >
+                        <Box
+                            component="summary"
+                            sx={{
+                                "cursor": "pointer",
+                                "borderRadius": 1,
+                                "&:focus-visible": {
+                                    outline: (theme) => `2px solid ${theme.palette.primary.main}`,
+                                    outlineOffset: 2,
+                                },
+                            }}
+                        >
+                            <Typography id={advancedHeadingId} component="span" variant="h6">
+                                {t("configurationPackage.advanced")}
+                            </Typography>
+                            <Typography
+                                component="span"
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{display: "block"}}
+                            >
+                                <RequirementsSummary requirements={requirements} />
+                            </Typography>
+                        </Box>
+                        <Box sx={{my: 2}}>
+                            <RequirementsPicker
+                                requirements={requirements}
+                                onToggleSection={toggleSection}
+                                onCensus={setCensus}
+                            />
+                        </Box>
+                        {showManualEntry && (
                             <Box
-                                component="summary"
                                 sx={{
-                                    "cursor": "pointer",
-                                    "borderRadius": 1,
-                                    "&:focus-visible": {
-                                        outline: (theme) =>
-                                            `2px solid ${theme.palette.primary.main}`,
-                                        outlineOffset: 2,
-                                    },
+                                    display: "flex",
+                                    gap: 2,
+                                    alignItems: "center",
+                                    flexWrap: "wrap",
                                 }}
                             >
-                                <Typography id={advancedHeadingId} component="span" variant="h6">
-                                    {t("configurationPackage.advanced")}
-                                </Typography>
-                                <Typography
-                                    component="span"
-                                    variant="body2"
-                                    color="text.secondary"
-                                    sx={{display: "block"}}
-                                >
-                                    <RequirementsSummary requirements={requirements} />
-                                </Typography>
-                            </Box>
-                            <Box sx={{my: 2}}>
-                                <RequirementsPicker
-                                    requirements={requirements}
-                                    onToggleSection={toggleSection}
-                                    onCensus={setCensus}
+                                <TextField
+                                    size="small"
+                                    fullWidth
+                                    label={String(
+                                        t(
+                                            roster.status?.mode === "portal_managed"
+                                                ? "configurationPackage.signedDocumentId"
+                                                : "configurationPackage.documentId"
+                                        )
+                                    )}
+                                    helperText={String(
+                                        t("configurationPackage.existingDocumentHelp")
+                                    )}
+                                    slotProps={{
+                                        formHelperText: {
+                                            sx: {"&.Mui-disabled": {color: "text.secondary"}},
+                                        },
+                                    }}
+                                    disabled={running || !permitsImport}
+                                    value={typedDocumentId}
+                                    onChange={(event) => {
+                                        setPreviewed(null)
+                                        setTypedDocumentId(event.target.value)
+                                    }}
                                 />
-                            </Box>
-                            {showManualEntry && (
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        gap: 2,
-                                        alignItems: "center",
-                                        flexWrap: "wrap",
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    disabled={running || !permitsImport || !typedDocumentId.trim()}
+                                    onClick={() => {
+                                        const document = typedDocumentId.trim()
+                                        setDocumentId(document)
+                                        // A typed document id carries no entered digest.
+                                        setExpectedSha(null)
+                                        submit("preview", document, null)
                                     }}
                                 >
-                                    <TextField
-                                        size="small"
-                                        fullWidth
-                                        label={String(
-                                            t(
-                                                roster.status?.mode === "portal_managed"
-                                                    ? "configurationPackage.signedDocumentId"
-                                                    : "configurationPackage.documentId"
-                                            )
-                                        )}
-                                        helperText={String(
-                                            t("configurationPackage.existingDocumentHelp")
-                                        )}
-                                        slotProps={{
-                                            formHelperText: {
-                                                sx: {"&.Mui-disabled": {color: "text.secondary"}},
-                                            },
-                                        }}
-                                        disabled={running || !permitsImport}
-                                        value={typedDocumentId}
-                                        onChange={(event) => {
-                                            setPreviewed(null)
-                                            setTypedDocumentId(event.target.value)
-                                        }}
-                                    />
-                                    <Button
-                                        variant="outlined"
-                                        size="small"
-                                        disabled={
-                                            running || !permitsImport || !typedDocumentId.trim()
-                                        }
-                                        onClick={() => {
-                                            const document = typedDocumentId.trim()
-                                            setDocumentId(document)
-                                            // A typed document id carries no entered digest.
-                                            setExpectedSha(null)
-                                            submit("preview", document, null)
-                                        }}
-                                    >
-                                        {t("configurationPackage.preview")}
-                                    </Button>
+                                    {t("configurationPackage.preview")}
+                                </Button>
+                            </Box>
+                        )}
+                        {roster.status?.mode === "not_enabled" && (
+                            <Box sx={{my: 2}}>
+                                <Button
+                                    variant="text"
+                                    aria-expanded={legacySetupTenant === tenantId}
+                                    aria-controls={legacySetupId}
+                                    onClick={() =>
+                                        setLegacySetupTenant(
+                                            legacySetupTenant === tenantId ? null : tenantId
+                                        )
+                                    }
+                                >
+                                    {t("configurationPackage.legacySetup")}
+                                </Button>
+                                <Box id={legacySetupId}>
+                                    {legacySetupTenant === tenantId && (
+                                        <ConfigurationSigningSettings
+                                            key={tenantId}
+                                            tenantId={tenantId}
+                                        />
+                                    )}
                                 </Box>
-                            )}
-                            {roster.status?.mode === "not_enabled" && (
-                                <Box sx={{my: 2}}>
-                                    <Button
-                                        variant="text"
-                                        aria-expanded={legacySetupTenant === tenantId}
-                                        aria-controls={legacySetupId}
-                                        onClick={() =>
-                                            setLegacySetupTenant(
-                                                legacySetupTenant === tenantId ? null : tenantId
-                                            )
-                                        }
-                                    >
-                                        {t("configurationPackage.legacySetup")}
-                                    </Button>
-                                    <Box id={legacySetupId}>
-                                        {legacySetupTenant === tenantId && (
-                                            <ConfigurationSigningSettings
-                                                key={tenantId}
-                                                tenantId={tenantId}
-                                            />
-                                        )}
-                                    </Box>
-                                </Box>
-                            )}
-                        </Box>
-                    </Paper>
+                            </Box>
+                        )}
+                    </Box>
+                </Paper>
             </Stack>
         </Box>
     )
@@ -1273,40 +1272,40 @@ const SettingsConfigurationPackageForScope: React.FC<{
 
     const trustPanel = (
         <Stack spacing={1.5} sx={{minWidth: 0}} data-testid="package-trust-panel">
-                    {roster.status?.mode !== "not_enabled" && (
-                        <Paper
-                            component="section"
-                            variant="outlined"
-                            aria-label={String(t("configurationPackage.workflow.trust"))}
-                            sx={{px: 2, pb: 2, minWidth: 0}}
-                        >
-                            <ArchitectSignerRoster
-                                tenantId={tenantId}
-                                status={roster.status}
-                                loading={roster.loading}
-                                statusTextId={rosterStatusId}
-                                refresh={roster.read}
-                            />
-                        </Paper>
-                    )}
-                    <Paper variant="outlined" sx={{px: 2, minWidth: 0}}>
-                        <ArchitectApprovalPolicy key={tenantId} tenantId={tenantId} />
-                    </Paper>
+            {roster.status?.mode !== "not_enabled" && (
+                <Paper
+                    component="section"
+                    variant="outlined"
+                    aria-label={String(t("configurationPackage.workflow.trust"))}
+                    sx={{px: 2, pb: 2, minWidth: 0}}
+                >
+                    <ArchitectSignerRoster
+                        tenantId={tenantId}
+                        status={roster.status}
+                        loading={roster.loading}
+                        statusTextId={rosterStatusId}
+                        refresh={roster.read}
+                    />
+                </Paper>
+            )}
+            <Paper variant="outlined" sx={{px: 2, minWidth: 0}}>
+                <ArchitectApprovalPolicy key={tenantId} tenantId={tenantId} />
+            </Paper>
         </Stack>
     )
 
     const historyPanel = (
         <Paper
-                        component="section"
-                        variant="outlined"
-                        aria-labelledby={historyHeadingId}
-                        sx={{p: 2, minWidth: 0}}
-                    >
-                        <Typography id={historyHeadingId} variant="h6" component="h3">
-                            {t("configurationPackage.history")}
-                        </Typography>
-                        <ApplicationHistory rows={historyData?.sequent_backend_tasks_execution} />
-                    </Paper>
+            component="section"
+            variant="outlined"
+            aria-labelledby={historyHeadingId}
+            sx={{p: 2, minWidth: 0}}
+        >
+            <Typography id={historyHeadingId} variant="h6" component="h3">
+                {t("configurationPackage.history")}
+            </Typography>
+            <ApplicationHistory rows={historyData?.sequent_backend_tasks_execution} />
+        </Paper>
     )
 
     return (
@@ -1329,7 +1328,11 @@ const SettingsConfigurationPackageForScope: React.FC<{
                 phase={phase}
                 trust={trustSummary}
                 // The roster panel carries this id while Signing trust is open.
-                trustTextId={tab === "trust" && roster.status?.mode !== "not_enabled" ? undefined : rosterStatusId}
+                trustTextId={
+                    tab === "trust" && roster.status?.mode !== "not_enabled"
+                        ? undefined
+                        : rosterStatusId
+                }
                 onTrust={() => setTab("trust")}
                 actions={
                     <>
@@ -1569,7 +1572,8 @@ const SettingsConfigurationPackageForScope: React.FC<{
                                         <Box component="dd" sx={{m: 0}}>
                                             {t("configurationPackage.hub.rosterBinding", {
                                                 generation: previewed.managedBinding.generation,
-                                                approvals: previewed.managedBinding.requiredApprovals,
+                                                approvals:
+                                                    previewed.managedBinding.requiredApprovals,
                                             })}
                                         </Box>
                                     </>
@@ -1896,7 +1900,10 @@ const ApplicationHistory: React.FC<{
               [String(t("configurationPackage.hub.historyStarted")), selected.created_at],
               ...(selected.executed_by_user
                   ? ([
-                        [String(t("configurationPackage.hub.receipt.by")), selected.executed_by_user],
+                        [
+                            String(t("configurationPackage.hub.receipt.by")),
+                            selected.executed_by_user,
+                        ],
                     ] as [string, string][])
                   : []),
               ...(identity?.packageSha256
@@ -1998,7 +2005,9 @@ const ApplicationHistory: React.FC<{
                                 {/* Only a stored applied outcome is green; a bare execution status stays neutral. */}
                                 <Chip
                                     size="small"
-                                    variant={rowRecord?.outcome === "applied" ? "filled" : "outlined"}
+                                    variant={
+                                        rowRecord?.outcome === "applied" ? "filled" : "outlined"
+                                    }
                                     color={rowRecord?.outcome === "applied" ? "success" : "default"}
                                     label={String(outcome ?? "?")}
                                     sx={{

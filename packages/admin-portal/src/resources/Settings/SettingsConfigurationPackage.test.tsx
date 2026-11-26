@@ -730,9 +730,7 @@ it("treats a CANCELLED task as finished, not running", async () => {
         "configurationPackage.stoppedWithoutRecord"
     )
     expect(mockStopPolling).toHaveBeenCalled()
-    expect((screen.getByTestId("package-upload") as HTMLButtonElement).disabled).toBe(
-        false
-    )
+    expect((screen.getByTestId("package-upload") as HTMLButtonElement).disabled).toBe(false)
 })
 
 describe("a task that cannot be read", () => {
@@ -749,9 +747,7 @@ describe("a task that cannot be read", () => {
             "configurationPackage.unreadable"
         )
         // Not locked: the operator can upload again or stop following.
-        expect(
-            (screen.getByTestId("package-upload") as HTMLButtonElement).disabled
-        ).toBe(false)
+        expect((screen.getByTestId("package-upload") as HTMLButtonElement).disabled).toBe(false)
         fireEvent.click(screen.getByTestId("package-stop-following"))
         expect(screen.queryByTestId("package-run")).toBeNull()
         expect(sessionStorage.getItem("configurationPackage.active.t1")).toBeNull()
@@ -1113,9 +1109,7 @@ it.each([null, {...managedRoster, generation: "0", active_sha256: null}])(
     (status) => {
         mockRoster = status
         render(<SettingsConfigurationPackage />)
-        expect(
-            (screen.getByTestId("package-upload") as HTMLButtonElement).disabled
-        ).toBe(true)
+        expect((screen.getByTestId("package-upload") as HTMLButtonElement).disabled).toBe(true)
         expect(mockApply).not.toHaveBeenCalled()
     }
 )
@@ -1423,9 +1417,7 @@ describe("configuration package hub layout", () => {
         expect(applyButton().hidden).toBe(false)
         fireEvent.click(applyButton())
         expect(screen.getByTestId("package-apply-confirm")).toBeTruthy()
-        expect(mockApply.mock.calls.map(([options]) => options.variables.mode)).toEqual([
-            "preview",
-        ])
+        expect(mockApply.mock.calls.map(([options]) => options.variables.mode)).toEqual(["preview"])
     })
 
     it("offers only Import fixed package and Change requirements for a blocked preview", async () => {
@@ -1446,14 +1438,16 @@ describe("configuration package hub layout", () => {
         expect(applyButton().disabled).toBe(true)
         // The recorded reasons come before the section list, so a phone stacks them first.
         expect(
-            screen.getByTestId("package-blocked").compareDocumentPosition(
-                screen.getByTestId("package-section-rows")
-            ) & Node.DOCUMENT_POSITION_FOLLOWING
+            screen
+                .getByTestId("package-blocked")
+                .compareDocumentPosition(screen.getByTestId("package-section-rows")) &
+                Node.DOCUMENT_POSITION_FOLLOWING
         ).toBeTruthy()
         expect(
-            screen.getByTestId("package-run-card").compareDocumentPosition(
-                screen.getByTestId("package-receipt")
-            ) & Node.DOCUMENT_POSITION_FOLLOWING
+            screen
+                .getByTestId("package-run-card")
+                .compareDocumentPosition(screen.getByTestId("package-receipt")) &
+                Node.DOCUMENT_POSITION_FOLLOWING
         ).toBeTruthy()
         const badge = (section: string) =>
             screen
@@ -1473,9 +1467,11 @@ describe("configuration package hub layout", () => {
         ).toEqual(["done", "blocked", "pending", "pending"])
         fireEvent.click(screen.getByTestId("package-change-requirements"))
         const picker = screen.getByTestId("package-requirements-picker")
-        expect(within(screen.getByTestId("package-upload-drawer")).getByTestId(
-            "package-requirements-picker"
-        )).toBe(picker)
+        expect(
+            within(screen.getByTestId("package-upload-drawer")).getByTestId(
+                "package-requirements-picker"
+            )
+        ).toBe(picker)
         expect(
             Array.from(picker.querySelectorAll("input[type=checkbox]")).map((box) =>
                 box.getAttribute("aria-label")
@@ -1563,9 +1559,7 @@ describe("configuration package hub layout", () => {
                 (item) => item.textContent
             )
         ).toEqual(["configurationPackage.sections.tenant-configuration"])
-        expect(mockApply.mock.calls.map(([options]) => options.variables.mode)).toEqual([
-            "preview",
-        ])
+        expect(mockApply.mock.calls.map(([options]) => options.variables.mode)).toEqual(["preview"])
     })
 
     it("shows a selected run's recorded identity and section results in History", () => {
@@ -1666,11 +1660,7 @@ describe("configuration package hub layout", () => {
         ])
         expect(applyButton().disabled).toBe(true)
         // The new Preview's own refusal is current, not historical.
-        mockTask = task(
-            "task-p2",
-            "FAILED",
-            refusedPreview(["unknown role x"])
-        )
+        mockTask = task("task-p2", "FAILED", refusedPreview(["unknown role x"]))
         rerender(<SettingsConfigurationPackage />)
         expect(screen.getByTestId("package-blocked").getAttribute("data-historical")).toBeNull()
         expect(mockManagedApply).not.toHaveBeenCalled()

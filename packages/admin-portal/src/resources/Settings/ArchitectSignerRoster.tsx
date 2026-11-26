@@ -500,7 +500,15 @@ const RosterSetup: React.FC<{
                         component="ol"
                         aria-label={String(t("configurationPackage.roster.steps.label"))}
                         data-testid="signer-roster-steps"
-                        sx={{display: "flex", flexWrap: "wrap", gap: 2, listStyle: "none", m: 0, mb: 2, p: 0}}
+                        sx={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 2,
+                            listStyle: "none",
+                            m: 0,
+                            mb: 2,
+                            p: 0,
+                        }}
                     >
                         {(["choose", "verify", "activate"] as const).map((step, index) => {
                             const current = candidate ? 1 : 0
@@ -512,7 +520,8 @@ const RosterSetup: React.FC<{
                                     sx={{
                                         typography: "body2",
                                         fontWeight: index === current ? 500 : 400,
-                                        color: index === current ? "text.primary" : "text.secondary",
+                                        color:
+                                            index === current ? "text.primary" : "text.secondary",
                                     }}
                                 >
                                     {index < current ? "✓ " : `${index + 1}. `}

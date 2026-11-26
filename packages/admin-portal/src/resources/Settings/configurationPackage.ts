@@ -208,8 +208,7 @@ export const readManagedPreview = (
  */
 export const proposesChange = (section: SectionView): boolean =>
     !!section.preview?.needsApply ||
-    (section.section === "messaging-accounts" &&
-        changeEntries(section.preview?.changes).length > 0)
+    (section.section === "messaging-accounts" && changeEntries(section.preview?.changes).length > 0)
 
 /** How many sections a preview would change. */
 export const sectionsToChange = (view: ApplicationView): number =>

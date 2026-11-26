@@ -34,8 +34,18 @@ describe("sectionBadge reads only the recorded section state", () => {
     it.each<[string, Partial<SectionView>, boolean, string]>([
         ["applied", {}, false, "applied"],
         ["unchanged", {}, false, "unchanged"],
-        ["previewed", {preview: {needsApply: true, changes: [], blockers: []}}, false, "willChange"],
-        ["previewed", {preview: {needsApply: false, changes: [], blockers: []}}, false, "unchanged"],
+        [
+            "previewed",
+            {preview: {needsApply: true, changes: [], blockers: []}},
+            false,
+            "willChange",
+        ],
+        [
+            "previewed",
+            {preview: {needsApply: false, changes: [], blockers: []}},
+            false,
+            "unchanged",
+        ],
         ["blocked", {}, false, "blocked"],
         ["missing", {}, false, "missing"],
         ["not-included", {}, false, "notInPackage"],
@@ -128,7 +138,10 @@ describe("headerActions", () => {
         expect(Object.values(actions)).not.toContain("reviewAndApply")
     })
     it("offers Preview again for an out-of-date preview, never Apply", () => {
-        expect(headerActions("previewAgain")).toEqual({primary: "previewAgain", secondary: "upload"})
+        expect(headerActions("previewAgain")).toEqual({
+            primary: "previewAgain",
+            secondary: "upload",
+        })
     })
     it("routes a missing signer roster to Signing trust, keeping import disabled", () => {
         expect(headerActions("trustBlocked", "missingRoster")).toEqual({
@@ -206,7 +219,10 @@ describe("readRunIdentity: only what the platform persisted on the run", () => {
     it("reads the bound requirements and signer roster generation", () => {
         const annotations = record("previewed")
         Object.assign(annotations.application, {
-            managedRequirements: {sections: ["trustees", "tenant-configuration"], census: "required"},
+            managedRequirements: {
+                sections: ["trustees", "tenant-configuration"],
+                census: "required",
+            },
             managedRosterBinding: {sha256: "ab".repeat(32), generation: 3, requiredApprovals: 2},
         })
         expect(readRunIdentity(annotations)).toEqual({
@@ -216,7 +232,9 @@ describe("readRunIdentity: only what the platform persisted on the run", () => {
         })
     })
     it("omits what a run did not record instead of guessing", () => {
-        expect(readRunIdentity(record("applied"))).toEqual({packageSha256: "abcdef0123456789abcdef"})
+        expect(readRunIdentity(record("applied"))).toEqual({
+            packageSha256: "abcdef0123456789abcdef",
+        })
         expect(readRunIdentity({})).toBeNull()
     })
     it("ignores malformed bindings and unknown sections", () => {

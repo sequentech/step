@@ -190,11 +190,7 @@ async function showAdvanced(canvasElement: HTMLElement) {
 
 async function preview(canvasElement: HTMLElement) {
     const canvas = within(canvasElement)
-    await waitFor(() =>
-        expect(
-            canvas.getByTestId("package-upload")
-        ).toBeEnabled()
-    )
+    await waitFor(() => expect(canvas.getByTestId("package-upload")).toBeEnabled())
     await showAdvanced(canvasElement)
     await userEvent.type(
         canvas.getByRole("textbox", {name: i18n.t("configurationPackage.documentId")}),
@@ -307,11 +303,7 @@ export const PermissionRequired: Story = {
 export const UploadFirst: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await waitFor(() =>
-            expect(
-                canvas.getByTestId("package-upload")
-            ).toBeEnabled()
-        )
+        await waitFor(() => expect(canvas.getByTestId("package-upload")).toBeEnabled())
         await expect(
             canvas.getByRole("region", {name: i18n.t("configurationPackage.advanced")})
         ).toBeVisible()
@@ -321,9 +313,7 @@ export const UploadFirst: Story = {
         await expect(
             canvas.getByRole("button", {name: i18n.t("configurationPackage.legacySetup")})
         ).toHaveAttribute("aria-expanded", "false")
-        await userEvent.click(
-            canvas.getByTestId("package-upload")
-        )
+        await userEvent.click(canvas.getByTestId("package-upload"))
         await expect(within(document.body).getByTestId("package-upload-drawer")).toBeVisible()
     },
 }
@@ -332,9 +322,7 @@ export const RosterNotInstalled: Story = {
     args: {managedRoster: true},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(
-            canvas.getByTestId("package-upload")
-        ).toBeDisabled()
+        await expect(canvas.getByTestId("package-upload")).toBeDisabled()
         const upload = canvas.getByTestId("package-upload")
         const disabled = window.getComputedStyle(upload)
         const reference = window.getComputedStyle(canvas.getByTestId("package-apply"))
@@ -403,9 +391,7 @@ export const AppliedReceipt: Story = {
         await waitFor(() =>
             expect(canvas.getByTestId("package-receipt")).toHaveTextContent(storyId(41, 3))
         )
-        await expect(canvas.getByTestId("package-run-card")).not.toHaveTextContent(
-            storyId(41, 3)
-        )
+        await expect(canvas.getByTestId("package-run-card")).not.toHaveTextContent(storyId(41, 3))
         await userEvent.click(canvas.getByTestId("package-rail-history"))
         await expect(canvas.getByTestId("package-history")).toHaveTextContent(storyId(41, 3))
     },
@@ -425,9 +411,7 @@ export const PhoneBlockedPreview: Story = {
         // Nothing wider than the phone: the rail and columns stack.
         await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390)
         await userEvent.click(canvas.getByTestId("package-change-requirements"))
-        await expect(
-            within(document.body).getByTestId("package-requirements-picker")
-        ).toBeVisible()
+        await expect(within(document.body).getByTestId("package-requirements-picker")).toBeVisible()
         expect(graphql.calls.filter(({name}) => name === "ApplyConfigurationPackage")).toHaveLength(
             1
         )

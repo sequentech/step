@@ -115,7 +115,8 @@ const spanishTranslation: TranslationType = {
                 historyStarted: "Inicio",
                 noAccess: {
                     title: "No puedes importar paquetes de configuración en este inquilino.",
-                    missing: "Permisos que faltan: {{permissions}}. Pídeselos a un administrador del inquilino.",
+                    missing:
+                        "Permisos que faltan: {{permissions}}. Pídeselos a un administrador del inquilino.",
                 },
                 rail: {
                     label: "Paquete de configuración",
@@ -138,7 +139,12 @@ const spanishTranslation: TranslationType = {
                     notStarted: "No iniciada",
                     notRun: "Sin ejecutar",
                 },
-                stages: {package: "Paquete", preview: "Previsualización", review: "Revisión", apply: "Aplicación"},
+                stages: {
+                    package: "Paquete",
+                    preview: "Previsualización",
+                    review: "Revisión",
+                    apply: "Aplicación",
+                },
                 stageState: {
                     done: "Hecho",
                     current: "Ahora",

@@ -32,12 +32,7 @@ import {
     TenantReceipt,
     WizardSteps,
 } from "./PackageHub"
-import {
-    headerActions,
-    lastAppliedReceipt,
-    orderedSectionBadges,
-    runStages,
-} from "./packageOverview"
+import {headerActions, lastAppliedReceipt, orderedSectionBadges, runStages} from "./packageOverview"
 
 type Run = "previewed" | "blocked" | "applied" | "failed"
 
@@ -88,9 +83,7 @@ const Hub: React.FC<Scenario> = ({phase, run, mode, trustLabel}) => {
                             )}
                             <Button variant="contained">
                                 {label(
-                                    actions.primary === "upload"
-                                        ? "importPackage"
-                                        : actions.primary
+                                    actions.primary === "upload" ? "importPackage" : actions.primary
                                 )}
                             </Button>
                         </>
@@ -126,7 +119,9 @@ const Hub: React.FC<Scenario> = ({phase, run, mode, trustLabel}) => {
                                     direction="row"
                                     sx={{justifyContent: "space-between"}}
                                 >
-                                    <span>{i18n.t(`configurationPackage.sections.${section}`)}</span>
+                                    <span>
+                                        {i18n.t(`configurationPackage.sections.${section}`)}
+                                    </span>
                                     <SectionBadgeChip badge={badge} />
                                 </Stack>
                             ))}
@@ -282,9 +277,9 @@ export const UploadRequirements: Story = {
     render: () => <RequirementsStep />,
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(canvas.getByTestId("package-wizard-steps").querySelector(
-            '[aria-current="step"]'
-        )).toHaveTextContent(i18n.t("configurationPackage.hub.stages.package"))
+        await expect(
+            canvas.getByTestId("package-wizard-steps").querySelector('[aria-current="step"]')
+        ).toHaveTextContent(i18n.t("configurationPackage.hub.stages.package"))
         // Messaging accounts is opt-in by default; selecting it is one click.
         const messaging = canvas.getByRole("checkbox", {name: "messaging-accounts"})
         await expect(messaging).not.toBeChecked()
