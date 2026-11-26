@@ -213,6 +213,13 @@ export const PortableMessagingReplacement: Story = {
         await userEvent.click(apply)
         const dialog = within(await within(document.body).findByRole("dialog"))
         await waitFor(() => expect(dialog.getByText(warning)).toBeVisible())
+        // Reviewing the replacement never applies it.
+        expect(
+            graphql.calls
+                .filter(({name}) => name === "ApplyConfigurationPackage")
+                .map(({variables}) => variables.mode)
+        ).toEqual(["preview"])
+        expect(graphql.unexpected).toEqual([])
     },
 }
 

@@ -76,6 +76,7 @@ import {
     readApplication,
     recalledSubmission,
     readManagedPreview,
+    readPackageRetry,
     readPortablePreview,
     changeLines,
     hasPortableReplacement,
@@ -325,7 +326,8 @@ const SettingsConfigurationPackageForScope: React.FC<{
         mode: ApplyMode,
         document: string,
         sha: string | null,
-        encryptedPayloadSha256?: string
+        encryptedPayloadSha256?: string,
+        restoredRequirements?: PackageRequirements
     ) => {
         if (packageRequest.current) return
         setError(null)
@@ -334,6 +336,8 @@ const SettingsConfigurationPackageForScope: React.FC<{
             return
         }
         const forTenant = tenantId
+        const submittedRequirements =
+            mode === "preview" && restoredRequirements ? restoredRequirements : requirements
         if (!permitsImport) {
             setError(t("configurationPackage.roster.importUnavailable"))
             return
@@ -391,7 +395,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
                       variables: {
                           tenantId: forTenant,
                           documentId: document,
-                          requirements,
+                          requirements: submittedRequirements,
                           previewTaskId,
                           ...(encryptedPayloadSha256 ? {encryptedPayloadSha256} : {}),
                       },
@@ -401,7 +405,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
                           tenantId: forTenant,
                           documentId: document,
                           mode,
-                          requirements,
+                          requirements: submittedRequirements,
                           ...(encryptedPayloadSha256 ? {encryptedPayloadSha256} : {}),
                       },
                   })
@@ -430,7 +434,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
                 actor: requestScope.actor,
                 mode,
                 documentId: document,
-                requirements,
+                requirements: submittedRequirements,
                 expectedSha: sha,
                 ...(encryptedPayloadSha256 ? {encryptedPayloadSha256} : {}),
             }
@@ -466,6 +470,32 @@ const SettingsConfigurationPackageForScope: React.FC<{
     const changeRequirements = (next: PackageRequirements) => {
         setPreviewed(null)
         setRequirements(next)
+    }
+
+    const retry =
+        !unreadable &&
+        !view &&
+        submitted?.mode === "preview" &&
+        submitted.actor === authContext.userId &&
+        task?.id === submitted.taskId &&
+        task.execution_status === "FAILED" &&
+        documentId === submitted.documentId &&
+        (!typedDocumentId.trim() || typedDocumentId.trim() === submitted.documentId)
+            ? readPackageRetry(task.annotations, tenantId, submitted)
+            : null
+
+    const previewOriginalRequirements = () => {
+        if (!retry || !submitted || running || !permitsImport || packageRequest.current) return
+        changeRequirements(retry.requirements)
+        setExpectedSha(retry.packageSha256)
+        setConfirming(false)
+        void submit(
+            "preview",
+            submitted.documentId,
+            retry.packageSha256,
+            submitted.encryptedPayloadSha256,
+            retry.requirements
+        )
     }
 
     const toggleSection = (section: PackageSection) =>
@@ -675,7 +705,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
                     <Typography variant="body2" data-testid="package-task">
                         {t("configurationPackage.task", {taskId: submitted.taskId})}
                     </Typography>
-                    <Typography variant="body2" data-testid="package-outcome">
+                    <Typography variant="body2" data-testid="package-outcome" hidden={!!retry}>
                         {unreadable
                             ? t("configurationPackage.unreadable", {
                                   reason: taskError?.message
@@ -688,7 +718,43 @@ const SettingsConfigurationPackageForScope: React.FC<{
                                 ? t(`configurationPackage.outcome.${view?.outcome ?? "unknown"}`)
                                 : t("configurationPackage.running")}
                     </Typography>
-                    {noRecord && lastLogLine(task?.logs) && (
+                    {retry && (
+                        <Alert
+                            severity="warning"
+                            sx={{mt: 1}}
+                            data-testid="package-retry-requirements"
+                        >
+                            <Typography variant="body2" data-testid="package-retry-outcome">
+                                {t("configurationPackage.retryRequirements.refused")}
+                            </Typography>
+                            <Typography variant="body2">
+                                {t("configurationPackage.retryRequirements.original", {
+                                    sections:
+                                        retry.requirements.sections
+                                            .map((section) =>
+                                                t(`configurationPackage.sections.${section}`)
+                                            )
+                                            .join(", ") ||
+                                        t("configurationPackage.retryRequirements.none"),
+                                })}
+                            </Typography>
+                            <Typography variant="body2">
+                                {t(
+                                    `configurationPackage.retryRequirements.${retry.requirements.census}`
+                                )}
+                            </Typography>
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                sx={{mt: 1}}
+                                disabled={running || !permitsImport}
+                                onClick={previewOriginalRequirements}
+                            >
+                                {t("configurationPackage.retryRequirements.preview")}
+                            </Button>
+                        </Alert>
+                    )}
+                    {noRecord && !retry && lastLogLine(task?.logs) && (
                         <Typography variant="body2" data-testid="package-last-log">
                             {t("configurationPackage.lastLog", {
                                 message: safeText(lastLogLine(task?.logs) ?? ""),

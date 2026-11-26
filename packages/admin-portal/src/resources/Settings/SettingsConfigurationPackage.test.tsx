@@ -64,6 +64,7 @@ let mockActor = "operator-a"
 let mockTenant = "t1"
 let mockTaskError: unknown = undefined
 let mockSha = ""
+let mockEncryptedSha: string | undefined
 const mockStopPolling = jest.fn()
 const mockRefetch = jest.fn(() => Promise.resolve())
 const mockHistoryOptions = jest.fn()
@@ -134,7 +135,10 @@ jest.mock("@/providers/AuthContextProvider", () => {
 // The real drawer and screen are exercised in SettingsConfigurationPackage.upload.test.tsx.
 jest.mock("@/components/election-event/import-data/ImportScreen", () => ({
     ImportScreen: ({doImport}: any) => (
-        <button onClick={() => doImport("doc-1", mockSha)} data-testid="drawer-upload">
+        <button
+            onClick={() => doImport("doc-1", mockSha, undefined, mockEncryptedSha)}
+            data-testid="drawer-upload"
+        >
             upload
         </button>
     ),
@@ -162,6 +166,7 @@ beforeEach(() => {
     mockTenant = "t1"
     mockTaskError = undefined
     mockSha = ""
+    mockEncryptedSha = undefined
     mockRoster = legacyRoster
     mockRosterRead.mockImplementation(async () => mockRoster)
 })
@@ -474,6 +479,144 @@ it("says plainly when a task stopped without a record, with its last log line", 
     )
     expect(screen.queryByText("configurationPackage.outcome.unknown")).toBeNull()
     expect(applyButton().disabled).toBe(true)
+})
+
+const originalRetryRequirements = {
+    sections: [
+        "tenant-configuration",
+        "tenant-settings",
+        "role-permissions",
+        "admin-accounts",
+        "messaging-accounts",
+        "election-event",
+    ],
+    census: "required",
+}
+
+const retryNotice = {
+    tenantId: "t1",
+    packageSha256: "e7".repeat(32),
+    requirements: originalRetryRequirements,
+}
+
+const retryButton = () =>
+    screen.queryByRole("button", {name: "configurationPackage.retryRequirements.preview"})
+
+it("previews the original six requirements with the same protected upload only on an explicit click", async () => {
+    mockEncryptedSha = retryNotice.packageSha256
+    mockApply.mockResolvedValueOnce(accepted("changed-options"))
+    const {rerender} = render(<SettingsConfigurationPackage />)
+    for (const section of COMPLETE_DELIVERY.sections.filter(
+        (value) => value !== "election-event"
+    )) {
+        fireEvent.click(screen.getByRole("checkbox", {name: section}))
+    }
+    await upload()
+    expect(mockApply.mock.calls[0][0].variables.requirements.sections).toEqual(["election-event"])
+    mockTask = task("changed-options", "FAILED", {packageRetry: retryNotice})
+    rerender(<SettingsConfigurationPackage />)
+    expect(screen.getByTestId("package-retry-outcome").textContent).toContain(
+        "configurationPackage.retryRequirements.refused"
+    )
+    expect(screen.getByTestId("package-retry-requirements").textContent).toContain(
+        "configurationPackage.sections.messaging-accounts"
+    )
+    expect(mockApply).toHaveBeenCalledTimes(1) // polling never restarts an import
+    expect(applyButton().disabled).toBe(true)
+    mockApply.mockResolvedValueOnce(accepted("fresh-preview"))
+    await act(async () => fireEvent.click(retryButton()!))
+    expect(mockApply).toHaveBeenCalledTimes(2)
+    expect(mockApply.mock.calls[1][0].variables).toEqual({
+        tenantId: "t1",
+        documentId: "doc-1",
+        mode: "preview",
+        requirements: originalRetryRequirements,
+        encryptedPayloadSha256: retryNotice.packageSha256,
+    })
+    expect(mockManagedApply).not.toHaveBeenCalled()
+    expect((screen.getByRole("checkbox", {name: "trustees"}) as HTMLInputElement).checked).toBe(
+        false
+    )
+    expect((screen.getByRole("checkbox", {name: "census"}) as HTMLInputElement).checked).toBe(true)
+    expect(applyButton().disabled).toBe(true)
+})
+
+it("will not apply if the re-preview read different bytes from the same document", async () => {
+    mockApply.mockResolvedValueOnce(accepted("changed-options"))
+    const {rerender} = render(<SettingsConfigurationPackage />)
+    await upload()
+    mockTask = task("changed-options", "FAILED", {packageRetry: retryNotice})
+    rerender(<SettingsConfigurationPackage />)
+    mockApply.mockResolvedValueOnce(accepted("fresh-preview"))
+    await act(async () => fireEvent.click(retryButton()!))
+    const changed = record("previewed")
+    changed.application.packageSha256 = "aa".repeat(32)
+    mockTask = task("fresh-preview", "SUCCESS", changed)
+    rerender(<SettingsConfigurationPackage />)
+    expect(screen.getByTestId("package-sha-mismatch")).toBeTruthy()
+    expect(applyButton().disabled).toBe(true)
+    expect(mockApply).toHaveBeenCalledTimes(2)
+    expect(mockManagedApply).not.toHaveBeenCalled()
+})
+
+it.each([
+    ["a different tenant", {tenantId: "other"}],
+    ["different bytes", {packageSha256: "ab".repeat(32)}],
+    ["bad saved options", {requirements: {sections: ["not-a-section"], census: "required"}}],
+])("does not offer a requirements retry for %s", async (_, override) => {
+    mockEncryptedSha = retryNotice.packageSha256
+    mockApply.mockResolvedValueOnce(accepted("changed-options"))
+    const {rerender} = render(<SettingsConfigurationPackage />)
+    await upload()
+    mockTask = task("changed-options", "FAILED", {packageRetry: {...retryNotice, ...override}})
+    rerender(<SettingsConfigurationPackage />)
+    expect(retryButton()).toBeNull()
+    expect(applyButton().disabled).toBe(true)
+    expect(mockApply).toHaveBeenCalledTimes(1)
+})
+
+it("does not offer the retry on a concurrent, completed, cancelled or different task", async () => {
+    mockApply.mockResolvedValueOnce(accepted("changed-options"))
+    const {rerender} = render(<SettingsConfigurationPackage />)
+    await upload()
+    for (const current of [
+        task("changed-options", "IN_PROGRESS", {packageRetry: retryNotice}),
+        task("changed-options", "CANCELLED", {packageRetry: retryNotice}),
+        task("changed-options", "SUCCESS", {...record("applied"), packageRetry: retryNotice}),
+        task("changed-options", "FAILED", {previouslyApplied: {}, packageRetry: retryNotice}),
+        task("other-task", "FAILED", {packageRetry: retryNotice}),
+    ]) {
+        mockTask = current
+        rerender(<SettingsConfigurationPackage />)
+        expect(retryButton()).toBeNull()
+        expect(applyButton().disabled).toBe(true)
+    }
+    expect(mockApply).toHaveBeenCalledTimes(1)
+})
+
+it("does not allow retry when roster trust, authority or selected document changes", async () => {
+    mockApply.mockResolvedValueOnce(accepted("changed-options"))
+    const {rerender} = render(<SettingsConfigurationPackage />)
+    await upload()
+    mockTask = task("changed-options", "FAILED", {packageRetry: retryNotice})
+    rerender(<SettingsConfigurationPackage />)
+    expect(retryButton()).toBeTruthy()
+    const entry = screen.getByRole("textbox", {name: "configurationPackage.documentId"})
+    fireEvent.change(entry, {target: {value: "different-document"}})
+    expect(retryButton()).toBeNull()
+    fireEvent.change(entry, {target: {value: "doc-1"}})
+    mockRoster = {...managedRoster, active_sha256: null}
+    rerender(<SettingsConfigurationPackage />)
+    expect((retryButton() as HTMLButtonElement).disabled).toBe(true)
+    mockAllowed = false
+    rerender(<SettingsConfigurationPackage />)
+    expect(retryButton()).toBeNull()
+    mockActor = "operator-b"
+    mockAllowed = true
+    mockRoster = legacyRoster
+    rerender(<SettingsConfigurationPackage />)
+    expect(retryButton()).toBeNull()
+    expect(mockApply).toHaveBeenCalledTimes(1)
 })
 
 it("treats a CANCELLED task as finished, not running", async () => {

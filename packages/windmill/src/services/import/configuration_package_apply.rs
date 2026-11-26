@@ -270,6 +270,15 @@ pub trait PackageTarget: Send + Sync {
 #[async_trait]
 pub trait ProgressStore: Send + Sync {
     async fn save(&self, record: &ApplicationRecord) -> Result<()>;
+    /// Optional UI guidance attached only to the rejected Preview, never to
+    /// an application receipt. It grants no right to make a fresh request.
+    async fn remember_retry_requirements(
+        &self,
+        _digest: &str,
+        _requirements: &Requirements,
+    ) -> Result<()> {
+        Ok(())
+    }
     /// Confirm the run still holds its claim. Asked before every step that
     /// submits or decides a submission, so a run that lost it stops.
     async fn hold(&self) -> Result<()> {
@@ -477,17 +486,36 @@ pub async fn run(
         }
     }
     require_same_roster(mode, prior, target.managed_roster_binding())?;
-    if (target.managed_roster_binding().is_some()
-        || target.managed_preview_operator_binding().is_some())
-        && prior.is_some_and(|record| {
-            application_started(record)
-                && (record.managed_requirements.as_ref() != Some(&plan.requirements)
-                    || !same_coverage(&record.coverage, &plan.coverage))
-        })
-    {
-        return Err(anyhow!(
-            "the confirmed plan changed since package application began; resolve the previous application before retrying"
-        ));
+    if let Some(previous) = prior.filter(|record| {
+        (target.managed_roster_binding().is_some()
+            || target.managed_preview_operator_binding().is_some())
+            && application_started(record)
+    }) {
+        if previous.managed_requirements.as_ref() != Some(&plan.requirements) {
+            if let Some(original) = previous
+                .managed_requirements
+                .as_ref()
+                .filter(|_| mode == ApplyMode::Preview && previous.format == APPLICATION_FORMAT)
+            {
+                store.hold().await?;
+                // A failed hint write must not turn the refusal into a usable Preview.
+                if store
+                    .remember_retry_requirements(&plan.package_sha256, original)
+                    .await
+                    .is_err()
+                {
+                    tracing::warn!("Could not record configuration package retry requirements");
+                }
+            }
+            return Err(anyhow!(
+                "the required sections or census setting differ from the original application. This retry did not change the tenant; preview again with the original requirements"
+            ));
+        }
+        if !same_coverage(&previous.coverage, &plan.coverage) {
+            return Err(anyhow!(
+                "the confirmed package coverage changed since application began. This retry did not change the tenant; resolve the previous application before retrying"
+            ));
+        }
     }
     let mut record = ApplicationRecord {
         format: APPLICATION_FORMAT.to_string(),
