@@ -1772,7 +1772,9 @@ const ApplicationTable: React.FC<{
                                         : section.section}
                                 </TableCell>
                                 {/* One line per state: the table scrolls in its own region on phones. */}
-                                <TableCell sx={{whiteSpace: "nowrap", minInlineSize: "max-content"}}>
+                                <TableCell
+                                    sx={{whiteSpace: "nowrap", minInlineSize: "max-content"}}
+                                >
                                     {/* Only a confirmed applied state is green; anything else stays neutral. */}
                                     <Chip
                                         size="small"
