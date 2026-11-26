@@ -679,6 +679,153 @@ impl<'a> Data<'a> {
         })
     }
 }
+
+/// Resolve an explicit precinct cluster as written. When it is SQL NULL, some
+/// COMELEC dumps still provide the exact barangay and its city in the geography
+/// table. The barangay key has no extra zero; the transmission route key does.
+fn precinct_barangay(
+    populations: &Data<'_>,
+    pop: usize,
+    barangays: &Data<'_>,
+    by_id: &BTreeMap<String, usize>,
+) -> Result<usize, Problem> {
+    const CLUSTER: &str = "CLUSTERPOLLCENTER";
+    if let Some(explicit) = populations.optional(pop, CLUSTER)? {
+        return barangays.lookup(by_id, &explicit, pop, CLUSTER);
+    }
+
+    let geography_code =
+        |column| precinct_geography_code(populations, pop, column);
+    let city = format!(
+        "{}{}",
+        geography_code("PROV_CODE")?,
+        geography_code("MUN_CODE")?
+    );
+    let id = format!("{city}{}", geography_code("BRGY_CODE")?);
+    // by_id already refuses every duplicate ID_BARANGAY in the source.
+    let row = by_id.get(&id).copied().ok_or_else(|| {
+        problem(
+            "pop",
+            pop,
+            CLUSTER,
+            Code::DanglingReference,
+            "NULL precinct cluster has no exact allbgy.ID_BARANGAY match",
+        )
+    })?;
+    if barangays.text(row, "ID_CITY")? != city {
+        return Err(problem(
+            "pop",
+            pop,
+            CLUSTER,
+            Code::ConflictingColumns,
+            "inferred barangay's allbgy.ID_CITY disagrees with the precinct city",
+        ));
+    }
+    Ok(row)
+}
+
+fn precinct_geography_code(
+    populations: &Data<'_>,
+    pop: usize,
+    column: &str,
+) -> Result<String, Problem> {
+    let value = populations.text(pop, column)?;
+    if value.trim().is_empty() {
+        return Err(problem(
+            "pop",
+            pop,
+            column,
+            Code::MissingField,
+            "source geography code is blank",
+        ));
+    }
+    Ok(value)
+}
+
+/// Find the source station without rewriting it. Only the post-qualification
+/// schema can use a corroborated city + cluster OVCS route on a legacy miss.
+fn precinct_route(
+    populations: &Data<'_>,
+    pop: usize,
+    city: &str,
+    routes: &Data<'_>,
+    by_source: &BTreeMap<String, usize>,
+    schema: SourceSchema,
+) -> Result<usize, Problem> {
+    let barangay = populations.text(pop, "BRGY_CODE")?;
+    let legacy_key = format!("{city}0{barangay}");
+    let legacy = routes.lookup(by_source, &legacy_key, pop, "TRANS_SOURCE_ID");
+    if legacy.is_ok() || schema != SourceSchema::PostQualification {
+        return legacy;
+    }
+
+    for column in ["PROV_CODE", "MUN_CODE", "BRGY_CODE"] {
+        precinct_geography_code(populations, pop, column)?;
+    }
+    let cluster_number = |column| {
+        let value = populations.text(pop, column)?;
+        value
+            .parse::<u16>()
+            .ok()
+            .filter(|number| {
+                *number <= 9999 && value.bytes().all(|b| b.is_ascii_digit())
+            })
+            .ok_or_else(|| {
+                problem(
+                    "pop",
+                    pop,
+                    column,
+                    Code::InvalidValue,
+                    "expected a numeric cluster representable in four digits",
+                )
+            })
+    };
+    let conflicting = |column, message| {
+        problem("pop", pop, column, Code::ConflictingColumns, message)
+    };
+    let cluster = cluster_number("CLUSTER")?;
+    if cluster_number("GROUPNUMBER")? != cluster {
+        return Err(conflicting(
+            "GROUPNUMBER",
+            "GROUPNUMBER disagrees with CLUSTER",
+        ));
+    }
+    let cluster = format!("{cluster:04}");
+    let precinct = populations.text(pop, "CLUSTEREDPRECINCT")?;
+    let valid_length = match precinct.as_bytes() {
+        [_, _, _, _] => true,
+        [_, _, _, _, suffix] => suffix.is_ascii_uppercase(),
+        _ => false,
+    };
+    if !valid_length || precinct.get(..4) != Some(cluster.as_str()) {
+        return Err(conflicting(
+            "CLUSTEREDPRECINCT",
+            "CLUSTEREDPRECINCT must be the same four-digit cluster followed by at most one uppercase ASCII letter",
+        ));
+    }
+    if populations.text(pop, "CODE")? != format!("{city}{barangay}{precinct}") {
+        return Err(conflicting(
+            "CODE",
+            "CODE disagrees with the precinct geography and CLUSTEREDPRECINCT",
+        ));
+    }
+
+    let key = format!("{city}{cluster}");
+    let row = routes.lookup(by_source, &key, pop, "TRANS_SOURCE_ID")?;
+    // The post-qualification schema normalizes TYPE to MACHINE_TYPE. A
+    // city-only CCS row is neither looked up nor accepted as an OVCS route.
+    if routes.text(row, "MACHINE_TYPE")? != "OVCS" {
+        return Err(problem(
+            "trans_route",
+            row,
+            "MACHINE_TYPE",
+            Code::InvalidValue,
+            "post-qualification cluster route must have type OVCS",
+        ));
+    }
+    Ok(row)
+}
+
 fn latin1(byte: u8) -> char {
     // MySQL's latin1 uses Windows-1252 in the 0x80–0x9f range.
     const C1: [char; 32] = [
@@ -1090,6 +1237,21 @@ fn sheet_row<'a>(
         )
     })
 }
+
+/// A COMELEC seat may name VICE-PRESIDENT without the hyphen. Use that
+/// spelling only for the lookup and only if no exact contest name exists.
+fn seat_contest_lookup_name<'a>(
+    name: &'a str,
+    contests_by_name: &BTreeMap<String, usize>,
+) -> &'a str {
+    match name {
+        "VICE PRESIDENT" if !contests_by_name.contains_key(name) => {
+            "VICE-PRESIDENT"
+        }
+        _ => name,
+    }
+}
+
 /// Resolve every candidate's contest and seat against the whole source, before
 /// any seat is selected. Scope policy filters valid rows; it must never be what
 /// a broken reference hides behind. Codes are source configuration, not personal
@@ -1135,7 +1297,8 @@ fn check_candidate_references(
             ));
         };
         let name = seats.text(seat, "CONTEST")?;
-        let contest = contests_by_name.get(&name).copied().ok_or_else(|| {
+        let key = seat_contest_lookup_name(&name, contests_by_name);
+        let contest = contests_by_name.get(key).copied().ok_or_else(|| {
             problem(
                 "seat",
                 seat,
@@ -1446,12 +1609,7 @@ fn map(
                 pop,
                 "POLLCENTER_CODE",
             )?;
-            let bgy = barangays.lookup(
-                &bi,
-                &populations.text(pop, "CLUSTERPOLLCENTER")?,
-                pop,
-                "CLUSTERPOLLCENTER",
-            )?;
+            let bgy = precinct_barangay(&populations, pop, &barangays, &bi)?;
             let city = format!(
                 "{}{}",
                 populations.text(pop, "PROV_CODE")?,
@@ -1643,12 +1801,7 @@ fn map(
             pop,
             "POLLCENTER_CODE",
         )?;
-        let bgy = barangays.lookup(
-            &bi,
-            &populations.text(pop, "CLUSTERPOLLCENTER")?,
-            pop,
-            "CLUSTERPOLLCENTER",
-        )?;
+        let bgy = precinct_barangay(&populations, pop, &barangays, &bi)?;
         let city_code = format!(
             "{}{}",
             populations.text(pop, "PROV_CODE")?,
@@ -1656,9 +1809,15 @@ fn map(
         );
         let municipality =
             municipalities.lookup(&mi, &city_code, pop, "ID_CITY")?;
-        let route_code =
-            format!("{}0{}", city_code, populations.text(pop, "BRGY_CODE")?);
-        let route = routes.lookup(&ri, &route_code, pop, "TRANS_SOURCE_ID")?;
+        let route = precinct_route(
+            &populations,
+            pop,
+            &city_code,
+            &routes,
+            &ri,
+            summary.source_schema,
+        )?;
+        let route_code = routes.text(route, "TRANS_SOURCE_ID")?;
         let post = centers.text(center, "POLLING_PLACE")?;
         let barangay = barangays.text(bgy, "AREANAME")?;
         let area_name = if barangay == post {
@@ -1845,9 +2004,10 @@ fn map(
                     seat,
                     "GEOCODE",
                 )?;
+                let name = seats.text(seat, "CONTEST")?;
                 let contest = contests.lookup(
                     &ti,
-                    &seats.text(seat, "CONTEST")?,
+                    seat_contest_lookup_name(&name, &ti),
                     seat,
                     "CONTEST",
                 )?;
@@ -1907,10 +2067,7 @@ fn map(
                             ("counting_algorithm", json!("plurality-at-large")),
                             ("presentation.sort_order", json!(order)),
                             ("annotations.miru:contest-id", json!(district)),
-                            (
-                                "annotations.miru:contest-name",
-                                json!(seats.text(seat, "CONTEST")?),
-                            ),
+                            ("annotations.miru:contest-name", json!(name)),
                         ],
                     ),
                 );
@@ -1965,9 +2122,14 @@ fn map(
                     );
                     if let Some(party) = candidates
                         .optional(candidate, "NOMINATEDBY")?
-                        .filter(|s| !s.is_empty())
+                        .filter(|s| !s.trim().is_empty())
                     {
                         if let Some(&party_row) = pi.get(&party) {
+                            let registered =
+                                parties.name(party_row, "NAME_PARTY")?;
+                            let short = parties
+                                .optional(party_row, "SHORT_NAME")?
+                                .filter(|name| !name.trim().is_empty());
                             set(
                                 &mut candidate_row,
                                 "annotations.miru:candidate-affiliation-id",
@@ -1976,12 +2138,12 @@ fn map(
                             set(
                                 &mut candidate_row,
                                 "annotations.miru:candidate-affiliation-registered-name",
-                                json!(parties.text(party_row, "NAME_PARTY")?),
+                                json!(registered),
                             );
                             set(
                                 &mut candidate_row,
                                 "annotations.miru:candidate-affiliation-party",
-                                json!(parties.text(party_row, "SHORT_NAME")?),
+                                json!(short.as_deref().unwrap_or(&registered)),
                             );
                         } else {
                             unresolved_affiliations.insert(code.clone());
