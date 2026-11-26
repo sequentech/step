@@ -1088,10 +1088,19 @@ fn trustee_assignment_diagnostics_distinguish_new_unassigned_and_different_users
     assert!(admin_detail_problems(&rows, &BTreeMap::new(), &trustees, &allowed, true).is_empty());
     for verified in [false, true] {
         let mut current = BTreeMap::from([("trustee1".into(), ExistingAdmin::default())]);
-        let problems = admin_detail_problems(&rows, &current, &trustees, &allowed, verified);
-        assert_eq!(problems.len(), 1);
-        assert!(problems[0].contains("without an assigned trustee"));
-        assert!(problems[0].contains("Acted trustee"));
+        for values in [None, Some(BTreeSet::new()), Some(set(&[""]))] {
+            if let Some(values) = values {
+                current
+                    .get_mut("trustee1")
+                    .unwrap()
+                    .fields
+                    .insert("trustee".into(), values);
+            }
+            let problems = admin_detail_problems(&rows, &current, &trustees, &allowed, verified);
+            assert_eq!(problems.len(), 1);
+            assert!(problems[0].contains("without an assigned trustee"));
+            assert!(problems[0].contains("Acted trustee"));
+        }
 
         current
             .get_mut("trustee1")
