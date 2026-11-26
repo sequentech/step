@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Messaging Deployment | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4409/docs/developers/messaging/messaging_deployment"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Messaging Deployment | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4409/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4409/docs/developers/messaging/messaging_deployment"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4409/docs/developers/messaging/messaging_deployment" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4409/docs/developers/messaging/messaging_deployment" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Deployment","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4409/docs/developers/messaging/messaging_deployment"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4409/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4409/assets/js/runtime~main.cafc3ab2.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4409/assets/js/runtime~main.b8176766.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4409/assets/js/main.9521b116.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -80,25 +80,65 @@ product images) and runs with its own command. It is stateless: run as many
 replicas as needed behind the public host.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="provider-setup">Provider setup<a href="#provider-setup" class="hash-link" aria-label="Direct link to Provider setup" title="Direct link to Provider setup" translate="no">​</a></h2>
 <p>Each account&#x27;s drawer in <strong>Settings &gt; Messaging</strong> shows its callback URL:
-<code>&lt;MESSAGING_WEBHOOKS_PUBLIC_URL&gt;/webhooks/&lt;meta|viber|aws&gt;/&lt;key&gt;</code>. The key is
+<code>&lt;MESSAGING_WEBHOOKS_PUBLIC_URL&gt;/webhooks/&lt;meta|viber|infobip|aws&gt;/&lt;key&gt;</code>. The key is
 generated per account and identifies it; there is nothing else to
 configure on the platform side.</p>
 <ul>
-<li class=""><strong>WhatsApp</strong>: in the Meta app, set the WhatsApp webhook&#x27;s callback URL and
+<li class="">
+<p><strong>WhatsApp</strong>: in the Meta app, set the WhatsApp webhook&#x27;s callback URL and
 verify token (generated on the account, shown once) and subscribe the
-<code>messages</code> field, which carries the statuses.</li>
-<li class=""><strong>Messenger</strong>: in the Meta app, set the Page webhook&#x27;s callback URL and
+<code>messages</code> field, which carries the statuses.</p>
+</li>
+<li class="">
+<p><strong>Messenger</strong>: in the Meta app, set the Page webhook&#x27;s callback URL and
 verify token, subscribe the app to the Page for messages, postbacks,
 referrals and deliveries, set the Page&#x27;s Get Started button, and grant
-<code>pages_messaging</code>.</li>
-<li class=""><strong>Viber (Infobip)</strong>: create a subscription for Viber delivery reports
+<code>pages_messaging</code>.</p>
+</li>
+<li class="">
+<p><strong>Viber (Infobip)</strong>: create a subscription for Viber delivery reports
 with the callback URL and Basic authentication, using the report username
 and password the account generated (shown once). Grant the Infobip API
-key <code>viber-bm:manage</code> so <strong>Check connection</strong> can list the sender&#x27;s templates.</li>
-<li class=""><strong>Email (SES)</strong>: send the identity&#x27;s delivery, bounce and complaint
+key <code>viber-bm:manage</code> so <strong>Check connection</strong> can list the sender&#x27;s templates.</p>
+</li>
+<li class="">
+<p><strong>WhatsApp (Infobip)</strong>: Infobip registers the number and submits its
+templates to Meta; Infobip&#x27;s shared test number can&#x27;t send WhatsApp. On
+the account, enter the Infobip API base URL, the number in international
+format without <code>+</code> (as Infobip lists the sender), and an API key with:</p>
+<ul>
+<li class=""><code>whatsapp:manage</code>: <strong>Check connection</strong> reads the number&#x27;s templates
+(<code>GET /whatsapp/2/senders/{number}/templates</code>). A key without it is
+refused there, and the account shows <em>Infobip refused the account&#x27;s
+API key</em>;</li>
+<li class=""><code>whatsapp:message:send</code> (or <code>whatsapp:manage</code>, which also allows it):
+sending (<code>POST /whatsapp/1/message/template</code>).</li>
+</ul>
+<p>Codes need an approved template whose body placeholder takes the code;
+notices need approved <strong>utility</strong> templates, whose placeholders are
+filled in order from the notice&#x27;s parameters. Bind them on the event per
+purpose and language, as for WhatsApp through Meta. Infobip refuses a
+template whose buttons don&#x27;t get their values, so each binding (and a
+message template that names its own provider template) gives its
+template&#x27;s buttons in button order: <code>URL</code> (a copy-code button, or a
+link&#x27;s variable part) or <code>QUICK_REPLY</code> (the payload), where <code>{{code}}</code>
+becomes the code. A binding that sets none uses the default: for codes,
+a <code>URL</code> button with <code>{{code}}</code> then a <code>QUICK_REPLY</code> with <code>NA</code>; for
+notices, no buttons. An empty list sends none. Then create a
+subscription for WhatsApp delivery reports with the account&#x27;s callback
+URL (<code>/webhooks/infobip/&lt;key&gt;</code>) and Basic authentication, using the
+report username and password the account generated (shown once).
+Infobip has no WhatsApp message lookup, so an attempt whose answer was
+lost waits for its report.</p>
+</li>
+<li class="">
+<p><strong>Email (SES)</strong>: send the identity&#x27;s delivery, bounce and complaint
 notifications to an SNS topic, subscribe the callback URL to it over
-HTTPS, and enter the topic ARN on the account.</li>
-<li class=""><strong>SMS (SNS)</strong> and <strong>SMTP</strong> have no receipts and need no callback.</li>
+HTTPS, and enter the topic ARN on the account.</p>
+</li>
+<li class="">
+<p><strong>SMS (SNS)</strong> and <strong>SMTP</strong> have no receipts and need no callback.</p>
+</li>
 </ul>
 <p>Run <strong>Check connection</strong> on each account afterwards; it reports what is
 still missing. After that, every account is checked again once a day, and
@@ -132,7 +172,7 @@ reads, so each event goes back to its last saved configuration.</li>
 <p>The inbound messages this release deleted aren&#x27;t restored.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="deployment-prerequisites">Deployment prerequisites<a href="#deployment-prerequisites" class="hash-link" aria-label="Direct link to Deployment prerequisites" title="Direct link to Deployment prerequisites" translate="no">​</a></h2>
 <p>These are outside the platform and must be settled before go-live.</p>
-<table><thead><tr><th></th><th>Prerequisite</th><th>Owner</th></tr></thead><tbody><tr><td>D1</td><td><strong>WhatsApp ownership and onboarding.</strong> The organization owns the Meta business portfolio, the WhatsApp Business Account and the number, onboarded through a Solution Partner; Meta approves the account and its templates. Get written confirmation that the whole operating arrangement is permitted, and the provider&#x27;s onboarding lead time and approved capacity. Meta doesn&#x27;t let a voting-system vendor hold the account</td><td>Organization, Meta, Solution Partner</td></tr><tr><td>D2</td><td><strong>The Viber partner.</strong> One partner means one adapter; Infobip is built in. The Viber business account belongs to the organization. Confirm the report subscription with Basic authentication on the partner&#x27;s test account</td><td>Organization</td></tr><tr><td>D3</td><td><strong>Channels per Post.</strong> Approve the channels and purposes each Post offers, using provider restrictions and test sends. Start from ready, approved channels, not all five</td><td>Organization</td></tr><tr><td>D4</td><td><strong>Consent and retention.</strong> The consent wording, and how long message records are kept</td><td>Organization (data privacy)</td></tr><tr><td>D5</td><td><strong>Messenger utility templates.</strong> Meta&#x27;s approval of the Page&#x27;s utility templates, which notices use after the 24-hour window. A code outside the window needs a fresh Get Started</td><td>Meta</td></tr><tr><td>D6</td><td><strong>Communications log.</strong> An owner for the log screen, conversation view and exports. The platform provides the records, Logs and the voter drawer</td><td>Product</td></tr><tr><td>D7</td><td><strong>Demonstration.</strong> Any demonstration uses the organization&#x27;s own WhatsApp account, Viber through a partner test account, or an offline method the organization approves</td><td>Organization</td></tr></tbody></table>
+<table><thead><tr><th></th><th>Prerequisite</th><th>Owner</th></tr></thead><tbody><tr><td>D1</td><td><strong>WhatsApp ownership and onboarding.</strong> The organization owns the Meta business portfolio, the WhatsApp Business Account and the number, onboarded through a Solution Partner; Meta approves the account and its templates. Get written confirmation that the whole operating arrangement is permitted, and the provider&#x27;s onboarding lead time and approved capacity. Meta doesn&#x27;t let a voting-system vendor hold the account</td><td>Organization, Meta, Solution Partner</td></tr><tr><td>D1b</td><td><strong>WhatsApp through Infobip.</strong> Instead of D1&#x27;s Solution Partner, Infobip onboards the organization&#x27;s WhatsApp Business Account and number and submits its templates to Meta. The organization still owns them. Confirm Infobip&#x27;s API key scopes (<code>whatsapp:manage</code>, <code>whatsapp:message:send</code>) and the report subscription with Basic authentication</td><td>Organization, Infobip</td></tr><tr><td>D2</td><td><strong>The Viber partner.</strong> One partner means one adapter; Infobip is built in. The Viber business account belongs to the organization. Confirm the report subscription with Basic authentication on the partner&#x27;s test account</td><td>Organization</td></tr><tr><td>D3</td><td><strong>Channels per Post.</strong> Approve the channels and purposes each Post offers, using provider restrictions and test sends. Start from ready, approved channels, not all five</td><td>Organization</td></tr><tr><td>D4</td><td><strong>Consent and retention.</strong> The consent wording, and how long message records are kept</td><td>Organization (data privacy)</td></tr><tr><td>D5</td><td><strong>Messenger utility templates.</strong> Meta&#x27;s approval of the Page&#x27;s utility templates, which notices use after the 24-hour window. A code outside the window needs a fresh Get Started</td><td>Meta</td></tr><tr><td>D6</td><td><strong>Communications log.</strong> An owner for the log screen, conversation view and exports. The platform provides the records, Logs and the voter drawer</td><td>Product</td></tr><tr><td>D7</td><td><strong>Demonstration.</strong> Any demonstration uses the organization&#x27;s own WhatsApp account, Viber through a partner test account, or an offline method the organization approves</td><td>Organization</td></tr></tbody></table>
 <p>Approvals, quota increases and partner onboarding take calendar time and
 are not engineering guarantees.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/14-messaging/02-messaging-deployment.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-4409/docs/developers/messaging/messaging_architecture"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Architecture</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-4409/docs/developers/messaging/messaging_development"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Development and tests</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#the-one-public-endpoint" class="table-of-contents__link toc-highlight">The one public endpoint</a></li><li><a href="#provider-setup" class="table-of-contents__link toc-highlight">Provider setup</a></li><li><a href="#sending-limits" class="table-of-contents__link toc-highlight">Sending limits</a></li><li><a href="#rolling-back" class="table-of-contents__link toc-highlight">Rolling back</a></li><li><a href="#deployment-prerequisites" class="table-of-contents__link toc-highlight">Deployment prerequisites</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
 </body>
