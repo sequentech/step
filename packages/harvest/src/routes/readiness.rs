@@ -146,6 +146,12 @@ pub async fn readiness_check(
             .await
             .map_err(internal)?;
         authorize_events(&barrier, &claims, &input).await?;
+        // Bound waits behind a long signing operation or voter import so a
+        // rehearsal cannot hold a shared pool connection indefinitely.
+        barrier
+            .batch_execute("SET LOCAL lock_timeout = '2s'")
+            .await
+            .map_err(internal)?;
         windmill::services::readiness::lock_events_read_only(
             &barrier,
             tenant,
