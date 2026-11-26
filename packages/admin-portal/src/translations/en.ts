@@ -2145,6 +2145,11 @@ const englishTranslation = {
                     scheduledEnd: "End of lockdown scheduled for {{date}}.",
                     endScheduled: "An end of lockdown is scheduled.",
                     noScheduledEnd: "No end of lockdown is scheduled.",
+                    scheduleEnd: "Schedule end of lockdown",
+                    replaceEnd: "Replace scheduled end",
+                    cancelEnd: "Cancel scheduled end",
+                    ambiguousEnd: "The pending end of lockdown is invalid or ambiguous.",
+                    cancelInvalidEnds: "Cancel all pending lockdown ends",
                     banner: "This election event is in lockdown.",
                     policyLabel: "Lockdown Status",
                     helperText:

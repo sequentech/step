@@ -1634,6 +1634,11 @@ const catalanTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    scheduleEnd: "Programa el final del bloqueig",
+                    replaceEnd: "Substitueix el final programat",
+                    cancelEnd: "Cancel·la el final programat",
+                    ambiguousEnd: "El final del bloqueig pendent no és vàlid o és ambigu.",
+                    cancelInvalidEnds: "Cancel·la tots els finals de bloqueig pendents",
                     since: "Bloquejat des de {{date}}.",
                     scheduledEnd: "Final del bloqueig programat per a {{date}}.",
                     endScheduled: "Hi ha un final del bloqueig programat.",

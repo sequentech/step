@@ -35,6 +35,7 @@ pub enum ErrorCode {
     UuidParseFailed,
     UnknownError,
     InvalidEventProcessor,
+    InvalidSchedule,
     InvalidPasswordPolicy,
     PasswordPolicyNotConfigured,
     PasswordPolicyMinimumLengthMissing,

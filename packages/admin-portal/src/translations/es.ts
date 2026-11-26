@@ -2014,6 +2014,11 @@ const spanishTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    scheduleEnd: "Programar el fin del bloqueo",
+                    replaceEnd: "Cambiar el fin programado",
+                    cancelEnd: "Cancelar el fin programado",
+                    ambiguousEnd: "El fin del bloqueo pendiente no es válido o hay más de uno.",
+                    cancelInvalidEnds: "Cancelar todos los fines de bloqueo pendientes",
                     since: "Bloqueado desde {{date}}.",
                     scheduledEnd: "Fin del bloqueo programado para {{date}}.",
                     endScheduled: "Hay un fin del bloqueo programado.",

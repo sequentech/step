@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-use crate::postgres::scheduled_event::insert_new_scheduled_event;
+use crate::postgres::scheduled_event::{insert_new_scheduled_event, is_lockdown_processor};
 use crate::services::schedule_csv::checked_import_cron_config;
 use anyhow::{anyhow, Context, Result};
 use csv::StringRecord;
@@ -131,6 +131,17 @@ pub async fn process_record(
         .map(|val| deserialize_str::<EventProcessors>(val))
         .transpose()
         .context("Error deserializing event_processor")?;
+    if event_processor.as_ref().is_some_and(is_lockdown_processor)
+        && !event_payload.is_null()
+        && (!event_payload.is_object()
+            || event_payload
+                .get("election_id")
+                .is_some_and(|id| !id.is_null()))
+    {
+        return Err(anyhow!(
+            "A lockdown schedule must apply to the whole election event."
+        ));
+    }
     let cron_config: Option<CronConfig> = record
         .get(9)
         .map(|val| deserialize_str(val))

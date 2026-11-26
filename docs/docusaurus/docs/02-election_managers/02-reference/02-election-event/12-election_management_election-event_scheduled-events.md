@@ -18,8 +18,22 @@ signed close deadlines, read
 ### Viewing and editing Scheduled Events
 
 The list shows schedules for the selected Election Event. Clicking a row keeps
-that list in place. Use the row's pencil action to edit its schedule, or its
-trash action to remove it.
+that list in place. Use the pencil to edit a schedule or the trash action to
+remove it. Completed lockdown transitions remain in the electoral log.
+
+### Scheduling the end of lockdown
+
+A start or end of lockdown applies to the whole election event. During lockdown,
+ordinary schedule edits, CSV imports, and timezone recomputations are disabled.
+An operator with `scheduled-event-write` and access to every election can use
+**Schedule end of lockdown** in the banner to choose a future date and time.
+If an end is already pending, use **Replace scheduled end** to choose a new
+time or **Cancel scheduled end** to keep the event locked. This also applies
+to an overdue end that the scheduler has yet to run. If the banner reports
+invalid or ambiguous pending ends, choose **Cancel all pending lockdown ends**,
+then schedule one new end. Cancellation leaves the active lockdown and its
+history intact. The scheduler records the transition in the electoral log
+when it lifts lockdown.
 
 ### Adding a Scheduled Event
 

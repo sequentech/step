@@ -1641,6 +1641,11 @@ const frenchTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    scheduleEnd: "Planifier la fin du verrouillage",
+                    replaceEnd: "Modifier la fin programmée",
+                    cancelEnd: "Annuler la fin programmée",
+                    ambiguousEnd: "La fin du verrouillage en attente est invalide ou ambiguë.",
+                    cancelInvalidEnds: "Annuler toutes les fins de verrouillage en attente",
                     since: "Verrouillé depuis le {{date}}.",
                     scheduledEnd: "Fin du verrouillage prévue le {{date}}.",
                     endScheduled: "Une fin du verrouillage est prévue.",

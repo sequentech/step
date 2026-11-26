@@ -1627,6 +1627,11 @@ const galegoTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    scheduleEnd: "Programar o fin do bloqueo",
+                    replaceEnd: "Cambiar o fin programado",
+                    cancelEnd: "Cancelar o fin programado",
+                    ambiguousEnd: "O fin do bloqueo pendente non é válido ou é ambiguo.",
+                    cancelInvalidEnds: "Cancelar todos os fins de bloqueo pendentes",
                     since: "Bloqueado desde {{date}}.",
                     scheduledEnd: "Fin do bloqueo programado para {{date}}.",
                     endScheduled: "Hai un fin do bloqueo programado.",

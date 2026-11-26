@@ -1648,6 +1648,12 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    scheduleEnd: "Itakda ang pagtatapos ng lockdown",
+                    replaceEnd: "Baguhin ang nakatakdang pagtatapos",
+                    cancelEnd: "Kanselahin ang nakatakdang pagtatapos",
+                    ambiguousEnd:
+                        "Hindi wasto o hindi tiyak ang nakabinbing pagtatapos ng lockdown.",
+                    cancelInvalidEnds: "Kanselahin ang lahat ng nakatakdang pagtatapos ng lockdown",
                     since: "Naka-lockdown mula {{date}}.",
                     scheduledEnd: "Nakatakda ang pagtatapos ng lockdown sa {{date}}.",
                     endScheduled: "May nakatakdang pagtatapos ng lockdown.",

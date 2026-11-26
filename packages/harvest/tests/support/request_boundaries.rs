@@ -1329,12 +1329,23 @@ async fn schedule_recompute_noops_and_scope_refusals_preserve_stored_dates() {
         &[&id, &tenant, &event_id, &cron, &annotations]).await;
     let other = Claims::new(&uuid::Uuid::new_v4().to_string(), USER_ID)
         .roles([Permissions::SCHEDULED_EVENT_WRITE]);
+    let missing = response_json(
+        post(
+            &client,
+            "/apply-schedule-recompute",
+            &other,
+            &json!({"election_event_id": uuid::Uuid::new_v4().to_string()}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(missing, (Status::Ok, json!({"updated": 0})));
     assert_eq!(
         response_json(
             post(&client, "/apply-schedule-recompute", &other, &body).await,
         )
         .await,
-        (Status::Ok, json!({"updated": 0}))
+        missing,
     );
     let saved = rows::query(&services.hasura,
         "SELECT cron_config, annotations FROM sequent_backend.scheduled_event WHERE id = $1", &[&id]).await;

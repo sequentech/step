@@ -197,6 +197,17 @@ pub async fn apply(
     let events =
         find_scheduled_event_by_election_event_id(hasura_transaction, tenant_id, election_event_id)
             .await?;
+    // An empty tenant-scoped result is a no-op, whether the event is missing
+    // or belongs to another tenant. All writes still require an unlocked parent.
+    if events.is_empty() {
+        return Ok(0);
+    }
+    crate::services::election_dates::require_unlocked_schedule(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
     let mut changes = vec![];
     for event in events.iter().filter(|event| annotation(event).is_some()) {
         // Recomputed again: the row or the tz database may have changed

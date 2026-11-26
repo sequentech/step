@@ -360,9 +360,9 @@ async fn run_lockdown(
 ) -> (Value, Uuid, Vec<(String, String, Value)>) {
     let scheduled: Uuid = client
         .query_one(
-            "INSERT INTO sequent_backend.scheduled_event
-                 (tenant_id, election_event_id, event_processor)
-             VALUES ($1, $2, $3) RETURNING id",
+            r#"INSERT INTO sequent_backend.scheduled_event
+                 (tenant_id, election_event_id, event_processor, cron_config)
+             VALUES ($1, $2, $3, '{"scheduled_date":"2000-01-01T00:00:00Z"}') RETURNING id"#,
             &[&tenant, &event, &processor],
         )
         .await
