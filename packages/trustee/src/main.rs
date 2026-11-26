@@ -11,6 +11,12 @@
 
 mod config;
 mod daemon;
+// Inert RFC 8628 device login model; nothing at runtime builds it yet.
+#[cfg(test)]
+mod device;
+// Inert RFC 8628 transport for Keycloak's device grant; not wired either.
+#[cfg(test)]
+mod device_transport;
 mod identity;
 mod login;
 mod platform;

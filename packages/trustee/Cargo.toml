@@ -23,6 +23,10 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
 [dev-dependencies]
 tempfile = "3"
+# The inert device-token verifier and its synthetic signing key; both
+# already locked for the workspace (jsonwebtoken 10.4.0, aws-lc-rs 1.18.1).
+jsonwebtoken = { version = "10.4.0", default-features = false, features = ["aws_lc_rs"] }
+aws-lc-rs = "1.18.1"
 
 [lints.rust]
 unsafe_code = "forbid"
