@@ -1006,7 +1006,7 @@ const finishPortablePreview = (sha: string | null = "a5".repeat(32), changes?: u
         annotated.application.sections.push({
             section: "messaging-accounts",
             members: ["tenant_messaging_accounts.json"],
-            status: {state: "ready", preview: {needsApply: true, changes, blockers: []}},
+            status: {state: "previewed", preview: {needsApply: true, changes, blockers: []}},
         })
     }
     mockTask = task("task-p", "SUCCESS", annotated)
@@ -1444,6 +1444,17 @@ describe("configuration package hub layout", () => {
         expect(screen.getByTestId("package-change-requirements")).toBeTruthy()
         expect(applyButton().hidden).toBe(true)
         expect(applyButton().disabled).toBe(true)
+        // The recorded reasons come before the section list, so a phone stacks them first.
+        expect(
+            screen.getByTestId("package-blocked").compareDocumentPosition(
+                screen.getByTestId("package-section-rows")
+            ) & Node.DOCUMENT_POSITION_FOLLOWING
+        ).toBeTruthy()
+        expect(
+            screen.getByTestId("package-run-card").compareDocumentPosition(
+                screen.getByTestId("package-receipt")
+            ) & Node.DOCUMENT_POSITION_FOLLOWING
+        ).toBeTruthy()
         const badge = (section: string) =>
             screen
                 .getByTestId(`package-section-row-${section}`)
@@ -1587,5 +1598,116 @@ describe("configuration package hub layout", () => {
         expect(detail.textContent).toContain("task-applied")
         expect(detail.textContent).toContain('"generation":3')
         expect(detail.querySelector('[data-badge="applied"]')).toBeTruthy()
+    })
+
+    it("lists a messaging account change in the confirmation order, as in its proposed changes", async () => {
+        const view = await previewed()
+        finishPortablePreview(undefined, [
+            {reference: "package:ses", action: "replace", channel: "EMAIL", provider: "AWS_SES"},
+        ])
+        const sections = mockTask.annotations.application.sections
+        sections[sections.length - 1].status.preview.needsApply = false
+        view.rerender(<SettingsConfigurationPackage />)
+        await act(async () => fireEvent.click(applyButton()))
+        const order = Array.from(
+            screen.getByTestId("package-confirm-order").querySelectorAll("li")
+        ).map((item) => item.textContent)
+        expect(order).toEqual([
+            "configurationPackage.sections.tenant-configuration",
+            "configurationPackage.sections.messaging-accounts",
+        ])
+        const proposed = within(screen.getByTestId("package-proposed-changes"))
+        expect(proposed.getByText("configurationPackage.sections.messaging-accounts")).toBeTruthy()
+        expect(mockManagedApply).not.toHaveBeenCalled()
+    })
+
+    it("makes a blocked preview historical after Change requirements and previews the same import again", async () => {
+        mockApply.mockResolvedValue(accepted("task-p"))
+        const {rerender} = render(<SettingsConfigurationPackage />)
+        await upload()
+        mockTask = task(
+            "task-p",
+            "FAILED",
+            refusedPreview(["unknown role x"], {missingTrustees: true})
+        )
+        rerender(<SettingsConfigurationPackage />)
+        expect(screen.queryByTestId("package-blocked-historical")).toBeNull()
+        fireEvent.click(screen.getByTestId("package-change-requirements"))
+        fireEvent.click(
+            within(screen.getByTestId("package-requirements-picker")).getByRole("checkbox", {
+                name: "trustees",
+            })
+        )
+        // What that run found stays visible, as that run's history.
+        expect(screen.getByTestId("package-blocked").getAttribute("data-historical")).toBe("true")
+        expect(screen.getByTestId("package-blocked").textContent).toContain("unknown role x")
+        expect(screen.getByTestId("package-sections-historical")).toBeTruthy()
+        expect(
+            within(screen.getByTestId("package-workflow")).getByRole("heading", {
+                name: "configurationPackage.workflow.phases.previewAgain.title",
+            })
+        ).toBeTruthy()
+        // Fail closed: nothing to apply until a new Preview succeeds.
+        expect(applyButton().disabled).toBe(true)
+        mockApply.mockResolvedValueOnce(accepted("task-p2"))
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("package-drawer-preview-again"))
+        })
+        expect(mockApply.mock.calls.map(([options]) => options.variables)).toEqual([
+            expect.objectContaining({documentId: "doc-1", mode: "preview"}),
+            expect.objectContaining({
+                documentId: "doc-1",
+                mode: "preview",
+                requirements: {
+                    sections: COMPLETE_DELIVERY.sections.filter((s) => s !== "trustees"),
+                    census: "required",
+                },
+            }),
+        ])
+        expect(applyButton().disabled).toBe(true)
+        // The new Preview's own refusal is current, not historical.
+        mockTask = task(
+            "task-p2",
+            "FAILED",
+            refusedPreview(["unknown role x"])
+        )
+        rerender(<SettingsConfigurationPackage />)
+        expect(screen.getByTestId("package-blocked").getAttribute("data-historical")).toBeNull()
+        expect(mockManagedApply).not.toHaveBeenCalled()
+    })
+
+    it("routes a missing managed signer roster to Signing trust, keeping import disabled", () => {
+        mockRoster = {...managedRoster, generation: "0", active_sha256: null}
+        render(<SettingsConfigurationPackage />)
+        expect((screen.getByTestId("package-upload") as HTMLButtonElement).disabled).toBe(true)
+        expect(screen.queryByTestId("package-check-trust-again")).toBeNull()
+        fireEvent.click(screen.getByTestId("package-open-trust"))
+        expect(screen.getByTestId("package-trust-panel")).toBeTruthy()
+        expect(screen.getByTestId("package-rail-trust").getAttribute("aria-current")).toBe("page")
+        expect(mockApply).not.toHaveBeenCalled()
+    })
+
+    it("offers Check again when the trust check failed, re-reading only", async () => {
+        mockRoster = null
+        render(<SettingsConfigurationPackage />)
+        expect((screen.getByTestId("package-upload") as HTMLButtonElement).disabled).toBe(true)
+        expect(screen.queryByTestId("package-open-trust")).toBeNull()
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("package-check-trust-again"))
+        })
+        expect(mockRosterRead).toHaveBeenCalledTimes(1)
+        expect(mockApply).not.toHaveBeenCalled()
+    })
+
+    it("never shows complete for an applied record on a task that did not succeed", async () => {
+        const {rerender} = await previewed()
+        mockApply.mockResolvedValueOnce(accepted("task-a"))
+        await apply()
+        mockTask = task("task-a", "FAILED", record("applied"))
+        rerender(<SettingsConfigurationPackage />)
+        expect(screen.getByTestId("package-workflow").getAttribute("data-phase")).toBe("attention")
+        mockTask = task("task-a", "SUCCESS", record("applied"))
+        rerender(<SettingsConfigurationPackage />)
+        expect(screen.getByTestId("package-workflow").getAttribute("data-phase")).toBe("complete")
     })
 })

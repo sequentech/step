@@ -24,6 +24,8 @@ export interface PackageImportSignals {
     running: boolean
     submittedMode?: ApplyMode
     outcome?: Outcome
+    /** The task row's execution_status; an applied record alone is not success. */
+    executionStatus?: string | null
     canApply: boolean
     hasBlockers: boolean
     previewRefused: boolean
@@ -31,6 +33,8 @@ export interface PackageImportSignals {
     noRecord: boolean
     hasError: boolean
     hasScopeMismatch: boolean
+    /** A finished Preview whose requirements differ from the ones now selected. */
+    previewStale?: boolean
 }
 
 // Presentation only: the phase picks copy and emphasis. It admits nothing; the parent keeps
@@ -55,6 +59,10 @@ export const packageImportPhase = (signals: PackageImportSignals): PackageImport
         }
         return submittedMode === "apply" ? "applying" : "previewing"
     }
+    // Its blockers belong to other requirements: only a new Preview can say what blocks now.
+    if (signals.previewStale && submittedMode === "preview") {
+        return "previewAgain"
+    }
     if (signals.previewRefused && submittedMode === "preview") {
         return "previewBlocked"
     }
@@ -62,7 +70,8 @@ export const packageImportPhase = (signals: PackageImportSignals): PackageImport
         return "attention"
     }
     if (outcome === "applied" && submittedMode === "apply") {
-        return "complete"
+        // The same rule as the tenant receipt: the record and the task row agree.
+        return signals.executionStatus === "SUCCESS" ? "complete" : "attention"
     }
     if (signals.canApply) {
         return "review"

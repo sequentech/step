@@ -36,7 +36,18 @@ it.each<[PackageImportPhase, Partial<PackageImportSignals>]>([
     ["previewAgain", {hasScopeMismatch: true}],
     ["review", {outcome: "previewed", canApply: true}],
     ["applying", {running: true, submittedMode: "apply", outcome: "applied"}],
-    ["complete", {submittedMode: "apply", outcome: "applied"}],
+    ["complete", {submittedMode: "apply", outcome: "applied", executionStatus: "SUCCESS"}],
+    // An applied record alone is not success: the task row must agree, as for the receipt.
+    ["attention", {submittedMode: "apply", outcome: "applied"}],
+    ["attention", {submittedMode: "apply", outcome: "applied", executionStatus: "FAILED"}],
+    ["attention", {submittedMode: "apply", outcome: "applied", executionStatus: "CANCELLED"}],
+    // A refused Preview for requirements no longer selected is stale, not the current blocker.
+    [
+        "previewAgain",
+        {previewRefused: true, previewStale: true, submittedMode: "preview", outcome: "refused"},
+    ],
+    // Staleness never hides an Apply run's result.
+    ["attention", {previewStale: true, submittedMode: "apply", outcome: "failed"}],
     ["choose", {submittedMode: "preview", outcome: "applied"}],
     ["attention", {unreadable: true, running: true, submittedMode: "apply"}],
     ["attention", {noRecord: true}],

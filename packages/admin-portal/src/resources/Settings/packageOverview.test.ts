@@ -4,7 +4,12 @@
 
 import {IPermissions} from "@/types/keycloak"
 import {record, refusedPreview} from "./configurationPackage.fixture"
-import {PACKAGE_SECTIONS, readApplication, type SectionView} from "./configurationPackage"
+import {
+    PACKAGE_SECTIONS,
+    readApplication,
+    sectionsToChange,
+    type SectionView,
+} from "./configurationPackage"
 import {
     changingSections,
     headerActions,
@@ -125,11 +130,23 @@ describe("headerActions", () => {
     it("offers Preview again for an out-of-date preview, never Apply", () => {
         expect(headerActions("previewAgain")).toEqual({primary: "previewAgain", secondary: "upload"})
     })
+    it("routes a missing signer roster to Signing trust, keeping import disabled", () => {
+        expect(headerActions("trustBlocked", "missingRoster")).toEqual({
+            primary: "openTrust",
+            secondary: "upload",
+        })
+    })
+    it("offers Check again when the trust check failed", () => {
+        expect(headerActions("trustBlocked", "checkFailed")).toEqual({
+            primary: "upload",
+            secondary: "checkAgain",
+        })
+        expect(headerActions("trustBlocked")).toEqual(headerActions("trustBlocked", "checkFailed"))
+    })
     it.each([
         "choose",
         "complete",
         "attention",
-        "trustBlocked",
         "waitingForTrust",
         "starting",
         "previewing",
@@ -217,4 +234,37 @@ it("lists the sections a preview would change, in apply order", () => {
     const reversed = view && {...view, sections: [...view.sections].reverse()}
     expect(changingSections(reversed)).toEqual(["tenant-configuration"])
     expect(changingSections(null)).toEqual([])
+})
+
+it("lists and counts messaging account changes the confirmation shows, even without needsApply", () => {
+    const annotations = record("previewed")
+    annotations.application.sections.push({
+        section: "messaging-accounts",
+        members: ["tenant_messaging_accounts.json"],
+        status: {
+            state: "previewed",
+            preview: {
+                needsApply: false,
+                blockers: [],
+                changes: [{reference: "package:ses", action: "replace", channel: "EMAIL"}],
+            },
+        },
+        history: {submissions: [], inFlight: null, applied: false},
+    } as never)
+    const view = readApplication(annotations)!
+    expect(changingSections(view)).toEqual(["tenant-configuration", "messaging-accounts"])
+    expect(sectionsToChange(view)).toBe(changingSections(view).length)
+})
+
+it("does not list a messaging section whose preview proposes no account change", () => {
+    const annotations = record("previewed")
+    annotations.application.sections.push({
+        section: "messaging-accounts",
+        members: [],
+        status: {state: "previewed", preview: {needsApply: false, blockers: [], changes: []}},
+        history: {submissions: [], inFlight: null, applied: false},
+    } as never)
+    const view = readApplication(annotations)!
+    expect(changingSections(view)).toEqual(["tenant-configuration"])
+    expect(sectionsToChange(view)).toBe(1)
 })

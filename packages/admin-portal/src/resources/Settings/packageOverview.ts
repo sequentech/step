@@ -13,6 +13,7 @@ import type {PackageImportPhase} from "./PackageImportWorkflow"
 import {
     PACKAGE_PERMISSIONS,
     PACKAGE_SECTIONS,
+    proposesChange,
     readApplication,
     type ApplicationView,
     type ApplyMode,
@@ -136,16 +137,27 @@ export const runStages = (phase: PackageImportPhase, mode?: ApplyMode): RunStage
 
 export type HeaderAction =
     | "upload"
+    | "openTrust"
+    | "checkAgain"
     | "previewAgain"
     | "reviewAndApply"
     | "importFixed"
     | "changeRequirements"
 
+/** Why import is blocked by trust: no active signer roster, or the check itself failed. */
+export type TrustBlock = "missingRoster" | "checkFailed"
+
 /** The header's actions. A blocked preview never offers Apply. */
 export const headerActions = (
-    phase: PackageImportPhase
+    phase: PackageImportPhase,
+    trustBlock: TrustBlock = "checkFailed"
 ): {primary: HeaderAction; secondary?: HeaderAction} => {
     switch (phase) {
+        case "trustBlocked":
+            // The existing Signing trust path; import stays shown, disabled, with its reason.
+            return trustBlock === "missingRoster"
+                ? {primary: "openTrust", secondary: "upload"}
+                : {primary: "upload", secondary: "checkAgain"}
         case "review":
             return {primary: "reviewAndApply", secondary: "upload"}
         case "previewBlocked":
@@ -211,11 +223,15 @@ export const missingPackagePermissions = (
         ? PACKAGE_PERMISSIONS.filter((permission) => !isAuthorized(false, tenantId, permission))
         : []
 
-/** Sections a finished preview would change, in the order Apply would run them. */
+/**
+ * Sections a finished preview would change, in the order Apply would run them.
+ * The confirmation's list, its proposed changes and the page's count all use proposesChange.
+ */
 export const changingSections = (view: ApplicationView | null | undefined): PackageSection[] =>
-    PACKAGE_SECTIONS.filter(
-        (section) => view?.sections.find((s) => s.section === section)?.preview?.needsApply
-    )
+    PACKAGE_SECTIONS.filter((section) => {
+        const found = view?.sections.find((s) => s.section === section)
+        return !!found && proposesChange(found)
+    })
 
 export interface RunIdentity {
     packageSha256?: string

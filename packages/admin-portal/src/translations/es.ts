@@ -109,6 +109,9 @@ const spanishTranslation: TranslationType = {
                 confirmPartial:
                     "Si una sección falla, las anteriores quedan aplicadas y las siguientes no empiezan.",
                 historyOutcome: "Resultado",
+                historicalBlockers:
+                    "De la previsualización anterior, que usó otros requisitos. Previsualiza de nuevo para ver qué bloquea los requisitos elegidos ahora.",
+                historicalSections: "Según la previsualización anterior, con otros requisitos.",
                 historyStarted: "Inicio",
                 noAccess: {
                     title: "No puedes importar paquetes de configuración en este inquilino.",
@@ -161,6 +164,9 @@ const spanishTranslation: TranslationType = {
                     importFixed: "Importar paquete corregido",
                     changeRequirements: "Cambiar requisitos",
                     previewAgain: "Previsualizar de nuevo",
+                    previewAgainSame: "Previsualizar de nuevo con estos requisitos",
+                    openTrust: "Configurar la confianza de firma",
+                    checkAgain: "Comprobar de nuevo",
                     doneRequirements: "Hecho",
                     more: "Más acciones",
                     documentId: "Previsualizar un documento subido por ID",

@@ -102,6 +102,9 @@ const englishTranslation = {
                 confirmPartial:
                     "If a section fails, the ones before it stay applied and the rest do not start.",
                 historyOutcome: "Outcome",
+                historicalBlockers:
+                    "From the earlier preview, which used other requirements. Preview again to see what blocks the requirements selected now.",
+                historicalSections: "As found by the earlier preview, with other requirements.",
                 historyStarted: "Started",
                 noAccess: {
                     title: "You can't import configuration packages on this tenant.",
@@ -154,6 +157,9 @@ const englishTranslation = {
                     importFixed: "Import fixed package",
                     changeRequirements: "Change requirements",
                     previewAgain: "Preview again",
+                    previewAgainSame: "Preview again with these requirements",
+                    openTrust: "Set up signing trust",
+                    checkAgain: "Check again",
                     doneRequirements: "Done",
                     more: "More actions",
                     documentId: "Preview an uploaded document by ID",

@@ -76,6 +76,7 @@ import {
 } from "./PackageHub"
 import {
     type HeaderAction,
+    type TrustBlock,
     changingSections,
     headerActions,
     lastAppliedReceipt,
@@ -100,6 +101,7 @@ import {
     mayApplyPackages,
     readApplication,
     recalledSubmission,
+    sameRequirements,
     readManagedPreview,
     readPackageRetry,
     readPortablePreview,
@@ -592,6 +594,14 @@ const SettingsConfigurationPackageForScope: React.FC<{
         matchesTrust(roster.status, previewed)
     const shaMismatch = !!previewed && !shaMatches(previewed.view, expectedSha)
     const noRecord = !!submitted && finished && !view
+    // The followed Preview ran with other requirements than the ones now selected:
+    // what it found is that run's history, not what blocks the current choice.
+    const previewStale =
+        !!submitted &&
+        submitted.mode === "preview" &&
+        finished &&
+        !!view &&
+        !sameRequirements(submitted.requirements, requirements)
     const phase = packageImportPhase({
         permitsImport,
         rosterLoading: roster.loading,
@@ -599,6 +609,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
         running,
         submittedMode: submitted?.mode,
         outcome: view?.outcome,
+        executionStatus: task?.execution_status,
         canApply,
         hasBlockers: blockers.length > 0,
         previewRefused: !!refusal,
@@ -606,6 +617,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
         noRecord,
         hasError: !!error,
         hasScopeMismatch: !!previewed && !canApply,
+        previewStale,
     })
     // A blocked preview offers Import fixed package and Change requirements, never Apply.
     const showApply = canApply || phase === "previewAgain"
@@ -653,6 +665,29 @@ const SettingsConfigurationPackageForScope: React.FC<{
         switch (wanted) {
             case "reviewAndApply":
                 return null // The Apply button below is the one Review and apply control.
+            case "openTrust":
+                return (
+                    <Button
+                        key="openTrust"
+                        variant={variant}
+                        data-testid="package-open-trust"
+                        onClick={() => setTab("trust")}
+                    >
+                        {t("configurationPackage.hub.actions.openTrust")}
+                    </Button>
+                )
+            case "checkAgain":
+                return (
+                    <Button
+                        key="checkAgain"
+                        variant={variant}
+                        disabled={roster.loading}
+                        data-testid="package-check-trust-again"
+                        onClick={() => void roster.read()}
+                    >
+                        {t("configurationPackage.hub.actions.checkAgain")}
+                    </Button>
+                )
             case "previewAgain":
                 return (
                     <Button
@@ -702,7 +737,10 @@ const SettingsConfigurationPackageForScope: React.FC<{
         }
     }
     // Without the same followed document to preview again, the way on is a new import.
-    const suggested = headerActions(phase)
+    // Only a managed roster can be missing; anything else that blocks is a failed check.
+    const trustBlock: TrustBlock =
+        roster.status?.mode === "portal_managed" ? "missingRoster" : "checkFailed"
+    const suggested = headerActions(phase, trustBlock)
     const actions: {primary: HeaderAction; secondary?: HeaderAction} =
         suggested.primary === "previewAgain" && !canPreviewAgain ? {primary: "upload"} : suggested
     const trustSummary =
@@ -768,12 +806,25 @@ const SettingsConfigurationPackageForScope: React.FC<{
                 )}
                         {!canApply && (refusal || blockers.length > 0) ? (
                             <Alert
-                                severity="warning"
+                                severity={previewStale ? "info" : "warning"}
                                 role="status"
                                 id={`${applyReasonId}-blocked`}
                                 data-testid="package-blocked"
+                                data-historical={previewStale ? "true" : undefined}
                             >
-                                <Typography variant="body2" sx={{fontWeight: "medium"}}>
+                                {previewStale && (
+                                    <Typography
+                                        variant="body2"
+                                        sx={{fontWeight: "medium"}}
+                                        data-testid="package-blocked-historical"
+                                    >
+                                        {t("configurationPackage.hub.historicalBlockers")}
+                                    </Typography>
+                                )}
+                                <Typography
+                                    variant="body2"
+                                    sx={{fontWeight: previewStale ? undefined : "medium"}}
+                                >
                                     {t(
                                         hasRefusalDetails
                                             ? "configurationPackage.blocked"
@@ -855,7 +906,21 @@ const SettingsConfigurationPackageForScope: React.FC<{
                 gap: 1.5,
             }}
         >
-            <Stack spacing={1.5} sx={{minWidth: 0}}>
+            {/* First in reading order, so a phone shows why before the section list;
+                on wide screens it is placed in the right column. */}
+            <Stack
+                spacing={1.5}
+                sx={{minWidth: 0, gridColumn: {lg: 2}, gridRow: {lg: 1}}}
+                data-testid="package-overview-run"
+            >
+                {runCard}
+                <TenantReceipt receipt={receipt} onHistory={() => setTab("history")} />
+            </Stack>
+            <Stack
+                spacing={1.5}
+                sx={{minWidth: 0, gridColumn: {lg: 1}, gridRow: {lg: 1}}}
+                data-testid="package-overview-sections"
+            >
                 <Paper
                     component="section"
                     variant="outlined"
@@ -866,6 +931,15 @@ const SettingsConfigurationPackageForScope: React.FC<{
                     <Typography id={sectionsHeadingId} variant="subtitle2" component="h3">
                         {t("configurationPackage.hub.sectionsHeading")}
                     </Typography>
+                    {previewStale && (
+                        <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            data-testid="package-sections-historical"
+                        >
+                            {t("configurationPackage.hub.historicalSections")}
+                        </Typography>
+                    )}
                     <List dense disablePadding>
                         {sectionRows.map(({section, badge, view: row}, index) => {
                             const summary = row
@@ -1150,10 +1224,6 @@ const SettingsConfigurationPackageForScope: React.FC<{
                         </Box>
                     </Paper>
             </Stack>
-            <Stack spacing={1.5} sx={{minWidth: 0}}>
-                {runCard}
-                <TenantReceipt receipt={receipt} onHistory={() => setTab("history")} />
-            </Stack>
         </Box>
     )
 
@@ -1388,6 +1458,20 @@ const SettingsConfigurationPackageForScope: React.FC<{
                                     disabled={running}
                                     testId="package-requirements-picker"
                                 />
+                                {canPreviewAgain && (
+                                    <Button
+                                        variant="contained"
+                                        sx={{mt: 1}}
+                                        data-testid="package-drawer-preview-again"
+                                        onClick={() => {
+                                            setOpenUpload(false)
+                                            setDrawerRequirements(false)
+                                            previewAgain()
+                                        }}
+                                    >
+                                        {t("configurationPackage.hub.actions.previewAgainSame")}
+                                    </Button>
+                                )}
                             </Box>
                         )}
                     </Paper>
@@ -1562,10 +1646,8 @@ const PortableReplacementWarning: React.FC<{changes: unknown}> = ({changes}) => 
 /** What applying would change, section by section: names, actions and keys only. */
 const ProposedChanges: React.FC<{view: ApplicationView}> = ({view}) => {
     const {t} = useTranslation()
-    const changing = view.sections.filter(
-        (section) =>
-            section.preview?.needsApply ||
-            (section.section === "messaging-accounts" && !!section.preview?.changes)
+    const changing = changingSections(view).flatMap((name) =>
+        view.sections.filter((section) => section.section === name)
     )
     return (
         <Box data-testid="package-proposed-changes">

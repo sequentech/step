@@ -201,9 +201,19 @@ export const readManagedPreview = (
     }
 }
 
+/**
+ * Whether a section's preview proposes a change: what the Apply confirmation
+ * lists and what the page counts. Messaging accounts also counts for its
+ * account changes (a portable replacement, for one), even when needsApply is unset.
+ */
+export const proposesChange = (section: SectionView): boolean =>
+    !!section.preview?.needsApply ||
+    (section.section === "messaging-accounts" &&
+        changeEntries(section.preview?.changes).length > 0)
+
 /** How many sections a preview would change. */
 export const sectionsToChange = (view: ApplicationView): number =>
-    view.sections.filter((s) => s.preview?.needsApply).length
+    view.sections.filter(proposesChange).length
 
 export type PortablePreviewState = "not-needed" | "matched" | "unavailable"
 
@@ -245,7 +255,7 @@ export interface PreviewedPackage {
     portablePreview?: PortablePreviewState
 }
 
-const sameRequirements = (a: PackageRequirements, b: PackageRequirements): boolean =>
+export const sameRequirements = (a: PackageRequirements, b: PackageRequirements): boolean =>
     a.census === b.census &&
     a.sections.length === b.sections.length &&
     a.sections.every((section) => b.sections.includes(section))

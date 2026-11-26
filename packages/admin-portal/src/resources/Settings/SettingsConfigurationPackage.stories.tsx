@@ -71,7 +71,7 @@ const meta = {
                 section: "messaging-accounts",
                 members: ["tenant_messaging_accounts.json"],
                 status: {
-                    state: "ready",
+                    state: "previewed",
                     preview: {
                         needsApply: true,
                         blockers: [],
@@ -351,7 +351,12 @@ export const RosterNotInstalled: Story = {
         await expect(
             canvas.queryByRole("button", {name: i18n.t("configurationPackage.legacySetup")})
         ).not.toBeInTheDocument()
-        await userEvent.click(canvas.getByTestId("package-rail-trust"))
+        await expect(canvas.queryByTestId("package-check-trust-again")).not.toBeInTheDocument()
+        await userEvent.click(canvas.getByTestId("package-open-trust"))
+        await expect(canvas.getByTestId("package-rail-trust")).toHaveAttribute(
+            "aria-current",
+            "page"
+        )
         const manage = await canvas.findByRole("button", {
             name: i18n.t("configurationPackage.roster.manage"),
         })
@@ -447,6 +452,25 @@ export const StalePreviewAgain: Story = {
                 ["preview", "optional"],
             ])
         )
+        expect(graphql.unexpected).toEqual([])
+    },
+}
+
+export const PhoneRosterNotInstalled: Story = {
+    ...atViewport(390),
+    args: {managedRoster: true},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const openTrust = await canvas.findByTestId("package-open-trust")
+        await expect(openTrust).toBeVisible()
+        await expect(canvas.getByTestId("package-upload")).toBeDisabled()
+        await userEvent.click(openTrust)
+        await expect(
+            await canvas.findByRole("button", {name: i18n.t("configurationPackage.roster.manage")})
+        ).toBeVisible()
+        expect(
+            graphql.calls.filter(({name}) => /^(Activate|Preview)ArchitectSignerRoster$/.test(name))
+        ).toHaveLength(0)
         expect(graphql.unexpected).toEqual([])
     },
 }
