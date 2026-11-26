@@ -14,7 +14,9 @@ use crate::postgres::publication_files::{
 use crate::services::ballot_styles::publication_files::heartbeat;
 use crate::services::pg_lock::PgLock;
 use anyhow::{bail, Context, Result};
-use aws_sdk_s3::{presigning::PresigningConfig, primitives::ByteStream, Client};
+use aws_sdk_s3::{
+    presigning::PresigningConfig, primitives::ByteStream, types::ChecksumAlgorithm, Client,
+};
 use deadpool_postgres::{Pool, Transaction};
 use futures::Stream;
 use sequent_core::services::s3::{self, get_private_bucket, get_shared_s3_client};
@@ -142,6 +144,10 @@ pub struct S3PublicationObjects {
 }
 
 impl PublicationObjects for S3PublicationObjects {
+    /// S3 checks the body against its SHA-256, so a successful PUT stored
+    /// exactly these bytes. Only an object that was already there (a retry
+    /// after a lost PUT response, or anything else) is read back, and it must
+    /// hold the same bytes.
     async fn put_immutable_json(&self, key: &str, value: &Value) -> Result<()> {
         tokio::time::timeout(OBJECT_TIMEOUT, async {
             let bytes = serde_json::to_vec(value)?;
@@ -153,18 +159,19 @@ impl PublicationObjects for S3PublicationObjects {
                 .content_type("application/json")
                 .cache_control("private, max-age=300")
                 .if_none_match("*")
+                .checksum_algorithm(ChecksumAlgorithm::Sha256)
                 .body(ByteStream::from(bytes.clone()))
                 .send()
                 .await;
-            if let Err(error) = result {
-                // A retry after a lost PUT response can find the immutable object already there.
-                if error
-                    .raw_response()
-                    .map(|response| response.status().as_u16())
-                    != Some(412)
-                {
-                    return Err(error).context("Cannot upload ballot publication object");
-                }
+            let Err(error) = result else {
+                return Ok(());
+            };
+            if error
+                .raw_response()
+                .map(|response| response.status().as_u16())
+                != Some(412)
+            {
+                return Err(error).context("Cannot upload ballot publication object");
             }
             let stored = self
                 .client
@@ -222,7 +229,9 @@ mod tests {
 
     use super::*;
     use aws_sdk_s3::config::{BehaviorVersion, Credentials, Region};
+    use base64::prelude::{Engine, BASE64_STANDARD};
     use serde_json::json;
+    use sha2::{Digest, Sha256};
     use std::sync::{Arc, Mutex};
     use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
     use tokio::net::{TcpListener, TcpStream};
@@ -251,7 +260,9 @@ mod tests {
         /// Stores the upload but answers that it existed, as a retry after a
         /// lost response finds its own object.
         AlreadyHolds,
+        /// Answers that the object exists but cannot read it back.
         Loses,
+        /// Answers that the object exists and reads back other bytes.
         Corrupts,
     }
 
@@ -320,7 +331,9 @@ mod tests {
                     let mut socket = BufReader::new(socket);
                     while let Some(request) = read_request(&mut socket).await {
                         let (status, body) = match (request.method.as_str(), store) {
-                            ("PUT", Store::RejectsExisting) => (412, Vec::new()),
+                            ("PUT", Store::RejectsExisting | Store::Loses | Store::Corrupts) => {
+                                (412, Vec::new())
+                            }
                             ("PUT", Store::AlreadyHolds) => {
                                 *stored.lock().unwrap() = request.body.clone();
                                 (412, Vec::new())
@@ -361,7 +374,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn objects_are_created_once_as_private_json_and_read_back() {
+    async fn objects_are_created_once_as_private_json_with_their_checksum() {
         let (endpoint, requests) = fake_s3(Store::Keeps).await;
         put(
             &endpoint,
@@ -370,9 +383,10 @@ mod tests {
         .await
         .unwrap();
 
+        // The checksum proves the stored bytes, so nothing is read back.
         let requests = requests.lock().unwrap();
-        let [upload, read_back] = requests.as_slice() else {
-            panic!("expected an upload and a read-back: {requests:?}");
+        let [upload] = requests.as_slice() else {
+            panic!("expected only an upload: {requests:?}");
         };
         assert_eq!(
             (upload.method.as_str(), upload.object_path()),
@@ -381,13 +395,11 @@ mod tests {
         assert_eq!(upload.header("content-type"), Some("application/json"));
         assert_eq!(upload.header("cache-control"), Some("private, max-age=300"));
         assert_eq!(upload.header("if-none-match"), Some("*"));
+        let body = br#"{"id":"style","ballot_eml_prefix":"{\"a\":"}"#;
+        assert_eq!(upload.body, body);
         assert_eq!(
-            upload.body,
-            br#"{"id":"style","ballot_eml_prefix":"{\"a\":"}"#
-        );
-        assert_eq!(
-            (read_back.method.as_str(), read_back.object_path()),
-            ("GET", OBJECT_PATH)
+            upload.header("x-amz-checksum-sha256"),
+            Some(BASE64_STANDARD.encode(Sha256::digest(body)).as_str())
         );
     }
 

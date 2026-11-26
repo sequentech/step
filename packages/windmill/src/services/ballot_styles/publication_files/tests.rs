@@ -1343,3 +1343,43 @@ async fn a_snapshot_that_cannot_be_read_whole_is_an_error() {
     .await
     .is_err());
 }
+
+/// Counts the uploads in flight; each one yields so others can start.
+#[derive(Default)]
+struct CountingObjects {
+    in_flight: std::sync::atomic::AtomicUsize,
+    most_in_flight: std::sync::atomic::AtomicUsize,
+    uploaded: std::sync::atomic::AtomicUsize,
+}
+
+impl PublicationObjects for CountingObjects {
+    async fn put_immutable_json(&self, _key: &str, _value: &Value) -> Result<()> {
+        use std::sync::atomic::Ordering::SeqCst;
+        let now = self.in_flight.fetch_add(1, SeqCst) + 1;
+        self.most_in_flight.fetch_max(now, SeqCst);
+        tokio::task::yield_now().await;
+        self.in_flight.fetch_sub(1, SeqCst);
+        self.uploaded.fetch_add(1, SeqCst);
+        Ok(())
+    }
+
+    async fn get_json(&self, _key: &str) -> Result<Value> {
+        bail!("not stored")
+    }
+
+    async fn presign_get(&self, _key: &str, _expires_in: Duration) -> Result<String> {
+        bail!("not signed")
+    }
+}
+
+#[tokio::test]
+async fn uploads_keep_the_concurrency_limit_busy_and_finish_every_object() {
+    use std::sync::atomic::Ordering::SeqCst;
+    let objects = CountingObjects::default();
+    let batch = (0..3 * UPLOAD_CONCURRENCY)
+        .map(|index| (format!("{ROOT}/object-{index}.json"), json!({})))
+        .collect();
+    upload_batch(&objects, batch).await.unwrap();
+    assert_eq!(objects.most_in_flight.load(SeqCst), UPLOAD_CONCURRENCY);
+    assert_eq!(objects.uploaded.load(SeqCst), 3 * UPLOAD_CONCURRENCY);
+}

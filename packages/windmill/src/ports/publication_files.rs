@@ -82,8 +82,9 @@ pub trait PublicationStorage: Sync {
 }
 
 pub trait PublicationObjects: Sync {
-    /// Creates `key` only if it does not exist, then verifies that the stored
-    /// bytes are the serialized `value`: a retried upload finds its own object.
+    /// Creates `key` only if it does not exist and stores exactly the
+    /// serialized `value`. When `key` already exists it succeeds only if the
+    /// stored bytes are the same: a retried upload finds its own object.
     fn put_immutable_json(
         &self,
         key: &str,
