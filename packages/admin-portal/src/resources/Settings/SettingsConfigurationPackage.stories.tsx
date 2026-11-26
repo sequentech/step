@@ -228,7 +228,9 @@ export const PreviewAndConfirm: Story = {
             "language_conf"
         )
         await waitFor(() =>
-            expect(dialog.getByText(i18n.t("configurationPackage.messagingReplaceWarning"))).toBeVisible()
+            expect(
+                dialog.getByText(i18n.t("configurationPackage.messagingReplaceWarning"))
+            ).toBeVisible()
         )
 
         // Opening confirmation never applies; the only mutation so far is preview.
@@ -253,7 +255,9 @@ export const BlockedPreview: Story = {
         const alert = await canvas.findByTestId("package-blocked")
         await expect(within(alert).getByText(i18n.t("configurationPackage.blocked"))).toBeVisible()
         await waitFor(() =>
-            expect(within(alert).getByText(i18n.t("configurationPackage.workflow.missingCensus"))).toBeVisible()
+            expect(
+                within(alert).getByText(i18n.t("configurationPackage.workflow.missingCensus"))
+            ).toBeVisible()
         )
         await expect(canvas.getByTestId("section-trustees")).toHaveTextContent("missing")
         await expect(canvas.getByTestId("package-apply")).toBeDisabled()
