@@ -154,6 +154,21 @@ describe("MessagingTestDialog", () => {
             offered: true,
             required: true,
         })
+        // WhatsApp through Infobip sends Meta's templates too.
+        const infobipWhatsApp: IMessagingAccount = {
+            ...account,
+            channel: EMessageChannel.WHATSAPP,
+            provider: EMessagingProvider.WHATSAPP_INFOBIP,
+            sender: {
+                provider: EMessagingProvider.WHATSAPP_INFOBIP,
+                base_url: "https://x.api.infobip.com",
+                sender_number: "447796344125",
+            },
+        }
+        expect(testTemplateField(infobipWhatsApp, EMessagePurpose.OTP)).toEqual({
+            offered: true,
+            required: true,
+        })
         expect(testTemplateField(account, EMessagePurpose.OTP)).toEqual({
             offered: false,
             required: false,

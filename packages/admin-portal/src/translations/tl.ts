@@ -6558,6 +6558,7 @@ const tagalogTranslation: TranslationType = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                WHATSAPP_INFOBIP: "WhatsApp Business (Infobip)",
                 CONSOLE: "Console (hindi na suportado)",
                 HTTP_API: "Pasadyang HTTP API (hindi na suportado)",
             },
@@ -7014,6 +7015,7 @@ const tagalogTranslation: TranslationType = {
                 page_name: "Pangalan ng Page",
                 page_username: "Username ng Page",
                 base_url: "Base URL ng API",
+                sender_number: "Numero ng nagpapadala",
                 sender: "Pangalan ng nagpadala",
                 provider_approval: "Pag-apruba ng provider",
                 is_default: "Default na {{channel}} account para sa mga bagong election event",
@@ -7034,6 +7036,8 @@ const tagalogTranslation: TranslationType = {
                     "Ginagamit para sa m.me link na binubuksan ng mga botante para makuha ang kanilang code.",
                 api_version: "Halimbawa, v23.0.",
                 base_url: "Ang base URL ng Infobip API ng account.",
+                sender_number:
+                    "Ang WhatsApp number na nakarehistro sa Infobip, sa international format, gaya ng 447796344125.",
                 sender: "Ang aprubadong nagpadala na nakikita ng mga botante.",
                 provider_approval:
                     "Pinapayagan lamang ng Meta ang pagmemensahe ng gobyerno sa WhatsApp sa pamamagitan ng aprubadong kaayusan. Piliin ang Kumpirmado ang pag-apruba ng provider kapag naaprubahan na ito ng Meta para sa account na ito; hanggang doon, hindi mapapagana ang mga OTP at abiso para dito.",
@@ -7138,6 +7142,10 @@ const tagalogTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "Ang Infobip API key.",
                 },
+                WHATSAPP_INFOBIP: {
+                    API_KEY:
+                        "Ang Infobip API key, na may mga scope na whatsapp:manage at whatsapp:message:send.",
+                },
             },
             webhook: {
                 title: "Mga ulat sa paghahatid",
@@ -7148,6 +7156,8 @@ const tagalogTranslation: TranslationType = {
                         "Ilagay ang URL ng callback na ito sa mga setting ng webhook ng Meta. Dito dumarating ang mga ulat sa paghahatid at ang pag-tap ng botante sa Magsimula, at sinusuri ang mga ito gamit ang lihim ng app.",
                     VIBER_INFOBIP:
                         "Ipinapadala ng Infobip ang mga ulat sa paghahatid ng Viber sa URL ng callback na ito sa pamamagitan ng isang subscription na may Basic authentication.",
+                    WHATSAPP_INFOBIP:
+                        "Ipinapadala ng Infobip ang mga ulat sa paghahatid ng WhatsApp sa URL ng callback na ito sa pamamagitan ng isang subscription na may Basic authentication.",
                     AWS_SES:
                         "I-subscribe ang URL ng callback na ito (HTTPS) sa topic ng mga abiso sa paghahatid. Dito dumarating ang mga event ng paghahatid at bounce, at sinusuri ang mga ito gamit ang lagda ng Amazon.",
                 },
@@ -7214,13 +7224,13 @@ const tagalogTranslation: TranslationType = {
                 error: "Hindi mabuo ang mga kredensyal para sa ulat.",
                 step: {
                     subscription:
-                        "Sa Infobip, gumawa ng subscription para sa mga ulat sa paghahatid ng Viber.",
+                        "Sa Infobip, gumawa ng subscription para sa mga ulat sa paghahatid ng {{channel}}.",
                     url: "Itakda ang URL nito sa URL ng callback ng account na ito.",
                     auth: "Piliin ang Basic authentication at ilagay ang pangalan ng user at password para sa mga ulat.",
                 },
                 confirmTitle: "Palitan ang mga kredensyal para sa ulat?",
                 confirmBody:
-                    "Agad na hindi na gagana ang kasalukuyang pangalan ng user at password para sa mga ulat. Hangga't wala pa sa subscription ng Infobip ang mga bago, tatanggihan ang mga ulat ng paghahatid ng Viber at mananatiling Tinanggap ang mga mensahe.",
+                    "Agad na hindi na gagana ang kasalukuyang pangalan ng user at password para sa mga ulat. Hangga't wala pa sa subscription ng Infobip ang mga bago, tatanggihan ang mga ulat ng paghahatid ng {{channel}} at mananatiling Tinanggap ang mga mensahe.",
                 confirm: "Palitan",
             },
         },

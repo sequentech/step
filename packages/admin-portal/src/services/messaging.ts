@@ -69,6 +69,8 @@ export const providerChannel = (provider: EMessagingProvider): EMessageChannel |
             return EMessageChannel.MESSENGER
         case EMessagingProvider.VIBER_INFOBIP:
             return EMessageChannel.VIBER
+        case EMessagingProvider.WHATSAPP_INFOBIP:
+            return EMessageChannel.WHATSAPP
         case EMessagingProvider.HTTP_API:
         case EMessagingProvider.CONSOLE:
             return null
@@ -117,6 +119,10 @@ export const providerCapabilities = (
             return {...base, conversation_window_hours: 24}
         case EMessagingProvider.VIBER_INFOBIP:
             return {...base, template_required_for: [...both], reconciliation: true}
+        case EMessagingProvider.WHATSAPP_INFOBIP:
+            // Meta's rules through Infobip, which has no message lookup and
+            // registers the sender itself.
+            return {...base, template_required_for: [...both], conversation_window_hours: 24}
     }
 }
 
@@ -200,6 +206,11 @@ export const accountIdentity = (sender: IAccountSender): IAccountIdentity => {
                 return [
                     ["base_url", sender.base_url?.replace(/\/+$/, "")],
                     ["sender", sender.sender],
+                ]
+            case EMessagingProvider.WHATSAPP_INFOBIP:
+                return [
+                    ["base_url", sender.base_url?.replace(/\/+$/, "")],
+                    ["sender_number", sender.sender_number?.trim().replace(/^\+/, "")],
                 ]
             default:
                 return []
@@ -360,6 +371,7 @@ export const requiredCredentials = (provider: EMessagingProvider): ECredentialNa
         case EMessagingProvider.MESSENGER_SEND_API:
             return [ECredentialName.ACCESS_TOKEN]
         case EMessagingProvider.VIBER_INFOBIP:
+        case EMessagingProvider.WHATSAPP_INFOBIP:
             return [ECredentialName.API_KEY]
         case EMessagingProvider.SMTP:
             return [ECredentialName.SMTP_PASSWORD]
@@ -386,6 +398,7 @@ export const acceptedCredentials = (provider: EMessagingProvider): ECredentialNa
                 ECredentialName.VERIFY_TOKEN,
             ]
         case EMessagingProvider.VIBER_INFOBIP:
+        case EMessagingProvider.WHATSAPP_INFOBIP:
             return [
                 ECredentialName.API_KEY,
                 ECredentialName.REPORT_USERNAME,
@@ -411,8 +424,13 @@ export const isMetaProvider = (provider: EMessagingProvider): boolean =>
  */
 export const hasWebhook = (provider: EMessagingProvider): boolean =>
     isMetaProvider(provider) ||
-    provider === EMessagingProvider.VIBER_INFOBIP ||
+    usesInfobipReports(provider) ||
     provider === EMessagingProvider.AWS_SES
+
+/** Whether reports come through an Infobip subscription with generated Basic auth. */
+export const usesInfobipReports = (provider: EMessagingProvider): boolean =>
+    provider === EMessagingProvider.VIBER_INFOBIP ||
+    provider === EMessagingProvider.WHATSAPP_INFOBIP
 
 export const channelStatisticsKey = (channel: EMessageChannel): string => {
     switch (channel) {
@@ -443,6 +461,10 @@ export const accountSenderLabel = (sender: IAccountSender): string | null => {
             return sender.page_name || sender.page_id
         case EMessagingProvider.VIBER_INFOBIP:
             return sender.sender
+        case EMessagingProvider.WHATSAPP_INFOBIP:
+            return (
+                sender.display_name?.trim() || `+${sender.sender_number.trim().replace(/^\+/, "")}`
+            )
         case EMessagingProvider.HTTP_API:
         case EMessagingProvider.CONSOLE:
             return null

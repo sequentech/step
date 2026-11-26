@@ -6438,6 +6438,7 @@ const galegoTranslation: TranslationType = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                WHATSAPP_INFOBIP: "WhatsApp Business (Infobip)",
                 CONSOLE: "Consola (xa non é compatible)",
                 HTTP_API: "API HTTP personalizada (xa non é compatible)",
             },
@@ -6885,6 +6886,7 @@ const galegoTranslation: TranslationType = {
                 page_name: "Nome da páxina",
                 page_username: "Nome de usuario da páxina",
                 base_url: "URL base da API",
+                sender_number: "Número do remitente",
                 sender: "Nome do remitente",
                 provider_approval: "Aprobación do provedor",
                 is_default: "Conta de {{channel}} predeterminada para novos eventos electorais",
@@ -6904,6 +6906,8 @@ const galegoTranslation: TranslationType = {
                     "Úsase na ligazón m.me que os votantes abren para obter o seu código.",
                 api_version: "Por exemplo, v23.0.",
                 base_url: "A URL base da API de Infobip da conta.",
+                sender_number:
+                    "O número de WhatsApp rexistrado en Infobip, en formato internacional, como 447796344125.",
                 sender: "O remitente aprobado que ven os votantes.",
                 provider_approval:
                     "Meta só permite mensaxes de WhatsApp de gobernos mediante un acordo aprobado. Escolla Aprobación do provedor confirmada cando Meta o aprobase para esta conta; ata entón non se poden activar códigos nin avisos nela.",
@@ -7004,6 +7008,10 @@ const galegoTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "A clave de API de Infobip.",
                 },
+                WHATSAPP_INFOBIP: {
+                    API_KEY:
+                        "A clave de API de Infobip, cos ámbitos whatsapp:manage e whatsapp:message:send.",
+                },
             },
             webhook: {
                 title: "Informes de entrega",
@@ -7014,6 +7022,8 @@ const galegoTranslation: TranslationType = {
                         "Introduza este URL de retorno na configuración de webhooks de Meta. Os informes de entrega e o toque do votante en Comezar chegan aquí e compróbanse co segredo da aplicación.",
                     VIBER_INFOBIP:
                         "Infobip envía os informes de entrega de Viber a este URL de retorno mediante unha subscrición con autenticación Basic.",
+                    WHATSAPP_INFOBIP:
+                        "Infobip envía os informes de entrega de WhatsApp a este URL de retorno mediante unha subscrición con autenticación Basic.",
                     AWS_SES:
                         "Subscriba este URL de retorno (HTTPS) ao tema de notificacións de entrega. Os eventos de entrega e rebote chegan aquí e compróbanse coa sinatura de Amazon.",
                 },
@@ -7080,13 +7090,13 @@ const galegoTranslation: TranslationType = {
                 error: "Non se puideron xerar as credenciais de informes.",
                 step: {
                     subscription:
-                        "En Infobip, cree unha subscrición para os informes de entrega de Viber.",
+                        "En Infobip, cree unha subscrición para os informes de entrega de {{channel}}.",
                     url: "Poña como URL o URL de retorno desta conta.",
                     auth: "Escolla a autenticación Basic e introduza o usuario e o contrasinal de informes.",
                 },
                 confirmTitle: "Substituír as credenciais de informes?",
                 confirmBody:
-                    "O usuario e o contrasinal de informes actuais deixan de funcionar de inmediato. Ata que a subscrición de Infobip teña os novos, os informes de entrega de Viber rexéitanse e as mensaxes quedan en Aceptado.",
+                    "O usuario e o contrasinal de informes actuais deixan de funcionar de inmediato. Ata que a subscrición de Infobip teña os novos, os informes de entrega de {{channel}} rexéitanse e as mensaxes quedan en Aceptado.",
                 confirm: "Substituír",
             },
         },

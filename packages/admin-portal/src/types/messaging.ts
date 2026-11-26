@@ -44,6 +44,8 @@ export enum EMessagingProvider {
     WHATSAPP_CLOUD_API = "WHATSAPP_CLOUD_API",
     MESSENGER_SEND_API = "MESSENGER_SEND_API",
     VIBER_INFOBIP = "VIBER_INFOBIP",
+    /** WhatsApp Business through Infobip: Meta's approved templates, Infobip's API key. */
+    WHATSAPP_INFOBIP = "WHATSAPP_INFOBIP",
     /** Parse-only: an account saved with it loads as unsupported and can't send. */
     HTTP_API = "HTTP_API",
     /** Parse-only: an account saved with it loads as unsupported and can't send. */
@@ -349,6 +351,13 @@ export type IAccountSender =
           approved_templates?: IViberApprovedTemplates
           /** Absent on accounts saved before it existed: approved templates. */
           content_mode?: EViberContentMode
+      }
+    | {
+          provider: EMessagingProvider.WHATSAPP_INFOBIP
+          base_url: string
+          /** International format without `+`, such as `447796344125`. */
+          sender_number: string
+          display_name?: string | null
       }
     /** Unsupported; its other fields are ignored. */
     | {provider: EMessagingProvider.HTTP_API; label?: string | null}

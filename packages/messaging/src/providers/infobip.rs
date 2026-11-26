@@ -28,8 +28,16 @@ use sequent_core::types::messaging::{
     MessageChannel, MessagePurpose, PartnerLogin, ProviderCapabilities, ViberContentMode,
 };
 
-/// Why a Viber account isn't connected: Infobip refused its API key.
+/// Why an Infobip account isn't connected: Infobip refused its API key.
 pub const PARTNER_LOGIN_REFUSED: &str = "Infobip refused the account's API key";
+
+/// The `Authorization` header of the account's Infobip requests.
+pub(crate) fn authorization(account: &Account) -> Result<String> {
+    Ok(format!(
+        "App {}",
+        account.credential(CredentialName::API_KEY)?
+    ))
+}
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -142,10 +150,7 @@ impl InfobipViberSender {
     }
 
     fn authorization(&self) -> Result<String> {
-        Ok(format!(
-            "App {}",
-            self.account.credential(CredentialName::API_KEY)?
-        ))
+        authorization(&self.account)
     }
 
     fn template_content(message: &OutboundMessage, template: &str) -> Value {

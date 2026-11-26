@@ -20,6 +20,7 @@ export const WHATSAPP_ACCOUNT_ID = storyId(6, 3)
 export const VIBER_ACCOUNT_ID = storyId(6, 4)
 export const MESSENGER_ACCOUNT_ID = storyId(6, 5)
 export const PARTNER_ACCOUNT_ID = storyId(6, 6)
+export const INFOBIP_WHATSAPP_ACCOUNT_ID = storyId(6, 8)
 
 const checked = (approvedTemplates: Partial<Record<EMessagePurpose, string[]>> = {}) => ({
     connected: true,
@@ -123,6 +124,44 @@ export const viberAccount = (): IMessagingAccount => ({
     is_default: true,
 })
 
+/** WhatsApp through Infobip, checked: the sender's templates come from Infobip. */
+export const infobipWhatsAppAccount = (): IMessagingAccount => ({
+    ...base,
+    id: INFOBIP_WHATSAPP_ACCOUNT_ID,
+    channel: EMessageChannel.WHATSAPP,
+    provider: EMessagingProvider.WHATSAPP_INFOBIP,
+    name: "Council WhatsApp (Infobip)",
+    sender: {
+        provider: EMessagingProvider.WHATSAPP_INFOBIP,
+        base_url: "https://council.api.infobip.admin-story.invalid",
+        sender_number: "447700900123",
+        display_name: "Council Elections",
+    },
+    credentials: {API_KEY: {replaced_at: FIXED_TIME}},
+    status: {
+        ...checked({OTP: ["en"], NOTICE: ["en"]}),
+        details: {
+            partner_login: {accepted: true, reason: null},
+            templates: [
+                {
+                    name: "council_code",
+                    language: "en",
+                    category: "AUTHENTICATION",
+                    status: "APPROVED",
+                },
+                {
+                    name: "council_code",
+                    language: "es",
+                    category: "AUTHENTICATION",
+                    status: "PENDING",
+                },
+                {name: "council_notice", language: "en", category: "UTILITY", status: "APPROVED"},
+            ],
+        },
+    },
+    is_default: false,
+})
+
 export const messengerAccount = (): IMessagingAccount => ({
     ...base,
     id: MESSENGER_ACCOUNT_ID,
@@ -169,7 +208,13 @@ export const callbackUrl = (provider: "meta" | "viber" | "aws", accountId: strin
 export const callbackUrlHandler = ({variables}: {variables?: Record<string, unknown>}) => {
     const accountId = String(variables?.accountId ?? "")
     const provider =
-        accountId === VIBER_ACCOUNT_ID ? "viber" : accountId === EMAIL_ACCOUNT_ID ? "aws" : "meta"
+        accountId === VIBER_ACCOUNT_ID
+            ? "viber"
+            : accountId === INFOBIP_WHATSAPP_ACCOUNT_ID
+              ? "infobip"
+              : accountId === EMAIL_ACCOUNT_ID
+                ? "aws"
+                : "meta"
     return {
         data: {
             messaging_account_callback_url: {

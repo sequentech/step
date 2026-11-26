@@ -85,6 +85,7 @@ async fn only_the_listed_routes_exist_and_nothing_else_is_forwarded() {
         ("GET", "/webhooks/meta/<key>"),
         ("POST", "/webhooks/meta/<key>"),
         ("POST", "/webhooks/viber/<key>"),
+        ("POST", "/webhooks/infobip/<key>"),
         ("POST", "/webhooks/aws/<key>"),
         ("GET", "/healthz"),
         // Answers 404, so HEAD never reaches the GET handshake.
@@ -98,6 +99,7 @@ async fn only_the_listed_routes_exist_and_nothing_else_is_forwarded() {
     for provider in [
         CallbackProvider::META,
         CallbackProvider::VIBER,
+        CallbackProvider::INFOBIP,
         CallbackProvider::AWS,
     ] {
         let path = provider.callback_url("", "<key>");
@@ -110,6 +112,7 @@ async fn only_the_listed_routes_exist_and_nothing_else_is_forwarded() {
         (true, CALLBACKS_PATH.to_string()),
         (true, format!("/webhooks/http/{KEY}")),
         (false, format!("/webhooks/viber/{KEY}")),
+        (false, format!("/webhooks/infobip/{KEY}")),
         (false, format!("/webhooks/aws/{KEY}")),
         (true, format!("/webhooks/meta/{KEY}/extra")),
         (true, "/".to_string()),
@@ -161,7 +164,7 @@ async fn a_body_over_the_limit_is_refused_unread() {
         ..config(&harvest.base_url)
     })
     .await;
-    for provider in ["meta", "viber", "aws"] {
+    for provider in ["meta", "viber", "infobip", "aws"] {
         let response = client
             .post(format!("/webhooks/{provider}/{KEY}"))
             .body("x".repeat(17))

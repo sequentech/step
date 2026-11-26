@@ -6455,6 +6455,7 @@ const basqueTranslation: TranslationType = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                WHATSAPP_INFOBIP: "WhatsApp Business (Infobip)",
                 CONSOLE: "Kontsola (jada ez da onartzen)",
                 HTTP_API: "HTTP API pertsonalizatua (jada ez da onartzen)",
             },
@@ -6906,6 +6907,7 @@ const basqueTranslation: TranslationType = {
                 page_name: "Orriaren izena",
                 page_username: "Orriaren erabiltzaile-izena",
                 base_url: "APIaren oinarrizko URLa",
+                sender_number: "Igorlearen zenbakia",
                 sender: "Igorlearen izena",
                 provider_approval: "Hornitzailearen onarpena",
                 is_default: "{{channel}} kontu lehenetsia hauteskunde-gertaera berrietarako",
@@ -6926,6 +6928,8 @@ const basqueTranslation: TranslationType = {
                     "Hautesleek beren kodea lortzeko irekitzen duten m.me estekan erabiltzen da.",
                 api_version: "Adibidez, v23.0.",
                 base_url: "Kontuaren Infobip APIaren oinarrizko URLa.",
+                sender_number:
+                    "Infobip-en erregistratutako WhatsApp zenbakia, nazioarteko formatuan, adibidez 447796344125.",
                 sender: "Hautesleek ikusten duten igorle onartua.",
                 provider_approval:
                     "Meta-k gobernuen WhatsApp mezularitza onartutako akordio baten bidez soilik baimentzen du. Aukeratu Hornitzailearen onarpena berretsita Meta-k kontu honetarako onartu duenean; bitartean, ezin dira kodeak eta jakinarazpenak gaitu kontu honetan.",
@@ -7030,6 +7034,10 @@ const basqueTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "Infobip API gakoa.",
                 },
+                WHATSAPP_INFOBIP: {
+                    API_KEY:
+                        "Infobip-en API gakoa, whatsapp:manage eta whatsapp:message:send esparruekin.",
+                },
             },
             webhook: {
                 title: "Entrega-txostenak",
@@ -7040,6 +7048,8 @@ const basqueTranslation: TranslationType = {
                         "Idatzi itzulera-URL hau Metaren webhook ezarpenetan. Entrega-txostenak eta hautesleak Hasi botoian egindako sakatzea hona iristen dira eta aplikazioaren sekretuarekin egiaztatzen dira.",
                     VIBER_INFOBIP:
                         "Infobip-ek Viber-en entrega-txostenak itzulera-URL honetara bidaltzen ditu, Basic autentifikazioa duen harpidetza baten bidez.",
+                    WHATSAPP_INFOBIP:
+                        "Infobip-ek WhatsApp-en entrega-txostenak itzulera-URL honetara bidaltzen ditu, Basic autentifikazioa duen harpidetza baten bidez.",
                     AWS_SES:
                         "Harpidetu itzulera-URL hau (HTTPS) entrega-jakinarazpenen gaiari. Entrega- eta errebote-gertaerak hona iristen dira eta Amazonen sinadurarekin egiaztatzen dira.",
                 },
@@ -7106,13 +7116,13 @@ const basqueTranslation: TranslationType = {
                 error: "Ezin izan dira txostenen kredentzialak sortu.",
                 step: {
                     subscription:
-                        "Infobip-en, sortu harpidetza bat Viber-en entrega-txostenetarako.",
+                        "Infobip-en, sortu harpidetza bat {{channel}}-en entrega-txostenetarako.",
                     url: "Ezarri haren URLa kontu honen itzulera-URLa gisa.",
                     auth: "Aukeratu Basic autentifikazioa eta idatzi txostenen erabiltzaile-izena eta pasahitza.",
                 },
                 confirmTitle: "Txostenen kredentzialak ordeztu?",
                 confirmBody:
-                    "Txostenen egungo erabiltzaile-izenak eta pasahitzak berehala uzten diote funtzionatzeari. Infobip-eko harpidetzak berriak izan arte, Viber-en entrega-txostenak baztertu egiten dira eta mezuak Onartua egoeran geratzen dira.",
+                    "Txostenen egungo erabiltzaile-izenak eta pasahitzak berehala uzten diote funtzionatzeari. Infobip-eko harpidetzak berriak izan arte, {{channel}}-en entrega-txostenak baztertu egiten dira eta mezuak Onartua egoeran geratzen dira.",
                 confirm: "Ordeztu",
             },
         },

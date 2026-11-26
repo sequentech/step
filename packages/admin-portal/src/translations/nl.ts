@@ -6494,6 +6494,7 @@ const dutchTranslation: TranslationType = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                WHATSAPP_INFOBIP: "WhatsApp Business (Infobip)",
                 CONSOLE: "Console (niet meer ondersteund)",
                 HTTP_API: "Aangepaste HTTP-API (niet meer ondersteund)",
             },
@@ -6955,6 +6956,7 @@ const dutchTranslation: TranslationType = {
                 page_name: "Paginanaam",
                 page_username: "Gebruikersnaam van de pagina",
                 base_url: "Basis-URL van de API",
+                sender_number: "Afzendernummer",
                 sender: "Afzendernaam",
                 provider_approval: "Goedkeuring van de provider",
                 is_default: "Standaard {{channel}}-account voor nieuwe verkiezingsevenementen",
@@ -6974,6 +6976,8 @@ const dutchTranslation: TranslationType = {
                     "Gebruikt voor de m.me-link die kiezers openen om hun code te krijgen.",
                 api_version: "Bijvoorbeeld v23.0.",
                 base_url: "De basis-URL van de Infobip-API van het account.",
+                sender_number:
+                    "Het WhatsApp-nummer dat bij Infobip is geregistreerd, in internationaal formaat, zoals 447796344125.",
                 sender: "De goedgekeurde afzender die kiezers zien.",
                 provider_approval:
                     "Meta staat berichten van overheden via WhatsApp alleen toe via een goedgekeurde regeling. Kies Goedkeuring van de provider bevestigd zodra Meta dit voor dit account heeft goedgekeurd; tot die tijd kunnen codes en berichten voor dit account niet worden ingeschakeld.",
@@ -7079,6 +7083,10 @@ const dutchTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "De Infobip-API-sleutel.",
                 },
+                WHATSAPP_INFOBIP: {
+                    API_KEY:
+                        "De Infobip-API-sleutel, met de scopes whatsapp:manage en whatsapp:message:send.",
+                },
             },
             webhook: {
                 title: "Afleverrapporten",
@@ -7089,6 +7097,8 @@ const dutchTranslation: TranslationType = {
                         "Voer deze callback-URL in bij de webhookinstellingen van Meta. Afleverrapporten en de tik van de kiezer op Aan de slag komen hier binnen en worden gecontroleerd met het app-geheim.",
                     VIBER_INFOBIP:
                         "Infobip verstuurt Viber-afleverrapporten naar deze callback-URL via een abonnement met Basic-authenticatie.",
+                    WHATSAPP_INFOBIP:
+                        "Infobip verstuurt WhatsApp-afleverrapporten naar deze callback-URL via een abonnement met Basic-authenticatie.",
                     AWS_SES:
                         "Abonneer deze callback-URL (HTTPS) op het onderwerp voor afleverberichten. Aflever- en bounce-gebeurtenissen komen hier binnen en worden gecontroleerd met de handtekening van Amazon.",
                 },
@@ -7153,13 +7163,14 @@ const dutchTranslation: TranslationType = {
                 copyPassword: "Wachtwoord voor rapporten kopiëren",
                 error: "De inloggegevens voor rapporten konden niet worden gegenereerd.",
                 step: {
-                    subscription: "Maak in Infobip een abonnement aan voor Viber-afleverrapporten.",
+                    subscription:
+                        "Maak in Infobip een abonnement aan voor {{channel}}-afleverrapporten.",
                     url: "Stel de URL in op de callback-URL van dit account.",
                     auth: "Kies Basic-authenticatie en voer de gebruikersnaam en het wachtwoord voor rapporten in.",
                 },
                 confirmTitle: "Inloggegevens voor rapporten vervangen?",
                 confirmBody:
-                    "De huidige gebruikersnaam en het wachtwoord voor rapporten werken meteen niet meer. Tot het Infobip-abonnement de nieuwe heeft, worden Viber-afleverrapporten geweigerd en blijven berichten op Geaccepteerd staan.",
+                    "De huidige gebruikersnaam en het wachtwoord voor rapporten werken meteen niet meer. Tot het Infobip-abonnement de nieuwe heeft, worden {{channel}}-afleverrapporten geweigerd en blijven berichten op Geaccepteerd staan.",
                 confirm: "Vervangen",
             },
         },
