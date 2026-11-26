@@ -535,12 +535,15 @@ type GetLifecycleSnapshotsOutput {
 
 input GetManualVerificationInput {
   election_event_id: String!
+  initiation_id: String
+  recover_request_id: String
   tenant_id: String!
   voter_id: String!
 }
 
 type GetManualVerificationOutput {
   document_id: String
+  signing_request: jsonb
   status: String
 }
 
