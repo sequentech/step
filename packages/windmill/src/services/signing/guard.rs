@@ -13,7 +13,8 @@
 //! the trustee's route consumes the completed request ([`consume_gate`]).
 
 use super::log::SystemOutcome;
-use super::operational_policy::{signing_mode, OperationalSigningMode};
+use super::operational_policy::local_scope::{for_target, Target};
+use super::operational_policy::OperationalSigningMode;
 use super::operational_quorum::has_operational_quorum;
 use super::requests::{
     cancel_request, expire_request, is_overdue, is_the_trustee, read_request, relock,
@@ -164,16 +165,41 @@ pub async fn effective_rule(
     election_event_id: Uuid,
     action: SigningAction,
 ) -> anyhow::Result<SigningRule> {
-    let mode = signing_mode(hasura_transaction, tenant_id).await?;
+    let mode = super::operational_policy::local_scope::event_action_mode(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+    )
+    .await?;
+    effective_rule_in_mode(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        action,
+        mode,
+    )
+    .await
+}
+
+// The rule remains event-wide; only its enforcement mode can be narrower.
+pub(super) async fn effective_rule_in_mode(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    action: SigningAction,
+    mode: OperationalSigningMode,
+) -> anyhow::Result<SigningRule> {
     let effective = get_signing_rule(hasura_transaction, tenant_id, election_event_id, action)
         .await?
         .map(|row| row.rule);
     if mode == OperationalSigningMode::HsmRequired {
         let rule = effective
             .filter(SigningRule::is_required)
-            .with_context(|| format!("Hardware signing needs a required rule for {action}."))?;
+            .with_context(|| {
+                format!("Server-managed signing needs a required rule for {action}.")
+            })?;
         rule.validate()
-            .context("Invalid required hardware signing rule")?;
+            .context("Invalid required server-managed signing rule")?;
         return Ok(rule);
     }
     Ok(effective.unwrap_or_else(|| SigningRule::default_for(action)))
@@ -204,23 +230,34 @@ pub async fn guard_at(
 ) -> SigningResult<GuardOutcome> {
     let scope = &request.scope;
     scope.check(request.action)?;
-    // Most actions need no signatures: read the rule without the lock.
-    let rule = effective_rule(
+    // Hold policy through this guard AND the enclosing route's direct effect.
+    let (mode, _latch) = for_target(
         hasura_transaction,
         scope.tenant_id,
         scope.election_event_id,
         request.action,
+        Target::Intent(scope.election_id, scope.area_id, &request.subject),
+    )
+    .await
+    .context("Resolve action signing policy")?;
+    let rule = effective_rule_in_mode(
+        hasura_transaction,
+        scope.tenant_id,
+        scope.election_event_id,
+        request.action,
+        mode,
     )
     .await?;
     if !rule.is_required() {
         return Ok(GuardOutcome::Proceed);
     }
     lock_signing_event(hasura_transaction, scope.tenant_id, scope.election_event_id).await?;
-    let rule = effective_rule(
+    let rule = effective_rule_in_mode(
         hasura_transaction,
         scope.tenant_id,
         scope.election_event_id,
         request.action,
+        mode,
     )
     .await?;
     if !rule.is_required() {
@@ -420,6 +457,9 @@ pub async fn guard_at(
             &waiting,
         )));
     };
+    #[cfg(feature = "comelec-demo-direct-hsm")]
+    super::direct_multi_event::bind(hasura_transaction, &created, _latch).await?;
+
     stage_request_step(
         hasura_transaction,
         &created,
@@ -460,10 +500,10 @@ pub async fn consume_gate(
     request_id: Uuid,
     expected_subject: &Value,
 ) -> SigningResult<SigningRequestRow> {
-    let mode = signing_mode(hasura_transaction, tenant_id)
+    let found = read_request(hasura_transaction, tenant_id, request_id).await?;
+    let mode = super::operational_policy::request_signing_mode(hasura_transaction, &found)
         .await
         .context("Operational signing policy unavailable")?;
-    let found = read_request(hasura_transaction, tenant_id, request_id).await?;
     if found.election_event_id != election_event_id || found.action != action {
         return Err(SigningError::NotFound(
             "There is no such signing request.".into(),
@@ -487,6 +527,13 @@ pub async fn consume_gate(
         request.id,
     )
     .await?;
+    if mode == OperationalSigningMode::LegacyP12
+        && approvals.iter().any(SigningApprovalRow::is_direct_demo)
+    {
+        return Err(SigningError::Forbidden(
+            "This trustee proof has no active direct HSM scope.".into(),
+        ));
+    }
     if !approvals
         .iter()
         .any(|approval| approval.user_id == caller.user_id)
@@ -516,7 +563,7 @@ pub async fn consume_gate(
         .await?
         {
             return Err(SigningError::Forbidden(
-                "This trustee request lacks an applied hardware signing quorum.".into(),
+                "This trustee request lacks an applied server-managed signing quorum.".into(),
             ));
         }
     }

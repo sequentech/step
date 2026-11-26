@@ -87,6 +87,31 @@ select_permissions:
                         _eq: X-Hasura-Tenant-Id
                   - user_id:
                         _eq: X-Hasura-User-Id
+      role: sign-authorize-manual-verification
+    - comment: ""
+      permission:
+          columns:
+              - id
+              - tenant_id
+              - election_event_id
+              - user_id
+              - username
+              - election_id
+              - fingerprint_sha256
+              - serial
+              - subject
+              - issuer
+              - not_before
+              - not_after
+              - status
+              - registration
+              - registered_at
+          filter:
+              _and:
+                  - tenant_id:
+                        _eq: X-Hasura-Tenant-Id
+                  - user_id:
+                        _eq: X-Hasura-User-Id
       role: sign-close-voting
     - comment: ""
       permission:

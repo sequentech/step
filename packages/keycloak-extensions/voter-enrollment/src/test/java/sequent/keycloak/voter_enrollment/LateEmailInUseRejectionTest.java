@@ -25,14 +25,19 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.PathSegment;
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,9 +48,11 @@ import org.keycloak.forms.login.LoginFormsProvider;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.KeycloakUriInfo;
 import org.keycloak.models.RealmModel;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.sessions.RootAuthenticationSessionModel;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import sequent.keycloak.authenticator.Utils.MessageCourier;
@@ -155,6 +162,50 @@ class LateEmailInUseRejectionTest {
     assertEquals("ACCEPTED", notes.get(LookupAndUpdateUser.VERIFICATION_STATUS));
     assertNull(notes.get(LookupAndUpdateUser.VERIFICATION_REJECTION_REASON));
     assertEquals(REJECTION.toNote(), notes.get(LookupAndUpdateUser.EMAIL_IN_USE_REJECTION_NOTE));
+  }
+
+  @Test
+  void enrollmentCompletionAndErrorResponsesPreserveExistingPolicyAndDenyDisplayCapture()
+      throws Exception {
+    KeycloakUriInfo uri = mock(KeycloakUriInfo.class);
+    List<PathSegment> segments =
+        Stream.of("realms", "test", "login-actions", "registration", "")
+            .map(
+                name -> {
+                  PathSegment segment = mock(PathSegment.class);
+                  when(segment.getPath()).thenReturn(name);
+                  return segment;
+                })
+            .toList();
+    when(uri.getPathSegments()).thenReturn(segments);
+    when(context.getUriInfo()).thenReturn(uri);
+    when(form.createForm("registration-finish.ftl"))
+        .thenReturn(
+            Response.ok("Finished", MediaType.TEXT_HTML_TYPE)
+                .header("Permissions-Policy", "camera=(self)")
+                .build());
+    when(form.createErrorPage(Response.Status.INTERNAL_SERVER_ERROR))
+        .thenReturn(
+            Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                .type(MediaType.TEXT_HTML_TYPE)
+                .entity("Not recorded")
+                .header("Permissions-Policy", "microphone=(), display-capture=(self)")
+                .build());
+    var completed = ArgumentCaptor.forClass(Response.class);
+    authenticator.authenticate(context);
+    verify(context).challenge(completed.capture());
+    assertEquals(
+        "camera=(self), display-capture=()",
+        completed.getValue().getHeaderString("Permissions-Policy"));
+
+    windmillAnswers(503);
+    var error = ArgumentCaptor.forClass(Response.class);
+    authenticator.rejectEmailInUse(context, REJECTION);
+    verify(context).failureChallenge(eq(AuthenticationFlowError.INTERNAL_ERROR), error.capture());
+    assertEquals(
+        "microphone=(), display-capture=()",
+        error.getValue().getHeaderString("Permissions-Policy"));
+    assertEquals(500, error.getValue().getStatus());
   }
 
   @Test

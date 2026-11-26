@@ -36,6 +36,7 @@ import type {
     Sequent_Backend_Election_Event,
 } from "@/gql/graphql"
 import {
+    liveReadinessChecks,
     readinessReport,
     READINESS_CHECK_KINDS,
     type IReadinessReport,
@@ -218,7 +219,7 @@ export function ReadinessDialog({
                                 {t("logsScreen.readiness.fields.checked_at")}: {report.checked_at}
                             </Typography>
                             <List disablePadding aria-label={t("readiness.results")}>
-                                {report.checks.map((check) => (
+                                {liveReadinessChecks(report).map((check) => (
                                     <ListItem
                                         key={check.kind}
                                         disableGutters

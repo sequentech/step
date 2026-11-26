@@ -1012,6 +1012,7 @@ const spanishTranslation: TranslationType = {
                     adminKey: "Clave de administración de {{name}}",
                     systemOnly: "Solo la clave de sistema de la bitácora",
                     systemSignature: "Firma del sistema",
+                    approverKeyFingerprint: "Huella de la clave de quien aprobó",
                     publicKey: "Clave de administración publicada",
                 },
             },
@@ -1081,6 +1082,99 @@ const spanishTranslation: TranslationType = {
                 statementTimestampFrom: "Marca de tiempo de la declaración desde",
                 statementTimestampTo: "Marca de tiempo de la declaración hasta",
                 timeZone: "Zona horaria",
+            },
+            statementKind: {
+                Unknown: "Entrada desconocida",
+                CastVote: "Voto emitido",
+                CastVoteError: "Error al emitir el voto",
+                ElectionPublish: "Elección publicada",
+                ElectionVotingPeriodOpen: "Votación abierta (elección)",
+                ElectionVotingPeriodClose: "Votación cerrada (elección)",
+                ElectionVotingPeriodPause: "Votación pausada (elección)",
+                ElectionEventVotingPeriodOpen: "Votación abierta (evento)",
+                ElectionEventVotingPeriodClose: "Votación cerrada (evento)",
+                ElectionEventVotingPeriodPause: "Votación pausada (evento)",
+                KeyGeneration: "Claves generadas",
+                KeyInsertionStart: "Inicio de la inserción de claves",
+                KeyInsertionCeremony: "Ceremonia de inserción de claves",
+                TallyOpen: "Recuento iniciado",
+                TallyClose: "Recuento finalizado",
+                TallyResumedWithResolution: "Recuento reanudado tras una resolución",
+                TallyPausedPendingResolution: "Recuento en pausa pendiente de resolución",
+                TallyTieResolved: "Empate resuelto",
+                TallyTieResolutionUpdated: "Resolución de empate actualizada",
+                SendTemplate: "Plantilla enviada",
+                SendCommunications: "Mensajes enviados",
+                KeycloakUserEvent: "Evento de cuenta de usuario",
+                VoterPublicKey: "Clave pública del votante",
+                AdminPublicKey: "Clave pública del administrador",
+                CertificateAuthEvent: "Inicio de sesión con certificado",
+                PhoneBlacklistUpdated: "Lista de teléfonos bloqueados actualizada",
+                ResultsPublicationAction: "Publicación de resultados",
+                ExternalApiRequest: "Solicitud a la API externa",
+                ExternalReconciliation: "Conciliación externa",
+                BallotPublicationFailure: "Error al publicar la papeleta",
+                ElectoralLogCheckpoint: "Punto de control de la bitácora",
+                ElectoralLogContinuation: "Continuación de la bitácora",
+                MonitoringConfigChanged: "Configuración de monitorización cambiada",
+                SigningRequestCreated: "Solicitud de firma creada",
+                SigningCertificateOpenFailed: "No se pudo abrir el certificado de firma",
+                SigningRequestSigned: "Aprobación firmada",
+                SigningSignatureRefused: "Firma rechazada",
+                SigningCertificateRegistered: "Certificado de firma registrado",
+                SigningHandover: "Firma traspasada",
+                SigningRequestCancelled: "Solicitud de firma cancelada",
+                SigningRequestExpired: "Solicitud de firma caducada",
+                SigningRequestCompleted: "Umbral de aprobaciones alcanzado",
+                SigningActionExecuted: "Acción aprobada finalizada o fallida",
+                SigningRuleChanged: "Regla de firma cambiada",
+                SigningPermissionChanged: "Permiso de firma cambiado",
+                SigningIssuerChanged: "Emisor de firma cambiado",
+                SigningChecksChanged: "Comprobaciones de firma cambiadas",
+                SigningCertificateRevoked: "Certificado de firma revocado",
+                SigningRequestsExported: "Solicitudes de firma exportadas",
+                LifecycleWindowChanged: "Ventana del calendario de votación cambiada",
+                ScheduleRecomputeApplied: "Calendario recalculado",
+                ScheduleImported: "Calendario importado",
+                ScheduledOutcomeChanged: "Resultado programado cambiado",
+                ElectionInitialized: "Elección inicializada",
+                LockdownChanged: "Bloqueo cambiado",
+                ConfigurationPackageImported: "Paquete de configuración importado",
+                ReportGenerated: "Informe generado",
+                ApprovalMatrixUpdated: "Matriz de aprobaciones actualizada",
+                BallotBoxSealed: "Urna sellada",
+                BallotBoxSealFailed: "Error al sellar la urna",
+                TallyBallotBoxVerified: "Urna verificada para el recuento",
+                TallyBallotBoxRejected: "Urna rechazada para el recuento",
+                TenantLogOpened: "Bitácora del inquilino abierta",
+                TenantAdminAction: "Acción de administración del inquilino",
+                AdminChange: "Cambio administrativo",
+                KeycloakAdminEvent: "Evento de administración de identidades",
+                LogsExported: "Bitácoras exportadas",
+                LogWriterStarted: "Escritor de la bitácora iniciado",
+                LogWriterStopped: "Escritor de la bitácora detenido",
+                TransmissionFileDownloaded: "Archivo de transmisión descargado",
+                VotersImported: "Votantes importados",
+                ReadinessVerified: "Preparación verificada",
+                BallotReceived: "Papeleta recibida",
+                BallotAudited: "Papeleta auditada",
+                PseudonymResolved: "Seudónimo resuelto",
+                ForensicRead: "Lectura forense",
+                CastVoteSealKeyPublished:
+                    "Publicación de la clave de cifrado de los votos emitidos",
+            },
+            signingActivity: {
+                row: {
+                    created: "Se creó la solicitud de firma para {{action}}",
+                    approved: "Se firmó la aprobación para {{action}}",
+                    quorum: "Se reunieron las aprobaciones necesarias para {{action}}",
+                    completed: "Acción completada: {{action}}",
+                    failed: "Error al ejecutar la acción: {{action}}",
+                    cancelled: "Se canceló la solicitud de firma para {{action}}",
+                    expired: "La solicitud de firma para {{action}} ha caducado",
+                    rejected: "Firma rechazada",
+                    progress: "({{approved}} de {{required}})",
+                },
             },
             scheduledOutcome: {
                 outcome: {
@@ -2386,11 +2480,13 @@ const spanishTranslation: TranslationType = {
                     subtitle: "Crear votante",
                 },
                 manualVerification: {
-                    label: "Verificar manualmente",
-                    verify: "Verificar manualmente al votante",
-                    body: "Verifique manualmente a este votante. Obtendrá un PDF con un enlace de código QR que le permite al votante iniciar sesión omitiendo el KYC en línea.",
+                    label: "Verificar la identidad manualmente",
+                    verify: "Solicitar documento de verificación",
+                    body: "Solicita un PDF privado con un código QR para este votante. Si se requieren firmas, el documento solo se emite tras la aprobación. Esto no aprueba una solicitud de inscripción.",
                     noEmailOrPhone:
                         "Este votante no puede ser verificado manualmente porque no tiene una dirección de correo electrónico o un número de teléfono asociado a él.",
+                    waiting: "El documento está pendiente de firmas.",
+                    download: "Descargar documento de verificación",
                 },
                 errors: {
                     editError: "Error editando votante",
@@ -2434,9 +2530,10 @@ const spanishTranslation: TranslationType = {
                     deleteError: "Error borrando votante",
                     deleteSuccess: "Votante borrado",
                     multipleDeleteSuccess: "Votantes borrado",
-                    manualVerificationError: "Error verificando manualmente al votante",
+                    manualVerificationError:
+                        "Error al solicitar la verificación manual de identidad",
                     manualVerificationSuccess:
-                        "Verificado exitosamente manualmente al votante, descargar PDF..",
+                        "Descargando el documento de verificación manual de identidad.",
                 },
             },
             roles: {
@@ -2489,7 +2586,9 @@ const spanishTranslation: TranslationType = {
                 "sign-generate-election-returns": "Firmar: generar actas electorales",
                 "sign-generate-reports": "Firmar: generar otros informes electorales",
                 "sign-transmit-results": "Firmar: transmitir resultados",
-                "sign-approve-voter": "Firmar: aprobar manualmente a un votante",
+                "sign-approve-voter": "Firmar: aprobar una solicitud de inscripción",
+                "sign-authorize-manual-verification":
+                    "Firmar: autorizar la verificación manual de identidad",
                 "sign-approve-configuration": "Firmar: aprobar una versión de configuración",
                 "sign-key-ceremony": "Firmar: confirmar un fragmento de clave",
                 "sign-tally-key": "Firmar: aportar un fragmento de clave",
@@ -5325,6 +5424,66 @@ const spanishTranslation: TranslationType = {
                 '¿Está seguro de que desea eliminar el certificado "{{name}}" (huella: {{fingerprint}})?',
         },
         signing: {
+            localSetup: {
+                continue: "Continuar con el inicio de sesión",
+                register: "Registrar mi clave de firma",
+                phase: {
+                    "setup-available":
+                        "Configura tu clave de firma para este puesto. Primero verifica tu contraseña y el código de un solo uso.",
+                    "waiting-for-setup-gold":
+                        "Continúa el inicio de sesión para verificar tu identidad en esta configuración.",
+                    "setup-confirmation-required":
+                        "Identidad verificada. Selecciona Registrar mi clave de firma para crear la clave de este puesto.",
+                    "setup-retry-available":
+                        "El dispositivo aún no ha recogido esta solicitud. Puedes volver a enviar la misma solicitud.",
+                    "setup-pending":
+                        "La configuración está pendiente. Necesitas una clave de firma y un certificado de personal registrado antes de aprobar.",
+                    "setup-recovery-required":
+                        "Un administrador debe revisar esta configuración. No se ha registrado ninguna aprobación.",
+                },
+            },
+            operational: {
+                signingAs: "Firmas con tu clave del HSM como {{name}}",
+                review: "Revisar",
+                rule_one: "Se necesita la aprobación de {{count}} firmante autorizado.",
+                rule_other: "Se necesita la aprobación de {{count}} firmantes autorizados.",
+                retryApproval: "No se pudo confirmar tu aprobación. Puedes volver a firmar.",
+                title: "Revisar la aprobación",
+                setup: "Configurar la firma",
+                approve: "Aprobar",
+                cancelUnused: "Cancelar la verificación sin usar",
+                confirmCancelUnused:
+                    "¿Descartar esta verificación sin usar? No se enviará ninguna aprobación.",
+                keepChallenge: "Conservar la verificación",
+                confirmDiscard: "Descartar la verificación",
+                checkStatus: "Consultar el estado",
+                quorum: "{{count}} de {{required}} aprobaciones registradas",
+                error: "No se pudo confirmar la operación. Consulta su estado antes de volver a intentarlo.",
+                isolatedDemo: "Firma en una demostración aislada. No usar en producción.",
+                retrySetup: "Reintentar la configuración de firma",
+                softwareDemo:
+                    "Solo para demostración: las firmas usan un token de software de prueba, no un dispositivo físico.",
+                phase: {
+                    "loading": "Consultando el estado de la firma…",
+                    "setup-required": "Configura la firma de esta cuenta antes de aprobar.",
+                    "setup-retry-available":
+                        "Puedes retomar un intento de configuración sin usar tras verificar tu identidad. No se enviará ninguna aprobación.",
+                    "setup-recovery-required":
+                        "La configuración de firma requiere ayuda del operador de la demostración. La solicitud sigue pendiente y no se puede firmar aquí.",
+                    "setup-pending":
+                        "La configuración de la firma está pendiente. Tu aprobación no se ha registrado.",
+                    "challenge-available":
+                        "Revisa la acción y luego aprueba y verifica tu identidad.",
+                    "waiting-for-identity":
+                        "Esperando la verificación de identidad. Tu aprobación aún no se ha registrado.",
+                    "pending": "La aprobación sigue pendiente.",
+                    "approval-recorded": "Tu aprobación se ha registrado.",
+                    "reconcile":
+                        "El resultado no está confirmado. Consulta el estado en lugar de volver a aprobar.",
+                    "unavailable":
+                        "La firma no está disponible para esta solicitud. No se envió ninguna aprobación desde aquí.",
+                },
+            },
             terms: {
                 post: "Puesto",
                 posts: "Puestos",
@@ -5332,6 +5491,8 @@ const spanishTranslation: TranslationType = {
             tab: {
                 title: "Firmas",
                 intro: "Las acciones protegidas solo se ejecutan cuando suficientes personas autorizadas las firman con sus certificados digitales. Cada firma se comprueba con los emisores de confianza y queda registrada en el registro.",
+                hsmIntro:
+                    "Las personas autorizadas aprueban las acciones protegidas. Cada aprobación queda registrada en el registro electoral.",
                 protectedActions: "Acciones protegidas",
                 certificates: "Certificados",
                 requests: "Solicitudes",
@@ -5419,13 +5580,22 @@ const spanishTranslation: TranslationType = {
                         "Se inicia en Recuento, Transmisión. Genera el paquete de resultados firmado para sus destinos; las firmas completan su lista de firmas.",
                 },
                 "approve-voter": {
-                    label: "Aprobar manualmente a un votante",
-                    short: "Aprobación de votante",
-                    permissionName: "aprobar manualmente a un votante",
-                    object: "aprobación de votante",
+                    label: "Aprobar una solicitud de inscripción",
+                    short: "Aprobación de inscripción",
+                    permissionName: "aprobar una solicitud de inscripción",
+                    object: "aprobación de inscripción",
                     appliesTo: "El $t(signing.terms.post) del votante",
                     description:
-                        "Se inicia en Aprobaciones. Aprueba al votante y emite sus credenciales.",
+                        "En la pestaña Aprobaciones, aprueba la solicitud y emite las credenciales del votante.",
+                },
+                "authorize-manual-verification": {
+                    label: "Autorizar la verificación manual de identidad",
+                    short: "Verificación manual de identidad",
+                    permissionName: "autorizar la verificación manual de identidad",
+                    object: "verificación manual de identidad",
+                    appliesTo: "El $t(signing.terms.post) del votante",
+                    description:
+                        "En la lista de votantes, permite emitir un documento con un enlace de verificación. No aprueba ninguna solicitud de inscripción.",
                 },
                 "approve-configuration": {
                     label: "Aprobar una versión de configuración",
@@ -5456,6 +5626,8 @@ const spanishTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Cada firma se realiza con el certificado digital del token de seguridad del firmante.",
+                hsmIntro:
+                    "Consulta quién puede aprobar cada acción y cuántas aprobaciones se requieren.",
                 columns: {
                     action: "Acción",
                     appliesTo: "Se aplica a",
@@ -5865,6 +6037,12 @@ const spanishTranslation: TranslationType = {
                 scheduled_events: "Nuevos eventos programados",
                 ballots_and_contests: "Papeletas y concursos",
                 application_id: "Solicitud de inscripción",
+                voter_id: "Cuenta del votante",
+                initiation_id: "Solicitud de verificación",
+                post_id: "$t(signing.terms.post)",
+                area_id: "Área del votante",
+                requester_id: "Cuenta del personal solicitante",
+                secret_attributes: "Nombres de los atributos protegidos",
                 applicant_registry_id: "Cuenta del registro",
                 decision: "Decisión",
                 submitted_at: "Enviada",
@@ -5901,6 +6079,8 @@ const spanishTranslation: TranslationType = {
                     "generate-reports": "$t(signing.actions.generate-reports.label)",
                     "transmit-results": "$t(signing.actions.transmit-results.label)",
                     "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "authorize-manual-verification":
+                        "$t(signing.actions.authorize-manual-verification.label)",
                     "approve-configuration": "$t(signing.actions.approve-configuration.label)",
                     "key-ceremony": "$t(signing.actions.key-ceremony.label)",
                     "tally-key": "$t(signing.actions.tally-key.label)",

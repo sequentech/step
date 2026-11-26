@@ -1342,6 +1342,8 @@ input CreatePermissionInput {
 }
 
 input GetManualVerificationInput {
+    recover_request_id: String
+    initiation_id: String
     tenant_id: String!
     election_event_id: String!
     voter_id: String!
@@ -1462,6 +1464,7 @@ input CountUsersInput {
 }
 
 type GetManualVerificationOutput {
+    signing_request: jsonb
     document_id: String
     status: String
 }

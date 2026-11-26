@@ -7,6 +7,7 @@
         {"action": "generate-reports", "requirement": "required", "signatures": 2, "requester_signing": "allowed", "expires_minutes": 120},
         {"action": "transmit-results", "requirement": "required", "signatures": 2, "requester_signing": "allowed", "expires_minutes": 120},
         {"action": "approve-voter", "requirement": "required", "signatures": 1, "requester_signing": "allowed", "expires_minutes": null},
+        {"action": "authorize-manual-verification", "requirement": "required", "signatures": 1, "requester_signing": "allowed", "expires_minutes": null},
         {"action": "approve-configuration", "requirement": "required", "signatures": 2, "requester_signing": "allowed", "expires_minutes": 1440},
         {"action": "key-ceremony", "requirement": "required", "signatures": 1, "requester_signing": "allowed", "expires_minutes": 60},
         {"action": "tally-key", "requirement": "required", "signatures": 1, "requester_signing": "allowed", "expires_minutes": 60}

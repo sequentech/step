@@ -22,6 +22,34 @@ Upstream `docker-entrypoint.sh` on start:
 3. `migrate apply --all-databases` from `/hasura-migrations`
 4. `metadata reload`, then `exec` normal serve
 
+### Upgrading databases that recorded version 1794700001600
+
+Hasura records the number, not the migration directory name. On OVCS,
+`1794700001600_cast_vote_seal_key` is immutable. An older HSM branch used
+that same number for `operational_signing_demo_installation`. The latter
+now has its own number, `1794700001610`, before self-setup at 1700.
+
+Use the ordinary Hasura migration command, including when later versions
+are already recorded. Back up and rehearse on an isolated restore first.
+Stop writers/other migrators during the upgrade; this migration briefly locks
+the tenant and election tables. Version 1610 runs in one transaction:
+
+| Actual database before 1610 | Result |
+| --- | --- |
+| Fresh release or canonical cast sealing only | Keep cast policy and any existing keys; install **inert** demo DDL. |
+| Original demo only | Keep demo state and grants; install the exact canonical cast-sealing DDL. No event is enrolled or sealed by default. |
+| Both historical schemas | Verify and keep both without replacing any object. |
+| Neither, partial, or unexpected security definitions | Stop, with no partial upgrade. Inspect the catalog and restore/repair the discrepancy with the database owner; never guess the applied branch from the number. |
+
+No tenant, event, key, device or demonstration installation is created by
+1610. In particular, it never calls the demo registration routine. It checks
+the expected table shape, constraints, grants, functions and enabled policy
+triggers before accepting an installation. Unexpected direct grants are not
+silently revoked. Never edit Hasura's version records, use `--skip-execution`,
+reset existing data, or replay canonical 1600 over partially present objects.
+Rollback of 1610 can only undo **empty** demo DDL; an installed demo refuses,
+and cast-sealing flags, keys and privileges remain owned by canonical 1600.
+
 ## Required pod env
 
 | Var | Purpose |

@@ -39,6 +39,9 @@ jest.mock("@/lib/signing/api", () => ({createSigningApi: () => ({})}))
 jest.mock("@sequentech/ui-core", () => ({}))
 jest.mock("react-i18next", () => ({useTranslation: () => ({t: (key: string) => key})}))
 jest.mock("@/resources/Publish/ClosedVotingCard", () => ({ClosedVotingCard: () => null}))
+jest.mock("@/resources/User/ManualVerification", () => ({
+    ManualVerificationCompletion: () => null,
+}))
 jest.mock("@/resources/Reports/ReportSigning", () => ({
     ReportCompletionActions: () => null,
     TransmissionCompletionActions: () => null,

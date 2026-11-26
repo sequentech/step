@@ -90,6 +90,8 @@ export interface ISigningDetail {
  * display fields the drafts show. They are optional, so an older answer still renders.
  */
 export interface ISigningPanelData extends ISigningRequestPanel {
+    /** Server policy; missing or unknown never mounts the P12 dialog. */
+    operational_signing_mode?: unknown
     /** The Post's name (the request's election). */
     election_name?: string | null
     /** The country's name (the request's area). */
@@ -138,6 +140,8 @@ export interface ISigningClosingBallotBox {
 
 export interface ISigningApi {
     getRequest(requestId: string): Promise<ISigningPanelData>
+    approveDirectInitialize?(requestId: string, payloadSha256: string): Promise<void>
+    approveDirectAction?(requestId: string, payloadSha256: string): Promise<void>
     /** A dry run of every server check for the chain; nothing is recorded. */
     checkCertificate(
         requestId: string,
@@ -315,6 +319,22 @@ export const validatePanel = (value: unknown): ISigningPanelData => {
     return value as ISigningPanelData
 }
 
+export const DIRECT_INITIALIZE_APPROVE = gql`
+    mutation SigningApproveInitializeDirect($request_id: uuid!, $payload_sha256: String!) {
+        signingApproveInitializeDirect(request_id: $request_id, payload_sha256: $payload_sha256) {
+            request_id
+        }
+    }
+`
+
+export const DIRECT_ACTION_APPROVE = gql`
+    mutation SigningApproveActionDirect($request_id: uuid!, $payload_sha256: String!) {
+        signingApproveActionDirect(request_id: $request_id, payload_sha256: $payload_sha256) {
+            request_id
+        }
+    }
+`
+
 export const SIGNING_REQUEST = gql`
     query SigningGetRequest($request_id: uuid!) {
         signingGetRequest(request_id: $request_id) {
@@ -452,6 +472,36 @@ export const createSigningApi = (
                 throw toSigningApiError(error)
             }
         },
+        approveDirectInitialize: async (requestId, payloadSha256) => {
+            const output = await mutate<{request_id: string}>(
+                SigningOperation.Sign,
+                DIRECT_INITIALIZE_APPROVE,
+                "signingApproveInitializeDirect",
+                {request_id: requestId, payload_sha256: payloadSha256}
+            )
+            if (output?.request_id !== requestId) {
+                throw new SigningApiError(
+                    SigningApiErrorKind.Other,
+                    "could not confirm approval",
+                    {}
+                )
+            }
+        },
+        approveDirectAction: async (requestId, payloadSha256) => {
+            const output = await mutate<{request_id: string}>(
+                SigningOperation.Sign,
+                DIRECT_ACTION_APPROVE,
+                "signingApproveActionDirect",
+                {request_id: requestId, payload_sha256: payloadSha256}
+            )
+            if (output?.request_id !== requestId) {
+                throw new SigningApiError(
+                    SigningApiErrorKind.Other,
+                    "could not confirm approval",
+                    {}
+                )
+            }
+        },
         checkCertificate: (requestId, input) =>
             sign<ICheckCertificateOutput>(SIGNING_CHECK_CERTIFICATE, "signingCheckCertificate", {
                 request_id: requestId,
@@ -474,7 +524,9 @@ export const createSigningApi = (
             })
         },
         handover: async (requestId) => {
-            await sign(SIGNING_HANDOVER, "signingHandover", {request_id: requestId})
+            await mutate(SigningOperation.Handover, SIGNING_HANDOVER, "signingHandover", {
+                request_id: requestId,
+            })
         },
         cancel: async (requestId, input) => {
             await mutate(SigningOperation.Cancel, SIGNING_CANCEL, "signingCancel", {

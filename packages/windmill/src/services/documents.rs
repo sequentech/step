@@ -356,6 +356,14 @@ pub(crate) async fn read_configuration_package(
     }
     // Previously uploaded ordinary deliveries remain compatible, but document
     // metadata must never grant an exemption from the same streamed byte cap.
+    // Operational MIRU output is never read as an ordinary delivery.
+    if crate::services::signing::operational_policy::direct_hsm_approval_build()
+        && registered_miru_artifact(tenant_id, document).await?
+    {
+        return Err(anyhow!(
+            "Operational MIRU output is not a configuration package"
+        ));
+    }
     let bucket = if document.is_public == Some(true) {
         s3::get_public_bucket()?
     } else {
@@ -392,7 +400,9 @@ pub async fn ordinary_document_url_allowed(
     tenant_id: &str,
     document: &Document,
 ) -> anyhow::Result<bool> {
-    use crate::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
+    use crate::services::signing::operational_policy::{
+        direct_hsm_approval_build, signing_mode, OperationalSigningMode,
+    };
     let tenant = uuid::Uuid::parse_str(tenant_id)?;
     if configuration_package_storage(tx, tenant, &document.id)
         .await?
@@ -400,7 +410,10 @@ pub async fn ordinary_document_url_allowed(
     {
         return Ok(false);
     }
-    if signing_mode(tx, tenant).await? != OperationalSigningMode::HsmRequired {
+    let hsm_tenant = signing_mode(tx, tenant).await? == OperationalSigningMode::HsmRequired;
+    // The direct-HSM build registers its MIRU output on a legacy-p12 tenant;
+    // that output is withheld like an HSM-required tenant's.
+    if !hsm_tenant && !direct_hsm_approval_build() {
         return Ok(true);
     }
     let event = document
@@ -417,6 +430,10 @@ pub async fn ordinary_document_url_allowed(
         )
         .await?
         .try_get(0)?;
+    if !hsm_tenant {
+        // A legacy tenant has no inventory: only a registered document is withheld.
+        return Ok(withheld != Some(true));
+    }
     Ok(!withheld
         .ok_or_else(|| anyhow::anyhow!("Operational document inventory not yet verified"))?)
 }
@@ -457,8 +474,54 @@ pub async fn get_document_url(
     Ok(Some(url))
 }
 
+/// The bytes of a stored document for any ordinary use. In the direct-HSM
+/// build, a document registered as operational MIRU output is refused: it is
+/// read only by the MIRU custody paths, through
+/// `get_operational_miru_document_as_temp_file`.
 #[instrument(err)]
 pub async fn get_document_as_temp_file(
+    tenant_id: &str,
+    document: &Document,
+) -> anyhow::Result<NamedTempFile> {
+    use crate::services::signing::operational_policy::direct_hsm_approval_build;
+    if direct_hsm_approval_build() && registered_miru_artifact(tenant_id, document).await? {
+        return Err(anyhow::anyhow!(
+            "Operational MIRU output is not an ordinary document"
+        ));
+    }
+    get_operational_miru_document_as_temp_file(tenant_id, document).await
+}
+
+/// Whether the central registry withholds this exact document: committed
+/// registry state, read on its own connection; any error refuses the read.
+async fn registered_miru_artifact(tenant_id: &str, document: &Document) -> anyhow::Result<bool> {
+    let tenant = uuid::Uuid::parse_str(tenant_id)?;
+    let document_id = uuid::Uuid::parse_str(&document.id)?;
+    let event = document
+        .election_event_id
+        .as_deref()
+        .filter(|id| !id.is_empty())
+        .map(uuid::Uuid::parse_str)
+        .transpose()?;
+    let client = crate::services::database::get_hasura_pool()
+        .await
+        .get()
+        .await?;
+    let withheld: Option<bool> = client
+        .query_one(
+            "SELECT sequent_backend.operational_miru_generic_withhold($1,$2,$3)",
+            &[&tenant, &event, &document_id],
+        )
+        .await?
+        .try_get(0)?;
+    Ok(withheld == Some(true))
+}
+
+/// The bytes of a stored document without the registry check. Only for the
+/// MIRU custody paths, which bind the exact registered revision and digest
+/// themselves, and the signing revision store's digest-bound request document.
+#[instrument(err)]
+pub async fn get_operational_miru_document_as_temp_file(
     tenant_id: &str,
     document: &Document,
 ) -> anyhow::Result<NamedTempFile> {

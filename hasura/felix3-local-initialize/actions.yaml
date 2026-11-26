@@ -1,0 +1,214 @@
+actions:
+    - name: operationalInitializeStatus
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/status
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
+    - name: operationalInitializeStart
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/start
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
+    - name: operationalInitializeFinish
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/finish
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
+    - name: operationalInitializeCancel
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/cancel
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
+    - name: operationalInitializeReconcile
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/reconcile
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
+    - name: operationalInitializeSelfSetupStatus
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/self-setup/status
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
+    - name: operationalInitializeSelfSetupStart
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/self-setup/start
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
+    - name: operationalInitializeSelfSetupConfirm
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/self-setup/confirm
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
+    - name: operationalInitializeSelfSetupRegister
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/self-setup/register
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
+    - name: operationalInitializeNomineeReviewStatus
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/attachment/nominee-review-status
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
+    - name: operationalInitializeNomineeResume
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/attachment/nominee-resume
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
+    - name: operationalInitializeNomineePresence
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/attachment/presence
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: sign-initialize-voting
+    - name: operationalInitializeOfficerPending
+      definition:
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/attachment/pending
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: signing-certificates-register
+    - name: operationalInitializeOfficerReview
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/attachment/review
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: signing-certificates-register
+    - name: operationalInitializeOfficerAttach
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/operational-signing/initialize/attachment/attach
+          forward_client_headers: true
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: signing-certificates-register
+custom_types:
+    input_objects:
+        - name: OperationalInitializeReturnPageInput
+    objects:
+        - name: OperationalInitializePage
+        - name: OperationalInitializeScope
+        - name: OperationalInitializeStatus
+        - name: OperationalInitializeStart
+        - name: OperationalInitializeReturn
+        - name: OperationalInitializeOutcome
+        - name: OperationalInitializeSelfSetupStatus
+        - name: OperationalInitializeSelfSetupStart
+        - name: OperationalNomineePresence
+        - name: LocalOfficerPending
+        - name: LocalOfficerRef
+        - name: LocalOfficerReview
+        - name: LocalOfficerReceipt
+        - name: LocalNomineeReviewStatus

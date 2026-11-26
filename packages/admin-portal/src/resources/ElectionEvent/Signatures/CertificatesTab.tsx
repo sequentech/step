@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 //
 // SPDX-License-Identifier: AGPL-3.0-only
+import {LocalOfficerCertificates} from "@/components/signing/LocalInitializeEnrollment"
 import React, {useId, useState} from "react"
 import {useTranslation} from "react-i18next"
 import {useEventZonedFormat} from "@/hooks/useZonedFormat"
@@ -792,6 +793,12 @@ export const CertificatesTab: React.FC<ISignaturesSubTabProps> = ({electionEvent
             <TrustedIssuersCard {...props} issuers={data.issuers} />
             <ChecksCard {...props} checks={data.checks[0] ?? DEFAULT_CHECKS} crls={data.crls} />
             <RegisteredCertificatesCard {...props} certificates={data.certificates} />
+            {access.certificatesRegister && (
+                <LocalOfficerCertificates
+                    event={electionEventId}
+                    onAttached={() => void reload()}
+                />
+            )}
         </Box>
     )
 }

@@ -7,13 +7,17 @@
 //! The request signs the Post's published ballot publication
 //! (`{publication_id}`); a Post without one can't be initialized.
 
-use super::{event_ids, gate, refuse, subject_of, EffectProgress};
+use super::{event_ids, gate_required, refuse, subject_of, EffectProgress};
 use crate::domain::tally_ceremony::TallyValidationError;
 use crate::postgres::signing::SigningRequestRow;
 use crate::postgres::signing_actions::published_publication_of_post;
 use crate::services::ceremonies::tally_ceremony::create_tally_ceremony;
 use crate::services::initialization_scope::check_area_filter_for;
-use crate::services::signing::guard::{GuardOutcome, GuardRequest, RequestScope};
+use crate::services::signing::guard::{
+    effective_rule_in_mode, GuardOutcome, GuardRequest, RequestScope,
+};
+use crate::services::signing::operational_policy::local_scope::{for_target, Target};
+use crate::services::signing::operational_policy::LegacySigningBlocked;
 use crate::services::signing::{InvalidReason, SigningCaller, SigningError, SigningResult};
 use anyhow::{anyhow, Result};
 use deadpool_postgres::Transaction;
@@ -49,13 +53,39 @@ pub async fn gate_tally_creation(
     if !is_initialization(tally_type) {
         return Ok(GuardOutcome::Proceed);
     }
+    // The tally service strictly parses these IDs before its first write.
+    // Let it return its usual validation error when no scope is representable.
     let Some((tenant_id, election_event_id)) = event_ids(tenant_id, election_event_id) else {
         return Ok(GuardOutcome::Proceed);
     };
-    gate(
+    let (mode, _) = for_target(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        SigningAction::InitializeVoting,
+        Target::Tally(election_ids, area_ids.is_some()),
+    )
+    .await
+    .map_err(|err| match err {
+        LegacySigningBlocked::WholePostRequired => SigningError::bad_input(err.to_string()),
+        LegacySigningBlocked::ScopeUnavailable => SigningError::Forbidden(err.to_string()),
+        _ => anyhow::Error::new(err).into(),
+    })?;
+    if !effective_rule_in_mode(
+        hasura_transaction,
+        tenant_id,
+        election_event_id,
+        SigningAction::InitializeVoting,
+        mode,
+    )
+    .await?
+    .is_required()
+    {
+        return Ok(GuardOutcome::Proceed);
+    }
+    gate_required(
         hasura_transaction,
         caller,
-        SigningAction::InitializeVoting,
         tenant_id,
         election_event_id,
         || async move {

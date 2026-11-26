@@ -72,8 +72,21 @@ export const servedRoots: ReadonlyMap<string, string> = roots
 export async function serveDist(
     directory: string,
     overrides: ReadonlyMap<string, string> = new Map(),
-    worker?: StaticServerWorker
+    worker?: StaticServerWorker,
+    // Chromium can follow a mocked same-origin redirect without running a
+    // route handler again. Serve only this synthetic proxy origin in that case.
+    browserOrigin?: string
 ) {
+    if (browserOrigin !== undefined) {
+        const alias = new URL(browserOrigin)
+        if (
+            alias.protocol !== "http:" ||
+            alias.hostname !== "localhost" ||
+            alias.origin !== browserOrigin ||
+            roots.has(browserOrigin)
+        )
+            throw new Error("Static browser origin must be a unique HTTP localhost origin")
+    }
     const root = await realpath(directory)
     await stat(resolve(root, "index.html"))
     const server = createServer(async (request, response) => {
@@ -82,9 +95,19 @@ export async function serveDist(
                 response.writeHead(405).end()
                 return
             }
-            const pathname = decodeURIComponent(
-                new URL(request.url ?? "/", "http://localhost").pathname
-            )
+            const target = request.url ?? "/"
+            const url = new URL(target, "http://localhost")
+            if (
+                target.startsWith("//") ||
+                (!target.startsWith("/") &&
+                    (!browserOrigin ||
+                        !target.startsWith(browserOrigin + "/") ||
+                        url.origin !== browserOrigin))
+            ) {
+                response.writeHead(403).end()
+                return
+            }
+            const pathname = decodeURIComponent(url.pathname)
             let file = resolve(root, `.${pathname}`)
             if (file !== root && !file.startsWith(root + sep)) {
                 response.writeHead(403).end()
@@ -124,10 +147,12 @@ export async function serveDist(
     })
     const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
     roots.set(origin, root)
+    if (browserOrigin) roots.set(browserOrigin, root)
     return {
         origin,
         close: async () => {
             roots.delete(origin)
+            if (browserOrigin) roots.delete(browserOrigin)
             await new Promise<void>((resolve, reject) => {
                 server.close((error) => (error ? reject(error) : resolve()))
                 server.closeAllConnections()
