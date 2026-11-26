@@ -1070,3 +1070,52 @@ fn verified_admin_names_are_advisory_only_and_blank_or_equivalent_values_are_unc
     current.get_mut("admin").unwrap().service_account = true;
     assert!(admin_profile_updates(&changed, &current, true).is_empty());
 }
+
+#[test]
+fn trustee_assignment_diagnostics_distinguish_new_unassigned_and_different_users() {
+    use super::super::import_users::{GroupAssignmentPolicy, ImportUsersPrivileges};
+    let rows = [AdminRow {
+        username: "trustee1".into(),
+        group: "trustee".into(),
+        fields: BTreeMap::from([("trustee".into(), "trustee1".into())]),
+    }];
+    let allowed = ImportUsersPrivileges {
+        group_assignment: GroupAssignmentPolicy::AnyGroup,
+        ..Default::default()
+    };
+    let trustees = set(&["trustee1"]);
+
+    assert!(admin_detail_problems(&rows, &BTreeMap::new(), &trustees, &allowed, true).is_empty());
+    for verified in [false, true] {
+        let mut current = BTreeMap::from([("trustee1".into(), ExistingAdmin::default())]);
+        for values in [None, Some(BTreeSet::new()), Some(set(&[""]))] {
+            if let Some(values) = values {
+                current
+                    .get_mut("trustee1")
+                    .unwrap()
+                    .fields
+                    .insert("trustee".into(), values);
+            }
+            let problems = admin_detail_problems(&rows, &current, &trustees, &allowed, verified);
+            assert_eq!(problems.len(), 1);
+            assert!(problems[0].contains("without an assigned trustee"));
+            assert!(problems[0].contains("Acted trustee"));
+        }
+
+        current
+            .get_mut("trustee1")
+            .unwrap()
+            .fields
+            .insert("trustee".into(), set(&["trustee2"]));
+        let problems = admin_detail_problems(&rows, &current, &trustees, &allowed, verified);
+        assert_eq!(problems.len(), 1);
+        assert!(problems[0].contains("will not replace it"));
+
+        current
+            .get_mut("trustee1")
+            .unwrap()
+            .fields
+            .insert("trustee".into(), set(&["trustee1"]));
+        assert!(admin_detail_problems(&rows, &current, &trustees, &allowed, verified).is_empty());
+    }
+}

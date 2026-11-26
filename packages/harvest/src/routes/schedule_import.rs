@@ -5,7 +5,7 @@
 //! The schedule as a CSV file (VOTE-LIFECYCLE): preview an uploaded file,
 //! import it, and export the event's schedule.
 
-use crate::services::authorization::authorize;
+use crate::services::authorization::{authorize, PermissionLabels};
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use sequent_core::services::jwt::JwtClaims;
@@ -15,7 +15,7 @@ use tracing::instrument;
 use windmill::services::schedule_csv::{
     export_schedule_document, import_schedule_document,
     preview_schedule_document, ImportOutcome, RowsWithErrors, ScheduleAuthor,
-    ScheduleFileError, SchedulePreview,
+    ScheduleFileError, SchedulePermissionDenied, SchedulePreview,
 };
 
 #[derive(Deserialize, Debug)]
@@ -46,8 +46,11 @@ fn authorize_schedule(claims: &JwtClaims) -> Result<(), (Status, String)> {
 /// A file that isn't a schedule, or has row errors, is the caller's to fix
 /// (400); anything else is ours (500).
 fn schedule_error(error: anyhow::Error) -> (Status, String) {
-    if error.downcast_ref::<RowsWithErrors>().is_some()
+    if error.is::<SchedulePermissionDenied>() {
+        (Status::Forbidden, error.to_string())
+    } else if error.downcast_ref::<RowsWithErrors>().is_some()
         || error.downcast_ref::<ScheduleFileError>().is_some()
+        || error.is::<windmill::services::election_dates::InvalidSchedule>()
     {
         (Status::BadRequest, error.to_string())
     } else {
@@ -90,6 +93,7 @@ pub async fn import_schedule(
         &input.election_event_id,
         &input.document_id,
         &author,
+        &PermissionLabels::from_claims(&claims),
     )
     .await
     .map_err(schedule_error)?;
@@ -116,6 +120,14 @@ pub async fn export_schedule(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_lockdown_import_outside_the_operators_elections_is_forbidden() {
+        assert_eq!(
+            schedule_error(SchedulePermissionDenied.into()).0,
+            Status::Forbidden
+        );
+    }
 
     #[test]
     fn a_file_with_row_errors_or_not_a_schedule_is_a_bad_request() {

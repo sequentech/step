@@ -87,7 +87,203 @@ const spanishTranslation: TranslationType = {
             },
         },
         configurationPackage: {
+            sectionResults: "Resultados por sección",
+            hub: {
+                recovery: {
+                    title: "Esta importación se detuvo a mitad y se puede continuar",
+                    remaining: "Falta por aplicar: {{sections}}.",
+                    explain:
+                        "Corrige la causa y luego Previsualizar cambios pendientes: se vuelve a previsualizar el mismo paquete firmado con sus requisitos originales. La previsualización comprueba también las secciones ya aplicadas y omite las que aún coinciden.",
+                    previewRemaining: "Previsualizar cambios pendientes",
+                    continue: "Continuar esta importación",
+                    chooseSame:
+                        "Elige de nuevo el mismo archivo. Debe ser el paquete de esta ejecución:",
+                    locked: "Requisitos bloqueados a los de la ejecución original",
+                    wrongFile:
+                        "Este no es el paquete de esta ejecución, así que no se envió nada. Elige de nuevo el mismo archivo.",
+                    confirmKeep:
+                        "Aplicar omite las secciones que aún coinciden. Revisa las diferencias detectadas por la nueva previsualización antes de continuar.",
+                    partial:
+                        "Actualizado parcialmente después por una ejecución sin terminar (tarea {{taskId}}).",
+                    blocked: {
+                        unsettled:
+                            "Un envío anterior de esta ejecución aún no está resuelto. Espera antes de continuar.",
+                        rosterChanged:
+                            "La confianza de firma cambió desde que empezó esta ejecución, así que no se puede continuar.",
+                        requirementsUnknown:
+                            "Los requisitos originales de esta ejecución no constan aquí. Continúala desde el navegador que la inició.",
+                    },
+                },
+                trustLabel: "Firma",
+                trustChecking: "Comprobando la confianza de firmantes…",
+                trustBlocked: "Importaciones bloqueadas",
+                trustManaged: "Lista activa · generación {{generation}}",
+                trustPinned: "Lista fijada por el sitio",
+                trustLegacy: "Confianza por certificado",
+                stagesLabel: "Etapas de la ejecución",
+                currentRun: "Ejecución actual",
+                lastRun: "Última ejecución",
+                noRun: "Este navegador no está siguiendo ninguna ejecución.",
+                sectionsHeading: "Secciones · en orden de aplicación",
+                sectionOf: "Sección {{n}} de {{total}}",
+                sectionNotInRun: "La ejecución mostrada no tiene registro de esta sección.",
+                requirementsHelp:
+                    "Lo que debe contener este paquete. Una sección obligatoria que falte bloquea la previsualización; una opcional se aplica si está presente. Cambiar esto descarta la previsualización actual.",
+                signerRoster: "Lista de firmantes",
+                rosterBinding: "Generación {{generation}} · {{approvals}} aprobaciones",
+                confirmOrder: "Estas secciones cambian, una a una, en este orden:",
+                confirmPartial:
+                    "Si una sección falla, las anteriores quedan aplicadas y las siguientes no empiezan.",
+                historyOutcome: "Resultado",
+                historicalBlockers:
+                    "De la previsualización anterior, que usó otros requisitos. Previsualiza de nuevo para ver qué bloquea los requisitos elegidos ahora.",
+                historicalSections: "Según la previsualización anterior, con otros requisitos.",
+                appliedNotConfirmed: "Registrado como aplicado, pero la tarea no terminó con éxito",
+                staleReason:
+                    "Esta previsualización está desactualizada: cambiaron los requisitos, el documento o la confianza de firma. Previsualiza de nuevo antes de aplicar.",
+                historyStarted: "Inicio",
+                noAccess: {
+                    title: "No puedes importar paquetes de configuración en este inquilino.",
+                    missing:
+                        "Permisos que faltan: {{permissions}}. Pídeselos a un administrador del inquilino.",
+                },
+                rail: {
+                    label: "Paquete de configuración",
+                    overview: "Resumen",
+                    sections: "Secciones · en orden de aplicación",
+                    trust: "Confianza de firma",
+                    history: "Historial",
+                },
+                badge: {
+                    applied: "Aplicada",
+                    unchanged: "Sin cambios",
+                    willChange: "Cambiará",
+                    blocked: "Bloqueada",
+                    missing: "Falta",
+                    notInPackage: "No está en el paquete",
+                    failed: "Falló",
+                    notConfirmed: "Sin confirmar",
+                    applying: "Aplicando",
+                    waiting: "En espera",
+                    notStarted: "No iniciada",
+                    notRun: "Sin ejecutar",
+                },
+                stages: {
+                    package: "Paquete",
+                    preview: "Previsualización",
+                    review: "Revisión",
+                    apply: "Aplicación",
+                },
+                stageState: {
+                    done: "Hecho",
+                    current: "Ahora",
+                    running: "En curso",
+                    blocked: "Bloqueada",
+                    stale: "Desactualizada",
+                    attention: "Requiere atención",
+                    pending: "—",
+                },
+                receipt: {
+                    title: "En este inquilino",
+                    sha: "SHA-256 del paquete",
+                    applied: "Aplicado",
+                    by: "Por",
+                    task: "Tarea",
+                    loading: "Cargando…",
+                    none: "Ningún paquete aplicado entre las últimas 10 ejecuciones.",
+                },
+                actions: {
+                    importPackage: "Importar paquete",
+                    importAnother: "Importar otro",
+                    reviewAndApply: "Revisar y aplicar",
+                    importFixed: "Importar paquete corregido",
+                    changeRequirements: "Cambiar requisitos",
+                    previewAgain: "Previsualizar de nuevo",
+                    previewAgainSame: "Previsualizar de nuevo con estos requisitos",
+                    openTrust: "Configurar la confianza de firma",
+                    checkAgain: "Comprobar de nuevo",
+                    doneRequirements: "Hecho",
+                    more: "Más acciones",
+                    documentId: "Previsualizar un documento subido por ID",
+                    stopFollowing: "Dejar de seguir esta ejecución",
+                    history: "Historial y comprobantes",
+                },
+            },
+            workflow: {
+                missingSection: "Falta una sección obligatoria: {{section}}.",
+                missingCensus: "Falta el censo obligatorio en el paquete.",
+                previewRefusalWithoutDetails:
+                    "La plataforma rechazó la previsualización sin registrar un motivo concreto. Revisa el resultado antes de volver a intentarlo.",
+                censusRequired: "Censo obligatorio",
+                censusOptional: "Censo opcional",
+                steps: {
+                    upload: "Subir",
+                    preview: "Previsualizar",
+                    review: "Revisar",
+                    apply: "Aplicar",
+                },
+                phases: {
+                    waitingForTrust: {
+                        title: "Comprobando la confianza en los firmantes",
+                        help: "La importación estará disponible cuando se haya cargado la lista de firmantes de esta organización.",
+                    },
+                    trustBlocked: {
+                        title: "La importación no está disponible",
+                        help: "La lista de firmantes no permite actualmente importaciones para esta organización. La lista de firmantes muestra lo que falta.",
+                    },
+                    choose: {
+                        title: "Sube un paquete para previsualizarlo",
+                        help: "Elige un ZIP o un EZIP cifrado con contraseña, exportado por Election Architect.",
+                    },
+                    starting: {
+                        title: "Iniciando…",
+                        help: "Solicitando a la plataforma que cree la tarea.",
+                    },
+                    previewing: {
+                        title: "Previsualizando el paquete",
+                        help: "La plataforma está comparando el paquete con esta organización. Una previsualización no cambia nada.",
+                    },
+                    previewBlocked: {
+                        title: "La previsualización ha encontrado bloqueos",
+                        help: "Revisa los bloqueos registrados antes de volver a previsualizar.",
+                    },
+                    previewAgain: {
+                        title: "Vuelve a previsualizar antes de aplicar",
+                        help: "Necesitas una previsualización que coincida con los requisitos, la confianza y el SHA-256 introducido, si lo hay. Vuelve a subir el paquete o abre Opciones avanzadas para previsualizar un ZIP existente con su ID de documento.",
+                    },
+                    review: {
+                        title: "Revisa los cambios propuestos",
+                        help: "Comprueba cada sección que la previsualización cambiaría. Nada cambia hasta que selecciones Aplicar y confirmes.",
+                    },
+                    applying: {
+                        title: "Aplicando el paquete",
+                        help: "La plataforma vuelve a previsualizar primero el paquete y se detiene ante cualquier bloqueo. Los estados de las secciones se actualizan en el resultado a medida que las tareas se resuelven.",
+                    },
+                    complete: {
+                        title: "Paquete aplicado",
+                        help: "Esta ejecución ha registrado el paquete como aplicado. El resultado y las aplicaciones anteriores conservan el registro.",
+                    },
+                    attention: {
+                        title: "Comprueba el resultado antes de hacer cualquier otra cosa",
+                        help: "Lee el mensaje y el resultado registrado antes de continuar. Si hay dudas sobre el resultado, consulta las aplicaciones anteriores: es posible que algunas secciones ya se hayan aplicado.",
+                    },
+                },
+                optionsSummary: "{{selected}} de {{available}} secciones obligatorias",
+                evidence: "Miembros del paquete registrados ({{count}})",
+                noHistory: "No hay aplicaciones anteriores registradas para esta organización.",
+                trust: "Confianza en los firmantes para esta organización",
+                result: "Resultado de esta ejecución",
+            },
             roster: {
+                steps: {
+                    label: "Pasos de importación de la lista",
+                    choose: "Elegir archivo",
+                    verify: "Verificar",
+                    activate: "Activar",
+                },
+                activeSummary:
+                    "Activo. Cada paquete necesita al menos {{approvals}} aprobaciones distintas, más un firmante final independiente.",
+                fingerprint: "Mostrar la huella del lista de firmantes (SHA-256)",
                 title: "Lista de firmantes de Architect",
                 loading: "Comprobando la configuración de confianza…",
                 active: "Lista activa: {{hash}}. El receptor requiere al menos {{approvals}} aprobaciones distintas y una firma final independiente.",
@@ -202,7 +398,7 @@ const spanishTranslation: TranslationType = {
             preview: "Vista previa",
             apply: "Aplicar",
             blocked:
-                "La vista previa encontró bloqueos: corrige el paquete o el cliente y vuelve a previsualizar.",
+                "No se puede aplicar. Corrige el paquete o la organización y vuelve a previsualizar:",
             noTask: "La plataforma no devolvió ninguna tarea.",
             mode: {preview: "Vista previa", apply: "Aplicación"},
             task: "Tarea {{taskId}}",
@@ -288,10 +484,57 @@ const spanishTranslation: TranslationType = {
             noDetail: "El servidor no dio más detalle sobre esta comprobación.",
             reasons: "Por qué falló",
             noArea: "ninguna área o un área desconocida",
+            rehearsal: {
+                label: "Comparación",
+                readOnly:
+                    "Comparación de ensayo de solo lectura. No se escribe nada en ningún evento ni se registra preparación.",
+                modes: {
+                    production: "Preparación de producción (firmada)",
+                    rehearsal_ert_stl: "Ensayo: ERT y STL (solo lectura)",
+                    rehearsal_official_ert: "Ensayo: oficial y ERT (solo lectura)",
+                    rehearsal_official_stl: "Ensayo: oficial y STL (solo lectura)",
+                },
+                roles: {
+                    official: "Evento oficial",
+                    tested: "Evento de prueba",
+                    ert: "Evento ERT",
+                    stl: "Evento STL",
+                },
+                verdicts: {
+                    consistent:
+                        "Comparación de ensayo coherente. No es una verificación de preparación.",
+                    inconsistent:
+                        "Comparación de ensayo incoherente. Resuelva los hallazgos y vuelva a ejecutarla.",
+                    not_verified:
+                        "No verificado. La evidencia disponible no puede probar esta comparación.",
+                },
+                chips: {
+                    consistent: "Coherente",
+                    inconsistent: "Incoherente",
+                    not_verified: "No verificado",
+                },
+                checks: {
+                    configuration: "Misma configuración firmada aprobada, importada por separado",
+                    own_census: "Censo certificado propio de cada evento",
+                    census_subset: "El censo STL es un subconjunto del censo oficial",
+                    lifecycle: "Ciclo de vida: oficial intacto, ensayos cerrados",
+                    seal: "Publicación y sellos propios de cada ensayo",
+                },
+                findings: {
+                    revision_not_distinct:
+                        "Ambos eventos tienen la revisión de paquete {{revision}}; cada uno necesita su propia revisión importada por separado.",
+                    subset_area_exceeds:
+                        "El censo STL tiene {{stl}} votantes en {{area}}, más que los {{official}} del censo oficial certificado.",
+                    subset_not_verified:
+                        "Subconjunto no verificado: las importaciones certificadas solo registran hashes de archivo y recuentos por área. No hay identidad estable de votante, registro certificado de pertenencia ni selección aprobada de votantes STL que pruebe que cada votante STL es votante oficial.",
+                },
+            },
             eventRoles: {
                 official: "oficial",
                 tested: "de prueba",
                 both: "ambos",
+                ert: "ERT",
+                stl: "STL",
             },
             scope: {
                 event: "El evento {{event}}",
@@ -1771,6 +2014,11 @@ const spanishTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    scheduleEnd: "Programar el fin del bloqueo",
+                    replaceEnd: "Cambiar el fin programado",
+                    cancelEnd: "Cancelar el fin programado",
+                    ambiguousEnd: "El fin del bloqueo pendiente no es válido o hay más de uno.",
+                    cancelInvalidEnds: "Cancelar todos los fines de bloqueo pendientes",
                     since: "Bloqueado desde {{date}}.",
                     scheduledEnd: "Fin del bloqueo programado para {{date}}.",
                     endScheduled: "Hay un fin del bloqueo programado.",

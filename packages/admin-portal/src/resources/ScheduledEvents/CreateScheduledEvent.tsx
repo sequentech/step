@@ -101,6 +101,7 @@ interface CreateEventProps {
     setIsOpenDrawer: (state: boolean) => void
     isEditEvent?: boolean
     selectedEventId?: string
+    fixedProcessor?: EventProcessors.END_LOCKDOWN_PERIOD
     getElectionName: (scheduledEvent: Sequent_Backend_Scheduled_Event) => string
 }
 
@@ -208,6 +209,7 @@ const CreateEvent: FC<CreateEventProps> = ({
     setIsOpenDrawer,
     isEditEvent,
     selectedEventId,
+    fixedProcessor,
     getElectionName,
 }) => {
     const {t} = useTranslation()
@@ -268,7 +270,7 @@ const CreateEvent: FC<CreateEventProps> = ({
         isEditEvent
             ? ((selectedEvent?.event_processor as EventProcessors | null) ??
                   EventProcessors.START_VOTING_PERIOD)
-            : EventProcessors.START_VOTING_PERIOD
+            : (fixedProcessor ?? EventProcessors.START_VOTING_PERIOD)
     )
     useEffect(() => {
         if (!isEditEvent || !selectedEvent) return
@@ -335,8 +337,11 @@ const CreateEvent: FC<CreateEventProps> = ({
                 variables,
             })
             setIsLoading(false)
-            if (data?.manage_election_dates?.error_msg || errors) {
-                notify(t("eventsScreen.messages.createError"), {type: "error"})
+            const refusal = data?.manage_election_dates?.error_msg
+            if (refusal || errors) {
+                notify((fixedProcessor && refusal) || t("eventsScreen.messages.createError"), {
+                    type: "error",
+                })
             } else {
                 setIsOpenDrawer(false)
                 refresh()
@@ -412,7 +417,7 @@ const CreateEvent: FC<CreateEventProps> = ({
                         label={String(t("eventsScreen.eventType.label"))}
                         value={eventType}
                         onChange={(e: any) => setEventType(e.target.value)}
-                        disabled={isEditEvent || isLoading}
+                        disabled={!!fixedProcessor || isEditEvent || isLoading}
                     >
                         {Object.values(EventProcessors).map((processor) => (
                             <MenuItem key={processor} value={processor}>

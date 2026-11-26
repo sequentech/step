@@ -31,7 +31,7 @@ Each section serves a specific purpose and provides a comprehensive breakdown of
 - **Custom URLs Prefix**: Define custom URLs for the Voting / Enrollment portals and SAML endpoint.
 - **Support Materials**: Documents available in the Voting Portal for voters to review.
 - **Ballot Receipts**: Whether the ballot box receives and signs each ballot at review, and how long voters can check their cast ballots. See [Ballot Receipts](#ballot-receipts).
-- **Advanced Configurations**: Enable system lockdown, Voting Portal session timeout, and forced logout.
+- **Advanced Configurations**: View lockdown status and configure Voting Portal session timeout and forced logout.
 
 Detailed descriptions of each section are provided below.
 
@@ -144,7 +144,7 @@ Configure advanced system behaviors for this Election Event.
 - **Contest Encryption Policy**:
   - **Single Contests**: Encrypt contests individually.
   - **Multiple Contests**: Encrypt multiple contests together to enable ballot-level audit.
-- **Lockdown Status**: When enabled, no changes can be made to this Election Event. This action is irreversible.
+- **Lockdown Status** shows whether the event is locked. During lockdown, an operator with schedule-write permission and access to every election can schedule, replace, or cancel the end from the banner. The event unlocks when the scheduler runs the end.
 - **Ballot Box Seal Policy**:
   - **Do not seal** (default): voting closes as before.
   - **Seal at close**: when voting closes, the ballot box of each area is sealed: a signed hash of its ballots goes to the bulletin board, no ballot can be added, changed or deleted, and voting cannot start again. It cannot be changed after voting has opened. See [Ballot box seal](./20-ballot-box-seal.md).

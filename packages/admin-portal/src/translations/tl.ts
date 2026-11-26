@@ -99,10 +99,58 @@ const tagalogTranslation: TranslationType = {
             noDetail: "Walang ibinigay na karagdagang detalye ang server para sa pagsusuring ito.",
             reasons: "Bakit ito pumalya",
             noArea: "walang area o hindi kilalang area",
+            rehearsal: {
+                label: "Paghahambing",
+                readOnly:
+                    "Read-only na paghahambing ng rehearsal. Walang isinusulat sa alinmang event at walang naitatalang readiness.",
+                modes: {
+                    production: "Production readiness (pinirmahan)",
+                    rehearsal_ert_stl: "Rehearsal: ERT at STL (read-only)",
+                    rehearsal_official_ert: "Rehearsal: opisyal at ERT (read-only)",
+                    rehearsal_official_stl: "Rehearsal: opisyal at STL (read-only)",
+                },
+                roles: {
+                    official: "Opisyal na event",
+                    tested: "Sinubukang event",
+                    ert: "ERT event",
+                    stl: "STL event",
+                },
+                verdicts: {
+                    consistent:
+                        "Tugma ang paghahambing ng rehearsal. Hindi ito pagpapatunay ng readiness.",
+                    inconsistent:
+                        "Hindi tugma ang paghahambing ng rehearsal. Ayusin ang mga natuklasan at patakbuhin muli.",
+                    not_verified:
+                        "Hindi napatunayan. Hindi kayang patunayan ng magagamit na ebidensya ang paghahambing na ito.",
+                },
+                chips: {
+                    consistent: "Tugma",
+                    inconsistent: "Hindi tugma",
+                    not_verified: "Hindi napatunayan",
+                },
+                checks: {
+                    configuration:
+                        "Parehong aprubadong pinirmahang configuration, hiwalay na in-import",
+                    own_census: "Sariling sertipikadong census ng bawat event",
+                    census_subset: "Ang STL census ay subset ng opisyal na census",
+                    lifecycle: "Lifecycle: hindi nagalaw ang opisyal, sarado ang mga rehearsal",
+                    seal: "Sariling publikasyon at selyo ng bawat rehearsal",
+                },
+                findings: {
+                    revision_not_distinct:
+                        "Parehong may package revision {{revision}} ang dalawang event; bawat isa ay nangangailangan ng sariling hiwalay na in-import na revision.",
+                    subset_area_exceeds:
+                        "May {{stl}} botante ang STL census sa {{area}}, higit sa {{official}} ng opisyal na sertipikadong census.",
+                    subset_not_verified:
+                        "Hindi napatunayan ang subset: ang mga sertipikadong import ay nagtatala lamang ng mga file hash at bilang bawat area. Walang matatag na pagkakakilanlan ng botante, sertipikadong talaan ng pagiging miyembro o aprubadong pagpili ng mga STL na botante upang patunayan na bawat STL na botante ay opisyal na botante.",
+                },
+            },
             eventRoles: {
                 official: "opisyal",
                 tested: "sinubukang",
                 both: "pareho",
+                ert: "ERT",
+                stl: "STL",
             },
             scope: {
                 event: "Ang {{event}} na event",
@@ -1600,6 +1648,12 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    scheduleEnd: "Itakda ang pagtatapos ng lockdown",
+                    replaceEnd: "Baguhin ang nakatakdang pagtatapos",
+                    cancelEnd: "Kanselahin ang nakatakdang pagtatapos",
+                    ambiguousEnd:
+                        "Hindi wasto o hindi tiyak ang nakabinbing pagtatapos ng lockdown.",
+                    cancelInvalidEnds: "Kanselahin ang lahat ng nakatakdang pagtatapos ng lockdown",
                     since: "Naka-lockdown mula {{date}}.",
                     scheduledEnd: "Nakatakda ang pagtatapos ng lockdown sa {{date}}.",
                     endScheduled: "May nakatakdang pagtatapos ng lockdown.",

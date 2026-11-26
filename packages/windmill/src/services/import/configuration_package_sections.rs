@@ -733,7 +733,24 @@ pub fn admin_detail_problems(
                     continue;
                 }
                 if admin_field_differs(existing, field, value) {
-                    blockers.push(format!("administrator '{}' existing field '{}' differs; reconcile explicitly before applying", row.username, field));
+                    if field == "trustee" && !value.is_empty() {
+                        let current = existing.fields.get("trustee");
+                        let unassigned =
+                            current.is_none_or(|values| values.iter().all(String::is_empty));
+                        if unassigned {
+                            blockers.push(format!(
+                                "administrator '{}' already exists without an assigned trustee; edit the user, select the approved entity in Acted trustee, then preview again",
+                                row.username,
+                            ));
+                        } else {
+                            blockers.push(format!(
+                                "administrator '{}' has a different trustee assignment; the package will not replace it. Verify Acted trustee on that user before previewing again",
+                                row.username,
+                            ));
+                        }
+                    } else {
+                        blockers.push(format!("administrator '{}' existing field '{}' differs; reconcile explicitly before applying", row.username, field));
+                    }
                 }
             }
         }

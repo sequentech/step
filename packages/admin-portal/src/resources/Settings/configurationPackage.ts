@@ -72,6 +72,8 @@ export interface SectionView {
     taskId?: string
     reconciled?: boolean
     error?: string
+    /** True only when a saved messaging submission records a create or replace. */
+    messagingWrite?: boolean
     /** Whether any run so far confirmed the section applied. */
     earlierApplied: boolean
     /** Every task begun for the section, by any run, oldest first. */
@@ -127,6 +129,23 @@ export const readApplication = (annotations: unknown): ApplicationView | null =>
                 taskId: submission.taskId ?? status.task_id ?? undefined,
                 reconciled: typeof status.reconciled === "boolean" ? status.reconciled : undefined,
                 error: typeof status.error === "string" ? status.error : undefined,
+                ...(section.section === "messaging-accounts"
+                    ? {
+                          messagingWrite: [
+                              submission,
+                              ...(Array.isArray(history.submissions) ? history.submissions : []),
+                          ].some((entry: unknown) => {
+                              const changes = asObject(asObject(entry).detail).changes
+                              return (
+                                  Array.isArray(changes) &&
+                                  changes.some((item: unknown) => {
+                                      const action = asObject(item).action
+                                      return action === "create" || action === "replace"
+                                  })
+                              )
+                          }),
+                      }
+                    : {}),
                 earlierApplied: history.applied === true,
                 submissions: (Array.isArray(history.submissions) ? history.submissions : [])
                     .map((entry: unknown) => asObject(entry).taskId)
@@ -201,9 +220,18 @@ export const readManagedPreview = (
     }
 }
 
+/**
+ * Whether a section's preview proposes a change: what the Apply confirmation
+ * lists and what the page counts. Messaging accounts also counts for its
+ * account changes (a portable replacement, for one), even when needsApply is unset.
+ */
+export const proposesChange = (section: SectionView): boolean =>
+    !!section.preview?.needsApply ||
+    (section.section === "messaging-accounts" && changeEntries(section.preview?.changes).length > 0)
+
 /** How many sections a preview would change. */
 export const sectionsToChange = (view: ApplicationView): number =>
-    view.sections.filter((s) => s.preview?.needsApply).length
+    view.sections.filter(proposesChange).length
 
 export type PortablePreviewState = "not-needed" | "matched" | "unavailable"
 
@@ -245,7 +273,7 @@ export interface PreviewedPackage {
     portablePreview?: PortablePreviewState
 }
 
-const sameRequirements = (a: PackageRequirements, b: PackageRequirements): boolean =>
+export const sameRequirements = (a: PackageRequirements, b: PackageRequirements): boolean =>
     a.census === b.census &&
     a.sections.length === b.sections.length &&
     a.sections.every((section) => b.sections.includes(section))
@@ -308,6 +336,37 @@ export interface ActiveSubmission {
     expectedSha?: string | null
     /** Whether the exact SHA is from authenticated encrypted delivery. */
     encryptedPayloadSha256?: string
+    /** The stopped Apply task this Preview continues, when it is a recovery. */
+    recoveryOf?: string
+}
+
+/** Recorded reasons for a terminal refusal; this is never an eligible preview. */
+export const readRefusedPreview = (
+    task: {id: string; execution_status?: string | null; annotations?: unknown} | null | undefined,
+    submitted: Pick<ActiveSubmission, "taskId" | "mode"> | null | undefined
+) => {
+    if (
+        !task ||
+        submitted?.mode !== "preview" ||
+        task.id !== submitted.taskId ||
+        task.execution_status !== "FAILED"
+    ) {
+        return null
+    }
+    const view = readApplication(task.annotations)
+    if (view?.mode !== "preview" || view.outcome !== "refused") return null
+    const coverage = asObject(asObject(asObject(task.annotations).application).coverage)
+    return {
+        blockers: view.sections.flatMap(({section, state, preview}) =>
+            state === "blocked"
+                ? (preview?.blockers ?? []).map((reason) => `${section}: ${reason}`)
+                : []
+        ),
+        missingSections: view.sections
+            .filter(({state}) => state === "missing")
+            .map(({section}) => section),
+        censusMissing: asObject(coverage.census).state === "missing",
+    }
 }
 
 /** The receiver's safe options for this rejected Preview. A previous task
