@@ -18,6 +18,9 @@ use crate::services::import::import_publications::{
 };
 use crate::services::import::import_scheduled_events::import_scheduled_events;
 use crate::services::import::import_tally::process_tally_file;
+use crate::services::import::realm_identity_provider_mappers::{
+    IdpMapperPolicy, ImportedRealmScope,
+};
 use crate::services::keycloak::read_realm_config_from_s3;
 use crate::services::protocol_manager::get_event_board;
 use crate::services::reports::template_renderer::EReportEncryption;
@@ -245,6 +248,8 @@ pub async fn read_default_election_event_realm() -> Result<RealmRepresentation> 
 const HASURA_CLAIM_NAMESPACE: &str = "https://hasura.io/jwt/claims";
 /// Protocol-mapper config key holding the claim a mapper writes.
 const PROTOCOL_MAPPER_CLAIM_NAME_KEY: &str = "claim.name";
+/// Protocol-mapper config key holding the user attribute a mapper reads.
+const USER_ATTRIBUTE_CONFIG_KEY: &str = "user.attribute";
 /// Protocol mappers that add or rename a token's roles without naming a claim.
 const ROLE_CHANGING_MAPPERS: [&str; 2] = ["oidc-hardcoded-role-mapper", "oidc-role-name-mapper"];
 /// Prefix of the per-realm composite role Keycloak generates for every realm.
@@ -509,6 +514,31 @@ fn reconcile_claim_mappers(
     kept
 }
 
+/// User attributes the template's token-claim mappers read.
+fn claim_source_attributes(template: &RealmRepresentation) -> HashSet<String> {
+    let client_mappers = template
+        .clients
+        .iter()
+        .flatten()
+        .flat_map(|client| client.protocol_mappers.iter().flatten());
+    let scope_mappers = template
+        .client_scopes
+        .iter()
+        .flatten()
+        .flat_map(|scope| scope.protocol_mappers.iter().flatten());
+    client_mappers
+        .chain(scope_mappers)
+        .filter(|mapper| is_claim_authority_mapper(mapper))
+        .filter_map(|mapper| {
+            mapper
+                .config
+                .as_ref()?
+                .get(USER_ATTRIBUTE_CONFIG_KEY)
+                .cloned()
+        })
+        .collect()
+}
+
 /// Key of an identity-provider mapper compared by its effect, not its id.
 fn idp_mapper_key(
     mapper: &IdentityProviderMapperRepresentation,
@@ -679,6 +709,7 @@ fn sanitize_imported_event_realm(
     imported: &RealmRepresentation,
     template: &RealmRepresentation,
     reconciliation: ImportedRealmReconciliation,
+    scope: &ImportedRealmScope,
 ) -> Result<RealmRepresentation> {
     let mut realm = imported.clone();
     let mut discarded: Vec<String> = Vec::new();
@@ -905,20 +936,28 @@ fn sanitize_imported_event_realm(
         }
     }
 
-    // 8. Identity-provider mappers: only the ones the template defines survive,
-    //    as any of them can grant roles or set attributes the claims carry.
+    // 8. Identity-provider mappers: the template's survive, and so do the
+    //    ones that can only grant what the import already does (see
+    //    `realm_identity_provider_mappers`). The rest could grant roles or set
+    //    attributes the claims carry.
     let template_idp_mapper_keys: HashSet<_> = template
         .identity_provider_mappers
         .iter()
         .flatten()
         .map(idp_mapper_key)
         .collect();
+    let idp_mapper_policy =
+        IdpMapperPolicy::new(template, &realm, claim_source_attributes(template), scope);
     if let Some(idp_mappers) = realm.identity_provider_mappers.as_mut() {
         idp_mappers.retain(|mapper| {
-            let keep = template_idp_mapper_keys.contains(&idp_mapper_key(mapper));
-            if !keep {
+            if template_idp_mapper_keys.contains(&idp_mapper_key(mapper)) {
+                return true;
+            }
+            let rejection = idp_mapper_policy.rejection(mapper);
+            let keep = rejection.is_none();
+            if let Some(reason) = rejection {
                 discarded.push(format!(
-                    "identity-provider mapper '{}'",
+                    "identity-provider mapper '{}' ({reason})",
                     mapper.name.as_deref().unwrap_or("<unnamed>")
                 ));
             }
@@ -1082,10 +1121,20 @@ pub async fn upsert_keycloak_realm(
     election_event_id: &str,
     keycloak_event_realm: Option<RealmRepresentation>,
     default_locale: Option<String>,
+    area_ids: HashSet<String>,
 ) -> Result<()> {
     let mut realm = if let Some(uploaded) = keycloak_event_realm.clone() {
         let template = read_default_election_event_realm().await?;
-        sanitize_imported_event_realm(&uploaded, &template, ImportedRealmReconciliation::default())?
+        let scope = ImportedRealmScope {
+            tenant_id: tenant_id.to_string(),
+            area_ids,
+        };
+        sanitize_imported_event_realm(
+            &uploaded,
+            &template,
+            ImportedRealmReconciliation::default(),
+            &scope,
+        )?
     } else {
         read_default_election_event_realm().await?
     };
@@ -1527,7 +1576,8 @@ pub async fn process_election_event_file(
         tenant_id.as_str(),
         &election_event_id,
         data.keycloak_event_realm.clone(),
-        default_language
+        default_language,
+        data.areas.iter().map(|area| area.id.clone()).collect(),
     )
     .await
     .with_context(|| format!("Error upserting Keycloak realm for tenant ID {tenant_id} and election event ID {election_event_id}"))?;
@@ -2601,6 +2651,7 @@ mod imported_realm_sanitization_tests {
             &realm_with_injected_claims(),
             &template,
             ImportedRealmReconciliation::AlignWithTemplate,
+            &ImportedRealmScope::default(),
         )
         .expect("sanitization succeeds");
 
@@ -2629,6 +2680,7 @@ mod imported_realm_sanitization_tests {
             &template,
             &template,
             ImportedRealmReconciliation::AlignWithTemplate,
+            &ImportedRealmScope::default(),
         )
         .expect("sanitization succeeds");
 
@@ -2646,6 +2698,7 @@ mod imported_realm_sanitization_tests {
             &template,
             &template,
             ImportedRealmReconciliation::RejectForeignClaims,
+            &ImportedRealmScope::default(),
         )
         .is_ok());
     }
@@ -2657,6 +2710,7 @@ mod imported_realm_sanitization_tests {
             &realm_with_injected_claims(),
             &template,
             ImportedRealmReconciliation::RejectForeignClaims,
+            &ImportedRealmScope::default(),
         )
         .is_err());
     }
@@ -2721,6 +2775,7 @@ mod imported_realm_sanitization_tests {
             &tampered,
             &template_realm(),
             ImportedRealmReconciliation::RejectForeignClaims,
+            &ImportedRealmScope::default(),
         )
         .expect_err("a user-editable tenant-id is reported");
         assert!(error
@@ -2814,6 +2869,7 @@ mod imported_realm_sanitization_tests {
                 &tampered,
                 &template,
                 ImportedRealmReconciliation::AlignWithTemplate,
+                &ImportedRealmScope::default(),
             )
             .expect_err("the uploaded permissions can't be checked without the template's");
             assert!(error.to_string().contains("no readable user profile"));
@@ -2828,6 +2884,7 @@ mod imported_realm_sanitization_tests {
             imported,
             &template_realm(),
             ImportedRealmReconciliation::AlignWithTemplate,
+            &ImportedRealmScope::default(),
         )
         .expect("sanitization succeeds")
     }
@@ -2950,6 +3007,7 @@ mod imported_realm_sanitization_tests {
             imported,
             &template_realm(),
             ImportedRealmReconciliation::RejectForeignClaims,
+            &ImportedRealmScope::default(),
         )
     }
 
@@ -3161,6 +3219,130 @@ mod imported_realm_sanitization_tests {
             sanitized.identity_provider_mappers,
             template_realm().identity_provider_mappers
         );
+    }
+
+    fn brokered_realm(tenant_id: &str, area_id: &str) -> RealmRepresentation {
+        let mapper = |name: &str, kind: &str, config: &[(&str, &str)]| {
+            IdentityProviderMapperRepresentation {
+                name: Some(name.to_string()),
+                identity_provider_alias: Some("voter-idp".to_string()),
+                identity_provider_mapper: Some(kind.to_string()),
+                config: Some(
+                    config
+                        .iter()
+                        .map(|(key, value)| (key.to_string(), value.to_string()))
+                        .collect(),
+                ),
+                ..Default::default()
+            }
+        };
+        let table = format!("{area_id} = 01:0001..01:0100");
+        let mut realm = template_realm();
+        realm.identity_providers.get_or_insert_with(Vec::new).push(
+            ::keycloak::types::IdentityProviderRepresentation {
+                alias: Some("voter-idp".to_string()),
+                provider_id: Some("saml".to_string()),
+                ..Default::default()
+            },
+        );
+        realm.identity_provider_mappers = Some(vec![
+            mapper(
+                "voter-group",
+                "oidc-hardcoded-group-idp-mapper",
+                &[("group", "/voter")],
+            ),
+            mapper(
+                "tenant-id",
+                "hardcoded-attribute-idp-mapper",
+                &[("attribute", "tenant-id"), ("attribute.value", tenant_id)],
+            ),
+            mapper(
+                "voter-id",
+                "sequent-attribute-lookup-idp-mapper",
+                &[("target", "USERNAME"), ("sources", "$nameid")],
+            ),
+            mapper(
+                "area",
+                "sequent-attribute-lookup-idp-mapper",
+                &[
+                    ("target", "USER_ATTRIBUTE"),
+                    ("target.attribute", "area-id"),
+                    ("sources", "region##precinct"),
+                    ("lookup.table", &table),
+                ],
+            ),
+        ]);
+        realm
+    }
+
+    fn mapper_names(realm: &RealmRepresentation) -> Vec<String> {
+        realm
+            .identity_provider_mappers
+            .iter()
+            .flatten()
+            .filter_map(|mapper| mapper.name.clone())
+            .collect()
+    }
+
+    #[test]
+    fn keeps_brokered_voter_mappers_scoped_to_the_import() {
+        let tenant_id = "90505c8a-23a9-4cdf-a26b-4e19f6a097d5";
+        let area_id = "a2dbcb78-2f44-41d2-a698-4f5d531cf725";
+        let scope = ImportedRealmScope {
+            tenant_id: tenant_id.to_string(),
+            area_ids: HashSet::from([area_id.to_string()]),
+        };
+        let realm = brokered_realm(tenant_id, area_id);
+
+        for reconciliation in [
+            ImportedRealmReconciliation::AlignWithTemplate,
+            ImportedRealmReconciliation::RejectForeignClaims,
+        ] {
+            let sanitized =
+                sanitize_imported_event_realm(&realm, &template_realm(), reconciliation, &scope)
+                    .expect("brokered voter mappers are accepted");
+            assert_eq!(
+                mapper_names(&sanitized),
+                ["voter-group", "tenant-id", "voter-id", "area"]
+            );
+            assert_eq!(
+                sanitized.identity_provider_mappers,
+                realm.identity_provider_mappers
+            );
+        }
+    }
+
+    #[test]
+    fn drops_brokered_mappers_pointing_outside_the_import() {
+        let area_id = "a2dbcb78-2f44-41d2-a698-4f5d531cf725";
+        let scope = ImportedRealmScope {
+            tenant_id: "90505c8a-23a9-4cdf-a26b-4e19f6a097d5".to_string(),
+            area_ids: HashSet::new(),
+        };
+        let realm = brokered_realm("11111111-2222-4333-8444-555555555555", area_id);
+
+        let sanitized = sanitize_imported_event_realm(
+            &realm,
+            &template_realm(),
+            ImportedRealmReconciliation::AlignWithTemplate,
+            &scope,
+        )
+        .expect("sanitization succeeds");
+        assert_eq!(mapper_names(&sanitized), ["voter-group", "voter-id"]);
+
+        let error = sanitize_imported_event_realm(
+            &realm,
+            &template_realm(),
+            ImportedRealmReconciliation::RejectForeignClaims,
+            &scope,
+        )
+        .expect_err("a foreign tenant and area are reported");
+        assert!(error
+            .to_string()
+            .contains("identity-provider mapper 'tenant-id'"));
+        assert!(error
+            .to_string()
+            .contains("identity-provider mapper 'area'"));
     }
 
     #[test]
