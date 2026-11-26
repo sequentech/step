@@ -7,13 +7,13 @@
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::cast_votes::CastVoteStatus;
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::electoral_log_board::{get_event_databases, get_event_store};
+use crate::services::electoral_log_board::get_event_store;
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use electoral_log::adapters::ballot_box::BallotStatus;
 use electoral_log::adapters::ballot_box_reads::{BallotIdMatch, StoredBallot};
-use electoral_log::adapters::postgres::PostgresStore;
+use electoral_log::adapters::postgres::{PostgresConnection, PostgresStore};
 use sequent_core::ballot::ReceiptsPolicy;
 use serde::Serialize;
 use serde_json::Value;
@@ -47,11 +47,35 @@ pub async fn get_event_ballot_box_read_only(
     election_event_id: &str,
 ) -> Result<EventBallotBox> {
     let board = event_ballot_box_board(hasura_transaction, tenant_id, election_event_id).await?;
-    let store = get_event_databases()
-        .await?
-        .existing_event_store_read_only(election_event_id, tenant_id)
-        .await?;
+    let store = existing_event_store_read_only(election_event_id, tenant_id).await?;
     Ok(EventBallotBox { store, board })
+}
+
+// Open only existing catalog and event databases. Keep this readiness-specific
+// observation in Windmill so the shared electoral-log implementation stays
+// byte-identical. Neither connection may initialize schemas or write.
+async fn existing_event_store_read_only(
+    election_event_id: &str,
+    tenant_id: &str,
+) -> Result<PostgresStore> {
+    let event = Uuid::parse_str(election_event_id)?;
+    let tenant = Uuid::parse_str(tenant_id)?;
+    let connection = PostgresConnection::from_env()?;
+    let catalog = connection.read_only_store_of(connection.database(), 1)?;
+    let entry = catalog
+        .client()
+        .await?
+        .query_opt(
+            "SELECT database_name FROM electoral_log_events
+             WHERE election_event_id = $1 AND tenant_id = $2",
+            &[&event, &tenant],
+        )
+        .await?
+        .with_context(|| {
+            format!("Election event {event} has no electoral-log database in this tenant")
+        })?;
+    let database: String = entry.try_get(0)?;
+    connection.read_only_store_of(&database, 1)
 }
 
 async fn event_ballot_box_board(

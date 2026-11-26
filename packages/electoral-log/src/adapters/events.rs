@@ -1064,35 +1064,6 @@ impl EventDatabases {
         self.open(&event, &entry.database_name)
     }
 
-    /// Read-only access to an already provisioned event belonging to this tenant.
-    /// Do not initialize the catalog, migrate schemas, or open a writable store.
-    pub async fn existing_event_store_read_only(
-        &self,
-        election_event_id: &str,
-        tenant_id: &str,
-    ) -> Result<PostgresStore> {
-        let event = canonical_uuid(election_event_id)?;
-        let tenant = canonical_uuid(tenant_id)?;
-        let catalog = self
-            .inner
-            .connection
-            .read_only_store_of(self.inner.connection.database(), 1)?;
-        let entry = catalog
-            .client()
-            .await?
-            .query_opt(
-                "SELECT database_name FROM electoral_log_events \
-                 WHERE election_event_id = $1::text::uuid AND tenant_id = $2::text::uuid",
-                &[&event, &tenant],
-            )
-            .await?
-            .with_context(|| {
-                format!("Election event {event} has no electoral-log database in this tenant")
-            })?;
-        let database: String = entry.try_get(0)?;
-        self.inner.connection.read_only_store_of(&database, 1)
-    }
-
     /// The store of the election event or the tenant whose board this is.
     pub async fn board_store(&self, board: &str) -> Result<PostgresStore> {
         match owner_of_board(board)? {
