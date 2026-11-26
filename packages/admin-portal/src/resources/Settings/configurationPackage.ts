@@ -408,45 +408,6 @@ export const readPackageRetry = (
         : {requirements, packageSha256: digest}
 }
 
-/** The receiver's safe options for this rejected Preview. A previous task
- * is not a new authorization and these options are never saved in the browser.
- */
-export const readPackageRetry = (
-    annotations: unknown,
-    tenantId: string,
-    submitted: ActiveSubmission
-): {requirements: PackageRequirements; packageSha256: string} | null => {
-    const row = asObject(annotations)
-    const hint = asObject(row.packageRetry)
-    const plan = asObject(hint.requirements)
-    const digest = hint.packageSha256
-    if (
-        row.application ||
-        row.previouslyApplied ||
-        hint.tenantId !== tenantId ||
-        typeof digest !== "string" ||
-        !/^[0-9a-f]{64}$/.test(digest) ||
-        [submitted.encryptedPayloadSha256, submitted.expectedSha].some(
-            (expected) =>
-                !!expected && (typeof expected !== "string" || expected.toLowerCase() !== digest)
-        ) ||
-        !submitted.requirements ||
-        !Array.isArray(submitted.requirements.sections) ||
-        !Array.isArray(plan.sections) ||
-        plan.sections.some((section) => !PACKAGE_SECTIONS.includes(section)) ||
-        new Set(plan.sections).size !== plan.sections.length ||
-        (plan.census !== "required" && plan.census !== "optional")
-    )
-        return null
-    const requirements: PackageRequirements = {
-        sections: PACKAGE_SECTIONS.filter((section) => plan.sections.includes(section)),
-        census: plan.census,
-    }
-    return sameRequirements(requirements, submitted.requirements)
-        ? null
-        : {requirements, packageSha256: digest}
-}
-
 const storageKey = (tenantId: string) => `configurationPackage.active.${tenantId}`
 
 /** Remember the submission for this tenant in this browser session. */
