@@ -7,16 +7,22 @@ import {i18n} from "@sequentech/ui-core"
 import {AdminStoryProvider, TENANT_ID, graphqlBoundary} from "@/__stories__/AdminStoryProvider"
 import {resourceBoundary} from "@/__stories__/resourceBoundary"
 import {storyId} from "@/__stories__/fixtures"
+import {atViewport} from "../../../../test-support/storybook/viewport"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {SettingsConfigurationPackage} from "./SettingsConfigurationPackage"
-import {PACKAGE_PERMISSIONS} from "./configurationPackage"
-import {record} from "./configurationPackage.fixture"
+import {COMPLETE_DELIVERY, PACKAGE_PERMISSIONS} from "./configurationPackage"
+import {record, refusedPreview} from "./configurationPackage.fixture"
 
 interface Scenario {
     allowed: boolean
+    /** Package permissions the operator lacks, for the Missing permissions state. */
+    missing: string[]
+    /** Whether the tenant's history holds an applied run. */
+    applied: boolean
     blocked: boolean
     unavailable: boolean
     managedRoster: boolean
+    replaceMessagingAccount: boolean
 }
 const DOCUMENT_ID = storyId(41, 1)
 const TASK_ID = storyId(41, 2)
@@ -25,16 +31,26 @@ let data: ReturnType<typeof resourceBoundary>
 const meta = {
     title: "Admin/Settings/SettingsConfigurationPackage",
     component: SettingsConfigurationPackage,
-    args: {allowed: true, blocked: false, unavailable: false, managedRoster: false},
+    args: {
+        allowed: true,
+        missing: [],
+        applied: false,
+        blocked: false,
+        unavailable: false,
+        managedRoster: false,
+        replaceMessagingAccount: false,
+    },
     beforeEach: async ({args}) => {
         sessionStorage.clear()
         // The page also shows the tenant's signing card, which reads the
         // tenant record; no signing configured yet.
         data = resourceBoundary({sequent_backend_tenant: [{id: TENANT_ID, settings: {}}]})
-        const annotations = record(
-            "previewed",
-            args.blocked ? ["Unknown role: synthetic-reviewer"] : []
-        )
+        const annotations = args.blocked
+            ? refusedPreview(["Unknown role: synthetic-reviewer"], {
+                  missingTrustees: true,
+                  missingCensus: true,
+              })
+            : record("previewed")
         annotations.application.tenantId = TENANT_ID
         annotations.application.packageSha256 = "ab".repeat(32)
         // A readable proposal, not credentials or arbitrary raw configuration.
@@ -42,6 +58,37 @@ const meta = {
             status: {preview: {changes: unknown[]}}
         }
         tenantSection.status.preview.changes = [{action: "update", keys: ["language_conf"]}]
+        if (!args.blocked && args.replaceMessagingAccount) {
+            Object.assign(annotations.application, {
+                managedRequirements: COMPLETE_DELIVERY,
+                messagingPlanSha256: "cd".repeat(32),
+            })
+            Object.assign(annotations.application.coverage.sections, {
+                "messaging-accounts": {
+                    state: "present",
+                    members: ["tenant_messaging_accounts.json"],
+                },
+            })
+            annotations.application.sections.push({
+                section: "messaging-accounts",
+                members: ["tenant_messaging_accounts.json"],
+                status: {
+                    state: "previewed",
+                    preview: {
+                        needsApply: true,
+                        blockers: [],
+                        changes: [
+                            {
+                                reference: "package:training-notices",
+                                action: "replace",
+                                channel: "EMAIL",
+                                provider: "AWS_SES",
+                            },
+                        ],
+                    },
+                },
+            })
+        }
         let approvalPolicy: {required_approvals: number | null; generation: string} = {
             required_approvals: null,
             generation: "0",
@@ -69,7 +116,21 @@ const meta = {
                     },
                 },
             }),
-            ListPackageApplications: () => ({data: {sequent_backend_tasks_execution: []}}),
+            ListPackageApplications: () => ({
+                data: {
+                    sequent_backend_tasks_execution: args.applied
+                        ? [
+                              {
+                                  id: storyId(41, 3),
+                                  created_at: "2026-11-24T14:02:00Z",
+                                  execution_status: "SUCCESS",
+                                  executed_by_user: "story-operator",
+                                  annotations: record("applied"),
+                              },
+                          ]
+                        : [],
+                },
+            }),
             ApplyConfigurationPackage: () => ({
                 data: {
                     apply_configuration_package: {
@@ -88,7 +149,7 @@ const meta = {
                         : [
                               {
                                   id: TASK_ID,
-                                  execution_status: "SUCCESS",
+                                  execution_status: args.blocked ? "FAILED" : "SUCCESS",
                                   annotations,
                                   logs: [],
                               },
@@ -99,11 +160,15 @@ const meta = {
         await graphql.ready
         return () => sessionStorage.clear()
     },
-    render: ({allowed}) => (
+    render: ({allowed, missing}) => (
         <AdminStoryProvider
             boundary={graphql}
             dataProvider={data.provider}
-            roles={allowed ? PACKAGE_PERMISSIONS : []}
+            roles={
+                allowed
+                    ? PACKAGE_PERMISSIONS.filter((permission) => !missing.includes(permission))
+                    : []
+            }
             auth={{userId: "story-operator"}}
         >
             <SettingsConfigurationPackage />
@@ -113,13 +178,22 @@ const meta = {
 export default meta
 type Story = StoryObj<Scenario>
 
+async function showAdvanced(canvasElement: HTMLElement) {
+    const details = within(canvasElement).getByTestId(
+        "package-advanced-details"
+    ) as HTMLDetailsElement
+    if (!details.open) {
+        const summary = details.querySelector("summary")
+        if (!summary) throw new Error("Advanced options has no disclosure")
+        await userEvent.click(summary)
+    }
+    await expect(details).toHaveAttribute("open")
+}
+
 async function preview(canvasElement: HTMLElement) {
     const canvas = within(canvasElement)
-    await waitFor(() =>
-        expect(
-            canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
-        ).toBeEnabled()
-    )
+    await waitFor(() => expect(canvas.getByTestId("package-upload")).toBeEnabled())
+    await showAdvanced(canvasElement)
     await userEvent.type(
         canvas.getByRole("textbox", {name: i18n.t("configurationPackage.documentId")}),
         DOCUMENT_ID
@@ -131,12 +205,18 @@ async function preview(canvasElement: HTMLElement) {
 }
 
 export const PreviewAndConfirm: Story = {
+    args: {replaceMessagingAccount: true},
     parameters: {
-        widgets: ["SettingsConfigurationPackageForScope", "ApplicationTable", "ProposedChanges"],
+        widgets: [
+            "SettingsConfigurationPackageForScope",
+            "ApplicationTable",
+            "ProposedChanges",
+            "PortableReplacementWarning",
+        ],
     },
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(canvas.getByTestId("package-apply")).toBeDisabled()
+        await expect(canvas.getByTestId("package-apply")).not.toBeVisible()
         await preview(canvasElement)
         await waitFor(() => expect(canvas.getByTestId("package-apply")).toBeEnabled())
         await expect(canvas.getByTestId("package-members")).toHaveTextContent(
@@ -150,7 +230,37 @@ export const PreviewAndConfirm: Story = {
         await expect(dialog.getByTestId("package-proposed-changes")).toHaveTextContent(
             "language_conf"
         )
+        await waitFor(() =>
+            expect(
+                dialog.getByText(i18n.t("configurationPackage.messagingReplaceWarning"))
+            ).toBeVisible()
+        )
+
         // Opening confirmation never applies; the only mutation so far is preview.
+        expect(
+            graphql.calls
+                .filter(({name}) => name === "ApplyConfigurationPackage")
+                .map(({variables}) => variables.mode)
+        ).toEqual(["preview"])
+        expect(graphql.unexpected).toEqual([])
+    },
+}
+
+export const PortableMessagingReplacement: Story = {
+    args: {replaceMessagingAccount: true},
+    parameters: {widgets: ["PortableReplacementWarning"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const warning = i18n.t("configurationPackage.messagingReplaceWarning")
+        await preview(canvasElement)
+        const section = within(await canvas.findByTestId("section-messaging-accounts"))
+        await expect(section.getByText(warning)).toBeVisible()
+        const apply = canvas.getByTestId("package-apply")
+        await waitFor(() => expect(apply).toBeEnabled())
+        await userEvent.click(apply)
+        const dialog = within(await within(document.body).findByRole("dialog"))
+        await waitFor(() => expect(dialog.getByText(warning)).toBeVisible())
+        // Reviewing the replacement never applies it.
         expect(
             graphql.calls
                 .filter(({name}) => name === "ApplyConfigurationPackage")
@@ -169,8 +279,20 @@ export const BlockedPreview: Story = {
         await expect(await canvas.findByTestId("section-tenant-configuration")).toHaveTextContent(
             "Unknown role: synthetic-reviewer"
         )
-        await expect(await canvas.findByText(i18n.t("configurationPackage.blocked"))).toBeVisible()
+        const alert = await canvas.findByTestId("package-blocked")
+        await expect(within(alert).getByText(i18n.t("configurationPackage.blocked"))).toBeVisible()
+        await waitFor(() =>
+            expect(
+                within(alert).getByText(i18n.t("configurationPackage.workflow.missingCensus"))
+            ).toBeVisible()
+        )
+        await expect(canvas.getByTestId("section-trustees")).toHaveTextContent("missing")
         await expect(canvas.getByTestId("package-apply")).toBeDisabled()
+        await expect(canvas.getByTestId("package-apply")).not.toBeVisible()
+        await expect(canvas.getByTestId("package-upload")).toHaveTextContent(
+            i18n.t("configurationPackage.hub.actions.importFixed")
+        )
+        await expect(canvas.getByTestId("package-change-requirements")).toBeVisible()
         expect(graphql.calls.filter(({name}) => name === "ApplyConfigurationPackage")).toHaveLength(
             1
         )
@@ -212,21 +334,17 @@ export const PermissionRequired: Story = {
 export const UploadFirst: Story = {
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await waitFor(() =>
-            expect(
-                canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
-            ).toBeEnabled()
-        )
+        await waitFor(() => expect(canvas.getByTestId("package-upload")).toBeEnabled())
         await expect(
             canvas.getByRole("region", {name: i18n.t("configurationPackage.advanced")})
         ).toBeVisible()
-        await expect(canvas.getByTestId("package-apply")).toBeDisabled()
+        await expect(canvas.getByTestId("package-apply")).not.toBeVisible()
+        await expect(canvas.getByTestId("package-advanced-details")).not.toHaveAttribute("open")
+        await showAdvanced(canvasElement)
         await expect(
             canvas.getByRole("button", {name: i18n.t("configurationPackage.legacySetup")})
         ).toHaveAttribute("aria-expanded", "false")
-        await userEvent.click(
-            canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
-        )
+        await userEvent.click(canvas.getByTestId("package-upload"))
         await expect(within(document.body).getByTestId("package-upload-drawer")).toBeVisible()
     },
 }
@@ -235,14 +353,8 @@ export const RosterNotInstalled: Story = {
     args: {managedRoster: true},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        const manage = await canvas.findByRole("button", {
-            name: i18n.t("configurationPackage.roster.manage"),
-        })
-        await expect(
-            canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
-        ).toBeDisabled()
-        await expect(canvas.getByText(i18n.t("configurationPackage.roster.noRoster"))).toBeVisible()
-        const upload = canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
+        await expect(canvas.getByTestId("package-upload")).toBeDisabled()
+        const upload = canvas.getByTestId("package-upload")
         const disabled = window.getComputedStyle(upload)
         const reference = window.getComputedStyle(canvas.getByTestId("package-apply"))
         await expect([disabled.backgroundColor, disabled.color, disabled.border]).toEqual([
@@ -251,12 +363,23 @@ export const RosterNotInstalled: Story = {
             reference.border,
         ])
         await expect(upload).toHaveAttribute("aria-describedby")
+        await showAdvanced(canvasElement)
         await expect(
             canvas.getByRole("textbox", {name: i18n.t("configurationPackage.signedDocumentId")})
         ).toBeDisabled()
         await expect(
             canvas.queryByRole("button", {name: i18n.t("configurationPackage.legacySetup")})
         ).not.toBeInTheDocument()
+        await expect(canvas.queryByTestId("package-check-trust-again")).not.toBeInTheDocument()
+        await userEvent.click(canvas.getByTestId("package-open-trust"))
+        await expect(canvas.getByTestId("package-rail-trust")).toHaveAttribute(
+            "aria-current",
+            "page"
+        )
+        const manage = await canvas.findByRole("button", {
+            name: i18n.t("configurationPackage.roster.manage"),
+        })
+        await expect(canvas.getByText(i18n.t("configurationPackage.roster.noRoster"))).toBeVisible()
         await userEvent.click(manage)
         const dialog = within(
             await within(document.body).findByRole("dialog", {
@@ -272,6 +395,97 @@ export const RosterNotInstalled: Story = {
         await expect(
             dialog.queryByRole("button", {name: i18n.t("configurationPackage.roster.confirm")})
         ).not.toBeInTheDocument()
+        expect(
+            graphql.calls.filter(({name}) => /^(Activate|Preview)ArchitectSignerRoster$/.test(name))
+        ).toHaveLength(0)
+        expect(graphql.unexpected).toEqual([])
+    },
+}
+
+export const MissingPermissions: Story = {
+    args: {missing: ["role-write", "trustee-create"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const missing = await canvas.findByTestId("package-missing-permissions")
+        await expect(missing).toHaveTextContent("role-write, trustee-create")
+        await expect(missing).not.toHaveTextContent("tenant-write")
+        await expect(canvas.queryByTestId("package-upload")).not.toBeInTheDocument()
+        expect(graphql.calls).toEqual([])
+    },
+}
+
+export const AppliedReceipt: Story = {
+    args: {applied: true},
+    parameters: {widgets: ["ApplicationHistory"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await waitFor(() =>
+            expect(canvas.getByTestId("package-receipt")).toHaveTextContent(storyId(41, 3))
+        )
+        await expect(canvas.getByTestId("package-run-card")).not.toHaveTextContent(storyId(41, 3))
+        await userEvent.click(canvas.getByTestId("package-rail-history"))
+        await expect(canvas.getByTestId("package-history")).toHaveTextContent(storyId(41, 3))
+    },
+}
+
+export const PhoneBlockedPreview: Story = {
+    ...atViewport(390),
+    args: {blocked: true},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await preview(canvasElement)
+        await expect(await canvas.findByTestId("package-change-requirements")).toBeVisible()
+        await expect(canvas.getByTestId("package-upload")).toHaveTextContent(
+            i18n.t("configurationPackage.hub.actions.importFixed")
+        )
+        await expect(canvas.getByTestId("package-apply")).not.toBeVisible()
+        // Nothing wider than the phone: the rail and columns stack.
+        await expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(390)
+        await userEvent.click(canvas.getByTestId("package-change-requirements"))
+        await expect(within(document.body).getByTestId("package-requirements-picker")).toBeVisible()
+        expect(graphql.calls.filter(({name}) => name === "ApplyConfigurationPackage")).toHaveLength(
+            1
+        )
+    },
+}
+
+export const StalePreviewAgain: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await preview(canvasElement)
+        await waitFor(() => expect(canvas.getByTestId("package-apply")).toBeEnabled())
+        await userEvent.click(canvas.getByRole("checkbox", {name: "census"}))
+        await expect(canvas.getByTestId("package-apply")).toBeDisabled()
+        await userEvent.click(await canvas.findByTestId("package-preview-again"))
+        await waitFor(() =>
+            expect(
+                graphql.calls
+                    .filter(({name}) => name === "ApplyConfigurationPackage")
+                    .map(({variables}) => [
+                        variables.mode,
+                        (variables.requirements as {census?: unknown} | undefined)?.census,
+                    ])
+            ).toEqual([
+                ["preview", "required"],
+                ["preview", "optional"],
+            ])
+        )
+        expect(graphql.unexpected).toEqual([])
+    },
+}
+
+export const PhoneRosterNotInstalled: Story = {
+    ...atViewport(390),
+    args: {managedRoster: true},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const openTrust = await canvas.findByTestId("package-open-trust")
+        await expect(openTrust).toBeVisible()
+        await expect(canvas.getByTestId("package-upload")).toBeDisabled()
+        await userEvent.click(openTrust)
+        await expect(
+            await canvas.findByRole("button", {name: i18n.t("configurationPackage.roster.manage")})
+        ).toBeVisible()
         expect(
             graphql.calls.filter(({name}) => /^(Activate|Preview)ArchitectSignerRoster$/.test(name))
         ).toHaveLength(0)

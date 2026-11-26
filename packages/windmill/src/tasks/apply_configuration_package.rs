@@ -15,12 +15,15 @@ use crate::services::database::get_hasura_pool;
 use crate::services::documents::read_configuration_package;
 use crate::services::import::configuration_package::tenant_setting;
 use crate::services::import::configuration_package_apply::{
-    plan_members, run, same_coverage, ApplicationRecord, ApplyMode, Outcome, ProgressStore,
+    plan_members, run, same_coverage, ApplicationRecord, ApplyMode, Outcome, PackagePlan,
+    ProgressStore, SectionStatus, APPLICATION_FORMAT,
 };
 use crate::services::import::configuration_package_demo_credentials::VerifiedDemoLoginAdmission;
 use crate::services::import::configuration_package_messaging::PackageMessaging;
 use crate::services::import::configuration_package_sections::{read_admin_rows, read_group_roles};
-use crate::services::import::configuration_package_target::{ApplyContext, PlatformTarget};
+use crate::services::import::configuration_package_target::{
+    derived_event_id, ApplyContext, PlatformTarget,
+};
 use crate::services::managed_webauthn_roster::Binding;
 use crate::services::tasks_execution::update_with_annotations;
 use crate::tasks::import_election_event::ImportElectionEventBody;
@@ -34,9 +37,9 @@ use sequent_core::election_config::demo_credentials::DEMO_LOGIN_VERIFIERS_MEMBER
 use sequent_core::election_config::encrypted_delivery::{
     is_encrypted_signed_delivery, MAX_SIGNED_DELIVERY_BYTES,
 };
-use sequent_core::election_config::manifest::read_zip;
+use sequent_core::election_config::manifest::{read_zip, ManifestFormat};
 use sequent_core::election_config::package_contract::{Requirements, Section};
-use sequent_core::election_config::package_verify::Admission;
+use sequent_core::election_config::package_verify::{Admission, Freshness};
 use sequent_core::election_config::portable_messaging;
 use sequent_core::election_config::tenant_package::TrusteePublic;
 use sequent_core::types::hasura::core::TasksExecution;
@@ -85,12 +88,31 @@ pub struct ApplyConfigurationPackageBody {
     pub executed_by: String,
 }
 
+const STORE_RETRY_REQUIREMENTS: &str = "UPDATE sequent_backend.tasks_execution t
+             SET annotations = COALESCE(t.annotations, '{}'::jsonb) || $3::jsonb
+             WHERE t.tenant_id=$1 AND t.id=$2 AND t.type='APPLY_CONFIGURATION_PACKAGE'
+               AND t.execution_status='IN_PROGRESS'
+               AND NOT (COALESCE(t.annotations, '{}'::jsonb) ?| ARRAY['application','previouslyApplied'])
+               AND (NOT $4 OR EXISTS (
+                   SELECT 1 FROM sequent_backend.configuration_package_staging s
+                    WHERE s.tenant_id=$1 AND s.document_id=$5 AND s.uploaded_by=$6
+               ))";
+
 /// Saves the record on the task row, keeping it in progress until the run
 /// ends, and keeps the run's claim.
 struct TaskRowStore<'a> {
     task: TasksExecution,
     claim: &'a deadpool_postgres::Transaction<'a>,
     logs: tokio::sync::Mutex<Option<serde_json::Value>>,
+    retry_document: Option<RetryDocument<'a>>,
+}
+
+/// Identity of the authorized request, not the preceding operator. For
+/// a protected document the hint can only be issued to its actual uploader.
+struct RetryDocument<'a> {
+    id: &'a str,
+    actor: &'a str,
+    protected: bool,
 }
 
 #[async_trait]
@@ -120,6 +142,43 @@ impl ProgressStore for TaskRowStore<'_> {
         )
         .await?;
         *logs = Some(updated);
+        Ok(())
+    }
+
+    async fn remember_retry_requirements(
+        &self,
+        digest: &str,
+        requirements: &Requirements,
+    ) -> anyhow::Result<()> {
+        let Some(document) = &self.retry_document else {
+            return Ok(()); // not an admitted, signed Admin Portal Preview
+        };
+        let tenant = uuid::Uuid::parse_str(&self.task.tenant_id)?;
+        let task = uuid::Uuid::parse_str(&self.task.id)?;
+        let document_id = uuid::Uuid::parse_str(document.id)?;
+        let hint = json!({
+            "packageRetry": {
+                "tenantId": tenant,
+                "packageSha256": digest,
+                "requirements": requirements,
+            }
+        });
+        let db = get_hasura_pool().await.get().await?;
+        // Do not index this hint as an application or modify a prior receipt.
+        // The tenant claim is held; match the new task and its active status
+        // atomically, and recheck the stage owner without reading credentials.
+        db.execute(
+            STORE_RETRY_REQUIREMENTS,
+            &[
+                &tenant,
+                &task,
+                &hint,
+                &document.protected,
+                &document_id,
+                &document.actor,
+            ],
+        )
+        .await?;
         Ok(())
     }
 
@@ -179,6 +238,189 @@ fn choose_prior(
     serde_json::from_value(record.clone())
         .map(Some)
         .with_context(|| format!("the saved application of task {id} cannot be read"))
+}
+
+/// Only called for a verified package at the current import-chain head, under
+/// both tenant locks. A committed event alone says nothing about completion
+/// of the other sections. A more recent unfinished Apply takes precedence.
+fn completed_application(
+    rows: &[TasksExecution],
+    tenant_id: &str,
+    plan: &PackagePlan,
+    binding: Option<&Binding>,
+    imported_event: &str,
+) -> anyhow::Result<Option<String>> {
+    if imported_event != derived_event_id(tenant_id, &plan.package_sha256)
+        || !plan.coverage.is_complete()
+        || !plan.payloads.contains_key(&Section::ElectionEvent)
+    {
+        return Ok(None);
+    }
+    for row in rows {
+        let annotations = row.annotations.as_ref();
+        let Some(value) = annotations.and_then(|a| a.get(APPLICATION_KEY)) else {
+            if annotations.is_some_and(|a| a.get("previouslyApplied").is_some()) {
+                continue;
+            }
+            return Ok(None);
+        };
+        let record: ApplicationRecord = serde_json::from_value(value.clone())
+            .with_context(|| format!("the saved application of task {} cannot be read", row.id))?;
+        if record.mode == ApplyMode::Preview {
+            continue;
+        }
+        let messaging = plan.payloads.contains_key(&Section::MessagingAccounts);
+        let complete = row.tenant_id == tenant_id
+            && row.task_type == ETasksExecution::APPLY_CONFIGURATION_PACKAGE.to_string()
+            && row.execution_status == TasksExecutionStatus::SUCCESS.to_string()
+            && record.format == APPLICATION_FORMAT
+            && record.mode == ApplyMode::Apply
+            && record.outcome == Outcome::Applied
+            && record.tenant_id == tenant_id
+            && record.package_sha256 == plan.package_sha256
+            && record.managed_roster_binding.as_ref() == binding
+            && (record.managed_requirements.as_ref() == Some(&plan.requirements)
+                || (record.managed_requirements.is_none()
+                    && binding.is_none()
+                    && !messaging
+                    && record.managed_preview_operator_binding.is_none()))
+            && same_coverage(&record.coverage, &plan.coverage)
+            && (!messaging
+                || record
+                    .messaging_plan_sha256
+                    .as_deref()
+                    .is_some_and(valid_plan_digest))
+            && record.sections.iter().all(|section| {
+                section.history.in_flight.is_none()
+                    && (plan.payloads.contains_key(&section.section)
+                        || matches!(section.status, SectionStatus::NotIncluded))
+            })
+            && plan.payloads.iter().all(|(key, files)| {
+                let mut matching = record.sections.iter().filter(|s| s.section == *key);
+                let Some(section) = matching.next() else {
+                    return false;
+                };
+                matching.next().is_none()
+                    && section
+                        .members
+                        .iter()
+                        .eq(files.iter().map(|file| &file.name))
+                    && matches!(
+                        section.status,
+                        SectionStatus::Applied { .. } | SectionStatus::Unchanged { .. }
+                    )
+            });
+        return Ok(complete.then(|| row.id.clone()));
+    }
+    Ok(None)
+}
+
+fn historical_outcome(mode: ApplyMode, format: ManifestFormat, browser_signed: bool) -> Outcome {
+    match mode {
+        ApplyMode::Preview => Outcome::Previewed,
+        ApplyMode::Apply if format == ManifestFormat::V2 || browser_signed => Outcome::Refused,
+        ApplyMode::Apply => Outcome::Applied,
+    }
+}
+
+fn historical_annotations(
+    digest: &str,
+    original: &str,
+    event: &str,
+    mode: ApplyMode,
+) -> serde_json::Value {
+    json!({
+        PACKAGE_SHA256_KEY: digest,
+        CLAIMED_KEY: true,
+        "previouslyApplied": { "taskId": original, "electionEventId": event, "mode": mode },
+    })
+}
+
+/// A duplicate queue delivery can observe the terminal task while another
+/// request is using the tenant. Its outcome belongs to the original delivery.
+fn finished_delivery(task: &TasksExecution) -> Option<Outcome> {
+    let annotations = task.annotations.as_ref()?;
+    if let Some(receipt) = annotations.get("previouslyApplied") {
+        return match (
+            task.execution_status.as_str(),
+            receipt.get("mode")?.as_str()?,
+        ) {
+            ("SUCCESS", "preview") => Some(Outcome::Previewed),
+            ("SUCCESS", "apply") => Some(Outcome::Applied),
+            ("FAILED", "apply") => Some(Outcome::Refused),
+            _ => None,
+        };
+    }
+    (task.execution_status == TasksExecutionStatus::SUCCESS.to_string()
+        && annotations.pointer("/application/outcome")?.as_str()? == "applied")
+        .then_some(Outcome::Applied)
+}
+
+/// Report the historical result without publishing another usable Preview or
+/// submitting a section. Format 2 and security-key deliveries retain their
+/// replay refusal, including the task's failure status.
+async fn report_completed_application(
+    tx: &deadpool_postgres::Transaction<'_>,
+    target: &PlatformTarget,
+    plan: &PackagePlan,
+    task: &TasksExecution,
+    event: &str,
+    mode: ApplyMode,
+) -> anyhow::Result<Option<Outcome>> {
+    if task
+        .annotations
+        .as_ref()
+        .is_some_and(|a| a.get(APPLICATION_KEY).is_some())
+    {
+        return Ok(None); // A redelivery must settle its own unfinished application.
+    }
+    let ctx = &target.context;
+    let package = ctx.verified.as_ref().context("missing verified package")?;
+    let rows = get_tasks_by_annotation(
+        tx,
+        &ctx.tenant_id,
+        &ETasksExecution::APPLY_CONFIGURATION_PACKAGE.to_string(),
+        PACKAGE_SHA256_KEY,
+        &plan.package_sha256,
+    )
+    .await?;
+    let Some(original) = completed_application(
+        &rows,
+        &ctx.tenant_id,
+        plan,
+        ctx.managed_roster_binding.as_ref(),
+        event,
+    )?
+    else {
+        return Ok(None);
+    };
+    crate::postgres::election_event::get_election_event_by_id(tx, &ctx.tenant_id, event)
+        .await
+        .context("the committed package destination could not be confirmed")?;
+    if plan.payloads.contains_key(&Section::MessagingAccounts) {
+        target.require_portable_messaging_permissions().await?;
+    }
+    let outcome = historical_outcome(
+        mode,
+        package.manifest.format,
+        sequent_core::election_config::webauthn_package::is_browser_verified(package),
+    );
+    let message = format!("Task {original} previously applied this package to election event {event}. No sections were submitted.");
+    let logs = crate::services::serialize_tasks_logs::append_general_log(&task.logs, &message);
+    let status = if outcome == Outcome::Refused {
+        TasksExecutionStatus::FAILED
+    } else {
+        TasksExecutionStatus::SUCCESS
+    };
+    update_with_annotations(
+        &ctx.tenant_id,
+        &task.id,
+        status,
+        serde_json::to_value(logs)?,
+        historical_annotations(&plan.package_sha256, &original, event, mode),
+    )
+    .await?;
+    Ok(Some(outcome))
 }
 
 /// A managed application names the exact successful preview it confirmed.
@@ -248,6 +490,32 @@ fn unclaimed(error: impl Into<anyhow::Error>) -> anyhow::Error {
     anyhow::Error::new(Unclaimed(error.into()))
 }
 
+/// Check claim and status in the same update as the failure. A competing
+/// delivery may have claimed or finished this task since our lock attempt.
+async fn fail_delivery(
+    tx: &deadpool_postgres::Transaction<'_>,
+    task: &TasksExecution,
+    error: &anyhow::Error,
+) -> anyhow::Result<u64> {
+    let logs = crate::services::serialize_tasks_logs::append_general_log(
+        &task.logs,
+        &format!("Error applying the configuration package: {error:#}"),
+    );
+    Ok(tx.execute(
+        "UPDATE sequent_backend.tasks_execution SET execution_status='FAILED', end_at=now(), logs=$3
+         WHERE tenant_id=$1 AND id=$2 AND type='APPLY_CONFIGURATION_PACKAGE'
+           AND execution_status='IN_PROGRESS'
+           AND (NOT $4 OR NOT (COALESCE(annotations, '{}'::jsonb) ? $5))",
+        &[
+            &uuid::Uuid::parse_str(&task.tenant_id)?,
+            &uuid::Uuid::parse_str(&task.id)?,
+            &serde_json::to_value(logs)?,
+            &error.is::<Unclaimed>(),
+            &CLAIMED_KEY,
+        ],
+    ).await?)
+}
+
 /// A staged document ID is not a password-handling channel. Detect the actual
 /// transfer bytes (not a caller filename) before ZIP parsing for both modes.
 fn require_unwrapped_package(bytes: &[u8]) -> anyhow::Result<()> {
@@ -262,7 +530,7 @@ fn require_unwrapped_package(bytes: &[u8]) -> anyhow::Result<()> {
 async fn execute(
     body: &ApplyConfigurationPackageBody,
     task_execution: &TasksExecution,
-) -> anyhow::Result<ApplicationRecord> {
+) -> anyhow::Result<Outcome> {
     // The application's claim first: one package application per tenant at a
     // time, whatever the package. Held by an open transaction on a connection
     // of its own, so it ends with the run, or with the worker if that dies;
@@ -285,6 +553,15 @@ async fn execute(
         return Err(unclaimed(anyhow!(
             "another configuration package application on this tenant is running; wait for it to finish"
         )));
+    }
+    let task_execution =
+        get_task_by_id_with_transaction(&claim, &body.tenant_id, &task_execution.id)
+            .await
+            .map_err(unclaimed)?;
+    // Leave a finished task's successful receipt or replay explanation intact.
+    // Failed and unfinished applications still use the existing exact retry path.
+    if let Some(outcome) = finished_delivery(&task_execution) {
+        return Ok(outcome);
     }
     let mut annotations = task_execution
         .annotations
@@ -358,16 +635,33 @@ async fn execute(
                 ))
             }
         };
-    if let Some(package) = &verified {
-        let last = configuration_packages::last_import(
+    let imported_event = if let Some(package) = &verified {
+        let last = configuration_packages::last_import_with_event(
             &transaction,
             &body.tenant_id,
             &package.manifest.configuration.external_id,
         )
         .await?;
-        crate::services::browser_package_policy::freshness(package, last.as_ref())
-            .map_err(|problem| anyhow!("{problem}"))?;
-    }
+        match crate::services::browser_package_policy::freshness(
+            package,
+            last.as_ref().map(|(head, _)| head),
+        )
+        .map_err(|problem| anyhow!("{problem}"))?
+        {
+            Freshness::New => None,
+            Freshness::AlreadyImported => {
+                let (head, event) =
+                    last.context("the committed configuration revision is missing")?;
+                anyhow::ensure!(
+                    head.revision == package.manifest.configuration.revision,
+                    "the committed configuration revision conflicts with the signed manifest"
+                );
+                Some(event)
+            }
+        }
+    } else {
+        None
+    };
     if !protected_stage
         && members
             .iter()
@@ -417,55 +711,6 @@ async fn execute(
             valid_plan_digest(stamp)
         }).ok_or_else(|| anyhow!("sign in to this tenant's Admin Portal to preview or apply the signed delivery"))
     }).transpose()?;
-    let mut confirmed_messaging = None;
-    if let (ApplyMode::Apply, Some(operator_binding)) = (body.mode, operator_binding) {
-        let refuse = || {
-            anyhow!("confirm your successful preview of this package under the current receiver policy before applying")
-        };
-        let preview_id = body.preview_task_id.as_deref().ok_or_else(refuse)?;
-        let preview = get_task_by_id_with_transaction(&transaction, &body.tenant_id, preview_id)
-            .await
-            .map_err(|_| refuse())?;
-        let canonical_tenant =
-            sequent_core::services::uuid_validation::parse_uuid_v4(&body.tenant_id)?.to_string();
-        if !confirms_managed_preview(
-            &preview,
-            &canonical_tenant,
-            &package_sha256,
-            policy.managed_binding(),
-            operator_binding,
-            &plan,
-        ) {
-            return Err(refuse());
-        }
-        if portable_accounts.is_some() {
-            confirmed_messaging = Some(messaging_preview_digest(&preview).ok_or_else(refuse)?);
-        }
-    }
-    let package_messaging = portable_accounts
-        .map(|definitions| {
-            // Delivered AWS key pairs live in the vault under the protected
-            // staging document only; an ordinary document carries none.
-            let staged_document = if protected_stage {
-                Some(uuid::Uuid::parse_str(&body.document_id)?)
-            } else {
-                None
-            };
-            Ok::<_, anyhow::Error>(std::sync::Arc::new(PackageMessaging::new(
-                sequent_core::services::uuid_validation::parse_uuid_v4(&body.tenant_id)?,
-                package_sha256.clone(),
-                definitions,
-                confirmed_messaging,
-                staged_document,
-                // Harvest sets this from the verified JWT (audit::actor), never
-                // from the request body: staged credentials need their uploader.
-                body.audit_actor
-                    .as_ref()
-                    .and_then(|actor| actor.user_id.clone()),
-            )))
-        })
-        .transpose()?;
-    transaction.commit().await?;
     // The event importer atomically persists the authoritative chain anchor.
     // Without that section this application could mutate tenant state without
     // ever recording the browser manifest, allowing a later replay.
@@ -498,7 +743,7 @@ async fn execute(
             .collect(),
         None => BTreeSet::new(),
     };
-    let target = PlatformTarget {
+    let mut target = PlatformTarget {
         event_imported_by_this_run: Default::default(),
         context: ApplyContext {
             tenant_id: body.tenant_id.clone(),
@@ -514,14 +759,92 @@ async fn execute(
             package_trustees,
             verified,
             demo_login,
-            package_messaging,
+            package_messaging: None,
         },
     };
+    if let Some(event) = imported_event {
+        if let Some(outcome) = report_completed_application(
+            &transaction,
+            &target,
+            &plan,
+            &task_execution,
+            &event,
+            body.mode,
+        )
+        .await?
+        {
+            return Ok(outcome);
+        }
+    }
+    let mut confirmed_messaging = None;
+    if let (ApplyMode::Apply, Some(operator_binding)) = (body.mode, operator_binding) {
+        let refuse = || {
+            anyhow!("confirm your successful preview of this package under the current receiver policy before applying")
+        };
+        let preview_id = body.preview_task_id.as_deref().ok_or_else(refuse)?;
+        let preview = get_task_by_id_with_transaction(&transaction, &body.tenant_id, preview_id)
+            .await
+            .map_err(|_| refuse())?;
+        let canonical_tenant =
+            sequent_core::services::uuid_validation::parse_uuid_v4(&body.tenant_id)?.to_string();
+        if !confirms_managed_preview(
+            &preview,
+            &canonical_tenant,
+            &package_sha256,
+            policy.managed_binding(),
+            operator_binding,
+            &plan,
+        ) {
+            return Err(refuse());
+        }
+        if portable_accounts.is_some() {
+            confirmed_messaging = Some(messaging_preview_digest(&preview).ok_or_else(refuse)?);
+        }
+    }
+    target.context.package_messaging = portable_accounts
+        .map(|definitions| {
+            // Delivered AWS key pairs live in the vault under the protected
+            // staging document only; an ordinary document carries none.
+            let staged_document = if protected_stage {
+                Some(uuid::Uuid::parse_str(&body.document_id)?)
+            } else {
+                None
+            };
+            Ok::<_, anyhow::Error>(std::sync::Arc::new(PackageMessaging::new(
+                sequent_core::services::uuid_validation::parse_uuid_v4(&body.tenant_id)?,
+                package_sha256.clone(),
+                definitions,
+                confirmed_messaging,
+                staged_document,
+                // Harvest sets this from the verified JWT (audit::actor), never
+                // from the request body: staged credentials need their uploader.
+                body.audit_actor
+                    .as_ref()
+                    .and_then(|actor| actor.user_id.clone()),
+            )))
+        })
+        .transpose()?;
+    transaction.commit().await?;
     let prior = prior_record(&body.tenant_id, &package_sha256, &task_execution.id).await?;
     let store = TaskRowStore {
         task: task_execution.clone(),
         claim: &claim,
         logs: tokio::sync::Mutex::new(task_execution.logs.clone()),
+        retry_document: body
+            .audit_actor
+            .as_ref()
+            .and_then(|actor| actor.user_id.as_deref())
+            .filter(|actor| {
+                !actor.is_empty()
+                    && body.mode == ApplyMode::Preview
+                    && operator_binding.is_some()
+                    && target.context.verified.is_some()
+            })
+            .map(|actor| RetryDocument {
+                id: &body.document_id,
+                actor,
+                protected: protected_stage,
+            }),
     };
     let record = run(
         &plan,
@@ -534,7 +857,7 @@ async fn execute(
     .await;
     drop(store);
     claim.rollback().await?;
-    record
+    record.map(|record| record.outcome)
 }
 
 #[instrument(err, skip(body))]
@@ -547,32 +870,20 @@ pub async fn apply_configuration_package(
     task_execution: TasksExecution,
 ) -> Result<()> {
     match execute(&body, &task_execution).await {
-        Ok(record) => match record.outcome {
+        Ok(outcome) => match outcome {
             Outcome::Previewed | Outcome::Applied => Ok(()),
             outcome => Err(anyhow!("configuration package {outcome:?}").into()),
         },
-        Err(error) if error.is::<Unclaimed>() => {
-            // A duplicate delivery of a run that holds the claim must leave
-            // that run's row alone; a new request that met another run, or
-            // could not even try, is refused on its own row.
-            let live = crate::postgres::tasks_execution::get_task_by_id(&task_execution.id)
-                .await
-                .ok()
-                .and_then(|row| row.annotations)
-                .is_some_and(|a| a.get(CLAIMED_KEY).is_some());
-            if !live {
-                let _ = crate::services::tasks_execution::update_fail(
-                    &task_execution,
-                    &error.to_string(),
-                )
-                .await;
-            }
-            Err(anyhow!("{error}").into())
-        }
         Err(error) => {
-            let message = format!("Error applying the configuration package: {error:#}");
-            let _ = crate::services::tasks_execution::update_fail(&task_execution, &message).await;
-            Err(anyhow!(message).into())
+            let mut db: DbClient = get_hasura_pool()
+                .await
+                .get()
+                .await
+                .context("opening the task failure transaction")?;
+            let tx = db.transaction().await?;
+            fail_delivery(&tx, &task_execution, &error).await?;
+            tx.commit().await?;
+            Err(error.into())
         }
     }
 }
@@ -811,6 +1122,95 @@ mod tests {
         ));
     }
 
+    #[tokio::test]
+    async fn retry_hint_can_only_annotate_a_new_active_task_with_the_matching_protected_uploader() {
+        let pool = super::apply_test_schema::pool().await;
+        let mut client = pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        let tenant = uuid::Uuid::new_v4();
+        let other = uuid::Uuid::new_v4();
+        for tenant in [tenant, other] {
+            tx.execute(
+                "INSERT INTO sequent_backend.tenant (id, slug, is_active) VALUES ($1, $2, true)",
+                &[&tenant, &format!("retry-test-{tenant}")],
+            )
+            .await
+            .unwrap();
+        }
+        let document: uuid::Uuid = tx
+            .query_one(
+                "INSERT INTO sequent_backend.document (tenant_id, name, is_public) VALUES ($1, 'test.zip', false) RETURNING id",
+                &[&tenant],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        tx.execute(
+            "INSERT INTO sequent_backend.configuration_package_staging (tenant_id, document_id, uploaded_by) VALUES ($1, $2, 'uploader')",
+            &[&tenant, &document],
+        )
+        .await
+        .unwrap();
+        let task = uuid::Uuid::new_v4();
+        let completed = uuid::Uuid::new_v4();
+        let own_record = uuid::Uuid::new_v4();
+        for (id, status, annotations) in [
+            (task, "IN_PROGRESS", json!({CLAIMED_KEY: true})),
+            (
+                completed,
+                "SUCCESS",
+                json!({"previouslyApplied": {"mode": "preview"}}),
+            ),
+            (
+                own_record,
+                "IN_PROGRESS",
+                json!({APPLICATION_KEY: {"outcome": "applied"}}),
+            ),
+        ] {
+            tx.execute(
+                "INSERT INTO sequent_backend.tasks_execution (id, tenant_id, name, type, execution_status, annotations, executed_by_user)
+                 VALUES ($1, $2, 'retry test', 'APPLY_CONFIGURATION_PACKAGE', $3, $4, 'uploader')",
+                &[&id, &tenant, &status, &annotations],
+            )
+            .await
+            .unwrap();
+        }
+
+        let hint = json!({"packageRetry":{"sections":["election-event"],"census":"required"}});
+        for (id, tenant, actor, wanted) in [
+            (task, other, "uploader", 0),
+            (task, tenant, "someone-else", 0),
+            (completed, tenant, "uploader", 0),
+            (own_record, tenant, "uploader", 0),
+            (task, tenant, "uploader", 1),
+        ] {
+            let changed = tx
+                .execute(
+                    STORE_RETRY_REQUIREMENTS,
+                    &[&tenant, &id, &hint, &true, &document, &actor],
+                )
+                .await
+                .unwrap();
+            assert_eq!(changed, wanted);
+        }
+        let annotations: serde_json::Value = tx
+            .query_one(
+                "SELECT annotations FROM sequent_backend.tasks_execution WHERE id = $1",
+                &[&task],
+            )
+            .await
+            .unwrap()
+            .get(0);
+        assert_eq!(
+            annotations,
+            json!({CLAIMED_KEY: true, "packageRetry": hint["packageRetry"]})
+        );
+        let mut hinted_task = row("hint-only", None);
+        hinted_task.annotations = Some(annotations);
+        assert!(choose_prior(vec![hinted_task], "other").unwrap().is_none());
+        tx.rollback().await.unwrap();
+    }
+
     #[test]
     fn a_run_resumes_from_its_own_record_before_a_newer_one() {
         let own = record(Outcome::Unknown);
@@ -840,6 +1240,186 @@ mod tests {
         let mut broken = row("own", None);
         broken.annotations = Some(json!({APPLICATION_KEY: {"format": 1}}));
         assert!(choose_prior(vec![broken], "own").is_err());
+    }
+
+    #[test]
+    fn historical_preview_and_strict_apply_have_distinct_terminal_results() {
+        for (mode, format, browser, expected, status) in [
+            (
+                ApplyMode::Preview,
+                ManifestFormat::V2,
+                true,
+                Outcome::Previewed,
+                "SUCCESS",
+            ),
+            (
+                ApplyMode::Apply,
+                ManifestFormat::V2,
+                false,
+                Outcome::Refused,
+                "FAILED",
+            ),
+            (
+                ApplyMode::Apply,
+                ManifestFormat::V1,
+                true,
+                Outcome::Refused,
+                "FAILED",
+            ),
+            (
+                ApplyMode::Apply,
+                ManifestFormat::V1,
+                false,
+                Outcome::Applied,
+                "SUCCESS",
+            ),
+        ] {
+            let outcome = historical_outcome(mode, format, browser);
+            assert_eq!(outcome, expected);
+            let mut task = row("repeat", None);
+            task.execution_status = status.into();
+            task.annotations = Some(historical_annotations("digest", "original", "event", mode));
+            let annotations = task.annotations.as_ref().unwrap();
+            assert_eq!(annotations[CLAIMED_KEY], true);
+            assert!(annotations.get(APPLICATION_KEY).is_none());
+            assert_eq!(finished_delivery(&task), Some(expected));
+            task.execution_status = "IN_PROGRESS".into();
+            assert_eq!(finished_delivery(&task), None);
+        }
+    }
+
+    #[test]
+    fn repeat_delivery_needs_the_committed_destination_and_a_completed_exact_apply() {
+        use crate::services::import::configuration_package_apply::{
+            PackagePlan, SectionHistory, SectionRecord, SectionStatus,
+        };
+        use crate::services::import::configuration_package_target::derived_event_id;
+        let mut applied = record(Outcome::Applied);
+        let binding = Binding {
+            sha256: "ef".repeat(32),
+            generation: 4,
+            required_approvals: 2,
+        };
+        applied.managed_roster_binding = Some(binding.clone());
+        applied.managed_requirements = Some(Requirements::default());
+        applied.managed_preview_operator_binding = Some("ba".repeat(32));
+        applied.messaging_plan_sha256 = Some("ab".repeat(32));
+        let plan = PackagePlan {
+            package_sha256: applied.package_sha256.clone(),
+            requirements: Requirements::default(),
+            coverage: applied.coverage.clone(),
+            payloads: BTreeMap::from([
+                (Section::ElectionEvent, vec![]),
+                (Section::MessagingAccounts, vec![]),
+            ]),
+        };
+        let event = derived_event_id("t", &plan.package_sha256);
+        applied.sections.push(SectionRecord {
+            section: Section::ElectionEvent,
+            members: vec![],
+            status: SectionStatus::Applied {
+                submission: None,
+                reconciled: true,
+            },
+            history: SectionHistory {
+                applied: true,
+                ..Default::default()
+            },
+        });
+        // R5 recorded the reviewed messaging plan. Its submission has no installation fingerprint.
+        let mut messaging = applied.sections[0].clone();
+        messaging.section = Section::MessagingAccounts;
+        messaging.history.submissions.push(
+            crate::services::import::configuration_package_apply::SectionSubmission {
+                task_id: None,
+                detail: json!({"accounts": 1}),
+            },
+        );
+        applied.sections.push(messaging);
+        let completed = row("original", Some(&applied));
+        for changed in [
+            None,
+            Some(Binding {
+                required_approvals: 1,
+                ..binding.clone()
+            }),
+            Some(Binding {
+                generation: 5,
+                ..binding.clone()
+            }),
+        ] {
+            assert!(completed_application(
+                std::slice::from_ref(&completed),
+                "t",
+                &plan,
+                changed.as_ref(),
+                &event
+            )
+            .unwrap()
+            .is_none());
+        }
+        let mut changed_plan = plan.clone();
+        changed_plan.requirements.sections.push(Section::Trustees);
+        assert!(completed_application(
+            std::slice::from_ref(&completed),
+            "t",
+            &changed_plan,
+            Some(&binding),
+            &event
+        )
+        .unwrap()
+        .is_none());
+        let receipt = |rows: &[TasksExecution], tenant: &str, event: &str| {
+            completed_application(rows, tenant, &plan, Some(&binding), event).unwrap()
+        };
+        assert_eq!(
+            receipt(std::slice::from_ref(&completed), "t", &event).as_deref(),
+            Some("original")
+        );
+        for (tenant, destination) in [("other", event.as_str()), ("t", "another-event")] {
+            assert_eq!(
+                receipt(std::slice::from_ref(&completed), tenant, destination),
+                None
+            );
+        }
+        for outcome in [
+            Outcome::Failed,
+            Outcome::Running,
+            Outcome::Refused,
+            Outcome::Unknown,
+        ] {
+            let mut partial = applied.clone();
+            partial.outcome = outcome;
+            assert_eq!(
+                receipt(
+                    &[row("later", Some(&partial)), completed.clone()],
+                    "t",
+                    &event
+                ),
+                None
+            );
+        }
+        let mut preview = applied.clone();
+        preview.mode = ApplyMode::Preview;
+        preview.outcome = Outcome::Previewed;
+        assert_eq!(
+            receipt(&[row("preview", Some(&preview))], "t", &event),
+            None
+        );
+        let mut failed = completed.clone();
+        failed.execution_status = "FAILED".into();
+        assert_eq!(receipt(&[failed], "t", &event), None);
+        let mut other_digest = applied.clone();
+        other_digest.package_sha256 = "different bytes".into();
+        assert_eq!(
+            receipt(&[row("different", Some(&other_digest))], "t", &event),
+            None
+        );
+        applied.sections[0].history.in_flight = Some("unsettled".into());
+        assert_eq!(
+            receipt(&[row("interrupted", Some(&applied))], "t", &event),
+            None
+        );
     }
 
     /// Whether another connection could take the tenant's import lock now.
@@ -973,6 +1553,24 @@ mod tests {
                 .await
                 .unwrap();
         assert_eq!(found.len(), 1, "only this tenant's runs of this package");
+        let task = &found[0];
+        let task_id = uuid::Uuid::parse_str(&task.id).unwrap();
+        let receipt = historical_annotations("aaaa", "original", "event", ApplyMode::Preview);
+        let busy = unclaimed(anyhow!("another delivery holds the claim"));
+        // The same conditional UPDATE runs for a competing delivery. Neither
+        // a live owner's marker nor either terminal outcome may be overwritten.
+        for status in ["IN_PROGRESS", "SUCCESS", "FAILED"] {
+            tx.execute("UPDATE sequent_backend.tasks_execution SET execution_status=$2, annotations=$3 WHERE id=$1",
+                &[&task_id, &status, &receipt]).await.unwrap();
+            assert_eq!(fail_delivery(&tx, task, &busy).await.unwrap(), 0);
+            let saved = get_task_by_id_with_transaction(&tx, &task.tenant_id, &task.id)
+                .await
+                .unwrap();
+            assert_eq!(saved.execution_status, status);
+            assert_eq!(saved.annotations.as_ref(), Some(&receipt));
+        }
+        tx.execute("UPDATE sequent_backend.tasks_execution SET execution_status='IN_PROGRESS', annotations=NULL WHERE id=$1", &[&task_id]).await.unwrap();
+        assert_eq!(fail_delivery(&tx, task, &busy).await.unwrap(), 1);
         assert_eq!(found[0].tenant_id, tenant.to_string());
 
         let id = insert_trustee(&tx, &tenant.to_string(), "t1", "c2lnbg==", "c2hhcmU=")

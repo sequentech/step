@@ -172,7 +172,7 @@ afterAll(() => {
 
 it("uploads the delivery through its own drawer and previews it, never the event import", async () => {
     render(<SettingsConfigurationPackage />)
-    fireEvent.click(screen.getByText("configurationPackage.upload"))
+    fireEvent.click(screen.getByTestId("package-upload"))
     expect(screen.getByTestId("package-upload-drawer")).toBeTruthy()
     // The drop area names the delivery zip, not the import screen's default.
     expect(screen.getByLabelText("Import file").closest("label")?.dataset.format).toBe("ZIP / EZIP")
@@ -184,7 +184,7 @@ it("uploads the delivery through its own drawer and previews it, never the event
         fireEvent.change(screen.getByLabelText("Import file"), {target: {files: [file]}})
     })
     await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
-    const importButton = screen.getByRole("button", {name: "electionEventScreen.import.import"})
+    const importButton = screen.getByRole("button", {name: "configurationPackage.preview"})
     await waitFor(() => expect((importButton as HTMLButtonElement).disabled).toBe(false))
     await act(async () => {
         fireEvent.click(importButton)
@@ -207,7 +207,7 @@ it("uploads the delivery through its own drawer and previews it, never the event
 describe("the SHA-256 typed for the upload", () => {
     const uploadWith = async (sha: string) => {
         render(<SettingsConfigurationPackage />)
-        fireEvent.click(screen.getByText("configurationPackage.upload"))
+        fireEvent.click(screen.getByTestId("package-upload"))
         fireEvent.change(screen.getByLabelText("electionEventScreen.import.sha"), {
             target: {value: sha},
         })
@@ -219,7 +219,7 @@ describe("the SHA-256 typed for the upload", () => {
         })
         await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
         const importButton = screen.getByRole("button", {
-            name: "electionEventScreen.import.import",
+            name: "configurationPackage.preview",
         })
         await waitFor(() => expect((importButton as HTMLButtonElement).disabled).toBe(false))
         await act(async () => {
@@ -270,7 +270,7 @@ describe("password-encrypted signed delivery in the real upload drawer", () => {
         version = 1
     ) => {
         const view = render(<SettingsConfigurationPackage />)
-        fireEvent.click(screen.getByText("configurationPackage.upload"))
+        fireEvent.click(screen.getByTestId("package-upload"))
         if (sha) {
             fireEvent.change(screen.getByLabelText("electionEventScreen.import.sha"), {
                 target: {value: sha},
@@ -360,7 +360,7 @@ describe("password-encrypted signed delivery in the real upload drawer", () => {
         })
         expect(Array.from(new Uint8Array(contents))).toEqual(Array.from(bytes))
         const preview = await screen.findByRole("button", {
-            name: "electionEventScreen.import.import",
+            name: "configurationPackage.preview",
         })
         await waitFor(() => expect((preview as HTMLButtonElement).disabled).toBe(false))
         await act(async () => {
@@ -431,7 +431,7 @@ describe("password-encrypted signed delivery in the real upload drawer", () => {
             const view = render(<SettingsConfigurationPackage />)
             const apply = screen.getByTestId("package-apply") as HTMLButtonElement
             await waitFor(() => expect(apply.disabled).toBe(false))
-            fireEvent.click(screen.getByText("configurationPackage.upload"))
+            fireEvent.click(screen.getByTestId("package-upload"))
             fireEvent.change(screen.getByLabelText("electionEventScreen.import.sha"), {
                 target: {value: enteredSha},
             })
@@ -465,7 +465,7 @@ describe("password-encrypted signed delivery in the real upload drawer", () => {
             })
             expect(shaInput.value).toBe("")
             const preview = await screen.findByRole("button", {
-                name: "electionEventScreen.import.import",
+                name: "configurationPackage.preview",
             })
             await waitFor(() => expect((preview as HTMLButtonElement).disabled).toBe(false))
             fireEvent.click(preview)
@@ -562,7 +562,7 @@ describe("an encrypted package carrying messaging credentials (V2)", () => {
 
     const selectV2 = async () => {
         const view = render(<SettingsConfigurationPackage />)
-        fireEvent.click(screen.getByText("configurationPackage.upload"))
+        fireEvent.click(screen.getByTestId("package-upload"))
         const file = new File([envelope(2)], "with-credentials.ezip")
         fireEvent.change(screen.getByLabelText("Import file"), {target: {files: [file]}})
         await screen.findByRole("dialog", {name: "electionEventScreen.import.passwordDialog.title"})
@@ -597,7 +597,7 @@ describe("an encrypted package carrying messaging credentials (V2)", () => {
         // The password reaches only that request: never GraphQL or storage.
         expect(JSON.stringify(mockGetUploadUrl.mock.calls)).not.toContain(PASSWORD)
         const preview = await screen.findByRole("button", {
-            name: "electionEventScreen.import.import",
+            name: "configurationPackage.preview",
         })
         await waitFor(() => expect((preview as HTMLButtonElement).disabled).toBe(false))
         await act(async () => {

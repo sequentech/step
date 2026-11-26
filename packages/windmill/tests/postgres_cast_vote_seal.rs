@@ -37,7 +37,7 @@ use electoral_log::adapters::postgres::PostgresStore;
 use electoral_log::cast_vote_seal::SealedBallot;
 use electoral_log::ports::ElectoralLogStore;
 use sequent_core::ballot::{
-    BallotStyle, HashableBallot, SignedHashableBallot, VotingStatusChannel,
+    BallotStyle, HashableBallot, SignedHashableBallot, VotingStatus, VotingStatusChannel,
 };
 use sequent_core::ballot_receipt::sign_cast_statement;
 use sequent_core::fixtures::ballot_codec::{
@@ -49,6 +49,9 @@ use uuid::Uuid;
 use voting_crypto::signing::SigningKey;
 use windmill::services::ballot_box_reads::{get_voter_cast_votes, VoterCastVotes, VoterScope};
 use windmill::services::cast_vote_seal::{self, SealKey};
+use windmill::services::election_event_status::{
+    change_election_voting_status, get_election_status, VotingTransitionError,
+};
 use windmill::services::insert_cast_vote::{
     try_insert_cast_vote, CastVoteError, InsertCastVoteInput, InsertCastVoteResult,
 };
@@ -406,6 +409,169 @@ fn assert_lock_timeout(result: Result<impl std::fmt::Debug, tokio_postgres::Erro
     );
 }
 
+/// Exercise the verified receiver's real Rust status transition and signed
+/// board append. The receipt inputs stand in for an already admitted package;
+/// the public point is synthetic, not from a physical device.
+async fn verified_receiver_needs_the_signed_pin(pool: &Pool) -> Result<()> {
+    let tenant = Uuid::new_v4();
+    let event = Uuid::new_v4();
+    let election = Uuid::new_v4();
+    let (tenant_str, event_str, election_str) =
+        (tenant.to_string(), event.to_string(), election.to_string());
+    let board =
+        electoral_log_board::get_event_board(&tenant_str, &event_str, &std::env::var("ENV_SLUG")?);
+    let databases = electoral_log_board::get_event_databases().await?;
+    let store = databases.create_event(&tenant_str, &event_str).await?;
+    store.create_board(&board).await?;
+    let mut db = pool.get().await?;
+    let tx = db.transaction().await?;
+    windmill::postgres::trusted_write(&tx).await?;
+    tx.execute(
+        "INSERT INTO sequent_backend.tenant(id,slug) VALUES($1,$2)",
+        &[&tenant, &tenant_str],
+    )
+    .await?;
+    tx.execute(
+        "INSERT INTO sequent_backend.election_event(id,tenant_id,encryption_protocol,bulletin_board_reference,voting_channels)
+         VALUES($1,$2,'RSA256',$3,$4)",
+        &[&event, &tenant, &json!({"id":0,"database_name":board,"is_archived":false}), &json!({"online":true})],
+    ).await?;
+    tx.execute(
+        "INSERT INTO sequent_backend.election(id,tenant_id,election_event_id,voting_channels)
+         VALUES($1,$2,$3,$4)",
+        &[&election, &tenant, &event, &json!({"online":true})],
+    )
+    .await?;
+    electoral_log_board::create_protocol_manager_keys(&tx, &tenant_str, &event_str, &board).await?;
+
+    // This synthetic login is scoped to the test transaction. Rollback removes
+    // it and the provisioned receiver; nothing is installed on another DB.
+    let publisher = format!("synthetic_cast_{}", event.simple());
+    tx.batch_execute(&format!(
+        "CREATE ROLE {publisher} LOGIN;
+         GRANT sequent_os_verified_cast_key_publisher TO {publisher}"
+    ))
+    .await?;
+    tx.execute(
+        "INSERT INTO sequent_backend.verified_cast_key_site(tenant_id,publisher_login) VALUES($1,$2::text::name)",
+        &[&tenant, &publisher],
+    ).await?;
+    let (manifest, roster) = ("c".repeat(64), "a".repeat(64));
+    tx.execute(
+        "INSERT INTO sequent_backend.managed_webauthn_roster(tenant_id,roster_json,sha256,generation,activated_by)
+         VALUES($1,'{}',$2,1,'synthetic')",
+        &[&tenant, &roster],
+    ).await?;
+    tx.execute(
+        "INSERT INTO sequent_backend.configuration_package
+         (tenant_id,election_event_id,external_id,revision,manifest_sha256,manifest,signer_subject,signer_serial,signer_fingerprint,approvers)
+         VALUES($1,$2,$3,1,$4,'{}','synthetic','1','synthetic','[]')",
+        &[&tenant, &event, &event_str, &manifest],
+    ).await?;
+    assert!(tx
+        .query_one(
+            "SELECT sequent_backend.verified_cast_key_authorize($1,$2,1,$3,1,$4)",
+            &[&tenant, &event, &manifest],
+        )
+        .await?
+        .get::<_, bool>(0));
+    tx.batch_execute(
+        "SET CONSTRAINTS sequent_backend.verified_cast_key_registered_import_guard IMMEDIATE",
+    )
+    .await?;
+
+    // This test binary has exactly one test; its process-wide settings are
+    // not shared with other Windmill tests.
+    std::env::set_var("WINDMILL_VERIFIED_CAST_VOTE_TENANT", &tenant_str);
+    std::env::set_var("SUPER_ADMIN_TENANT_ID", &tenant_str);
+    let status_open = VotingStatus::OPEN;
+    let open = || {
+        change_election_voting_status(
+            &tenant_str,
+            None,
+            None,
+            &event_str,
+            &election_str,
+            &status_open,
+            VotingStatusChannel::ONLINE,
+            &tx,
+        )
+    };
+    let system = cast_vote_seal::board_public_key(&tx, &tenant_str, &event_str, &board).await?;
+    let pending = open().await.unwrap_err();
+    assert!(pending.is::<VotingTransitionError>());
+    assert!(pending
+        .to_string()
+        .contains("waiting for its cast vote key"));
+    assert!(cast_vote_seal::read_pin(&store, &board, &system)
+        .await?
+        .is_none());
+
+    let (_, key) = SoftwareOpener::generate(&tenant_str, &event_str);
+    tx.batch_execute(&format!("SET LOCAL SESSION AUTHORIZATION {publisher}"))
+        .await?;
+    let job = tx
+        .query_one(
+            "SELECT job_id::uuid FROM sequent_backend.verified_cast_key_next()",
+            &[],
+        )
+        .await?
+        .get::<_, Uuid>(0);
+    assert!(tx
+        .query_one(
+            "SELECT sequent_backend.verified_cast_key_stage($1,$2,$3,$4,$5)",
+            &[&job, &tenant, &event, &manifest, &key.public_key],
+        )
+        .await?
+        .get::<_, bool>(0));
+    tx.batch_execute("RESET SESSION AUTHORIZATION").await?;
+    // Staging is not publication and may not pin the event on its own.
+    assert!(cast_vote_seal::read_pin(&store, &board, &system)
+        .await?
+        .is_none());
+    assert_eq!(
+        cast_vote_seal::sealing(&tx, &tenant_str, &event_str).await?,
+        cast_vote_seal::Sealing::Required(None)
+    );
+    assert!(open().await?);
+    assert_eq!(
+        cast_vote_seal::sealing(&tx, &tenant_str, &event_str).await?,
+        cast_vote_seal::Sealing::Required(Some(key.clone()))
+    );
+    cast_vote_seal::check_pin(
+        &key,
+        cast_vote_seal::read_pin(&store, &board, &system)
+            .await?
+            .as_ref(),
+        &tenant_str,
+        &event_str,
+    )?;
+    let row = windmill::postgres::election::get_election_by_id(
+        &tx,
+        &tenant_str,
+        &event_str,
+        &election_str,
+    )
+    .await?
+    .unwrap();
+    let status = get_election_status(row.status).unwrap();
+    assert_eq!(
+        status.status_by_channel(VotingStatusChannel::ONLINE),
+        VotingStatus::OPEN
+    );
+    assert!(tx
+        .query_one(
+            "SELECT completed FROM sequent_backend.verified_cast_key_for_open($1,$2)",
+            &[&tenant, &event],
+        )
+        .await?
+        .get::<_, bool>(0));
+    assert!(!open().await?, "retry must not create a second pin");
+    tx.rollback().await?;
+    databases.drop_event(&tenant_str, &event_str).await?;
+    Ok(())
+}
+
 #[tokio::test]
 async fn sealed_cast_votes_end_to_end() -> Result<()> {
     std::env::set_var("MASTER_SECRET", "5a".repeat(32));
@@ -685,5 +851,6 @@ async fn sealed_cast_votes_end_to_end() -> Result<()> {
             .drop_event(&fixture.tenant, &fixture.event)
             .await?;
     }
+    verified_receiver_needs_the_signed_pin(&pool).await?;
     Ok(())
 }

@@ -80,7 +80,195 @@ const englishTranslation = {
             },
         },
         configurationPackage: {
+            sectionResults: "Section results",
+            hub: {
+                recovery: {
+                    title: "This import stopped partway and can be continued",
+                    remaining: "Left to apply: {{sections}}.",
+                    explain:
+                        "Fix the cause, then Preview remaining changes: the same signed package is previewed again with its original requirements. Preview rechecks sections already applied; sections that still match are skipped.",
+                    previewRemaining: "Preview remaining changes",
+                    continue: "Continue this import",
+                    chooseSame: "Choose the same file again. It must be the package this run used:",
+                    locked: "Requirements locked to the original run",
+                    wrongFile:
+                        "This is not the package this run used, so nothing was submitted. Choose the same file again.",
+                    confirmKeep:
+                        "Apply skips sections that still match. Review any drift the new Preview found before continuing.",
+                    partial: "Partly updated since by an unfinished run (task {{taskId}}).",
+                    blocked: {
+                        unsettled:
+                            "An earlier submission of this run is not settled yet. Wait for it before continuing.",
+                        rosterChanged:
+                            "Signing trust changed since this run began, so it cannot be continued.",
+                        requirementsUnknown:
+                            "This run's original requirements are not recorded here. Continue it from the browser that started it.",
+                    },
+                },
+                trustLabel: "Signing",
+                trustChecking: "Checking signer trust…",
+                trustBlocked: "Imports blocked",
+                trustManaged: "Roster active · generation {{generation}}",
+                trustPinned: "Site-pinned roster",
+                trustLegacy: "Certificate trust",
+                stagesLabel: "Run stages",
+                currentRun: "Current run",
+                lastRun: "Last run",
+                noRun: "No run is being followed in this browser.",
+                sectionsHeading: "Sections · in apply order",
+                sectionOf: "Section {{n}} of {{total}}",
+                sectionNotInRun: "The run being shown has no record for this section.",
+                requirementsHelp:
+                    "What this package must carry. A required section that is missing blocks the preview; an optional one is applied if present. Changing these clears the current preview.",
+                signerRoster: "Signer roster",
+                rosterBinding: "Generation {{generation}} · {{approvals}} approvals",
+                confirmOrder: "These sections change, one at a time, in this order:",
+                confirmPartial:
+                    "If a section fails, the ones before it stay applied and the rest do not start.",
+                historyOutcome: "Outcome",
+                historicalBlockers:
+                    "From the earlier preview, which used other requirements. Preview again to see what blocks the requirements selected now.",
+                historicalSections: "As found by the earlier preview, with other requirements.",
+                appliedNotConfirmed: "Recorded as applied, but the task did not succeed",
+                staleReason:
+                    "This preview is out of date: the requirements, document or signing trust changed. Preview again before applying.",
+                historyStarted: "Started",
+                noAccess: {
+                    title: "You can't import configuration packages on this tenant.",
+                    missing: "Missing grants: {{permissions}}. Ask a tenant administrator.",
+                },
+                rail: {
+                    label: "Configuration package",
+                    overview: "Overview",
+                    sections: "Sections · in apply order",
+                    trust: "Signing trust",
+                    history: "History",
+                },
+                badge: {
+                    applied: "Applied",
+                    unchanged: "No change",
+                    willChange: "Will change",
+                    blocked: "Blocked",
+                    missing: "Missing",
+                    notInPackage: "Not in package",
+                    failed: "Failed",
+                    notConfirmed: "Not confirmed",
+                    applying: "Applying",
+                    waiting: "Waiting",
+                    notStarted: "Not started",
+                    notRun: "Not run",
+                },
+                stages: {package: "Package", preview: "Preview", review: "Review", apply: "Apply"},
+                stageState: {
+                    done: "Done",
+                    current: "Now",
+                    running: "Running",
+                    blocked: "Blocked",
+                    stale: "Out of date",
+                    attention: "Needs attention",
+                    pending: "—",
+                },
+                receipt: {
+                    title: "On this tenant",
+                    sha: "Package SHA-256",
+                    applied: "Applied",
+                    by: "By",
+                    task: "Task",
+                    loading: "Loading…",
+                    none: "No applied package among the last 10 runs.",
+                },
+                actions: {
+                    importPackage: "Import package",
+                    importAnother: "Import another",
+                    reviewAndApply: "Review and apply",
+                    importFixed: "Import fixed package",
+                    changeRequirements: "Change requirements",
+                    previewAgain: "Preview again",
+                    previewAgainSame: "Preview again with these requirements",
+                    openTrust: "Set up signing trust",
+                    checkAgain: "Check again",
+                    doneRequirements: "Done",
+                    more: "More actions",
+                    documentId: "Preview an uploaded document by ID",
+                    stopFollowing: "Stop following this run",
+                    history: "History and receipts",
+                },
+            },
+            workflow: {
+                missingSection: "Required section missing: {{section}}.",
+                missingCensus: "The package is missing the required census.",
+                previewRefusalWithoutDetails:
+                    "The platform refused the preview without recording a specific reason. Check the result before trying again.",
+                censusRequired: "Census required",
+                censusOptional: "Census optional",
+                steps: {
+                    upload: "Upload",
+                    preview: "Preview",
+                    review: "Review",
+                    apply: "Apply",
+                },
+                phases: {
+                    waitingForTrust: {
+                        title: "Checking signer trust",
+                        help: "Import becomes available once this tenant's signer roster has loaded.",
+                    },
+                    trustBlocked: {
+                        title: "Import is unavailable",
+                        help: "The signer roster does not currently allow imports for this tenant. The signer roster shows what is missing.",
+                    },
+                    choose: {
+                        title: "Upload a package to preview",
+                        help: "Choose a ZIP or password-encrypted EZIP exported by Election Architect.",
+                    },
+                    starting: {
+                        title: "Starting…",
+                        help: "Asking the platform to create the task.",
+                    },
+                    previewing: {
+                        title: "Previewing the package",
+                        help: "The platform is comparing the package with this tenant. A preview changes nothing.",
+                    },
+                    previewBlocked: {
+                        title: "The preview found blockers",
+                        help: "Read any recorded blockers below before previewing again.",
+                    },
+                    previewAgain: {
+                        title: "Preview again before applying",
+                        help: "You need a current preview matching the requirements, signer trust and any entered SHA-256. Upload the package again, or open Advanced options to preview an existing ZIP by its document ID.",
+                    },
+                    review: {
+                        title: "Review the proposed changes",
+                        help: "Check each section the preview would change. Nothing changes until you select Apply and confirm.",
+                    },
+                    applying: {
+                        title: "Applying the package",
+                        help: "The platform previews the package again first and stops at any blocker. Section states update in the result as tasks settle.",
+                    },
+                    complete: {
+                        title: "Package applied",
+                        help: "This run recorded the package as applied. The result and the earlier applications keep the record.",
+                    },
+                    attention: {
+                        title: "Check the result before doing anything else",
+                        help: "Read the message and any recorded result before continuing. If the outcome is uncertain, check earlier applications; some sections may already have been applied.",
+                    },
+                },
+                optionsSummary: "{{selected}} of {{available}} sections required",
+                evidence: "Recorded package members ({{count}})",
+                noHistory: "No earlier applications are recorded for this tenant.",
+                trust: "Signer trust for this tenant",
+                result: "Result of this run",
+            },
             roster: {
+                steps: {
+                    label: "Roster import steps",
+                    choose: "Choose file",
+                    verify: "Verify",
+                    activate: "Activate",
+                },
+                activeSummary:
+                    "Active. Each package needs at least {{approvals}} distinct approvals, plus a separate final signer.",
+                fingerprint: "Show roster fingerprint (SHA-256)",
                 title: "Architect signer roster",
                 loading: "Checking receiver trust…",
                 active: "Active roster: {{hash}}. The receiver requires at least {{approvals}} distinct approvals and a separate final signer.",
@@ -191,8 +379,7 @@ const englishTranslation = {
             documentId: "Or an uploaded document id",
             preview: "Preview",
             apply: "Apply",
-            blocked:
-                "The preview found blockers: fix the package or the tenant, then preview again.",
+            blocked: "Apply is blocked. Fix the package or the tenant, then preview again:",
             noTask: "The platform returned no task.",
             mode: {preview: "Preview", apply: "Application"},
             task: "Task {{taskId}}",
@@ -217,8 +404,21 @@ const englishTranslation = {
             applyRechecks:
                 "Applying previews the package again on the platform before anything changes, and stops at any blocker.",
             earlierApplied: "Applied by an earlier run",
+            previouslyApplied:
+                "Task {{taskId}} already applied this package to election event {{electionEventId}}. This request made no changes.",
+            previouslyAppliedReplay:
+                "Task {{taskId}} already applied this package to election event {{electionEventId}}. This signed revision can be imported only once.",
             earlierTasks: "Tasks begun for this section: {{tasks}}",
             inFlight: "A submission is not settled yet (task {{taskId}})",
+            retryRequirements: {
+                refused:
+                    "This preview used different requirements from the original import. This retry changed nothing.",
+                original: "Originally required sections: {{sections}}",
+                none: "None",
+                required: "Census: required",
+                optional: "Census: optional",
+                preview: "Preview with original requirements",
+            },
             stoppedWithoutRecord:
                 "Stopped without a record: sections may have been applied by this or earlier runs; preview again to see the tenant's state",
             lastLog: "Last message: {{message}}",
@@ -424,10 +624,57 @@ const englishTranslation = {
             noDetail: "The server reported no further detail for this check.",
             reasons: "Why it failed",
             noArea: "no or an unknown area",
+            rehearsal: {
+                label: "Comparison",
+                readOnly:
+                    "Read-only rehearsal comparison. Nothing is written to either event and no readiness is recorded.",
+                modes: {
+                    production: "Production readiness (signed)",
+                    rehearsal_ert_stl: "Rehearsal: ERT and STL (read-only)",
+                    rehearsal_official_ert: "Rehearsal: official and ERT (read-only)",
+                    rehearsal_official_stl: "Rehearsal: official and STL (read-only)",
+                },
+                roles: {
+                    official: "Official event",
+                    tested: "Tested event",
+                    ert: "ERT event",
+                    stl: "STL event",
+                },
+                verdicts: {
+                    consistent:
+                        "Rehearsal comparison consistent. This is not a readiness verification.",
+                    inconsistent:
+                        "Rehearsal comparison inconsistent. Resolve the findings and run it again.",
+                    not_verified:
+                        "Not verified. The available evidence cannot prove this comparison.",
+                },
+                chips: {
+                    consistent: "Consistent",
+                    inconsistent: "Inconsistent",
+                    not_verified: "Not verified",
+                },
+                checks: {
+                    configuration: "Same approved signed configuration, separately imported",
+                    own_census: "Each event’s own certified census",
+                    census_subset: "STL census is a subset of the official census",
+                    lifecycle: "Lifecycle: official untouched, rehearsals closed",
+                    seal: "Each rehearsal’s own publication and seals",
+                },
+                findings: {
+                    revision_not_distinct:
+                        "Both events carry package revision {{revision}}; each needs its own separately imported revision.",
+                    subset_area_exceeds:
+                        "The STL census has {{stl}} voters in {{area}}, more than the {{official}} of the official certified census.",
+                    subset_not_verified:
+                        "Subset not verified: certified voter imports record only file hashes and counts by area. There is no stable voter identity, certified membership record or approved selection of STL voters to prove each STL voter is an official voter.",
+                },
+            },
             eventRoles: {
                 official: "official",
                 tested: "tested",
                 both: "both",
+                ert: "ERT",
+                stl: "STL",
             },
             scope: {
                 event: "The {{event}} event",
@@ -1902,6 +2149,11 @@ const englishTranslation = {
                     scheduledEnd: "End of lockdown scheduled for {{date}}.",
                     endScheduled: "An end of lockdown is scheduled.",
                     noScheduledEnd: "No end of lockdown is scheduled.",
+                    scheduleEnd: "Schedule end of lockdown",
+                    replaceEnd: "Replace scheduled end",
+                    cancelEnd: "Cancel scheduled end",
+                    ambiguousEnd: "The pending end of lockdown is invalid or ambiguous.",
+                    cancelInvalidEnds: "Cancel all pending lockdown ends",
                     banner: "This election event is in lockdown.",
                     policyLabel: "Lockdown Status",
                     helperText:
@@ -6753,6 +7005,8 @@ const englishTranslation = {
                     "{{channel}} cannot send {{purpose}} yet. Missing: {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "The {{channel}} template for {{purpose}} in {{language}} is not approved by the provider.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "A {{channel}} template button for {{purpose}} in {{language}} has no value.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} cannot send outside a conversation window with this account: it has no conversation window, or its notices already need a template.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -6782,6 +7036,7 @@ const englishTranslation = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                WHATSAPP_INFOBIP: "WhatsApp Business (Infobip)",
                 CONSOLE: "Console (no longer supported)",
                 HTTP_API: "Custom HTTP API (no longer supported)",
             },
@@ -6843,6 +7098,24 @@ const englishTranslation = {
                 REPORT_PASSWORD: "Report password",
             },
             deliveryUnavailable: "Delivery unavailable",
+            templateButtons: {
+                title: "Template buttons",
+                help: "The values the template's buttons are sent with, in the order they appear in the template. {{code}} becomes the code being sent.",
+                choice: {
+                    DEFAULT: "Default for the purpose",
+                    CUSTOM: "Set for this template",
+                },
+                type: "Button type",
+                parameter: "Value",
+                add: "Add button",
+                remove: "Remove button",
+                none: "No buttons",
+                required: "Enter a value",
+                types: {
+                    URL: "URL (copy code or link)",
+                    QUICK_REPLY: "Quick reply",
+                },
+            },
             templates: {
                 noMethod: "Choose at least one method for the template.",
                 parameters: "Template parameters",
@@ -6874,6 +7147,8 @@ const englishTranslation = {
                 approvedWording: "Approved wording",
                 approvedWordingHelp:
                     "A copy of the approved template, used as a preview. Changing it here does not change what the provider sends.",
+                buttonsHelp:
+                    "Used by WhatsApp through Infobip with the provider template above. Without one, the event's template and its buttons are used.",
                 viberWording: "Wording",
                 viberWordingHelp:
                     "An account that sends free text sends this wording as written. With approved templates it is a copy of the template, used as a preview, and does not change what is sent.",
@@ -7227,6 +7502,7 @@ const englishTranslation = {
                 page_name: "Page name",
                 page_username: "Page username",
                 base_url: "API base URL",
+                sender_number: "Sender number",
                 sender: "Sender name",
                 provider_approval: "Provider approval",
                 is_default: "Default {{channel}} account for new election events",
@@ -7245,6 +7521,8 @@ const englishTranslation = {
                 page_username: "Used for the m.me link voters open to get their code.",
                 api_version: "For example v23.0.",
                 base_url: "The account's Infobip API base URL.",
+                sender_number:
+                    "The WhatsApp number registered with Infobip, in international format, such as 447796344125.",
                 sender: "The approved sender voters see.",
                 provider_approval:
                     "Meta allows government messaging on WhatsApp only through an approved arrangement. Choose Provider approval confirmed once Meta has approved it for this account; until then OTPs and notices cannot be enabled for it.",
@@ -7344,6 +7622,10 @@ const englishTranslation = {
                 VIBER_INFOBIP: {
                     API_KEY: "The Infobip API key.",
                 },
+                WHATSAPP_INFOBIP: {
+                    API_KEY:
+                        "The Infobip API key, with the whatsapp:manage and whatsapp:message:send scopes.",
+                },
             },
             webhook: {
                 title: "Delivery reports",
@@ -7354,6 +7636,8 @@ const englishTranslation = {
                         "Enter this callback URL in Meta's webhook settings. Delivery reports and the voter's Get Started tap arrive here and are checked with the app secret.",
                     VIBER_INFOBIP:
                         "Infobip sends Viber delivery reports to this callback URL through a subscription with Basic authentication.",
+                    WHATSAPP_INFOBIP:
+                        "Infobip sends WhatsApp delivery reports to this callback URL through a subscription with Basic authentication.",
                     AWS_SES:
                         "Subscribe this callback URL (HTTPS) to the delivery notifications topic. Delivery and bounce events arrive here and are checked with Amazon's signature.",
                 },
@@ -7418,13 +7702,14 @@ const englishTranslation = {
                 copyPassword: "Copy report password",
                 error: "The report credentials could not be generated.",
                 step: {
-                    subscription: "In Infobip, create a subscription for Viber delivery reports.",
+                    subscription:
+                        "In Infobip, create a subscription for {{channel}} delivery reports.",
                     url: "Set its URL to this account's callback URL.",
                     auth: "Choose Basic authentication and enter the report user name and password.",
                 },
                 confirmTitle: "Replace the report credentials?",
                 confirmBody:
-                    "The current report user name and password stop working at once. Until Infobip's subscription has the new ones, Viber delivery reports are refused and messages stay Accepted.",
+                    "The current report user name and password stop working at once. Until Infobip's subscription has the new ones, {{channel}} delivery reports are refused and messages stay Accepted.",
                 confirm: "Replace",
             },
         },

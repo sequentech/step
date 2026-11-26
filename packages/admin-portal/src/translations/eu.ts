@@ -98,10 +98,56 @@ const basqueTranslation: TranslationType = {
             noDetail: "Zerbitzariak ez du egiaztapen honi buruzko xehetasun gehiagorik eman.",
             reasons: "Zergatik huts egin duen",
             noArea: "eremurik gabe edo eremu ezezagun batean",
+            rehearsal: {
+                label: "Konparazioa",
+                readOnly:
+                    "Irakurtzeko soilik den entsegu-konparazioa. Ez da ezer idazten gertaeretan eta ez da prestutasunik erregistratzen.",
+                modes: {
+                    production: "Ekoizpen-prestutasuna (sinatua)",
+                    rehearsal_ert_stl: "Entsegua: ERT eta STL (irakurtzeko soilik)",
+                    rehearsal_official_ert: "Entsegua: ofiziala eta ERT (irakurtzeko soilik)",
+                    rehearsal_official_stl: "Entsegua: ofiziala eta STL (irakurtzeko soilik)",
+                },
+                roles: {
+                    official: "Gertaera ofiziala",
+                    tested: "Probako gertaera",
+                    ert: "ERT gertaera",
+                    stl: "STL gertaera",
+                },
+                verdicts: {
+                    consistent: "Entsegu-konparazioa koherentea da. Ez da prestutasun-egiaztapena.",
+                    inconsistent:
+                        "Entsegu-konparazioa ez da koherentea. Konpondu aurkikuntzak eta exekutatu berriro.",
+                    not_verified:
+                        "Egiaztatu gabe. Eskuragarri dagoen ebidentziak ezin du konparazio hau frogatu.",
+                },
+                chips: {
+                    consistent: "Koherentea",
+                    inconsistent: "Ez koherentea",
+                    not_verified: "Egiaztatu gabe",
+                },
+                checks: {
+                    configuration: "Onartutako konfigurazio sinatu bera, bereiz inportatua",
+                    own_census: "Gertaera bakoitzaren errolda ziurtatua",
+                    census_subset: "STL errolda errolda ofizialaren azpimultzoa da",
+                    lifecycle: "Bizi-zikloa: ofiziala ukitu gabe, entseguak itxita",
+                    seal: "Entsegu bakoitzaren argitalpena eta zigiluak",
+                },
+                findings: {
+                    revision_not_distinct:
+                        "Bi gertaerek {{revision}} pakete-berrikuspena dute; bakoitzak bereiz inportatutako berrikuspena behar du.",
+                    subset_area_exceeds:
+                        "STL erroldak {{stl}} hautesle ditu {{area}} eremuan, errolda ofizial ziurtatuaren {{official}} baino gehiago.",
+                    subset_not_verified:
+                        "Azpimultzoa egiaztatu gabe: inportazio ziurtatuek fitxategi-hashak eta eremuko zenbaketak soilik erregistratzen dituzte. Ez dago hautesle-identitate egonkorrik, kidetza-erregistro ziurtaturik edo STL hautesleen hautaketa onarturik STL hautesle bakoitza hautesle ofiziala dela frogatzeko.",
+                },
+            },
             eventRoles: {
                 official: "ofiziala",
                 tested: "probakoa",
                 both: "biak",
+                ert: "ERT",
+                stl: "STL",
             },
             scope: {
                 event: "Gertaera ({{event}})",
@@ -1576,6 +1622,11 @@ const basqueTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    scheduleEnd: "Programatu blokeoaren amaiera",
+                    replaceEnd: "Ordeztu programatutako amaiera",
+                    cancelEnd: "Utzi bertan behera programatutako amaiera",
+                    ambiguousEnd: "Zain dagoen blokeo-amaiera baliogabea edo anbiguoa da.",
+                    cancelInvalidEnds: "Utzi bertan behera zain dauden blokeo-amaiera guztiak",
                     since: "Blokeatuta {{date}} unetik.",
                     scheduledEnd: "Blokeoaren amaiera {{date}} unerako programatuta dago.",
                     endScheduled: "Blokeoaren amaiera programatuta dago.",
@@ -6426,6 +6477,8 @@ const basqueTranslation: TranslationType = {
                     "{{channel}}-ek ezin ditu oraindik {{purpose}} bidali. Falta da: {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "{{channel}} txantiloia ({{purpose}}, {{language}}) ez dago hornitzaileak onartuta.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "{{channel}} txantiloiaren botoi batek ez du baliorik ({{purpose}}, {{language}}).",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} kanalak ezin du elkarrizketa-leihotik kanpo bidali kontu honekin: ez du elkarrizketa-leihorik, edo bere jakinarazpenek dagoeneko txantiloi bat behar dute.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -6455,6 +6508,7 @@ const basqueTranslation: TranslationType = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                WHATSAPP_INFOBIP: "WhatsApp Business (Infobip)",
                 CONSOLE: "Kontsola (jada ez da onartzen)",
                 HTTP_API: "HTTP API pertsonalizatua (jada ez da onartzen)",
             },
@@ -6516,6 +6570,24 @@ const basqueTranslation: TranslationType = {
                 REPORT_PASSWORD: "Txostenen pasahitza",
             },
             deliveryUnavailable: "Entrega ez dago erabilgarri",
+            templateButtons: {
+                title: "Txantiloiaren botoiak",
+                help: "Txantiloiaren botoiak bidaltzeko balioak, txantiloian agertzen diren ordenan. {{code}} bidaltzen den kodearekin ordezten da.",
+                choice: {
+                    DEFAULT: "Helbururako lehenetsiak",
+                    CUSTOM: "Txantiloi honetarako ezarriak",
+                },
+                type: "Botoi mota",
+                parameter: "Balioa",
+                add: "Gehitu botoia",
+                remove: "Kendu botoia",
+                none: "Botoirik ez",
+                required: "Idatzi balio bat",
+                types: {
+                    URL: "URLa (kodea kopiatu edo esteka)",
+                    QUICK_REPLY: "Erantzun azkarra",
+                },
+            },
             templates: {
                 noMethod: "Aukeratu gutxienez metodo bat txantiloirako.",
                 parameters: "Txantiloiaren parametroak",
@@ -6547,6 +6619,8 @@ const basqueTranslation: TranslationType = {
                 approvedWording: "Testu onartua",
                 approvedWordingHelp:
                     "Txantiloi onartuaren kopia bat, aurrebista gisa erabilia. Hemen aldatzeak ez du aldatzen hornitzaileak bidaltzen duena.",
+                buttonsHelp:
+                    "Infobip bidezko WhatsApp-ek erabiltzen ditu goiko hornitzailearen txantiloiarekin. Hura gabe, gertaeraren txantiloia eta haren botoiak erabiltzen dira.",
                 viberWording: "Testua",
                 viberWordingHelp:
                     "Testu librea bidaltzen duen kontu batek testu hau dagoen bezala bidaltzen du. Txantiloi onartuekin, txantiloiaren kopia bat da, aurrebista gisa erabilia, eta ez du aldatzen bidaltzen dena.",
@@ -6906,6 +6980,7 @@ const basqueTranslation: TranslationType = {
                 page_name: "Orriaren izena",
                 page_username: "Orriaren erabiltzaile-izena",
                 base_url: "APIaren oinarrizko URLa",
+                sender_number: "Igorlearen zenbakia",
                 sender: "Igorlearen izena",
                 provider_approval: "Hornitzailearen onarpena",
                 is_default: "{{channel}} kontu lehenetsia hauteskunde-gertaera berrietarako",
@@ -6926,6 +7001,8 @@ const basqueTranslation: TranslationType = {
                     "Hautesleek beren kodea lortzeko irekitzen duten m.me estekan erabiltzen da.",
                 api_version: "Adibidez, v23.0.",
                 base_url: "Kontuaren Infobip APIaren oinarrizko URLa.",
+                sender_number:
+                    "Infobip-en erregistratutako WhatsApp zenbakia, nazioarteko formatuan, adibidez 447796344125.",
                 sender: "Hautesleek ikusten duten igorle onartua.",
                 provider_approval:
                     "Meta-k gobernuen WhatsApp mezularitza onartutako akordio baten bidez soilik baimentzen du. Aukeratu Hornitzailearen onarpena berretsita Meta-k kontu honetarako onartu duenean; bitartean, ezin dira kodeak eta jakinarazpenak gaitu kontu honetan.",
@@ -7030,6 +7107,10 @@ const basqueTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "Infobip API gakoa.",
                 },
+                WHATSAPP_INFOBIP: {
+                    API_KEY:
+                        "Infobip-en API gakoa, whatsapp:manage eta whatsapp:message:send esparruekin.",
+                },
             },
             webhook: {
                 title: "Entrega-txostenak",
@@ -7040,6 +7121,8 @@ const basqueTranslation: TranslationType = {
                         "Idatzi itzulera-URL hau Metaren webhook ezarpenetan. Entrega-txostenak eta hautesleak Hasi botoian egindako sakatzea hona iristen dira eta aplikazioaren sekretuarekin egiaztatzen dira.",
                     VIBER_INFOBIP:
                         "Infobip-ek Viber-en entrega-txostenak itzulera-URL honetara bidaltzen ditu, Basic autentifikazioa duen harpidetza baten bidez.",
+                    WHATSAPP_INFOBIP:
+                        "Infobip-ek WhatsApp-en entrega-txostenak itzulera-URL honetara bidaltzen ditu, Basic autentifikazioa duen harpidetza baten bidez.",
                     AWS_SES:
                         "Harpidetu itzulera-URL hau (HTTPS) entrega-jakinarazpenen gaiari. Entrega- eta errebote-gertaerak hona iristen dira eta Amazonen sinadurarekin egiaztatzen dira.",
                 },
@@ -7106,13 +7189,13 @@ const basqueTranslation: TranslationType = {
                 error: "Ezin izan dira txostenen kredentzialak sortu.",
                 step: {
                     subscription:
-                        "Infobip-en, sortu harpidetza bat Viber-en entrega-txostenetarako.",
+                        "Infobip-en, sortu harpidetza bat {{channel}}-en entrega-txostenetarako.",
                     url: "Ezarri haren URLa kontu honen itzulera-URLa gisa.",
                     auth: "Aukeratu Basic autentifikazioa eta idatzi txostenen erabiltzaile-izena eta pasahitza.",
                 },
                 confirmTitle: "Txostenen kredentzialak ordeztu?",
                 confirmBody:
-                    "Txostenen egungo erabiltzaile-izenak eta pasahitzak berehala uzten diote funtzionatzeari. Infobip-eko harpidetzak berriak izan arte, Viber-en entrega-txostenak baztertu egiten dira eta mezuak Onartua egoeran geratzen dira.",
+                    "Txostenen egungo erabiltzaile-izenak eta pasahitzak berehala uzten diote funtzionatzeari. Infobip-eko harpidetzak berriak izan arte, {{channel}}-en entrega-txostenak baztertu egiten dira eta mezuak Onartua egoeran geratzen dira.",
                 confirm: "Ordeztu",
             },
         },

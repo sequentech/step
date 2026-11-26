@@ -21,6 +21,7 @@ import {
     credentialsToReenter,
     emptyAccountForm,
     endpointChanged,
+    endpointField,
     formFromAccount,
     limitsFromForm,
     parseCallingCodes,
@@ -101,10 +102,22 @@ describe("senderFields", () => {
             "notification_topic_arn",
         ])
         expect(senderFields(EMessagingProvider.CONSOLE)).toEqual([])
+        expect(senderFields(EMessagingProvider.WHATSAPP_INFOBIP)).toEqual([
+            {key: "base_url", required: true},
+            {key: "sender_number", required: true},
+            {key: "display_name", required: false},
+        ])
     })
 })
 
 describe("selectableProviders", () => {
+    it("offers WhatsApp through Meta or Infobip", () => {
+        expect(selectableProviders(EMessageChannel.WHATSAPP)).toEqual([
+            EMessagingProvider.WHATSAPP_CLOUD_API,
+            EMessagingProvider.WHATSAPP_INFOBIP,
+        ])
+    })
+
     it("offers only the channel's own adapters, never a generic or console provider", () => {
         expect(selectableProviders(EMessageChannel.EMAIL)).toEqual([
             EMessagingProvider.AWS_SES,
@@ -240,6 +253,29 @@ describe("senderFromForm", () => {
                 EMessagingProvider.VIBER_INFOBIP
             ).viberContentMode
         ).toBe(EViberContentMode.APPROVED_TEMPLATES)
+    })
+
+    it("builds an Infobip WhatsApp sender, whose credentials follow its base URL", () => {
+        const values = form(EMessagingProvider.WHATSAPP_INFOBIP, EMessageChannel.WHATSAPP, {
+            sender: {
+                base_url: "https://x.api.infobip.com",
+                sender_number: " 447796344125 ",
+                display_name: "",
+            },
+        })
+        expect(senderFromForm(values)).toEqual({
+            provider: EMessagingProvider.WHATSAPP_INFOBIP,
+            base_url: "https://x.api.infobip.com",
+            sender_number: "447796344125",
+            display_name: null,
+        })
+        expect(endpointField(EMessagingProvider.WHATSAPP_INFOBIP)).toBe("base_url")
+        expect(
+            validateAccountForm({
+                ...values,
+                sender: {...values.sender, base_url: "http://x.api.infobip.com"},
+            })
+        ).toEqual({"sender.base_url": EAccountFormError.NOT_A_URL})
     })
 
     it("round-trips an existing account through the form", () => {

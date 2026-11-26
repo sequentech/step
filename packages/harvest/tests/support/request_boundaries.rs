@@ -20,7 +20,7 @@ use windmill::services::external::datafix_types::{
 // Reuse Core's bounded HTTP protocol fixture, not its client implementation.
 #[path = "../../../sequent-core/tests/support/http.rs"]
 #[allow(dead_code)]
-mod http;
+pub(crate) mod http;
 
 #[path = "route_permissions.rs"]
 mod route_permissions;
@@ -659,6 +659,11 @@ async fn fake_provider_routes_are_mounted_only_by_their_switch() {
             "/fake-provider/infobip/viber/1/senders/<_sender>/templates",
         ),
         ("GET", "/fake-provider/infobip/viber/2/logs"),
+        ("POST", "/fake-provider/infobip/whatsapp/1/message/template"),
+        (
+            "GET",
+            "/fake-provider/infobip/whatsapp/2/senders/<_sender>/templates",
+        ),
         ("POST", "/fake-provider/aws/<path..>"),
         ("GET", "/fake-provider/aws/<path..>"),
         ("POST", "/fake-provider/messages"),
@@ -1324,12 +1329,23 @@ async fn schedule_recompute_noops_and_scope_refusals_preserve_stored_dates() {
         &[&id, &tenant, &event_id, &cron, &annotations]).await;
     let other = Claims::new(&uuid::Uuid::new_v4().to_string(), USER_ID)
         .roles([Permissions::SCHEDULED_EVENT_WRITE]);
+    let missing = response_json(
+        post(
+            &client,
+            "/apply-schedule-recompute",
+            &other,
+            &json!({"election_event_id": uuid::Uuid::new_v4().to_string()}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(missing, (Status::Ok, json!({"updated": 0})));
     assert_eq!(
         response_json(
             post(&client, "/apply-schedule-recompute", &other, &body).await,
         )
         .await,
-        (Status::Ok, json!({"updated": 0}))
+        missing,
     );
     let saved = rows::query(&services.hasura,
         "SELECT cron_config, annotations FROM sequent_backend.scheduled_event WHERE id = $1", &[&id]).await;

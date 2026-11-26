@@ -2662,6 +2662,14 @@ pub async fn process_document(
     package_messaging: Option<&super::configuration_package_messaging::PackageMessaging>,
 ) -> Result<ImportedElectionEvent> {
     let importer = object.importer.clone();
+    let verified_cast_key =
+        crate::services::cast_vote_seal::verified_publication::selected(&tenant_id)?;
+    if verified_cast_key {
+        anyhow::ensure!(
+            object.tenant_id == tenant_id,
+            "The verified cast vote receiver does not match the import destination"
+        );
+    }
     let (mut temp_file_path, document, document_type, package) =
         get_document_with_package_snapshot(
             hasura_transaction,
@@ -2677,6 +2685,14 @@ pub async fn process_document(
     let file_sha256 = crate::services::task_audit::file_sha256(temp_file_path.as_file_mut())?;
     let declared_sha256 =
         configuration_package::typed_checksum(object.sha256.clone(), package.as_ref());
+    if verified_cast_key {
+        anyhow::ensure!(
+            package
+                .as_deref()
+                .is_some_and(sequent_core::election_config::webauthn_package::is_browser_verified),
+            "This receiver provisions cast vote keys only from a verified security-key package"
+        );
+    }
     let design_algorithm = package
         .as_ref()
         .map(|verified| verified.manifest.content.ballot_design_digest_algorithm)
@@ -3147,6 +3163,17 @@ pub async fn process_document(
     if let Some(package) = package {
         configuration_package::record(hasura_transaction, &tenant_id, &election_event_id, &package)
             .await?;
+        if verified_cast_key {
+            // Same transaction as the new event and verified revision. No
+            // worker ever observes this request on preview or rollback.
+            crate::services::cast_vote_seal::verified_publication::authorize_import(
+                hasura_transaction,
+                &tenant_id,
+                &election_event_id,
+                &package,
+            )
+            .await?;
+        }
         configuration_package::log_import(
             hasura_transaction,
             &tenant_id,
@@ -4008,8 +4035,12 @@ mod tests {
         }
         drop((first, second));
         assert_eq!(fs::read_dir(directory.path()).unwrap().count(), 0);
-        // A real encrypted control with a wrong password must clean up partial plaintext too.
-        let error = decrypt_document(Some("wrong password".into()), encrypted(b"native manager"))
+        // Force a trailing partial ciphertext block after valid blocks have been
+        // decrypted. A wrong key with CBC can produce valid padding by chance.
+        let truncated = encrypted(&[b'x'; 64]);
+        let length = truncated.as_file().metadata().unwrap().len();
+        truncated.as_file().set_len(length - 1).unwrap();
+        let error = decrypt_document(Some(password.into()), truncated)
             .await
             .unwrap_err();
         assert_eq!(problem_id(&error).as_deref(), Some("file.cannot-decrypt"));

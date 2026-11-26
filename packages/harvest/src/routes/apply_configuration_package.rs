@@ -94,7 +94,9 @@ fn managed_preview_operator_binding(
     }
     let preview_task = match mode {
         ApplyMode::Preview => current_task,
-        ApplyMode::Apply => confirmed_preview?,
+        // Without a confirmed preview this only authenticates the request for
+        // a historical result. Windmill still requires the named Preview to submit.
+        ApplyMode::Apply => confirmed_preview.unwrap_or(current_task),
     };
     let preview = parse_uuid_v4(preview_task).ok()?;
     if preview.to_string() != preview_task {
@@ -260,7 +262,12 @@ mod tests {
             stamp(&claims, ApplyMode::Apply, second, Some(first)),
             Some(preview)
         );
-        assert!(stamp(&claims, ApplyMode::Apply, second, None).is_none());
+        // An unconfirmed request can identify this operator for a historical receipt.
+        // It has no preview_task_id and cannot pass a submitting Apply's confirmation.
+        assert_eq!(
+            stamp(&claims, ApplyMode::Apply, second, None),
+            stamp(&claims, ApplyMode::Preview, second, None)
+        );
         claims.iss = format!(
             "https://login.example/realms/tenant-{tenant}-event-sample"
         );

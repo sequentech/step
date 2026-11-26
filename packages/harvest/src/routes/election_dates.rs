@@ -20,6 +20,7 @@ use sequent_core::types::scheduled_event::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use windmill::postgres::scheduled_event::is_lockdown_processor;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::election_dates::{
     self, InvalidSchedule, ScheduleInput, ScheduleWarning,
@@ -108,6 +109,31 @@ pub async fn manage_election_dates(
         .await
         .map_err(audit::json_error)?;
 
+    // START and END change the entire event. Hold its Post membership and
+    // labels through authorization and save.
+    if is_lockdown_processor(&input.event_processor) {
+        if input.election_id.is_some() {
+            return Err(ErrorResponse::new(
+                Status::BadRequest,
+                "A lockdown schedule must apply to the whole election event.",
+                ErrorCode::InvalidEventProcessor,
+            ));
+        }
+        windmill::postgres::scheduled_event::lock_elections(
+            &hasura_transaction,
+            &claims.hasura_claims.tenant_id,
+            &input.election_event_id,
+            None,
+        )
+        .await
+        .map_err(|err| {
+            ErrorResponse::new(
+                Status::InternalServerError,
+                &err.to_string(),
+                ErrorCode::InternalServerError,
+            )
+        })?;
+    }
     authorize_election_permission_labels(
         &hasura_transaction,
         &claims,
@@ -260,7 +286,14 @@ pub async fn apply_schedule_recompute(
         now,
     )
     .await
-    .map_err(|e| internal(&e))?;
+    .map_err(|err| match err.downcast_ref::<InvalidSchedule>() {
+        Some(refusal) => ErrorResponse::new(
+            Status::BadRequest,
+            &refusal.to_string(),
+            ErrorCode::InvalidSchedule,
+        ),
+        None => internal(&err),
+    })?;
     if refresh_enrollment && updated > 0 {
         windmill::services::enrollment_windows::begin_synchronization(
             &hasura_transaction,

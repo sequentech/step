@@ -1255,8 +1255,7 @@ async fn managed_section_readmits_its_sealed_package_but_stops_after_replay_or_r
         .env(
             "WINDMILL_WEBAUTHN_PACKAGES_EXPECTED_ORIGIN",
             browser_admission_fixture::ORIGIN,
-        )
-        .env("WINDMILL_WEBAUTHN_PACKAGES_ROSTER_ADMIN_SUBJECTS", ACTOR);
+        );
     for key in [
         "HASURA_DB__HOST",
         "HASURA_DB__PORT",

@@ -198,18 +198,23 @@ fn managed_roster_mode_is_explicit_tenant_scoped_and_has_no_fallback() {
         (TENANT, "00000000-0000-4000-8000-00000000000a"),
         (managed::EXPECTED_RP_ID, "architect.ems.example"),
         (managed::EXPECTED_ORIGIN, "https://architect.ems.example"),
-        (managed::ADMIN_SUBJECTS, "authorized-issuer-subject"),
     ];
     let mode = policy(&values);
     let BrowserPolicy::Managed(config) = &mode else {
         panic!("expected managed roster mode: {mode:?}");
     };
     assert_eq!(config.required, 2);
-    assert!(config.authorize_subject("authorized-issuer-subject"));
-    assert!(!config.authorize_subject("AUTHORIZED-ISSUER-SUBJECT"));
+    let stale_value = (
+        "WINDMILL_WEBAUTHN_PACKAGES_ROSTER_ADMIN_SUBJECTS",
+        "ignored-old-value",
+    );
+    let mut legacy = values.to_vec();
+    legacy.push(stale_value);
+    assert!(matches!(policy(&legacy), BrowserPolicy::Managed(_)));
+    assert!(matches!(policy(&[stale_value]), BrowserPolicy::Off));
     assert!(matches!(recheck(&mode, None), Recheck::Block(_)));
     assert!(admit_with_policy(b"unsigned", None, values[1].1, vec![], Utc::now(), &mode).is_err());
-    assert!(matches!(policy(&values[..4]), BrowserPolicy::Unusable(_)));
+    assert!(matches!(policy(&values[..3]), BrowserPolicy::Unusable(_)));
     let mut foreign_tenant = values;
     foreign_tenant[1].1 = "00000000-0000-4000-8000-00000000000b";
     assert!(matches!(

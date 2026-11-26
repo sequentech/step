@@ -31,9 +31,9 @@ use sequent_core::types::messaging::{
     AccountCheck, AccountLimits, AccountSender, CreateMessengerLinkRequest,
     CreateMessengerLinkResponse, CredentialName, EventMessagingConfig,
     MessageAttemptState, MessageChannel, MessageContent, MessagePurpose,
-    MessageReason, MessengerLinkRequest, MessengerLinkStatus, ProviderApproval,
-    ReadinessPolicy, SendMessageRequest, SendMessageResponse,
-    REALM_ATTR_MESSAGING,
+    MessageReason, MessagingProvider, MessengerLinkRequest,
+    MessengerLinkStatus, ProviderApproval, ReadinessPolicy, SendMessageRequest,
+    SendMessageResponse, REALM_ATTR_MESSAGING,
 };
 use sequent_core::types::permissions::Permissions;
 use sequent_core::types::voter_channel::{voter_channel, VoterChannel};
@@ -71,7 +71,8 @@ use windmill::services::messaging::links::{
     LinkError,
 };
 use windmill::services::messaging::webhooks::{
-    aws_events, meta_callback, meta_subscription, viber_events, WebhookOutcome,
+    aws_events, infobip_events, meta_callback, meta_subscription,
+    WebhookOutcome,
 };
 use windmill::tasks::audit_log_outbox::kick_audit_log_outbox;
 use windmill::tasks::send_template::find_voter;
@@ -726,12 +727,22 @@ async fn provider_callback(
                 Err(error) => Err(error),
             }
         }
-        (CallbackProvider::VIBER, CallbackMethod::POST) => {
+        (
+            CallbackProvider::VIBER | CallbackProvider::INFOBIP,
+            CallbackMethod::POST,
+        ) => {
             let dispatcher =
                 dispatcher().await.map_err(|_| Status::ServiceUnavailable)?;
-            viber_events(
+            // Each route serves its own provider's accounts only.
+            let account_provider = if provider == CallbackProvider::VIBER {
+                MessagingProvider::VIBER_INFOBIP
+            } else {
+                MessagingProvider::WHATSAPP_INFOBIP
+            };
+            infobip_events(
                 &mut client,
                 dispatcher,
+                account_provider,
                 key,
                 envelope.header("authorization"),
                 &body,
@@ -1556,6 +1567,9 @@ pub async fn test_messaging_account(
             .map(|name| ProviderTemplate {
                 name,
                 language: input.language.clone(),
+                // A test sends the template with the provider's default
+                // buttons for the purpose.
+                buttons: None,
             });
     let code =
         (input.purpose == MessagePurpose::OTP).then(|| "000000".to_string());

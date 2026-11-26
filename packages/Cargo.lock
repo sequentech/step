@@ -11400,7 +11400,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "aws-lc-rs",
  "clap",
+ "jsonwebtoken",
  "protocol-board",
  "reqwest 0.12.24",
  "serde",

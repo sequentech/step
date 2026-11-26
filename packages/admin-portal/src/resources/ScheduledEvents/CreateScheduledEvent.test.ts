@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
 import {fireEvent, render, screen, waitFor} from "@testing-library/react"
-import CreateEvent, {warningParams} from "./CreateScheduledEvent"
+import CreateEvent, {EventProcessors, warningParams} from "./CreateScheduledEvent"
 import {adminDateTimeFormat} from "@/components/timezones/timeZoneService"
 
 jest.mock("@sequentech/ui-core", () => ({
@@ -76,6 +76,47 @@ const enterTime = (local = "2027-01-01T12:00") =>
     fireEvent.change(screen.getByLabelText(/lifecycle.input.scheduledAt/), {target: {value: local}})
 const checkbox = (channel: string) =>
     screen.getByRole("checkbox", {name: `common.channel.${channel}`}) as HTMLInputElement
+
+it("schedules only the event-wide end from the lockdown banner and shows a server refusal", async () => {
+    render(
+        React.createElement(CreateEvent, {
+            ...props,
+            fixedProcessor: EventProcessors.END_LOCKDOWN_PERIOD,
+        })
+    )
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0)
+    const type = screen.getByRole("combobox", {name: "eventsScreen.eventType.label"})
+    expect(type.getAttribute("aria-disabled")).toBe("true")
+    enterTime()
+    const error = "Cannot change an ambiguous or invalid lockdown schedule."
+    mockSave.mockResolvedValueOnce({data: {manage_election_dates: {error_msg: error}}})
+    fireEvent.click(screen.getByText("Save"))
+    await waitFor(() => expect(mockNotify).toHaveBeenCalledWith(error, {type: "error"}))
+    expect(mockSave).toHaveBeenCalledWith({
+        variables: expect.objectContaining({
+            electionEventId: "event",
+            electionId: null,
+            eventProcessor: "END_LOCKDOWN_PERIOD",
+        }),
+    })
+})
+
+it("keeps the ordinary schedule error message and leaves the editor open on a refusal", async () => {
+    const setIsOpenDrawer = jest.fn()
+    render(React.createElement(CreateEvent, {...props, setIsOpenDrawer}))
+    enterTime()
+    mockSave.mockResolvedValueOnce({
+        data: {manage_election_dates: {error_msg: "Synthetic schedule conflict"}},
+    })
+    fireEvent.click(screen.getByText("Save"))
+    await waitFor(() =>
+        expect(mockNotify).toHaveBeenCalledWith("eventsScreen.messages.createError", {
+            type: "error",
+        })
+    )
+    expect(setIsOpenDrawer).not.toHaveBeenCalled()
+    expect((screen.getByText("Save") as HTMLButtonElement).disabled).toBe(false)
+})
 
 it("offers all four channels and submits online + kiosk by default", async () => {
     render(React.createElement(CreateEvent, props))

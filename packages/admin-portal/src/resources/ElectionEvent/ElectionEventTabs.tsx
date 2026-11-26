@@ -288,12 +288,13 @@ export const ElectionEventTabs: React.FC = () => {
     }, [loadedChildren])
 
     // Clean URL on mount
+    const recordId = record?.id
     useEffect(() => {
-        if (record) {
+        if (recordId) {
             const basePath = location.pathname.split("/").slice(0, 3).join("/")
             navigate(basePath)
         }
-    }, [location.pathname, navigate, record])
+    }, [location.pathname, navigate, recordId])
 
     // Permission checks
     const isElectionEventLocked =

@@ -103,10 +103,58 @@ const frenchTranslation: TranslationType = {
             noDetail: "Le serveur n’a donné aucun autre détail pour ce contrôle.",
             reasons: "Pourquoi il a échoué",
             noArea: "aucune zone ou une zone inconnue",
+            rehearsal: {
+                label: "Comparaison",
+                readOnly:
+                    "Comparaison de répétition en lecture seule. Rien n’est écrit dans les événements et aucune préparation n’est enregistrée.",
+                modes: {
+                    production: "Préparation de production (signée)",
+                    rehearsal_ert_stl: "Répétition : ERT et STL (lecture seule)",
+                    rehearsal_official_ert: "Répétition : officiel et ERT (lecture seule)",
+                    rehearsal_official_stl: "Répétition : officiel et STL (lecture seule)",
+                },
+                roles: {
+                    official: "Événement officiel",
+                    tested: "Événement de test",
+                    ert: "Événement ERT",
+                    stl: "Événement STL",
+                },
+                verdicts: {
+                    consistent:
+                        "Comparaison de répétition cohérente. Ce n’est pas une vérification de préparation.",
+                    inconsistent:
+                        "Comparaison de répétition incohérente. Résolvez les constats et relancez-la.",
+                    not_verified:
+                        "Non vérifié. Les preuves disponibles ne peuvent pas établir cette comparaison.",
+                },
+                chips: {
+                    consistent: "Cohérent",
+                    inconsistent: "Incohérent",
+                    not_verified: "Non vérifié",
+                },
+                checks: {
+                    configuration: "Même configuration signée approuvée, importée séparément",
+                    own_census: "Recensement certifié propre à chaque événement",
+                    census_subset:
+                        "Le recensement STL est un sous-ensemble du recensement officiel",
+                    lifecycle: "Cycle de vie : officiel intact, répétitions clôturées",
+                    seal: "Publication et scellés propres à chaque répétition",
+                },
+                findings: {
+                    revision_not_distinct:
+                        "Les deux événements portent la révision de paquet {{revision}} ; chacun a besoin de sa propre révision importée séparément.",
+                    subset_area_exceeds:
+                        "Le recensement STL compte {{stl}} électeurs dans {{area}}, plus que les {{official}} du recensement officiel certifié.",
+                    subset_not_verified:
+                        "Sous-ensemble non vérifié : les imports certifiés n’enregistrent que les empreintes de fichier et les nombres par zone. Aucune identité d’électeur stable, aucun registre d’appartenance certifié ni aucune sélection approuvée des électeurs STL ne prouve que chaque électeur STL est un électeur officiel.",
+                },
+            },
             eventRoles: {
                 official: "officiel",
                 tested: "de test",
                 both: "les deux",
+                ert: "ERT",
+                stl: "STL",
             },
             scope: {
                 event: "L’événement {{event}}",
@@ -1593,6 +1641,11 @@ const frenchTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    scheduleEnd: "Planifier la fin du verrouillage",
+                    replaceEnd: "Modifier la fin programmée",
+                    cancelEnd: "Annuler la fin programmée",
+                    ambiguousEnd: "La fin du verrouillage en attente est invalide ou ambiguë.",
+                    cancelInvalidEnds: "Annuler toutes les fins de verrouillage en attente",
                     since: "Verrouillé depuis le {{date}}.",
                     scheduledEnd: "Fin du verrouillage prévue le {{date}}.",
                     endScheduled: "Une fin du verrouillage est prévue.",
@@ -6485,6 +6538,8 @@ const frenchTranslation: TranslationType = {
                     "{{channel}} ne peut pas encore envoyer de {{purpose}}. Manque : {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "Le modèle {{channel}} pour {{purpose}} en {{language}} n'est pas approuvé par le fournisseur.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "Un bouton du modèle {{channel}} pour {{purpose}} en {{language}} n'a pas de valeur.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} ne peut pas envoyer hors d'une fenêtre de conversation avec ce compte : il n'a pas de fenêtre de conversation, ou ses avis nécessitent déjà un modèle.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -6515,6 +6570,7 @@ const frenchTranslation: TranslationType = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                WHATSAPP_INFOBIP: "WhatsApp Business (Infobip)",
                 CONSOLE: "Console (plus prise en charge)",
                 HTTP_API: "API HTTP personnalisée (plus prise en charge)",
             },
@@ -6576,6 +6632,24 @@ const frenchTranslation: TranslationType = {
                 REPORT_PASSWORD: "Mot de passe des rapports",
             },
             deliveryUnavailable: "Remise non disponible",
+            templateButtons: {
+                title: "Boutons du modèle",
+                help: "Les valeurs envoyées avec les boutons du modèle, dans l'ordre où ils y figurent. {{code}} est remplacé par le code envoyé.",
+                choice: {
+                    DEFAULT: "Par défaut pour l'usage",
+                    CUSTOM: "Définis pour ce modèle",
+                },
+                type: "Type de bouton",
+                parameter: "Valeur",
+                add: "Ajouter un bouton",
+                remove: "Retirer le bouton",
+                none: "Aucun bouton",
+                required: "Saisissez une valeur",
+                types: {
+                    URL: "URL (copier le code ou lien)",
+                    QUICK_REPLY: "Réponse rapide",
+                },
+            },
             templates: {
                 noMethod: "Choisissez au moins une méthode pour le modèle.",
                 parameters: "Paramètres du modèle",
@@ -6607,6 +6681,8 @@ const frenchTranslation: TranslationType = {
                 approvedWording: "Texte approuvé",
                 approvedWordingHelp:
                     "Une copie du modèle approuvé, utilisée comme aperçu. La modifier ici ne change pas ce que le fournisseur envoie.",
+                buttonsHelp:
+                    "Utilisés par WhatsApp via Infobip avec le modèle du fournisseur ci-dessus. Sans lui, le modèle de l'événement et ses boutons sont utilisés.",
                 viberWording: "Texte",
                 viberWordingHelp:
                     "Un compte qui envoie du texte libre envoie ce texte tel quel. Avec des modèles approuvés, c'est une copie du modèle, utilisée comme aperçu, qui ne change pas ce qui est envoyé.",
@@ -6969,6 +7045,7 @@ const frenchTranslation: TranslationType = {
                 page_name: "Nom de la page",
                 page_username: "Nom d'utilisateur de la page",
                 base_url: "URL de base de l'API",
+                sender_number: "Numéro de l'expéditeur",
                 sender: "Nom de l'expéditeur",
                 provider_approval: "Approbation du fournisseur",
                 is_default: "Compte {{channel}} par défaut pour les nouveaux événements électoraux",
@@ -6989,6 +7066,8 @@ const frenchTranslation: TranslationType = {
                     "Utilisé pour le lien m.me que les électeurs ouvrent pour obtenir leur code.",
                 api_version: "Par exemple v23.0.",
                 base_url: "L'URL de base de l'API Infobip du compte.",
+                sender_number:
+                    "Le numéro WhatsApp enregistré auprès d'Infobip, au format international, par exemple 447796344125.",
                 sender: "L'expéditeur approuvé que voient les électeurs.",
                 provider_approval:
                     "Meta n'autorise les messages WhatsApp des gouvernements que dans le cadre d'un accord approuvé. Choisissez Approbation du fournisseur confirmée une fois que Meta l'a approuvé pour ce compte ; d'ici là, les codes et les avis ne peuvent pas être activés pour ce compte.",
@@ -7093,6 +7172,10 @@ const frenchTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "La clé d'API Infobip.",
                 },
+                WHATSAPP_INFOBIP: {
+                    API_KEY:
+                        "La clé d'API Infobip, avec les portées whatsapp:manage et whatsapp:message:send.",
+                },
             },
             webhook: {
                 title: "Rapports de remise",
@@ -7103,6 +7186,8 @@ const frenchTranslation: TranslationType = {
                         "Saisissez cette URL de rappel dans les paramètres de webhook de Meta. Les rapports de remise et l'appui de l'électeur sur Démarrer y arrivent et sont vérifiés avec le secret de l'application.",
                     VIBER_INFOBIP:
                         "Infobip envoie les rapports de remise Viber à cette URL de rappel via un abonnement avec authentification Basic.",
+                    WHATSAPP_INFOBIP:
+                        "Infobip envoie les rapports de remise WhatsApp à cette URL de rappel via un abonnement avec authentification Basic.",
                     AWS_SES:
                         "Abonnez cette URL de rappel (HTTPS) au sujet des notifications de remise. Les événements de remise et de rebond y arrivent et sont vérifiés avec la signature d'Amazon.",
                 },
@@ -7169,13 +7254,13 @@ const frenchTranslation: TranslationType = {
                 error: "Les identifiants des rapports n'ont pas pu être générés.",
                 step: {
                     subscription:
-                        "Dans Infobip, créez un abonnement pour les rapports de remise Viber.",
+                        "Dans Infobip, créez un abonnement pour les rapports de remise {{channel}}.",
                     url: "Définissez son URL sur l'URL de rappel de ce compte.",
                     auth: "Choisissez l'authentification Basic et saisissez le nom d'utilisateur et le mot de passe des rapports.",
                 },
                 confirmTitle: "Remplacer les identifiants des rapports ?",
                 confirmBody:
-                    "Le nom d'utilisateur et le mot de passe actuels des rapports cessent aussitôt de fonctionner. Tant que l'abonnement Infobip n'a pas les nouveaux, les rapports de remise Viber sont refusés et les messages restent Accepté.",
+                    "Le nom d'utilisateur et le mot de passe actuels des rapports cessent aussitôt de fonctionner. Tant que l'abonnement Infobip n'a pas les nouveaux, les rapports de remise {{channel}} sont refusés et les messages restent Accepté.",
                 confirm: "Remplacer",
             },
         },

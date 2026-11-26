@@ -17,23 +17,21 @@ use sequent_core::{
     services::uuid_validation::parse_uuid_v4,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
 
 use super::browser_package_policy::{BrowserPolicy, REQUIRED_APPROVALS};
 
 pub const MODE: &str = "portal-managed";
 pub const EXPECTED_RP_ID: &str = "WINDMILL_WEBAUTHN_PACKAGES_EXPECTED_RP_ID";
 pub const EXPECTED_ORIGIN: &str = "WINDMILL_WEBAUTHN_PACKAGES_EXPECTED_ORIGIN";
-pub const ADMIN_SUBJECTS: &str = "WINDMILL_WEBAUTHN_PACKAGES_ROSTER_ADMIN_SUBJECTS";
 pub const MAX_ROSTER_BYTES: usize = 256 * 1024;
-pub const MANAGED_VARS: [&str; 3] = [EXPECTED_RP_ID, EXPECTED_ORIGIN, ADMIN_SUBJECTS];
+// The former roster administrator allowlist is deliberately ignored.
+pub const MANAGED_VARS: [&str; 2] = [EXPECTED_RP_ID, EXPECTED_ORIGIN];
 
 #[derive(Debug, Clone)]
 pub struct Config {
     tenant_id: String,
     rp_id: String,
     origin: String,
-    subjects: BTreeSet<String>,
     pub required: usize,
 }
 
@@ -114,16 +112,6 @@ impl Config {
         let origin = var(EXPECTED_ORIGIN)
             .filter(|value| exact_https_origin(value))
             .ok_or_else(|| format!("{EXPECTED_ORIGIN} must be one exact HTTPS origin"))?;
-        let subjects =
-            var(ADMIN_SUBJECTS).ok_or_else(|| format!("{ADMIN_SUBJECTS} is required"))?;
-        let mut unique = BTreeSet::new();
-        for subject in subjects.split(',') {
-            if !valid_subject(subject) || !unique.insert(subject.to_owned()) {
-                return Err(format!(
-                    "{ADMIN_SUBJECTS} must contain distinct nonempty exact subjects"
-                ));
-            }
-        }
         let required = match var(REQUIRED_APPROVALS) {
             None => 2,
             Some(value) => value.parse::<usize>().ok()
@@ -134,13 +122,8 @@ impl Config {
             tenant_id,
             rp_id,
             origin,
-            subjects: unique,
             required,
         })
-    }
-
-    pub fn authorize_subject(&self, subject: &str) -> bool {
-        self.subjects.contains(subject)
     }
 
     pub fn candidate(&self, bytes: &[u8]) -> std::result::Result<Candidate, String> {
@@ -252,8 +235,8 @@ pub async fn install(
     actor_subject: &str,
 ) -> Result<Option<Installed>> {
     ensure!(
-        config.authorize_subject(actor_subject),
-        "Roster actor is not authorized"
+        valid_subject(actor_subject),
+        "Roster actor subject is invalid"
     );
     let next = config
         .candidate(candidate.raw.as_bytes())
@@ -321,7 +304,6 @@ mod tests {
         Config::from_sources(TENANT.into(), |name| match name {
             EXPECTED_RP_ID => Some(HOST.into()),
             EXPECTED_ORIGIN => Some(ORIGIN.into()),
-            ADMIN_SUBJECTS => Some("custodian-reader".into()),
             _ => None,
         })
         .unwrap()

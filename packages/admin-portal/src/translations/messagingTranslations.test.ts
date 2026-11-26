@@ -26,7 +26,7 @@ const leaves = (tree: Tree, prefix = ""): Array<[string, string]> =>
 // The same in every language: brand and product names, placeholders only, and
 // words that are the same in a language ("Status" in Dutch, "Post" for a Post).
 const SAME_EVERYWHERE =
-    /^(messaging\.channel\.|messaging\.provider\.(AWS_SES|AWS_SNS|WHATSAPP_CLOUD_API|MESSENGER_SEND_API|VIBER_INFOBIP)$)/
+    /^(messaging\.channel\.|messaging\.provider\.(AWS_SES|AWS_SNS|WHATSAPP_CLOUD_API|MESSENGER_SEND_API|VIBER_INFOBIP|WHATSAPP_INFOBIP)$)/
 // Only placeholders and punctuation: "{{channel}}: {{purpose}}", never words.
 const PLACEHOLDERS_ONLY = /^(\s|[:·-]|\{\{\w+\}\})*$/
 const SAME_IN: Record<string, string[]> = {

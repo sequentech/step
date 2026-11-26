@@ -99,10 +99,58 @@ const tagalogTranslation: TranslationType = {
             noDetail: "Walang ibinigay na karagdagang detalye ang server para sa pagsusuring ito.",
             reasons: "Bakit ito pumalya",
             noArea: "walang area o hindi kilalang area",
+            rehearsal: {
+                label: "Paghahambing",
+                readOnly:
+                    "Read-only na paghahambing ng rehearsal. Walang isinusulat sa alinmang event at walang naitatalang readiness.",
+                modes: {
+                    production: "Production readiness (pinirmahan)",
+                    rehearsal_ert_stl: "Rehearsal: ERT at STL (read-only)",
+                    rehearsal_official_ert: "Rehearsal: opisyal at ERT (read-only)",
+                    rehearsal_official_stl: "Rehearsal: opisyal at STL (read-only)",
+                },
+                roles: {
+                    official: "Opisyal na event",
+                    tested: "Sinubukang event",
+                    ert: "ERT event",
+                    stl: "STL event",
+                },
+                verdicts: {
+                    consistent:
+                        "Tugma ang paghahambing ng rehearsal. Hindi ito pagpapatunay ng readiness.",
+                    inconsistent:
+                        "Hindi tugma ang paghahambing ng rehearsal. Ayusin ang mga natuklasan at patakbuhin muli.",
+                    not_verified:
+                        "Hindi napatunayan. Hindi kayang patunayan ng magagamit na ebidensya ang paghahambing na ito.",
+                },
+                chips: {
+                    consistent: "Tugma",
+                    inconsistent: "Hindi tugma",
+                    not_verified: "Hindi napatunayan",
+                },
+                checks: {
+                    configuration:
+                        "Parehong aprubadong pinirmahang configuration, hiwalay na in-import",
+                    own_census: "Sariling sertipikadong census ng bawat event",
+                    census_subset: "Ang STL census ay subset ng opisyal na census",
+                    lifecycle: "Lifecycle: hindi nagalaw ang opisyal, sarado ang mga rehearsal",
+                    seal: "Sariling publikasyon at selyo ng bawat rehearsal",
+                },
+                findings: {
+                    revision_not_distinct:
+                        "Parehong may package revision {{revision}} ang dalawang event; bawat isa ay nangangailangan ng sariling hiwalay na in-import na revision.",
+                    subset_area_exceeds:
+                        "May {{stl}} botante ang STL census sa {{area}}, higit sa {{official}} ng opisyal na sertipikadong census.",
+                    subset_not_verified:
+                        "Hindi napatunayan ang subset: ang mga sertipikadong import ay nagtatala lamang ng mga file hash at bilang bawat area. Walang matatag na pagkakakilanlan ng botante, sertipikadong talaan ng pagiging miyembro o aprubadong pagpili ng mga STL na botante upang patunayan na bawat STL na botante ay opisyal na botante.",
+                },
+            },
             eventRoles: {
                 official: "opisyal",
                 tested: "sinubukang",
                 both: "pareho",
+                ert: "ERT",
+                stl: "STL",
             },
             scope: {
                 event: "Ang {{event}} na event",
@@ -1600,6 +1648,12 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 lockdownState: {
+                    scheduleEnd: "Itakda ang pagtatapos ng lockdown",
+                    replaceEnd: "Baguhin ang nakatakdang pagtatapos",
+                    cancelEnd: "Kanselahin ang nakatakdang pagtatapos",
+                    ambiguousEnd:
+                        "Hindi wasto o hindi tiyak ang nakabinbing pagtatapos ng lockdown.",
+                    cancelInvalidEnds: "Kanselahin ang lahat ng nakatakdang pagtatapos ng lockdown",
                     since: "Naka-lockdown mula {{date}}.",
                     scheduledEnd: "Nakatakda ang pagtatapos ng lockdown sa {{date}}.",
                     endScheduled: "May nakatakdang pagtatapos ng lockdown.",
@@ -6528,6 +6582,8 @@ const tagalogTranslation: TranslationType = {
                     "Hindi pa makakapagpadala ang {{channel}} ng {{purpose}}. Kulang: {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "Hindi aprubado ng provider ang template ng {{channel}} para sa {{purpose}} sa {{language}}.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "Walang halaga ang isang button ng template ng {{channel}} para sa {{purpose}} sa {{language}}.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "Hindi makakapagpadala ang {{channel}} sa labas ng window ng usapan gamit ang account na ito: wala itong window ng usapan, o kailangan na ng template ang mga abiso nito.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -6558,6 +6614,7 @@ const tagalogTranslation: TranslationType = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                WHATSAPP_INFOBIP: "WhatsApp Business (Infobip)",
                 CONSOLE: "Console (hindi na suportado)",
                 HTTP_API: "Pasadyang HTTP API (hindi na suportado)",
             },
@@ -6619,6 +6676,24 @@ const tagalogTranslation: TranslationType = {
                 REPORT_PASSWORD: "Password para sa mga ulat",
             },
             deliveryUnavailable: "Hindi available ang paghahatid",
+            templateButtons: {
+                title: "Mga button ng template",
+                help: "Ang mga value na ipinapadala kasama ng mga button ng template, sa pagkakasunod nila sa template. Pinapalitan ang {{code}} ng code na ipinapadala.",
+                choice: {
+                    DEFAULT: "Default para sa layunin",
+                    CUSTOM: "Itinakda para sa template na ito",
+                },
+                type: "Uri ng button",
+                parameter: "Halaga",
+                add: "Magdagdag ng button",
+                remove: "Alisin ang button",
+                none: "Walang button",
+                required: "Maglagay ng halaga",
+                types: {
+                    URL: "URL (kopyahin ang code o link)",
+                    QUICK_REPLY: "Mabilis na sagot",
+                },
+            },
             templates: {
                 noMethod: "Pumili ng kahit isang paraan para sa template.",
                 parameters: "Mga parameter ng template",
@@ -6650,6 +6725,8 @@ const tagalogTranslation: TranslationType = {
                 approvedWording: "Aprubadong teksto",
                 approvedWordingHelp:
                     "Kopya ng aprubadong template, ginagamit bilang preview. Hindi nito binabago ang ipinapadala ng provider.",
+                buttonsHelp:
+                    "Ginagamit ng WhatsApp sa pamamagitan ng Infobip kasama ang template ng provider sa itaas. Kung wala ito, ang template ng event at ang mga button nito ang ginagamit.",
                 viberWording: "Teksto",
                 viberWordingHelp:
                     "Ipinapadala ng account na nagpapadala ng malayang teksto ang tekstong ito nang eksakto. Sa mga aprubadong template, kopya ito ng template na ginagamit bilang preview, at hindi nito binabago ang ipinapadala.",
@@ -7014,6 +7091,7 @@ const tagalogTranslation: TranslationType = {
                 page_name: "Pangalan ng Page",
                 page_username: "Username ng Page",
                 base_url: "Base URL ng API",
+                sender_number: "Numero ng nagpapadala",
                 sender: "Pangalan ng nagpadala",
                 provider_approval: "Pag-apruba ng provider",
                 is_default: "Default na {{channel}} account para sa mga bagong election event",
@@ -7034,6 +7112,8 @@ const tagalogTranslation: TranslationType = {
                     "Ginagamit para sa m.me link na binubuksan ng mga botante para makuha ang kanilang code.",
                 api_version: "Halimbawa, v23.0.",
                 base_url: "Ang base URL ng Infobip API ng account.",
+                sender_number:
+                    "Ang WhatsApp number na nakarehistro sa Infobip, sa international format, gaya ng 447796344125.",
                 sender: "Ang aprubadong nagpadala na nakikita ng mga botante.",
                 provider_approval:
                     "Pinapayagan lamang ng Meta ang pagmemensahe ng gobyerno sa WhatsApp sa pamamagitan ng aprubadong kaayusan. Piliin ang Kumpirmado ang pag-apruba ng provider kapag naaprubahan na ito ng Meta para sa account na ito; hanggang doon, hindi mapapagana ang mga OTP at abiso para dito.",
@@ -7138,6 +7218,10 @@ const tagalogTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "Ang Infobip API key.",
                 },
+                WHATSAPP_INFOBIP: {
+                    API_KEY:
+                        "Ang Infobip API key, na may mga scope na whatsapp:manage at whatsapp:message:send.",
+                },
             },
             webhook: {
                 title: "Mga ulat sa paghahatid",
@@ -7148,6 +7232,8 @@ const tagalogTranslation: TranslationType = {
                         "Ilagay ang URL ng callback na ito sa mga setting ng webhook ng Meta. Dito dumarating ang mga ulat sa paghahatid at ang pag-tap ng botante sa Magsimula, at sinusuri ang mga ito gamit ang lihim ng app.",
                     VIBER_INFOBIP:
                         "Ipinapadala ng Infobip ang mga ulat sa paghahatid ng Viber sa URL ng callback na ito sa pamamagitan ng isang subscription na may Basic authentication.",
+                    WHATSAPP_INFOBIP:
+                        "Ipinapadala ng Infobip ang mga ulat sa paghahatid ng WhatsApp sa URL ng callback na ito sa pamamagitan ng isang subscription na may Basic authentication.",
                     AWS_SES:
                         "I-subscribe ang URL ng callback na ito (HTTPS) sa topic ng mga abiso sa paghahatid. Dito dumarating ang mga event ng paghahatid at bounce, at sinusuri ang mga ito gamit ang lagda ng Amazon.",
                 },
@@ -7214,13 +7300,13 @@ const tagalogTranslation: TranslationType = {
                 error: "Hindi mabuo ang mga kredensyal para sa ulat.",
                 step: {
                     subscription:
-                        "Sa Infobip, gumawa ng subscription para sa mga ulat sa paghahatid ng Viber.",
+                        "Sa Infobip, gumawa ng subscription para sa mga ulat sa paghahatid ng {{channel}}.",
                     url: "Itakda ang URL nito sa URL ng callback ng account na ito.",
                     auth: "Piliin ang Basic authentication at ilagay ang pangalan ng user at password para sa mga ulat.",
                 },
                 confirmTitle: "Palitan ang mga kredensyal para sa ulat?",
                 confirmBody:
-                    "Agad na hindi na gagana ang kasalukuyang pangalan ng user at password para sa mga ulat. Hangga't wala pa sa subscription ng Infobip ang mga bago, tatanggihan ang mga ulat ng paghahatid ng Viber at mananatiling Tinanggap ang mga mensahe.",
+                    "Agad na hindi na gagana ang kasalukuyang pangalan ng user at password para sa mga ulat. Hangga't wala pa sa subscription ng Infobip ang mga bago, tatanggihan ang mga ulat ng paghahatid ng {{channel}} at mananatiling Tinanggap ang mga mensahe.",
                 confirm: "Palitan",
             },
         },

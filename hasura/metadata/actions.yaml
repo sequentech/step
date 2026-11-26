@@ -3373,6 +3373,21 @@ custom_types:
               - description: null
                 is_deprecated: null
                 value: configured_password
+        - name: ReadinessComparison
+          description: Absent or production is the strict check that alone can sign ReadinessVerified. The rehearsal modes are read-only comparisons and never write.
+          values:
+              - description: null
+                is_deprecated: null
+                value: production
+              - description: null
+                is_deprecated: null
+                value: rehearsal_ert_stl
+              - description: null
+                is_deprecated: null
+                value: rehearsal_official_ert
+              - description: null
+                is_deprecated: null
+                value: rehearsal_official_stl
         - name: OrderDirection
           values:
               - description: null

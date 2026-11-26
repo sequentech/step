@@ -5,7 +5,7 @@ use headless_chrome::types::PrintToPdfOptions;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString};
 
-use super::messaging::{MessageChannel, MessageReason};
+use super::messaging::{MessageChannel, MessageReason, TemplateButton};
 
 #[allow(non_camel_case_types)]
 #[derive(
@@ -119,6 +119,10 @@ pub struct InstantMessageConfig {
     /// The provider's language code of that template, such as `en_US`.
     #[serde(default)]
     pub provider_language: Option<String>,
+    /// The values of that template's buttons, in its button order. `None`:
+    /// the provider's default for the purpose; empty: none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub buttons: Option<Vec<TemplateButton>>,
 }
 
 #[derive(Deserialize, Debug, Serialize, Clone, Default)]
@@ -305,6 +309,24 @@ mod tests {
         assert!(queued.get("channel_selection").is_none());
         assert_eq!(queued["send_id"], "send-1");
         assert_eq!(queued["whatsapp"]["message"], "Hi");
+        // A template without buttons keeps its shape; set ones are kept.
+        assert!(queued["whatsapp"].get("buttons").is_none());
+        let mut input = queued;
+        input["whatsapp"]["buttons"] =
+            serde_json::json!([{"type": "QUICK_REPLY", "parameter": "STOP"}]);
+        let body: SendTemplateBody =
+            serde_json::from_value(input.clone()).unwrap();
+        assert_eq!(
+            body.whatsapp
+                .as_ref()
+                .and_then(|w| w.buttons.as_ref())
+                .map(Vec::len),
+            Some(1)
+        );
+        assert_eq!(
+            serde_json::to_value(body).unwrap()["whatsapp"]["buttons"],
+            input["whatsapp"]["buttons"]
+        );
     }
 
     #[test]

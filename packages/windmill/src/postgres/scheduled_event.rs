@@ -16,6 +16,40 @@ use tokio_postgres::row::Row;
 use tracing::{info, instrument};
 use uuid::Uuid;
 
+/// Whether a scheduled processor changes event-wide lockdown state.
+pub fn is_lockdown_processor(processor: &EventProcessors) -> bool {
+    matches!(
+        processor,
+        EventProcessors::START_LOCKDOWN_PERIOD | EventProcessors::END_LOCKDOWN_PERIOD
+    )
+}
+
+/// The instant of a runnable, event-wide lockdown transition. Older rows
+/// may lack a task name or payload.
+pub(crate) fn pending_lockdown_time(row: &ScheduledEvent) -> Option<DateTime<Utc>> {
+    let processor = row.event_processor.as_ref()?;
+    if !is_lockdown_processor(processor) || row.stopped_at.is_some() || row.archived_at.is_some() {
+        return None;
+    }
+    let task = generate_manage_date_task_name(
+        row.tenant_id.as_deref()?,
+        row.election_event_id.as_deref()?,
+        None,
+        processor,
+    );
+    if row.task_id.as_ref().is_some_and(|id| id != &task) {
+        return None;
+    }
+    if let Some(payload) = row.event_payload.as_ref().filter(|p| !p.is_null()) {
+        if !payload.is_object() || payload.get("election_id").is_some_and(|id| !id.is_null()) {
+            return None;
+        }
+    }
+    DateTime::parse_from_rfc3339(row.cron_config.as_ref()?.scheduled_date.as_deref()?)
+        .ok()
+        .map(|date| date.with_timezone(&Utc))
+}
+
 pub struct ScheduledEventWrapper(pub ScheduledEvent);
 
 impl TryFrom<Row> for ScheduledEventWrapper {
@@ -266,6 +300,34 @@ pub async fn archive_scheduled_event(
         .map_err(|err| anyhow!("Error running the archive_scheduled_event query: {err}"))?;
 
     Ok(())
+}
+
+/// Cancels pending lockdown rows without parsing their legacy payload or clock data.
+/// The caller has already authorized the event-wide action and locked the parent.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn archive_pending_lockdown_schedules(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    processor: &EventProcessors,
+) -> Result<u64> {
+    anyhow::ensure!(
+        is_lockdown_processor(processor),
+        "expected a lockdown processor"
+    );
+    Ok(hasura_transaction
+        .execute(
+            "UPDATE sequent_backend.scheduled_event
+         SET stopped_at = NOW(), archived_at = NOW()
+         WHERE tenant_id = $1 AND election_event_id = $2 AND event_processor = $3
+           AND stopped_at IS NULL AND archived_at IS NULL",
+            &[
+                &parse_uuid_v4(tenant_id)?,
+                &parse_uuid_v4(election_event_id)?,
+                &processor.to_string(),
+            ],
+        )
+        .await?)
 }
 
 /// Replaces the cron config (and the channels, when given) of an active

@@ -10,11 +10,13 @@ import {IPermissions} from "@/types/keycloak"
 import {EMessagingProvider, EProviderApproval, IMessagingAccount} from "@/types/messaging"
 import {MessagingAccountEditor} from "./MessagingAccountEditor"
 import {
+    INFOBIP_WHATSAPP_ACCOUNT_ID,
     MESSENGER_ACCOUNT_ID,
     VIBER_ACCOUNT_ID,
     WHATSAPP_ACCOUNT_ID,
     callbackUrl,
     callbackUrlHandler,
+    infobipWhatsAppAccount,
     messengerAccount,
     partnerAccount,
     viberAccount,
@@ -25,6 +27,8 @@ enum EStoryAccount {
     NEW = "NEW",
     WHATSAPP = "WHATSAPP",
     VIBER = "VIBER",
+    /** WhatsApp through Infobip. */
+    INFOBIP_WHATSAPP = "INFOBIP_WHATSAPP",
     MESSENGER = "MESSENGER",
     /** An account of the removed generic HTTP provider. */
     UNSUPPORTED = "UNSUPPORTED",
@@ -119,6 +123,7 @@ const ACCOUNTS: Record<EStoryAccount, () => IMessagingAccount | undefined> = {
     [EStoryAccount.NEW]: () => undefined,
     [EStoryAccount.WHATSAPP]: whatsappAccount,
     [EStoryAccount.VIBER]: viberAccount,
+    [EStoryAccount.INFOBIP_WHATSAPP]: infobipWhatsAppAccount,
     [EStoryAccount.MESSENGER]: messengerAccount,
     [EStoryAccount.UNSUPPORTED]: partnerAccount,
     [EStoryAccount.WHATSAPP_CHECKED]: whatsappChecked,
@@ -291,6 +296,51 @@ export const ViberFreeText: Story = {
     },
 }
 
+export const InfobipWhatsApp: Story = {
+    args: {account: EStoryAccount.INFOBIP_WHATSAPP},
+    parameters: {widgets: ["CallbackSection", "CredentialInput"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(canvas.getByRole("textbox", {name: /Sender number/})).toHaveValue(
+            "447700900123"
+        )
+        await expect(
+            await canvas.findByDisplayValue(callbackUrl("infobip", INFOBIP_WHATSAPP_ACCOUNT_ID))
+        ).toBeVisible()
+        await expect(
+            canvas.getByText("In Infobip, create a subscription for WhatsApp delivery reports.")
+        ).toBeVisible()
+        await expect(
+            canvas.getByRole("button", {name: "Generate report credentials"})
+        ).toBeVisible()
+        // Meta's credentials and Viber's hand-entered templates don't apply.
+        expect(canvas.queryByRole("button", {name: "Generate verify token"})).toBeNull()
+        expect(canvas.queryByText(/app secret/i)).toBeNull()
+        expect(canvas.queryByRole("textbox", {name: "Partner template ID"})).toBeNull()
+        // The check's templates, read from Infobip.
+        await expect(canvas.getAllByText("council_code")).toHaveLength(2)
+        const form =
+            canvas.getByRole("textbox", {name: /Sender number/}).closest("form") ??
+            (canvasElement.firstElementChild as HTMLElement)
+        const originalWidth = form.style.width
+        try {
+            for (const width of [320, 512]) {
+                form.style.width = `${width}px`
+                await waitFor(() => {
+                    const bounds = form.getBoundingClientRect()
+                    for (const field of Array.from(form.querySelectorAll(".MuiFormControl-root"))) {
+                        const rect = field.getBoundingClientRect()
+                        expect(rect.left).toBeGreaterThanOrEqual(bounds.left)
+                        expect(rect.right).toBeLessThanOrEqual(bounds.right + 1)
+                    }
+                })
+            }
+        } finally {
+            form.style.width = originalWidth
+        }
+    },
+}
+
 export const ViberReportCredentials: Story = {
     args: {account: EStoryAccount.VIBER},
     parameters: {
@@ -298,7 +348,7 @@ export const ViberReportCredentials: Story = {
             "CallbackSection",
             "ReportCredentialsDialog",
             "CopyField",
-            "ViberSubscriptionSteps",
+            "InfobipSubscriptionSteps",
         ],
     },
     play: async ({canvasElement}) => {
