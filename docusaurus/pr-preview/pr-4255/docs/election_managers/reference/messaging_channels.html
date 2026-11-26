@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Messaging Channels | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/election_managers/reference/messaging_channels"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Messaging Channels | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4255/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/election_managers/reference/messaging_channels"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/election_managers/reference/messaging_channels" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/election_managers/reference/messaging_channels" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Messaging Channels","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/election_managers/reference/messaging_channels"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4255/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4255/assets/js/runtime~main.2da988c3.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4255/assets/js/runtime~main.b8cdcc9e.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4255/assets/js/main.bd140909.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -23,7 +23,7 @@ write to them.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="channels">Channels<a href="#channels" class="hash-link" aria-label="Direct link to Channels" title="Direct link to Channels" translate="no">​</a></h2>
 <p>Channels are always listed in this order: WhatsApp, Viber, Messenger, SMS,
 email.</p>
-<table><thead><tr><th>Channel</th><th>Provider</th><th>Recipient</th><th>Codes</th><th>Notices</th></tr></thead><tbody><tr><td>WhatsApp</td><td>WhatsApp Cloud API</td><td>Phone number (E.164)</td><td>Approved authentication template</td><td>Approved utility templates</td></tr><tr><td>Viber</td><td>Viber Business Messages through Infobip</td><td>Phone number (E.164)</td><td>Partner-approved OTP template</td><td>Partner-approved templates</td></tr><tr><td>Messenger</td><td>Messenger Send API</td><td>Page-scoped ID</td><td>A message in the chat the voter opened with Get Started</td><td>A message within 24 hours of the voter&#x27;s Get Started, or an approved utility template after it</td></tr><tr><td>SMS</td><td>Amazon SNS</td><td>Phone number (E.164)</td><td>Transactional SMS</td><td>Free text</td></tr><tr><td>Email</td><td>Amazon SES or SMTP</td><td>Email address</td><td>Code in an email</td><td>Free text</td></tr></tbody></table>
+<table><thead><tr><th>Channel</th><th>Provider</th><th>Recipient</th><th>Codes</th><th>Notices</th></tr></thead><tbody><tr><td>WhatsApp</td><td>WhatsApp Cloud API</td><td>Phone number (E.164)</td><td>Approved authentication template</td><td>Approved utility templates</td></tr><tr><td>Viber</td><td>Viber Business Messages through Infobip</td><td>Phone number (E.164)</td><td>Partner-approved OTP template, or free text</td><td>Partner-approved templates, or free text</td></tr><tr><td>Messenger</td><td>Messenger Send API</td><td>Page-scoped ID</td><td>A message in the chat the voter opened with Get Started</td><td>A message within 24 hours of the voter&#x27;s Get Started, or an approved utility template after it</td></tr><tr><td>SMS</td><td>Amazon SNS</td><td>Phone number (E.164)</td><td>Transactional SMS</td><td>Free text</td></tr><tr><td>Email</td><td>Amazon SES or SMTP</td><td>Email address</td><td>Code in an email</td><td>Free text</td></tr></tbody></table>
 <p>Facebook and Messenger are one channel: a Facebook Page messages the voter,
 who reads it in Facebook or Messenger. Public Page posts are not messages to
 a voter and are not used.</p>
@@ -58,11 +58,13 @@ while the check reports nothing.</li>
 <li class=""><em>Needs production access</em>: the provider account is still in a sandbox
 (SES, SNS), the WhatsApp number is not verified, or the app is not
 subscribed to the Facebook Page.</li>
-<li class=""><em>Needs approved template</em>: WhatsApp and Viber only send approved
-templates. WhatsApp approvals are read from Meta on each check. Viber
-templates are entered on the account, per purpose and language, with
-the ID the partner gave when it approved them, because Infobip&#x27;s
-template API is not generally available.</li>
+<li class=""><em>Needs approved template</em>: WhatsApp, and Viber accounts that send
+approved templates, only send approved templates. WhatsApp approvals
+are read from Meta on each check. Viber templates are entered on the
+account, per purpose and language, with the ID the partner gave when
+it approved them, because Infobip&#x27;s template API is not generally
+available. A Viber account that sends free text needs no template (see
+<a href="#viber-message-content" class="">Viber message content</a>).</li>
 </ul>
 </li>
 </ul>
@@ -221,6 +223,25 @@ lists the voters who had that number, with masked numbers, and says <em>A
 voter changed their WhatsApp number: ask them to verify their contact
 again</em>. Nothing is changed automatically: the voter changes the channel
 from the voting portal (see <a href="#changing-the-channel" class="">Changing the channel</a>).</p>
+<h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="viber-message-content">Viber message content<a href="#viber-message-content" class="hash-link" aria-label="Direct link to Viber message content" title="Direct link to Viber message content" translate="no">​</a></h3>
+<p>A Viber account&#x27;s <strong>Message content</strong> says what it sends:</p>
+<ul>
+<li class=""><strong>Approved templates</strong> (the default, and what accounts saved before the
+setting existed use): every code and notice is sent with the template
+the partner approved for its purpose and language. A message without
+one is not sent.</li>
+<li class=""><strong>Free text</strong>: every code and notice is sent as its own text, like an
+SMS: the code&#x27;s wording from the login and enrollment screens, and a
+notice&#x27;s text from its message template, which the send can edit. No
+template is needed, so the event&#x27;s Viber template bindings are not
+asked for, and a bound template is not used.</li>
+</ul>
+<p>Viber bills a transactional message sent without an approved template at
+its promotional rate, and may refuse promotional content as the first
+message to a voter. Confirm with the partner that the account may send
+codes as free text before choosing it. Switching keeps the approved
+templates entered on the account, for a switch back, and keeps its last
+connection check.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="viber-delivery-reports">Viber delivery reports<a href="#viber-delivery-reports" class="hash-link" aria-label="Direct link to Viber delivery reports" title="Direct link to Viber delivery reports" translate="no">​</a></h3>
 <p>Infobip sends Viber delivery reports through a subscription (notification
 profile) that you create in Infobip:</p>
@@ -411,9 +432,9 @@ NONE: the step sends no code</em>. It logs each step it changes.</p>
 <p>After the change, the <strong>old</strong> channel gets one security notice: <em>Your
 contact for the organization was changed to the new channel. If this
 wasn&#x27;t you, contact support.</em> No code is needed on the old channel. On
-WhatsApp and Viber this notice needs an approved template bound to the
-message key <code>contactChanged.notice.text</code> on the event; without one it is
-refused with its reason, and the change itself still stands. It
+WhatsApp, and Viber with approved templates, this notice needs an approved
+template bound to the message key <code>contactChanged.notice.text</code> on the event;
+without one it is refused with its reason, and the change itself still stands. It
 isn&#x27;t a second channel for the voter: it is a notice about the old channel
 itself, and later codes and notices go only to the new one.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="voter-drawer-and-logs">Voter drawer and Logs<a href="#voter-drawer-and-logs" class="hash-link" aria-label="Direct link to Voter drawer and Logs" title="Direct link to Voter drawer and Logs" translate="no">​</a></h3>
@@ -488,10 +509,11 @@ tab. Unconfirmed delivery is shown as Unknown.</p>
 <p>The channel sections start collapsed, as in the template editor. Expand a
 channel to review its content or make changes for this notification. Closing a
 section keeps its content and edits; it does not turn off delivery on that
-channel. Email, SMS and Messenger text can be edited after choosing a template,
-without changing the saved template. WhatsApp and Viber wording appears as a
-plain preview with a notice explaining that provider-approved content cannot
-be changed here. The send drawer has no provider-template or language inputs:
+channel. Email, SMS and Messenger text, and Viber text sent by a free-text
+account, can be edited after choosing a template, without changing the saved
+template. WhatsApp wording, and Viber wording sent with approved templates,
+appears as a plain preview with a notice explaining that provider-approved
+content cannot be changed here. The send drawer has no provider-template or language inputs:
 those values come from the saved template, or the event&#x27;s binding when absent.
 Choose another saved template to use different approved content.</p>
 <p>WhatsApp accepts language codes and regional locale codes. Use the exact code
@@ -499,8 +521,9 @@ of the approved template, such as <code>en</code> or <code>en_US</code>; do not 
 other just to match an example. The demo&#x27;s <code>en</code> defaults are supported by its
 approved templates. See <a href="https://whatsapp.github.io/WhatsApp-Nodejs-SDK/api-reference/types/language_object/" target="_blank" rel="noopener noreferrer" class="">Meta&#x27;s language object reference</a>.</p>
 <p>The form checks that the notification has content for the audience&#x27;s channels
-before scheduling it. For WhatsApp or Viber, choose a saved message template
-with content and an approved provider template or event binding. Email and SMS
+before scheduling it. For WhatsApp, or Viber with approved templates, choose a
+saved message template with content and an approved provider template or event
+binding. Email and SMS
 text alone cannot be delivered to a WhatsApp voter. The success notice confirms
 scheduling; delivery results appear in the event&#x27;s Messaging tab and Logs.</p>
 <h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="delivery">Delivery<a href="#delivery" class="hash-link" aria-label="Direct link to Delivery" title="Direct link to Delivery" translate="no">​</a></h2>
@@ -594,12 +617,13 @@ from the number&#x27;s status. A Solution
 Partner that serves the Cloud API from its own address is entered with
 its API base URL.</li>
 <li class=""><strong>Viber</strong>: choose the partner. Infobip is built in; another partner needs
-an adapter. Enter the partner&#x27;s credentials and approved templates, and
-create the report subscription.</li>
+an adapter. Enter the partner&#x27;s credentials and choose the account&#x27;s
+<a href="#viber-message-content" class="">message content</a>: its approved templates, or
+free text. Then create the report subscription.</li>
 <li class=""><strong>Messenger outside the 24-hour window</strong>: once Meta approves utility
 templates for the Page, bind them on the event.</li>
 <li class="">Which channels each Post offers, the consent wording and how long message
 records are kept.</li>
-</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/02-election_managers/02-reference/13-messaging-channels.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-4255/docs/election_managers/reference/choosing_a_slate"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Choosing a Slate</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-4255/docs/election_managers/reference/named_slates"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Named Slates</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#channels" class="table-of-contents__link toc-highlight">Channels</a></li><li><a href="#sending-accounts" class="table-of-contents__link toc-highlight">Sending accounts</a><ul><li><a href="#connection-checks" class="table-of-contents__link toc-highlight">Connection checks</a></li><li><a href="#credentials" class="table-of-contents__link toc-highlight">Credentials</a></li><li><a href="#sending-limits" class="table-of-contents__link toc-highlight">Sending limits</a></li><li><a href="#deleting-an-account" class="table-of-contents__link toc-highlight">Deleting an account</a></li><li><a href="#callback-url" class="table-of-contents__link toc-highlight">Callback URL</a></li><li><a href="#messenger-get-started" class="table-of-contents__link toc-highlight">Messenger Get Started</a></li><li><a href="#changing-the-number-or-the-page" class="table-of-contents__link toc-highlight">Changing the number or the Page</a></li><li><a href="#viber-delivery-reports" class="table-of-contents__link toc-highlight">Viber delivery reports</a></li><li><a href="#email-receipts" class="table-of-contents__link toc-highlight">Email receipts</a></li><li><a href="#unsupported-providers" class="table-of-contents__link toc-highlight">Unsupported providers</a></li></ul></li><li><a href="#election-event-settings" class="table-of-contents__link toc-highlight">Election event settings</a></li><li><a href="#voters" class="table-of-contents__link toc-highlight">Voters</a><ul><li><a href="#what-voters-see" class="table-of-contents__link toc-highlight">What voters see</a></li><li><a href="#how-a-voters-channel-is-read" class="table-of-contents__link toc-highlight">How a voter&#39;s channel is read</a></li><li><a href="#changing-the-channel" class="table-of-contents__link toc-highlight">Changing the channel</a></li><li><a href="#voter-drawer-and-logs" class="table-of-contents__link toc-highlight">Voter drawer and Logs</a></li><li><a href="#editing-event-template-bindings" class="table-of-contents__link toc-highlight">Editing event template bindings</a></li><li><a href="#send-notification" class="table-of-contents__link toc-highlight">Send Notification</a></li></ul></li><li><a href="#delivery" class="table-of-contents__link toc-highlight">Delivery</a><ul><li><a href="#unknown-and-unresolved" class="table-of-contents__link toc-highlight">Unknown and Unresolved</a></li><li><a href="#reasons-you-may-see" class="table-of-contents__link toc-highlight">Reasons you may see</a></li></ul></li><li><a href="#records" class="table-of-contents__link toc-highlight">Records</a><ul><li><a href="#monthly-volumes" class="table-of-contents__link toc-highlight">Monthly volumes</a></li></ul></li><li><a href="#sent-messages-development-stacks-only" class="table-of-contents__link toc-highlight">Sent messages (development stacks only)</a></li><li><a href="#going-live" class="table-of-contents__link toc-highlight">Going live</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+</ul></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/02-election_managers/02-reference/13-messaging-channels.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-4255/docs/election_managers/reference/choosing_a_slate"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Choosing a Slate</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-4255/docs/election_managers/reference/named_slates"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Named Slates</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#channels" class="table-of-contents__link toc-highlight">Channels</a></li><li><a href="#sending-accounts" class="table-of-contents__link toc-highlight">Sending accounts</a><ul><li><a href="#connection-checks" class="table-of-contents__link toc-highlight">Connection checks</a></li><li><a href="#credentials" class="table-of-contents__link toc-highlight">Credentials</a></li><li><a href="#sending-limits" class="table-of-contents__link toc-highlight">Sending limits</a></li><li><a href="#deleting-an-account" class="table-of-contents__link toc-highlight">Deleting an account</a></li><li><a href="#callback-url" class="table-of-contents__link toc-highlight">Callback URL</a></li><li><a href="#messenger-get-started" class="table-of-contents__link toc-highlight">Messenger Get Started</a></li><li><a href="#changing-the-number-or-the-page" class="table-of-contents__link toc-highlight">Changing the number or the Page</a></li><li><a href="#viber-message-content" class="table-of-contents__link toc-highlight">Viber message content</a></li><li><a href="#viber-delivery-reports" class="table-of-contents__link toc-highlight">Viber delivery reports</a></li><li><a href="#email-receipts" class="table-of-contents__link toc-highlight">Email receipts</a></li><li><a href="#unsupported-providers" class="table-of-contents__link toc-highlight">Unsupported providers</a></li></ul></li><li><a href="#election-event-settings" class="table-of-contents__link toc-highlight">Election event settings</a></li><li><a href="#voters" class="table-of-contents__link toc-highlight">Voters</a><ul><li><a href="#what-voters-see" class="table-of-contents__link toc-highlight">What voters see</a></li><li><a href="#how-a-voters-channel-is-read" class="table-of-contents__link toc-highlight">How a voter&#39;s channel is read</a></li><li><a href="#changing-the-channel" class="table-of-contents__link toc-highlight">Changing the channel</a></li><li><a href="#voter-drawer-and-logs" class="table-of-contents__link toc-highlight">Voter drawer and Logs</a></li><li><a href="#editing-event-template-bindings" class="table-of-contents__link toc-highlight">Editing event template bindings</a></li><li><a href="#send-notification" class="table-of-contents__link toc-highlight">Send Notification</a></li></ul></li><li><a href="#delivery" class="table-of-contents__link toc-highlight">Delivery</a><ul><li><a href="#unknown-and-unresolved" class="table-of-contents__link toc-highlight">Unknown and Unresolved</a></li><li><a href="#reasons-you-may-see" class="table-of-contents__link toc-highlight">Reasons you may see</a></li></ul></li><li><a href="#records" class="table-of-contents__link toc-highlight">Records</a><ul><li><a href="#monthly-volumes" class="table-of-contents__link toc-highlight">Monthly volumes</a></li></ul></li><li><a href="#sent-messages-development-stacks-only" class="table-of-contents__link toc-highlight">Sent messages (development stacks only)</a></li><li><a href="#going-live" class="table-of-contents__link toc-highlight">Going live</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
 </body>
 </html>
