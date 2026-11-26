@@ -28,7 +28,7 @@ email.
 | Channel | Provider | Recipient | Codes | Notices |
 |---|---|---|---|---|
 | WhatsApp | WhatsApp Cloud API | Phone number (E.164) | Approved authentication template | Approved utility templates |
-| Viber | Viber Business Messages through Infobip | Phone number (E.164) | Partner-approved OTP template | Partner-approved templates |
+| Viber | Viber Business Messages through Infobip | Phone number (E.164) | Partner-approved OTP template, or free text | Partner-approved templates, or free text |
 | Messenger | Messenger Send API | Page-scoped ID | A message in the chat the voter opened with Get Started | A message within 24 hours of the voter's Get Started, or an approved utility template after it |
 | SMS | Amazon SNS | Phone number (E.164) | Transactional SMS | Free text |
 | Email | Amazon SES or SMTP | Email address | Code in an email | Free text |
@@ -71,11 +71,13 @@ Each account shows three separate states, with the time of the last check
   - *Needs production access*: the provider account is still in a sandbox
     (SES, SNS), the WhatsApp number is not verified, or the app is not
     subscribed to the Facebook Page.
-  - *Needs approved template*: WhatsApp and Viber only send approved
-    templates. WhatsApp approvals are read from Meta on each check. Viber
-    templates are entered on the account, per purpose and language, with
-    the ID the partner gave when it approved them, because Infobip's
-    template API is not generally available.
+  - *Needs approved template*: WhatsApp, and Viber accounts that send
+    approved templates, only send approved templates. WhatsApp approvals
+    are read from Meta on each check. Viber templates are entered on the
+    account, per purpose and language, with the ID the partner gave when
+    it approved them, because Infobip's template API is not generally
+    available. A Viber account that sends free text needs no template (see
+    [Viber message content](#viber-message-content)).
 
 Readiness always comes from the provider's answers to the connection check.
 An administrator can't declare an account ready. An account saved with the
@@ -250,6 +252,27 @@ lists the voters who had that number, with masked numbers, and says *A
 voter changed their WhatsApp number: ask them to verify their contact
 again*. Nothing is changed automatically: the voter changes the channel
 from the voting portal (see [Changing the channel](#changing-the-channel)).
+
+### Viber message content
+
+A Viber account's **Message content** says what it sends:
+
+- **Approved templates** (the default, and what accounts saved before the
+  setting existed use): every code and notice is sent with the template
+  the partner approved for its purpose and language. A message without
+  one is not sent.
+- **Free text**: every code and notice is sent as its own text, like an
+  SMS: the code's wording from the login and enrollment screens, and a
+  notice's text from its message template, which the send can edit. No
+  template is needed, so the event's Viber template bindings are not
+  asked for, and a bound template is not used.
+
+Viber bills a transactional message sent without an approved template at
+its promotional rate, and may refuse promotional content as the first
+message to a voter. Confirm with the partner that the account may send
+codes as free text before choosing it. Switching keeps the approved
+templates entered on the account, for a switch back, and keeps its last
+connection check.
 
 ### Viber delivery reports
 
@@ -473,9 +496,9 @@ NONE: the step sends no code*. It logs each step it changes.
 After the change, the **old** channel gets one security notice: *Your
 contact for the organization was changed to the new channel. If this
 wasn't you, contact support.* No code is needed on the old channel. On
-WhatsApp and Viber this notice needs an approved template bound to the
-message key `contactChanged.notice.text` on the event; without one it is
-refused with its reason, and the change itself still stands. It
+WhatsApp, and Viber with approved templates, this notice needs an approved
+template bound to the message key `contactChanged.notice.text` on the event;
+without one it is refused with its reason, and the change itself still stands. It
 isn't a second channel for the voter: it is a notice about the old channel
 itself, and later codes and notices go only to the new one.
 
@@ -567,10 +590,11 @@ Sending to selected voters with no voter chosen is refused.
 The channel sections start collapsed, as in the template editor. Expand a
 channel to review its content or make changes for this notification. Closing a
 section keeps its content and edits; it does not turn off delivery on that
-channel. Email, SMS and Messenger text can be edited after choosing a template,
-without changing the saved template. WhatsApp and Viber wording appears as a
-plain preview with a notice explaining that provider-approved content cannot
-be changed here. The send drawer has no provider-template or language inputs:
+channel. Email, SMS and Messenger text, and Viber text sent by a free-text
+account, can be edited after choosing a template, without changing the saved
+template. WhatsApp wording, and Viber wording sent with approved templates,
+appears as a plain preview with a notice explaining that provider-approved
+content cannot be changed here. The send drawer has no provider-template or language inputs:
 those values come from the saved template, or the event's binding when absent.
 Choose another saved template to use different approved content.
 
@@ -580,8 +604,9 @@ other just to match an example. The demo's `en` defaults are supported by its
 approved templates. See [Meta's language object reference](https://whatsapp.github.io/WhatsApp-Nodejs-SDK/api-reference/types/language_object/).
 
 The form checks that the notification has content for the audience's channels
-before scheduling it. For WhatsApp or Viber, choose a saved message template
-with content and an approved provider template or event binding. Email and SMS
+before scheduling it. For WhatsApp, or Viber with approved templates, choose a
+saved message template with content and an approved provider template or event
+binding. Email and SMS
 text alone cannot be delivered to a WhatsApp voter. The success notice confirms
 scheduling; delivery results appear in the event's Messaging tab and Logs.
 
@@ -746,8 +771,9 @@ In short:
   Partner that serves the Cloud API from its own address is entered with
   its API base URL.
 - **Viber**: choose the partner. Infobip is built in; another partner needs
-  an adapter. Enter the partner's credentials and approved templates, and
-  create the report subscription.
+  an adapter. Enter the partner's credentials and choose the account's
+  [message content](#viber-message-content): its approved templates, or
+  free text. Then create the report subscription.
 - **Messenger outside the 24-hour window**: once Meta approves utility
   templates for the Page, bind them on the event.
 - Which channels each Post offers, the consent wording and how long message

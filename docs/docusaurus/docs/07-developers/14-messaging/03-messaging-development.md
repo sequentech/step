@@ -60,7 +60,7 @@ endpoint variables to harvest, windmill and beat.
 | Provider | Send | Checks (answered as connected and ready) |
 |---|---|---|
 | WhatsApp Cloud | `POST /fake-provider/meta/<version>/<phone_number_id>/messages` | `debug_token`, the number's fields (status, name status, quality, limit), `message_templates` |
-| Viber (Infobip) | `POST /fake-provider/infobip/viber/2/messages` | `GET /fake-provider/infobip/account/1/balance`; reconciliation reads `GET /fake-provider/infobip/viber/2/logs` |
+| Viber (Infobip) | `POST /fake-provider/infobip/viber/2/messages` | `GET /fake-provider/infobip/viber/1/senders/{sender}/templates`; reconciliation reads `GET /fake-provider/infobip/viber/2/logs` |
 | Messenger | `POST /fake-provider/meta/<version>/<page_id>/messages` | `debug_token`, Page fields, `subscribed_apps`, `messenger_profile`, `message_templates` |
 | SMS (SNS) | `POST /fake-provider/aws/` (`Action=Publish`, XML answer) | `GetSMSSandboxAccountStatus` |
 | Email (SES v2) | `POST /fake-provider/aws/v2/email/outbound-emails` | `GET /fake-provider/aws/v2/email/account` |

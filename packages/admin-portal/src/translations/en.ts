@@ -6858,11 +6858,16 @@ const englishTranslation = {
                 intro: {
                     WHATSAPP:
                         "WhatsApp sends only templates that Meta approved for the account's WhatsApp Business Account. The message must match the approved template; choose what fills its parameters.",
-                    VIBER: "Viber sends codes and transactional messages only with templates the Viber partner approved. The message must match the approved template; choose what fills its parameters.",
+                    VIBER: "A Viber account sends either templates the Viber partner approved or free text. With approved templates, the message must match the template; choose what fills its parameters. With free text, the wording below is sent as written.",
                 },
                 approvedWording: "Approved wording",
                 approvedWordingHelp:
                     "A copy of the approved template, used as a preview. Changing it here does not change what the provider sends.",
+                viberWording: "Wording",
+                viberWordingHelp:
+                    "An account that sends free text sends this wording as written. With approved templates it is a copy of the template, used as a preview, and does not change what is sent.",
+                sendsWrittenText:
+                    "This account sends free text: the wording above is sent as written and needs no approved template.",
                 providerTemplateTitle: "Provider template",
                 providerTemplateHelp:
                     "Optional. The name or ID of the approved template at the provider. When empty, the election event's template bound to this template's alias is used, or the event's default for the purpose.",
@@ -7267,6 +7272,19 @@ const englishTranslation = {
                 templateId: "Partner template ID",
                 add: "Add template",
                 remove: "Remove template",
+                contentMode: {
+                    title: "Message content",
+                    APPROVED_TEMPLATES: "Approved templates",
+                    FREE_TEXT: "Free text",
+                },
+                contentModeHelp: {
+                    APPROVED_TEMPLATES:
+                        "Codes and messages are sent with the templates the Viber partner approved, entered below.",
+                    FREE_TEXT:
+                        "Codes and messages are sent as their own text, like SMS. No approved template is needed.",
+                },
+                freeTextWarning:
+                    "Viber bills transactional messages sent without an approved template at its promotional rate, and may refuse promotional content as the first message to a voter. Confirm with the partner that this account may send codes as free text.",
             },
             limits: {
                 title: "Sending limits",

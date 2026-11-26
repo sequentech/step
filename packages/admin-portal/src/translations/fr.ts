@@ -6602,11 +6602,16 @@ const frenchTranslation: TranslationType = {
                 intro: {
                     WHATSAPP:
                         "WhatsApp n'envoie que les modèles approuvés par Meta pour le compte WhatsApp Business. Le message doit correspondre au modèle approuvé ; choisissez ce qui remplit ses paramètres.",
-                    VIBER: "Viber n'envoie les codes et messages transactionnels qu'avec des modèles approuvés par le partenaire Viber. Le message doit correspondre au modèle approuvé ; choisissez ce qui remplit ses paramètres.",
+                    VIBER: "Un compte Viber envoie soit des modèles approuvés par le partenaire Viber, soit du texte libre. Avec des modèles approuvés, le message doit correspondre au modèle ; choisissez ce qui remplit ses paramètres. Avec du texte libre, le texte ci-dessous est envoyé tel quel.",
                 },
                 approvedWording: "Texte approuvé",
                 approvedWordingHelp:
                     "Une copie du modèle approuvé, utilisée comme aperçu. La modifier ici ne change pas ce que le fournisseur envoie.",
+                viberWording: "Texte",
+                viberWordingHelp:
+                    "Un compte qui envoie du texte libre envoie ce texte tel quel. Avec des modèles approuvés, c'est une copie du modèle, utilisée comme aperçu, qui ne change pas ce qui est envoyé.",
+                sendsWrittenText:
+                    "Ce compte envoie du texte libre : le texte ci-dessus est envoyé tel quel et ne nécessite aucun modèle approuvé.",
                 providerTemplateTitle: "Modèle du fournisseur",
                 providerTemplateHelp:
                     "Facultatif. Le nom ou l'ID du modèle approuvé chez le fournisseur. S'il est vide, le modèle de l'événement électoral lié à l'alias de ce modèle est utilisé, ou le modèle par défaut de l'événement pour l'usage.",
@@ -7025,6 +7030,19 @@ const frenchTranslation: TranslationType = {
                 templateId: "ID du modèle chez le partenaire",
                 add: "Ajouter un modèle",
                 remove: "Retirer le modèle",
+                contentMode: {
+                    title: "Contenu des messages",
+                    APPROVED_TEMPLATES: "Modèles approuvés",
+                    FREE_TEXT: "Texte libre",
+                },
+                contentModeHelp: {
+                    APPROVED_TEMPLATES:
+                        "Les codes et messages sont envoyés avec les modèles approuvés par le partenaire Viber, saisis ci-dessous.",
+                    FREE_TEXT:
+                        "Les codes et messages sont envoyés avec leur propre texte, comme les SMS. Aucun modèle approuvé n'est nécessaire.",
+                },
+                freeTextWarning:
+                    "Viber facture au tarif promotionnel les messages transactionnels envoyés sans modèle approuvé, et peut refuser un contenu promotionnel comme premier message à un électeur. Confirmez avec le partenaire que ce compte peut envoyer des codes en texte libre.",
             },
             limits: {
                 title: "Limites d'envoi",

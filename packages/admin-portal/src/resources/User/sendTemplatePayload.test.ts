@@ -4,7 +4,9 @@
 import {
     EMessageChannel,
     EMessagePurpose,
+    EMessagingProvider,
     EOutOfWindowPolicy,
+    EViberContentMode,
     IEventChannelConfig,
     IEventMessagingConfig,
     IMessagingAccount,
@@ -16,6 +18,7 @@ import {
     sendNoticeChannels,
     sendableTemplates,
     sendingAccountFor,
+    sendsWrittenText,
 } from "./sendTemplatePayload"
 
 const content = {
@@ -197,5 +200,34 @@ describe("sendingAccountFor", () => {
         expect(sendingAccountFor(null, [], EMessageChannel.EMAIL)).toBe("ENVIRONMENT")
         expect(sendingAccountFor(null, [], EMessageChannel.WHATSAPP)).toBeNull()
         expect(sendingAccountFor(withSms("deleted"), [sms], EMessageChannel.SMS)).toBeNull()
+    })
+})
+
+describe("sendsWrittenText", () => {
+    const viber = (content_mode?: EViberContentMode) =>
+        ({
+            id: "viber-1",
+            channel: EMessageChannel.VIBER,
+            provider: EMessagingProvider.VIBER_INFOBIP,
+            sender: {
+                provider: EMessagingProvider.VIBER_INFOBIP,
+                base_url: "https://x.api.infobip.com",
+                sender: "COMELEC",
+                ...(content_mode ? {content_mode} : {}),
+            },
+        }) as IMessagingAccount
+
+    it("lets the text be edited only where the account sends it as written", () => {
+        expect(sendsWrittenText(EMessageChannel.VIBER, viber(EViberContentMode.FREE_TEXT))).toBe(
+            true
+        )
+        expect(sendsWrittenText(EMessageChannel.VIBER, viber())).toBe(false)
+        expect(
+            sendsWrittenText(EMessageChannel.VIBER, viber(EViberContentMode.APPROVED_TEMPLATES))
+        ).toBe(false)
+        // Without an account, Viber and WhatsApp show the approved wording.
+        expect(sendsWrittenText(EMessageChannel.VIBER, null)).toBe(false)
+        expect(sendsWrittenText(EMessageChannel.WHATSAPP, null)).toBe(false)
+        expect(sendsWrittenText(EMessageChannel.MESSENGER, null)).toBe(true)
     })
 })

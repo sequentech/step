@@ -717,6 +717,31 @@ pub enum OutOfWindowPolicy {
     UTILITY_MESSAGES,
 }
 
+/// What a Viber account sends: the partner's approved templates, or the
+/// message's own text. Viber bills transactional text sent without an
+/// approved template at its promotional rate.
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+    Default,
+)]
+pub enum ViberContentMode {
+    /// Codes and notices need an approved template per purpose and
+    /// language.
+    #[default]
+    APPROVED_TEMPLATES,
+    /// Codes and notices are sent as their rendered text.
+    FREE_TEXT,
+}
+
 /// Why a purpose cannot be enabled on an account, most fundamental first.
 #[allow(non_camel_case_types)]
 #[derive(
@@ -1649,6 +1674,10 @@ pub enum AccountSender {
         /// API is not generally available.
         #[serde(default)]
         approved_templates: BTreeMap<MessagePurpose, BTreeMap<String, String>>,
+        /// Templates or free text. Kept apart from `approved_templates`, so
+        /// switching back finds them.
+        #[serde(default)]
+        content_mode: ViberContentMode,
     },
     /// Any provider with a JSON HTTP API, described by configuration.
     HTTP_API(HttpApiSender),
@@ -1954,6 +1983,13 @@ impl AccountSender {
                 DeliveryFeedback::UNAVAILABLE
             };
             capabilities.reconciliation = api.reconcile.is_some();
+        }
+        if let AccountSender::VIBER_INFOBIP {
+            content_mode: ViberContentMode::FREE_TEXT,
+            ..
+        } = self
+        {
+            capabilities.template_required_for = vec![];
         }
         // SES reports deliveries only through its SNS notification topic.
         if let AccountSender::AWS_SES {
@@ -2769,6 +2805,52 @@ mod tests {
             .expect("round trip"),
             sender
         );
+    }
+
+    #[test]
+    fn a_viber_account_needs_templates_unless_it_sends_free_text() {
+        // Accounts saved before the setting existed keep sending templates.
+        let stored: AccountSender = serde_json::from_value(serde_json::json!({
+            "provider": "VIBER_INFOBIP",
+            "base_url": "https://abc.api.infobip.com",
+            "sender": "COMELEC"
+        }))
+        .expect("sender");
+        let AccountSender::VIBER_INFOBIP { content_mode, .. } = &stored else {
+            panic!("VIBER_INFOBIP");
+        };
+        assert_eq!(*content_mode, ViberContentMode::APPROVED_TEMPLATES);
+        assert_eq!(
+            stored
+                .capabilities(MessageChannel::VIBER)
+                .expect("capabilities")
+                .template_required_for,
+            vec![MessagePurpose::OTP, MessagePurpose::NOTICE]
+        );
+
+        let free_text: AccountSender =
+            serde_json::from_value(serde_json::json!({
+                "provider": "VIBER_INFOBIP",
+                "base_url": "https://abc.api.infobip.com",
+                "sender": "COMELEC",
+                "content_mode": "FREE_TEXT"
+            }))
+            .expect("sender");
+        let capabilities = free_text
+            .capabilities(MessageChannel::VIBER)
+            .expect("capabilities");
+        assert!(capabilities.template_required_for.is_empty());
+        assert_eq!(
+            capabilities.purposes,
+            vec![MessagePurpose::OTP, MessagePurpose::NOTICE]
+        );
+        assert_eq!(
+            serde_json::to_value(&free_text).expect("json")["content_mode"],
+            "FREE_TEXT"
+        );
+        // Neither the mode nor the templates are part of the identity: a
+        // switch keeps the account's last check.
+        assert_eq!(free_text.identity(), stored.identity());
     }
 
     fn channel_config(

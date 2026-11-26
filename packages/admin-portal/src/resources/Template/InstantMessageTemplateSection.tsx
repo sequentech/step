@@ -31,6 +31,7 @@ import {
     templateApprovalRows,
     templatePurpose,
 } from "@/services/templateApproval"
+import {accountCapabilities} from "@/services/messaging"
 import {EMessageChannel, EMessagePurpose} from "@/types/messaging"
 
 export type InstantMessageChannel =
@@ -130,6 +131,7 @@ const ApprovalStatus: React.FC<{channel: InstantMessageChannel}> = ({channel}) =
         )
     }
     const rows = templateApprovalRows(account.status, purpose, languages)
+    const sendsText = !accountCapabilities(account)?.template_required_for.includes(purpose)
     return (
         <Box sx={{display: "flex", flexDirection: "column", gap: 1}}>
             <TextField
@@ -146,7 +148,11 @@ const ApprovalStatus: React.FC<{channel: InstantMessageChannel}> = ({channel}) =
                     </MenuItem>
                 ))}
             </TextField>
-            <ApprovalTable rows={rows} purpose={purpose} />
+            {sendsText ? (
+                <Alert severity="info">{t("messaging.templates.sendsWrittenText")}</Alert>
+            ) : (
+                <ApprovalTable rows={rows} purpose={purpose} />
+            )}
         </Box>
     )
 }
@@ -258,8 +264,20 @@ export const InstantMessageTemplateSection: React.FC<InstantMessageTemplateSecti
                 minRows={3}
                 multiline={true}
                 source={`template.${key}.message`}
-                label={String(t("messaging.templates.approvedWording"))}
-                helperText={String(t("messaging.templates.approvedWordingHelp"))}
+                label={String(
+                    t(
+                        channel === EMessageChannel.VIBER
+                            ? "messaging.templates.viberWording"
+                            : "messaging.templates.approvedWording"
+                    )
+                )}
+                helperText={String(
+                    t(
+                        channel === EMessageChannel.VIBER
+                            ? "messaging.templates.viberWordingHelp"
+                            : "messaging.templates.approvedWordingHelp"
+                    )
+                )}
             />
             <ProviderTemplateInputs channel={channel} />
             <ParametersInput source={`template.${key}.parameters`} />
