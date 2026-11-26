@@ -733,17 +733,22 @@ pub fn apply_profile(
         }
     }
 
-    let applied: Blueprint = serde_json::from_value(document).map_err(|error| {
-        one(Problem::error(
-            Code::InvalidValue,
-            "profile.defaults",
-            format!(
-                "applying this profile produced something that is not a plan, so \
-                 one of its defaults is the wrong shape for where it was put: \
-                 {error}"
-            ),
-        ))
-    })?;
+    let applied = super::architect::read_plan_value(document)
+        .map_err(|problem| {
+            if problem.id.as_deref() != Some("plan.unreadable") {
+                return one(problem);
+            }
+            one(Problem::error(
+                Code::InvalidValue,
+                "profile.defaults",
+                format!(
+                    "applying this profile produced something that is not a plan, so \
+                     one of its defaults is the wrong shape for where it was put: \
+                     {}", problem.message
+                ),
+            ))
+        })?
+        .plan;
     plan.signing
         .check_manual_rule_preserved(&applied.signing)
         .map_err(one)?;
