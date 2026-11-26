@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Messaging Deployment | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4412/docs/developers/messaging/messaging_deployment"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Messaging Deployment | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4412/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4412/docs/developers/messaging/messaging_deployment"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4412/docs/developers/messaging/messaging_deployment" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4412/docs/developers/messaging/messaging_deployment" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Deployment","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4412/docs/developers/messaging/messaging_deployment"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4412/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4412/assets/js/runtime~main.8e209e73.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4412/assets/js/runtime~main.6512b114.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4412/assets/js/main.e29d4d7b.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -114,11 +114,17 @@ API key</em>;</li>
 <li class=""><code>whatsapp:message:send</code> (or <code>whatsapp:manage</code>, which also allows it):
 sending (<code>POST /whatsapp/1/message/template</code>).</li>
 </ul>
-<p>Codes need an approved <strong>authentication</strong> template whose copy-code
-button carries the code (the code fills the body placeholder and the
-button); notices need approved <strong>utility</strong> templates, whose placeholders
-are filled in order from the notice&#x27;s parameters. Bind them on the event
-per purpose and language, as for WhatsApp through Meta. Then create a
+<p>Codes need an approved template whose body placeholder takes the code;
+notices need approved <strong>utility</strong> templates, whose placeholders are
+filled in order from the notice&#x27;s parameters. Bind them on the event per
+purpose and language, as for WhatsApp through Meta. Infobip refuses a
+template whose buttons don&#x27;t get their values, so each binding (and a
+message template that names its own provider template) gives its
+template&#x27;s buttons in button order: <code>URL</code> (a copy-code button, or a
+link&#x27;s variable part) or <code>QUICK_REPLY</code> (the payload), where <code>{{code}}</code>
+becomes the code. A binding that sets none uses the default: for codes,
+a <code>URL</code> button with <code>{{code}}</code> then a <code>QUICK_REPLY</code> with <code>NA</code>; for
+notices, no buttons. An empty list sends none. Then create a
 subscription for WhatsApp delivery reports with the account&#x27;s callback
 URL (<code>/webhooks/infobip/&lt;key&gt;</code>) and Basic authentication, using the
 report username and password the account generated (shown once).

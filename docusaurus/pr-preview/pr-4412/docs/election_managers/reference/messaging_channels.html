@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Messaging Channels | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4412/docs/election_managers/reference/messaging_channels"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Messaging Channels | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4412/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4412/docs/election_managers/reference/messaging_channels"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4412/docs/election_managers/reference/messaging_channels" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4412/docs/election_managers/reference/messaging_channels" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Messaging Channels","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4412/docs/election_managers/reference/messaging_channels"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4412/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4412/assets/js/runtime~main.8e209e73.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4412/assets/js/runtime~main.6512b114.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4412/assets/js/main.e29d4d7b.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -468,6 +468,17 @@ closed, and Save opens channels with incomplete bindings. Opening another
 binding closes the previous editor and retains its changes. Add opens the new
 binding immediately; saving highlights and opens incomplete bindings. Save includes all bindings,
 including those whose editors are closed.</p>
+<p>For WhatsApp through Infobip, a binding also has <strong>Template buttons</strong>: the
+value each of its template&#x27;s buttons is sent with, in the template&#x27;s button
+order. <strong>Default for the purpose</strong> sends, for codes, a URL button carrying
+the code followed by a quick reply <code>NA</code>, and no buttons for notices. <strong>Set
+for this template</strong> lists the template&#x27;s own: each a <strong>URL</strong> button (the
+code&#x27;s copy-code button, or a link&#x27;s variable part) or a <strong>Quick reply</strong>
+(its payload); <code>{{code}}</code> becomes the code, and an empty list sends no
+buttons. Infobip refuses a message whose template has buttons without
+values, and a button without a value can&#x27;t be saved. A message template
+that names its own WhatsApp provider template sets that template&#x27;s buttons
+the same way, in <strong>Templates</strong>.</p>
 <p>The <strong>Message type or template</strong> field offers translated names for built-in
 messages, such as <strong>Verification code</strong> or <strong>Enrollment rejected</strong>, and the
 administrator-defined aliases from <strong>Templates</strong>. Custom aliases can also be
