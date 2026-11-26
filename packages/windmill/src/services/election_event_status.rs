@@ -487,6 +487,15 @@ async fn update_event_voting_status_impl(
         board_posts.push((channel, elections_ids));
     }
 
+    if matches!(*new_status, VotingStatus::OPEN | VotingStatus::CLOSED) && !board_posts.is_empty() {
+        finish_cast_vote_key_for_status_change(
+            hasura_transaction,
+            &election_event,
+            *new_status == VotingStatus::OPEN,
+        )
+        .await?;
+    }
+
     save_event_voting_status(
         hasura_transaction,
         tenant_id,
@@ -761,6 +770,15 @@ pub async fn change_election_voting_status(
         }
     }
 
+    if matches!(new_status, VotingStatus::OPEN | VotingStatus::CLOSED) {
+        finish_cast_vote_key_for_status_change(
+            hasura_transaction,
+            &election_event,
+            new_status == VotingStatus::OPEN,
+        )
+        .await?;
+    }
+
     status.close_early_voting_if_online_status_change(channel, new_status.clone());
     status.set_status_by_channel(channel, new_status.clone());
 
@@ -791,6 +809,23 @@ pub async fn change_election_voting_status(
     }
 
     Ok(true)
+}
+
+async fn finish_cast_vote_key_for_status_change(
+    hasura_transaction: &Transaction<'_>,
+    event: &ElectionEvent,
+    opening: bool,
+) -> Result<()> {
+    use super::cast_vote_seal::verified_publication::{
+        complete_for_status_change, CastVoteKeyPending,
+    };
+
+    match complete_for_status_change(hasura_transaction, event, opening).await {
+        Err(error) if error.is::<CastVoteKeyPending>() => {
+            Err(VotingTransitionError(error.to_string()).into())
+        }
+        outcome => outcome,
+    }
 }
 
 /// Why a channel of a Post can't change to a voting status now.

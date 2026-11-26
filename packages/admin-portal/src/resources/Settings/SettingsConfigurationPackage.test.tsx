@@ -410,6 +410,43 @@ it("applies exactly what was previewed and shows each section's task and reconci
     expect(screen.getByTestId("section-election-event").textContent).toContain("task-ev")
 })
 
+it("shows a matching historical receipt without offering another Apply", async () => {
+    mockSha = "ab".repeat(32)
+    mockApply.mockResolvedValueOnce(accepted("task-repeat"))
+    const ui = render(<SettingsConfigurationPackage />)
+    await upload()
+    const previouslyApplied = {
+        taskId: "00000000-0000-4000-8000-000000000001",
+        electionEventId: "00000000-0000-4000-8000-000000000002",
+        mode: "preview",
+    }
+    mockTask = task("task-repeat", "SUCCESS", {packageSha256: "ab".repeat(32), previouslyApplied})
+    ui.rerender(<SettingsConfigurationPackage />)
+    expect(screen.getByTestId("package-outcome").textContent).toContain(
+        "configurationPackage.previouslyApplied"
+    )
+    expect(screen.getByTestId("package-run").textContent).toContain(
+        previouslyApplied.electionEventId
+    )
+    expect(screen.queryByTestId("package-apply")).toBeNull()
+    expect(mockApply).toHaveBeenCalledTimes(1)
+    mockTask = task("task-repeat", "SUCCESS", {packageSha256: "cd".repeat(32), previouslyApplied})
+    ui.rerender(<SettingsConfigurationPackage />)
+    expect(screen.getByTestId("package-sha-mismatch")).toBeTruthy()
+    expect(screen.getByTestId("package-run").textContent).not.toContain("previouslyApplied")
+    mockTask = task("task-repeat", "FAILED", {packageSha256: "ab".repeat(32), previouslyApplied})
+    ui.rerender(<SettingsConfigurationPackage />)
+    expect(screen.getByTestId("package-outcome").textContent).toBe(
+        "configurationPackage.stoppedWithoutRecord"
+    )
+    mockTask = task("task-repeat", "FAILED", record("failed"))
+    ui.rerender(<SettingsConfigurationPackage />)
+    expect(screen.getByTestId("package-outcome").textContent).toBe(
+        "configurationPackage.outcome.failed"
+    )
+    expect(mockApply).toHaveBeenCalledTimes(1)
+})
+
 it("shows a partial failure, and a refusal with what earlier runs applied", async () => {
     mockApply.mockResolvedValue(accepted("task-x"))
     const {rerender} = render(<SettingsConfigurationPackage />)

@@ -110,6 +110,7 @@ import {
     readManagedPreview,
     readPackageRetry,
     readPortablePreview,
+    readPreviouslyApplied,
     readRefusedPreview,
     changeLines,
     hasPortableReplacement,
@@ -607,6 +608,16 @@ const SettingsConfigurationPackageForScope: React.FC<{
         })
 
     const running = submitting || (!!submitted && !finished && !unreadable)
+    const historicalReceipt =
+        !unreadable && finished && submitted && task?.id === submitted.taskId
+            ? readPreviouslyApplied(task.annotations, task.execution_status)
+            : null
+    const previouslyApplied = historicalReceipt?.mode === submitted?.mode ? historicalReceipt : null
+    const receiptMismatch = previouslyApplied
+        ? [submitted?.expectedSha, submitted?.encryptedPayloadSha256].find(
+              (sha) => sha && previouslyApplied.packageSha256 !== sha.toLowerCase()
+          )
+        : undefined
     const refusal = !unreadable ? readRefusedPreview(task, submitted) : null
     const blockers = refusal?.blockers ?? previewed?.view.blockers ?? []
     const missingSections = refusal?.missingSections ?? []
@@ -616,10 +627,13 @@ const SettingsConfigurationPackageForScope: React.FC<{
     const canApply =
         !running &&
         !refusal &&
+        !previouslyApplied &&
         mayApply(previewed, tenantId, documentId, requirements, expectedSha) &&
         matchesTrust(roster.status, previewed)
-    const shaMismatch = !!previewed && !shaMatches(previewed.view, expectedSha)
-    const noRecord = !!submitted && finished && !view
+    const shaMismatch = previouslyApplied
+        ? !!receiptMismatch
+        : !!previewed && !shaMatches(previewed.view, expectedSha)
+    const noRecord = !!submitted && finished && !view && !previouslyApplied
     // The followed Preview ran with other requirements than the ones now selected:
     // what it found is that run's history, not what blocks the current choice.
     const previewStale =
@@ -641,12 +655,15 @@ const SettingsConfigurationPackageForScope: React.FC<{
         previewRefused: !!refusal,
         unreadable,
         noRecord,
-        hasError: !!error,
-        hasScopeMismatch: !!previewed && !canApply,
+        hasError:
+            !!error ||
+            !!receiptMismatch ||
+            (!!previouslyApplied && task?.execution_status === "FAILED"),
+        hasScopeMismatch: !previouslyApplied && !!previewed && !canApply,
         previewStale,
     })
     // A blocked preview offers Import fixed package and Change requirements, never Apply.
-    const showApply = canApply || phase === "previewAgain"
+    const showApply = !previouslyApplied && (canApply || phase === "previewAgain")
     const previewTrustChanged =
         !!previewed &&
         mayApply(previewed, tenantId, documentId, requirements, expectedSha) &&
@@ -1026,7 +1043,9 @@ const SettingsConfigurationPackageForScope: React.FC<{
                         data-testid="package-sha-mismatch"
                         id={`${applyReasonId}-sha`}
                     >
-                        {t("configurationPackage.shaMismatch", {expected: expectedSha})}
+                        {t("configurationPackage.shaMismatch", {
+                            expected: receiptMismatch ?? expectedSha,
+                        })}
                     </Alert>
                 )}
                 {error && (
@@ -1183,15 +1202,26 @@ const SettingsConfigurationPackageForScope: React.FC<{
                                           ? safeText(taskError.message)
                                           : t("configurationPackage.notFound"),
                                   })
-                                : noRecord
-                                  ? t("configurationPackage.stoppedWithoutRecord")
-                                  : finished
-                                    ? isUnconfirmedApplied(view, task?.execution_status)
-                                        ? t("configurationPackage.hub.appliedNotConfirmed")
-                                        : t(
-                                              `configurationPackage.outcome.${view?.outcome ?? "unknown"}`
-                                          )
-                                    : t("configurationPackage.running")}
+                                : previouslyApplied
+                                  ? receiptMismatch
+                                      ? t("configurationPackage.shaMismatch", {
+                                            expected: receiptMismatch,
+                                        })
+                                      : t(
+                                            task?.execution_status === "FAILED"
+                                                ? "configurationPackage.previouslyAppliedReplay"
+                                                : "configurationPackage.previouslyApplied",
+                                            previouslyApplied
+                                        )
+                                  : noRecord
+                                    ? t("configurationPackage.stoppedWithoutRecord")
+                                    : finished
+                                      ? isUnconfirmedApplied(view, task?.execution_status)
+                                          ? t("configurationPackage.hub.appliedNotConfirmed")
+                                          : t(
+                                                `configurationPackage.outcome.${view?.outcome ?? "unknown"}`
+                                            )
+                                      : t("configurationPackage.running")}
                         </Typography>
                         {retry && (
                             <Alert
