@@ -37,6 +37,9 @@ function fakeScanovatePage(service: string): string {
 ${FAKE_ERRORS.map((code) => `<button type="button" data-code="${code}">Fail ${code}</button>`).join("\n")}
 <script>
     const session = "fake-${service}-session"
+    // Like Scanovate's pages, this one lays itself out on a resize of its window.
+    window.layouts = 0
+    window.addEventListener("resize", () => { window.layouts += 1 })
     for (const message of ["js-load-success", "css-load-success", "iframe-loaded", "ui-loaded"]) {
         window.parent.postMessage(message, "*")
     }
@@ -125,7 +128,8 @@ async function scanovateFrame(canvasElement: HTMLElement, url: string) {
     await waitFor(
         () => {
             frame = canvasElement.querySelector<HTMLIFrameElement>(".scanovate-frame iframe")
-            expect(frame?.getAttribute("src")).toBe(url)
+            // The page it shows: one frame goes from the document scan to the face check.
+            expect(frame?.contentWindow?.location.href).toBe(url)
             expect(frame?.contentDocument?.querySelector("button")).not.toBeNull()
         },
         {timeout: 5000}
@@ -139,6 +143,42 @@ async function press(canvasElement: HTMLElement, url: string, name: string) {
     const button = within(frame.contentDocument!.body).getByRole("button", {name})
     button.click()
     return frame
+}
+
+/**
+ * The switch is in the window, with nothing over it: neither the camera page
+ * nor the mark of whose page it is.
+ */
+async function expectSwitchInReach(button: HTMLElement) {
+    await waitFor(() => {
+        const box = button.getBoundingClientRect()
+        expect(box.width).toBeGreaterThanOrEqual(44)
+        expect(box.height).toBeGreaterThanOrEqual(44)
+        expect(box.left).toBeGreaterThanOrEqual(0)
+        expect(box.top).toBeGreaterThanOrEqual(0)
+        expect(box.right).toBeLessThanOrEqual(window.innerWidth)
+        expect(box.bottom).toBeLessThanOrEqual(window.innerHeight)
+        const onTop = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+        expect(button.contains(onTop)).toBe(true)
+    })
+}
+
+/** The window of a device held one way: a turn gives it the other shape. */
+function held(width: number, height: number) {
+    const name = `held-${width}x${height}`
+    return {
+        globals: {viewport: {value: name, isRotated: false}},
+        parameters: {
+            viewport: {
+                options: {
+                    [name]: {
+                        name: `${width} × ${height}`,
+                        styles: {width: `${width}px`, height: `${height}px`},
+                    },
+                },
+            },
+        },
+    }
 }
 
 async function heading(canvasElement: HTMLElement, name: string) {
@@ -219,6 +259,8 @@ export const DocumentStepOtherCamera: Story = {
         const front = await scanovateFrame(canvasElement, FAKE_OCR)
         await expect(front).not.toBe(rear)
         await waitFor(() => expect(opensCamera(front)).not.toContain("[native code]"))
+        // The switch is the one of the photo holding the ID, in the same place.
+        await expect(toFront).toHaveClass("scanovate-camera-switch")
         await expect(window.localStorage.getItem("sequent.scanovate.documentCamera")).toBe("front")
 
         await userEvent.click(canvas.getByRole("button", {name: "Use the rear camera"}))
@@ -226,6 +268,80 @@ export const DocumentStepOtherCamera: Story = {
         const rearAgain = await scanovateFrame(canvasElement, FAKE_OCR)
         await expect(opensCamera(rearAgain)).toContain("[native code]")
         await expect(window.localStorage.getItem("sequent.scanovate.documentCamera")).toBe("rear")
+    },
+}
+
+/**
+ * Safari shows every camera only to the frame that was allowed one, which is
+ * Scanovate's page: the page itself is shown a single camera, and still
+ * offers the other one.
+ */
+export const DocumentStepCamerasOfTheFrame: Story = {
+    beforeEach: () => {
+        const devices = navigator.mediaDevices
+        const listed = devices.enumerateDevices
+        devices.enumerateDevices = async () => [{kind: "videoinput"}] as MediaDeviceInfo[]
+        return () => {
+            devices.enumerateDevices = listed
+        }
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const frame = await scanovateFrame(canvasElement, FAKE_OCR)
+        await expect(canvas.queryByRole("button", {name: "Use the front camera"})).toBeNull()
+        frame.contentWindow!.navigator.mediaDevices.enumerateDevices = async () =>
+            [{kind: "videoinput"}, {kind: "videoinput"}] as MediaDeviceInfo[]
+        await expect(
+            await canvas.findByRole("button", {name: "Use the front camera"}, {timeout: 5000})
+        ).toBeVisible()
+    },
+}
+
+/**
+ * The switch stays in reach however the device is held: a turn changes the
+ * window's shape, and with it where the mark of whose page it is goes, and
+ * the switch is never under it nor out of the window.
+ */
+function documentSwitchHeld(width: number, height: number): Story {
+    return {
+        ...held(width, height),
+        beforeEach: DocumentStepOtherCamera.beforeEach,
+        play: async ({canvasElement}) => {
+            await expect([window.innerWidth, window.innerHeight]).toEqual([width, height])
+            await scanovateFrame(canvasElement, FAKE_OCR)
+            await expectSwitchInReach(
+                await within(canvasElement).findByRole("button", {name: "Use the front camera"})
+            )
+        },
+    }
+}
+export const DocumentStepSwitchTabletLandscape = documentSwitchHeld(1180, 820)
+export const DocumentStepSwitchTabletPortrait = documentSwitchHeld(820, 1180)
+export const DocumentStepSwitchPhoneLandscape = documentSwitchHeld(844, 390)
+export const DocumentStepSwitchPhonePortrait = documentSwitchHeld(390, 844)
+
+/**
+ * Scanovate's document page fits its camera to the window right after a
+ * resize, before a turned tablet's camera has its new shape: it is asked to
+ * lay itself out again once the turn has settled. The face check's page is
+ * left to itself.
+ */
+export const DocumentStepLaidOutAfterTurn: Story = {
+    play: async ({canvasElement}) => {
+        const layouts = (frame: HTMLIFrameElement) =>
+            (frame.contentWindow as Window & {layouts: number}).layouts
+        const scan = await scanovateFrame(canvasElement, FAKE_OCR)
+        // The window may have been given its size just now: count from here.
+        const before = layouts(scan)
+        window.dispatchEvent(new Event("orientationchange"))
+        await waitFor(() => expect(layouts(scan)).toBe(before + 2), {timeout: 3000})
+
+        await press(canvasElement, FAKE_OCR, "Finish")
+        const face = await scanovateFrame(canvasElement, FAKE_LIVENESS)
+        const faceBefore = layouts(face)
+        window.dispatchEvent(new Event("orientationchange"))
+        await new Promise((resolve) => setTimeout(resolve, 1300))
+        await expect(layouts(face)).toBe(faceBefore)
     },
 }
 
@@ -296,6 +412,31 @@ export const FaceStep: Story = {
         await expect(frame).toHaveAccessibleName("Face check")
         await expectFillsWindow(canvasElement, ".scanovate-window")
         await expectFillsWindow(canvasElement, ".scanovate-window iframe")
+    },
+}
+
+/**
+ * The face check opens in the frame of the document scan. Safari remembers
+ * that the voter allowed the camera for the frame that asked: a new frame
+ * for each step asks the voter again at each step.
+ */
+export const FaceStepInTheSameFrame: Story = {
+    play: async ({canvasElement}) => {
+        const scan = await scanovateFrame(canvasElement, FAKE_OCR)
+        const entries = window.history.length
+        const finish = within(scan.contentDocument!.body).getByRole("button", {name: "Finish"})
+        // A page that says twice that it finished moves one step on, not two.
+        finish.click()
+        finish.click()
+        const face = await scanovateFrame(canvasElement, FAKE_LIVENESS)
+        await expect(face).toBe(scan)
+        await expect(await heading(canvasElement, "Check your face")).toBeInTheDocument()
+        // The browser's Back still leaves the page: the frame added no step to go back to.
+        await expect(window.history.length).toBe(entries)
+        // The face check's own camera access is as the browser gives it.
+        await expect(String(face.contentWindow!.navigator.mediaDevices.getUserMedia)).toContain(
+            "[native code]"
+        )
     },
 }
 
@@ -773,6 +914,9 @@ function holdingSwitchesBothWays(capabilities: boolean): Story {
             const video = () => canvasElement.querySelector(".scanovate-window video")!
             const switchButton = await canvas.findByRole("button", {name: "Switch camera"})
             await expect(video()).toHaveClass("mirrored")
+            // The switch of the document scan, in the same place.
+            await expect(switchButton).toHaveClass("scanovate-camera-switch")
+            await expectSwitchInReach(switchButton)
 
             await userEvent.click(switchButton)
             await waitFor(() => expect(video()).not.toHaveClass("mirrored"))
@@ -830,6 +974,26 @@ export const HoldingStartsWithTheCameraLastChosen: Story = {
     },
 }
 export const HoldingSwitchesCameraWithoutListedSides: Story = holdingSwitchesBothWays(false)
+
+/** The photo holding the ID keeps its switch in reach too, however the device is held. */
+function holdingSwitchHeld(width: number, height: number): Story {
+    return {
+        ...held(width, height),
+        args: {kcContext: withHolding},
+        beforeEach: () => fakeCameraAndUploads(200, true, true, [FRONT_CAMERA, BACK_CAMERA]),
+        play: async ({canvasElement}) => {
+            await expect([window.innerWidth, window.innerHeight]).toEqual([width, height])
+            await throughScanovate(canvasElement)
+            await expectSwitchInReach(
+                await within(canvasElement).findByRole("button", {name: "Switch camera"})
+            )
+        },
+    }
+}
+export const HoldingSwitchTabletLandscape = holdingSwitchHeld(1180, 820)
+export const HoldingSwitchTabletPortrait = holdingSwitchHeld(820, 1180)
+export const HoldingSwitchPhoneLandscape = holdingSwitchHeld(844, 390)
+export const HoldingSwitchPhonePortrait = holdingSwitchHeld(390, 844)
 
 /** A computer with an external webcam: the switch goes round its cameras. */
 export const HoldingSwitchesWebcam: Story = {

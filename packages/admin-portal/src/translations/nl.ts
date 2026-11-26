@@ -6475,6 +6475,8 @@ const dutchTranslation: TranslationType = {
                     "{{channel}} kan nog geen {{purpose}} verzenden. Ontbreekt: {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "De {{channel}}-sjabloon voor {{purpose}} in {{language}} is niet goedgekeurd door de provider.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "Een knop van de {{channel}}-sjabloon voor {{purpose}} in {{language}} heeft geen waarde.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} kan met dit account niet buiten een gespreksvenster verzenden: het heeft geen gespreksvenster, of de berichten hebben al een sjabloon nodig.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -6505,6 +6507,7 @@ const dutchTranslation: TranslationType = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                WHATSAPP_INFOBIP: "WhatsApp Business (Infobip)",
                 CONSOLE: "Console (niet meer ondersteund)",
                 HTTP_API: "Aangepaste HTTP-API (niet meer ondersteund)",
             },
@@ -6567,6 +6570,24 @@ const dutchTranslation: TranslationType = {
                 REPORT_PASSWORD: "Wachtwoord voor rapporten",
             },
             deliveryUnavailable: "Aflevering niet beschikbaar",
+            templateButtons: {
+                title: "Sjabloonknoppen",
+                help: "De waarden waarmee de knoppen van de sjabloon worden verzonden, in de volgorde waarin ze erin staan. {{code}} wordt vervangen door de verzonden code.",
+                choice: {
+                    DEFAULT: "Standaard voor het doel",
+                    CUSTOM: "Ingesteld voor deze sjabloon",
+                },
+                type: "Knoptype",
+                parameter: "Waarde",
+                add: "Knop toevoegen",
+                remove: "Knop verwijderen",
+                none: "Geen knoppen",
+                required: "Vul een waarde in",
+                types: {
+                    URL: "URL (code kopiëren of link)",
+                    QUICK_REPLY: "Snel antwoord",
+                },
+            },
             templates: {
                 noMethod: "Kies minstens één methode voor de sjabloon.",
                 parameters: "Sjabloonparameters",
@@ -6598,6 +6619,8 @@ const dutchTranslation: TranslationType = {
                 approvedWording: "Goedgekeurde tekst",
                 approvedWordingHelp:
                     "Een kopie van de goedgekeurde sjabloon, gebruikt als voorbeeld. Hier wijzigen verandert niet wat de provider verzendt.",
+                buttonsHelp:
+                    "Gebruikt door WhatsApp via Infobip met de providersjabloon hierboven. Zonder die sjabloon worden de sjabloon van het evenement en de knoppen ervan gebruikt.",
                 viberWording: "Tekst",
                 viberWordingHelp:
                     "Een account dat vrije tekst verzendt, verzendt deze tekst zoals hij is. Bij goedgekeurde sjablonen is het een kopie van de sjabloon, gebruikt als voorbeeld, en verandert het niet wat wordt verzonden.",
@@ -6966,6 +6989,7 @@ const dutchTranslation: TranslationType = {
                 page_name: "Paginanaam",
                 page_username: "Gebruikersnaam van de pagina",
                 base_url: "Basis-URL van de API",
+                sender_number: "Afzendernummer",
                 sender: "Afzendernaam",
                 provider_approval: "Goedkeuring van de provider",
                 is_default: "Standaard {{channel}}-account voor nieuwe verkiezingsevenementen",
@@ -6985,6 +7009,8 @@ const dutchTranslation: TranslationType = {
                     "Gebruikt voor de m.me-link die kiezers openen om hun code te krijgen.",
                 api_version: "Bijvoorbeeld v23.0.",
                 base_url: "De basis-URL van de Infobip-API van het account.",
+                sender_number:
+                    "Het WhatsApp-nummer dat bij Infobip is geregistreerd, in internationaal formaat, zoals 447796344125.",
                 sender: "De goedgekeurde afzender die kiezers zien.",
                 provider_approval:
                     "Meta staat berichten van overheden via WhatsApp alleen toe via een goedgekeurde regeling. Kies Goedkeuring van de provider bevestigd zodra Meta dit voor dit account heeft goedgekeurd; tot die tijd kunnen codes en berichten voor dit account niet worden ingeschakeld.",
@@ -7090,6 +7116,10 @@ const dutchTranslation: TranslationType = {
                 VIBER_INFOBIP: {
                     API_KEY: "De Infobip-API-sleutel.",
                 },
+                WHATSAPP_INFOBIP: {
+                    API_KEY:
+                        "De Infobip-API-sleutel, met de scopes whatsapp:manage en whatsapp:message:send.",
+                },
             },
             webhook: {
                 title: "Afleverrapporten",
@@ -7100,6 +7130,8 @@ const dutchTranslation: TranslationType = {
                         "Voer deze callback-URL in bij de webhookinstellingen van Meta. Afleverrapporten en de tik van de kiezer op Aan de slag komen hier binnen en worden gecontroleerd met het app-geheim.",
                     VIBER_INFOBIP:
                         "Infobip verstuurt Viber-afleverrapporten naar deze callback-URL via een abonnement met Basic-authenticatie.",
+                    WHATSAPP_INFOBIP:
+                        "Infobip verstuurt WhatsApp-afleverrapporten naar deze callback-URL via een abonnement met Basic-authenticatie.",
                     AWS_SES:
                         "Abonneer deze callback-URL (HTTPS) op het onderwerp voor afleverberichten. Aflever- en bounce-gebeurtenissen komen hier binnen en worden gecontroleerd met de handtekening van Amazon.",
                 },
@@ -7164,13 +7196,14 @@ const dutchTranslation: TranslationType = {
                 copyPassword: "Wachtwoord voor rapporten kopiëren",
                 error: "De inloggegevens voor rapporten konden niet worden gegenereerd.",
                 step: {
-                    subscription: "Maak in Infobip een abonnement aan voor Viber-afleverrapporten.",
+                    subscription:
+                        "Maak in Infobip een abonnement aan voor {{channel}}-afleverrapporten.",
                     url: "Stel de URL in op de callback-URL van dit account.",
                     auth: "Kies Basic-authenticatie en voer de gebruikersnaam en het wachtwoord voor rapporten in.",
                 },
                 confirmTitle: "Inloggegevens voor rapporten vervangen?",
                 confirmBody:
-                    "De huidige gebruikersnaam en het wachtwoord voor rapporten werken meteen niet meer. Tot het Infobip-abonnement de nieuwe heeft, worden Viber-afleverrapporten geweigerd en blijven berichten op Geaccepteerd staan.",
+                    "De huidige gebruikersnaam en het wachtwoord voor rapporten werken meteen niet meer. Tot het Infobip-abonnement de nieuwe heeft, worden {{channel}}-afleverrapporten geweigerd en blijven berichten op Geaccepteerd staan.",
                 confirm: "Vervangen",
             },
         },

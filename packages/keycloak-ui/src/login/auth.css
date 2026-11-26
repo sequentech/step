@@ -964,29 +964,37 @@ html[data-a11y-contrast="high"] .sequent-auth :is(a, button, select):focus-visib
 .sequent-auth .scanovate-window-note p + p {
     margin-top: 4px;
 }
-/* The other camera for the document scan, over a corner of Scanovate's page. */
+/*
+ * The other camera, in the same corner of every camera step that has a choice,
+ * however the device is held. Under the mark of whose page it is, which is
+ * drawn over the camera window: a realm with a taller mark says how tall, with
+ * the variable. Placed in the window and not in the camera's box, and on a
+ * layer of its own, so that a browser that draws the camera late, after a
+ * turn of the device, does not draw it over the switch.
+ */
 .sequent-auth .scanovate-camera-switch {
-    position: absolute;
-    bottom: 16px;
-    left: 16px;
-    z-index: 1;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 48px;
-    padding: 0 16px 0 12px;
+    position: fixed;
+    top: calc(16px + var(--auth-fullscreen-brand-height, 40px) + 8px);
+    left: max(16px, env(safe-area-inset-left));
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 56px;
+    height: 56px;
+    padding: 0;
     border: 0;
-    border-radius: 24px;
-    background: rgba(255, 255, 255, 0.94);
-    color: #173449;
-    font: inherit;
-    font-size: 15px;
-    font-weight: 600;
+    border-radius: 50%;
+    background: rgba(23, 52, 73, 0.88);
+    color: #ffffff;
     cursor: pointer;
+    transform: translateZ(0);
+}
+.sequent-auth .scanovate-camera-switch:disabled {
+    opacity: 0.5;
 }
 .sequent-auth .scanovate-camera-switch svg {
-    width: 24px;
-    height: 24px;
+    width: 30px;
+    height: 30px;
 }
 .sequent-auth .scanovate-camera-switch:focus-visible {
     outline: 3px solid #43e3a1;
@@ -1039,8 +1047,7 @@ html[data-a11y-contrast="high"] .sequent-auth :is(a, button, select):focus-visib
     font-size: 16px;
     line-height: 1.4;
 }
-.sequent-auth .scanovate-holding-close,
-.sequent-auth .scanovate-holding-switch {
+.sequent-auth .scanovate-holding-close {
     position: absolute;
     top: 10px;
     right: 10px;
@@ -1055,27 +1062,12 @@ html[data-a11y-contrast="high"] .sequent-auth :is(a, button, select):focus-visib
     color: #ffffff;
     cursor: pointer;
 }
-/*
- * Across from the close button, so the two are never mistaken, and under the
- * mark in that corner, which is drawn over the camera window: a realm with a
- * taller mark says how tall, with the variable.
- */
-.sequent-auth .scanovate-holding-switch {
-    top: calc(16px + var(--auth-fullscreen-brand-height, 40px) + 4px);
-    right: auto;
-    left: 10px;
-}
-.sequent-auth .scanovate-holding-switch:disabled {
-    opacity: 0.5;
-}
-.sequent-auth .scanovate-holding-close svg,
-.sequent-auth .scanovate-holding-switch svg {
+.sequent-auth .scanovate-holding-close svg {
     width: 34px;
     height: 34px;
     filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
 }
-.sequent-auth .scanovate-holding-close:focus-visible,
-.sequent-auth .scanovate-holding-switch:focus-visible {
+.sequent-auth .scanovate-holding-close:focus-visible {
     outline: 3px solid #43e3a1;
     outline-offset: -3px;
 }
@@ -1152,8 +1144,9 @@ html[data-a11y-contrast="high"] .sequent-auth :is(a, button, select):focus-visib
         font-size: 18px;
     }
     /* The mark is at the bottom here: the corner is free. */
-    .sequent-auth .scanovate-holding-switch {
-        top: 10px;
+    .sequent-auth .scanovate-camera-switch {
+        top: max(10px, env(safe-area-inset-top));
+        left: max(10px, env(safe-area-inset-left));
     }
 }
 @media (max-width: 520px) {

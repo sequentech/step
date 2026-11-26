@@ -8,6 +8,7 @@
 
 pub mod aws;
 pub mod infobip;
+pub mod infobip_whatsapp;
 pub mod messenger;
 pub mod smtp;
 pub mod whatsapp;
@@ -137,7 +138,9 @@ impl Endpoints {
             MessagingProvider::WHATSAPP_CLOUD_API | MessagingProvider::MESSENGER_SEND_API => {
                 self.meta_graph.as_deref()
             }
-            MessagingProvider::VIBER_INFOBIP => self.infobip.as_deref(),
+            MessagingProvider::VIBER_INFOBIP | MessagingProvider::WHATSAPP_INFOBIP => {
+                self.infobip.as_deref()
+            }
             MessagingProvider::AWS_SES | MessagingProvider::AWS_SNS => self.aws.as_deref(),
             MessagingProvider::SMTP | MessagingProvider::HTTP_API | MessagingProvider::CONSOLE => {
                 None
@@ -157,7 +160,8 @@ impl Endpoints {
             | AccountSender::MESSENGER_SEND_API { api_base_url, .. } => {
                 *api_base_url = Some(address.to_string());
             }
-            AccountSender::VIBER_INFOBIP { base_url, .. } => {
+            AccountSender::VIBER_INFOBIP { base_url, .. }
+            | AccountSender::WHATSAPP_INFOBIP { base_url, .. } => {
                 *base_url = address.to_string();
             }
             _ => {}
@@ -220,6 +224,9 @@ pub async fn build(
             account.clone(),
             http.clone(),
         )?),
+        AccountSender::WHATSAPP_INFOBIP { .. } => Box::new(
+            infobip_whatsapp::InfobipWhatsAppSender::new(account.clone(), http.clone())?,
+        ),
         AccountSender::AWS_SNS { .. } => Box::new(aws::SnsSender::new(account, endpoints).await?),
         AccountSender::AWS_SES { .. } => Box::new(aws::SesSender::new(account, endpoints).await?),
         AccountSender::SMTP { .. } => Box::new(smtp::SmtpSender::new(account)?),
@@ -302,9 +309,23 @@ pub(crate) fn meta_templates(
     body: &str,
 ) -> (Vec<TemplateStatus>, BTreeMap<MessagePurpose, Vec<String>>) {
     let body: Value = serde_json::from_str(body).unwrap_or_default();
+    whatsapp_templates(
+        body["data"]
+            .as_array()
+            .map(Vec::as_slice)
+            .unwrap_or_default(),
+    )
+}
+
+/// WhatsApp templates, as Meta or a partner relaying it lists them (`name`,
+/// `language`, `status`, `category`): every one with its status per
+/// language, and the languages approved per purpose.
+pub(crate) fn whatsapp_templates(
+    list: &[Value],
+) -> (Vec<TemplateStatus>, BTreeMap<MessagePurpose, Vec<String>>) {
     let mut templates = vec![];
     let mut approved: BTreeMap<MessagePurpose, Vec<String>> = BTreeMap::new();
-    for template in body["data"].as_array().cloned().unwrap_or_default() {
+    for template in list {
         let (Some(name), Some(language), Some(status)) = (
             template["name"].as_str(),
             template["language"].as_str(),
@@ -615,6 +636,7 @@ mod tests {
                     code: None,
                 },
                 provider_template: Some("tpl".to_string()),
+                template_buttons: None,
                 idempotency_key: "k:1".to_string(),
                 expires_at: None,
                 last_inbound_at: None,

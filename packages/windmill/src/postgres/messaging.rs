@@ -119,7 +119,8 @@ pub fn account_endpoint(sender: &AccountSender) -> Option<&str> {
             .as_deref()
             .map(str::trim)
             .filter(|url| !url.is_empty()),
-        AccountSender::VIBER_INFOBIP { base_url, .. } => Some(base_url.trim()),
+        AccountSender::VIBER_INFOBIP { base_url, .. }
+        | AccountSender::WHATSAPP_INFOBIP { base_url, .. } => Some(base_url.trim()),
         AccountSender::SMTP { server_url, .. } => Some(server_url.trim()),
         _ => None,
     }

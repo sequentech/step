@@ -6,6 +6,7 @@ import {
     EMessagePurpose,
     EMessagingProvider,
     EOutOfWindowPolicy,
+    ETemplateButtonType,
     EViberContentMode,
     IEventChannelConfig,
     IEventMessagingConfig,
@@ -77,6 +78,21 @@ describe("buildSendTemplatePayload", () => {
         })
         expect(payload.messenger).toEqual(content.messenger)
         expect("alias" in payload).toBe(false)
+    })
+
+    it("carries a provider template's buttons, and none without one", () => {
+        const buttons = [{type: ETemplateButtonType.QUICK_REPLY, parameter: "STOP"}]
+        const payload = buildSendTemplatePayload({
+            ...base,
+            content: {
+                ...content,
+                whatsapp: {...content.whatsapp, provider_template: "vote_reminder", buttons},
+                messenger: {...content.messenger, buttons},
+            },
+        })
+        expect(payload.whatsapp?.buttons).toEqual(buttons)
+        // Without its own template, the binding's template and buttons are used.
+        expect(payload.messenger && "buttons" in payload.messenger).toBe(false)
     })
 
     it("carries the alias of the chosen template, the key its template is bound under", () => {
