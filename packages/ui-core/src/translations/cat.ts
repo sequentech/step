@@ -320,6 +320,18 @@ const catalanTranslation: TranslationType = {
                     },
                 },
                 "candidate": {
+                    "inline-photo": {
+                        lead: "Foto de candidat no vàlida",
+                        text: "Foto de candidat no vàlida — Fes servir un sol PNG o JPEG estàtic per candidatura, excepte a les opcions de vot per escrit. Comprova els límits del fitxer i del llibre.",
+                    },
+                    "sql-photo": {
+                        lead: "Foto SQL no vàlida",
+                        text: "Foto SQL no vàlida — PICTURE ha de ser un BLOB amb una imatge estàtica PNG, JPEG, WebP o AVIF dins dels límits d'importació. Exporta-la sense rotació EXIF ni transformacions de visualització AVIF.",
+                    },
+                    "photo-source-conflict": {
+                        lead: "Dues fonts per a la foto",
+                        text: "Dues fonts per a la foto — Deixa la foto a PICTURE de l'SQL o a image_data_url de l'Excel, però no a tots dos llocs.",
+                    },
                     "contest-missing": {
                         lead: "Falta la votació de la candidatura",
                         text: "Falta la votació de la candidatura — la candidatura pertany a una votació que no és en aquest fitxer.",
@@ -1078,6 +1090,14 @@ const catalanTranslation: TranslationType = {
                     "trust-not-carried": {
                         lead: "Confiança de certificats no conservada",
                         text: "Confiança de certificats no conservada — l'arxiu obert tenia '{{member}}', que l'Architect no conserva. Les signatures que en depenguin poden fallar fins que es restauri amb la configuració de certificats autoritzada de la plataforma.",
+                    },
+                    "manual-verification-profile-conflict": {
+                        lead: "Perfil de signatura en conflicte",
+                        text: "Perfil de signatura en conflicte — aquest perfil substituiria «{{action}}». La regla no s’ha modificat. Obre el pla sense el perfil en conflicte per continuar editant-lo.",
+                    },
+                    "manual-verification-receiver-required": {
+                        lead: "Cal un receptor compatible",
+                        text: "Cal un receptor compatible — aquest receptor no pot aplicar «{{action}}». La regla es conserva al llibre i al pla. Per generar un lliurament, fes servir un Architect i un receptor que admetin la signatura de la verificació manual.",
                     },
                     "workbook-needs-current-architect": {
                         lead: "El llibre necessita un Architect actual",

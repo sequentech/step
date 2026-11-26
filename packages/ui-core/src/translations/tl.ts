@@ -321,6 +321,18 @@ const tagalogTranslation: TranslationType = {
                     },
                 },
                 "candidate": {
+                    "inline-photo": {
+                        lead: "Hindi wastong larawan ng kandidato",
+                        text: "Hindi wastong larawan ng kandidato — Gumamit ng isang static na PNG o JPEG bawat kandidato, maliban sa opsiyong isusulat ng botante. Suriin ang mga limitasyon ng file at workbook.",
+                    },
+                    "sql-photo": {
+                        lead: "Hindi wastong larawan sa SQL",
+                        text: "Hindi wastong larawan sa SQL — Ang PICTURE ay dapat na BLOB na may static na PNG, JPEG, WebP o AVIF na pasok sa mga limitasyon ng import. I-export ito nang walang EXIF rotation o AVIF display transform.",
+                    },
+                    "photo-source-conflict": {
+                        lead: "Dalawang pinagmulan ng larawan",
+                        text: "Dalawang pinagmulan ng larawan — Ilagay ang larawan sa SQL PICTURE o sa Excel image_data_url, huwag sa pareho.",
+                    },
                     "contest-missing": {
                         lead: "Nawawala ang contest ng kandidato",
                         text: "Nawawala ang contest ng kandidato — kabilang ang kandidato sa contest na wala sa file na ito.",
@@ -1082,6 +1094,14 @@ const tagalogTranslation: TranslationType = {
                     "trust-not-carried": {
                         lead: "Hindi dinala ang certificate trust",
                         text: "Hindi dinala ang certificate trust — may '{{member}}' ang binuksang archive, na hindi dinadala ng Architect. Maaaring pumalya ang mga pirmang umaasa rito hanggang maibalik ito sa awtorisadong certificate setup ng platform.",
+                    },
+                    "manual-verification-profile-conflict": {
+                        lead: "Salungat na signing profile",
+                        text: "Salungat na signing profile — papalitan ng profile na ito ang ‘{{action}}’. Hindi binago ang patakaran. Buksan ang plano nang walang salungat na profile para magpatuloy sa pag-edit.",
+                    },
+                    "manual-verification-receiver-required": {
+                        lead: "Kailangan ang katugmang receiver",
+                        text: "Kailangan ang katugmang receiver — hindi maipapatupad ng receiver na ito ang ‘{{action}}’. Nananatili ang patakaran sa workbook at plano. Para gumawa ng delivery, gumamit ng Architect at receiver na sumusuporta sa pagpirma para sa manual na beripikasyon.",
                     },
                     "workbook-needs-current-architect": {
                         lead: "Kailangan ng bagong Architect ang workbook",

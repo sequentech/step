@@ -144,6 +144,13 @@ precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Sequent Tech Inc <legal@sequentech.io>"
 SPDX-License-Identifier = "AGPL-3.0-only"
 
+# Four synthetic color blocks used to exercise candidate-photo decoders.
+[[annotations]]
+path = ["packages/sequent-core/src/election_config/workbook_photo/fixtures/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Sequent Tech Inc <legal@sequentech.io>"
+SPDX-License-Identifier = "AGPL-3.0-only"
+
 [[annotations]]
 path = "packages/id-capture/models/face_detection_yunet_2023mar.onnx"
 precedence = "aggregate"

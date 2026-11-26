@@ -16,6 +16,7 @@ const HtmlWebpackPlugin = require("html-webpack-plugin")
 const CopyWebpackPlugin = require("copy-webpack-plugin")
 const {withPortalDevelopment} = require("../ui-essentials/webpack.portal.cjs")
 const {sequentCoreWebpackAlias} = require("../ui-core/sequent-core-dev.cjs")
+const {devProxy} = require("./dev-proxy.cjs")
 
 class InterpolateHtmlPlugin {
     // Replaces %VARIABLE% with the corresponding variable from the replacements object
@@ -180,15 +181,9 @@ module.exports = function (env, argv) {
             port: 3002,
             open: true, // Automatically open the browser
             historyApiFallback: true,
-            // Browser trustees reach the board service through Harvest on the
-            // portal's own origin, as the deployed web server forwards /b4/.
-            // The path, Authorization header and body pass through unchanged.
-            proxy: [
-                {
-                    context: ["/b4/"],
-                    target: `http://${process.env.HARVEST_DOMAIN || "harvest:8400"}`,
-                },
-            ],
+            // Same-origin forwards to Harvest, as the deployed web servers do:
+            // /b4/ for browser trustees, and the exact package intake path.
+            proxy: devProxy(process.env.HARVEST_DOMAIN),
             headers: {
                 // Required together for SharedArrayBuffer/Atomics support,
                 // used by browser worker builds.

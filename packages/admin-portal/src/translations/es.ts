@@ -183,6 +183,14 @@ const spanishTranslation: TranslationType = {
                     "No se pudo cargar la herramienta local para desbloquear el paquete. Usa HTTPS o localhost y vuelve a abrir el panel. No se subió nada.",
                 innerHashMismatch:
                     "El SHA-256 introducido no coincide con el del ZIP firmado descifrado. No se subió nada.",
+                serverInsecure:
+                    "Este paquete incluye credenciales de mensajería. Abre el Portal de administración por HTTPS (o en este equipo) para subirlo. No se subió nada.",
+                serverDecryptFailed:
+                    "No se pudo desbloquear el paquete de configuración. Comprueba la contraseña y el archivo y vuelve a subirlo.",
+                serverHashMismatch:
+                    "El SHA-256 introducido no coincide con el del ZIP firmado. Vuelve a subir el paquete.",
+                serverRefused:
+                    "El servidor no pudo aceptar las credenciales de mensajería de este paquete. Vuelve a subirlo por HTTPS.",
                 innerHashHelp:
                     "Para un paquete cifrado, puedes introducir el SHA-256 del ZIP firmado que contiene.",
             },
@@ -237,6 +245,9 @@ const spanishTranslation: TranslationType = {
                 "Esto aplica el paquete previsualizado al cliente {{tenantId}}. La plataforma lo vuelve a previsualizar primero y se detiene ante cualquier bloqueo.",
             cancel: "Cancelar",
             proposedChanges: "Lo que cambiaría al aplicar",
+            messagingReplaceAction: "Sustituir la cuenta existente",
+            messagingReplaceWarning:
+                "Al aplicar, se actualiza la cuenta de mensajería existente del cliente. Las elecciones vinculadas conservan el vínculo, pero no se enviarán mensajes a través de esta cuenta hasta que se superen las comprobaciones del proveedor.",
             shaMalformed:
                 "El SHA-256 introducido no tiene 64 caracteres hexadecimales, así que el paquete no se ha previsualizado. Introduzca el resumen exacto o déjelo en blanco.",
             nothingToChange: "Nada: el cliente ya coincide con el paquete.",

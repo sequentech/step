@@ -8,7 +8,7 @@ use super::*;
 use crate::election_config::sheet::Workbook;
 use serde_json::json;
 
-fn rule(value: Value) -> SigningRule {
+fn rule(value: Value) -> PlannedSigningRule {
     serde_json::from_value(value).unwrap()
 }
 
@@ -56,7 +56,9 @@ fn a_configuration_survives_a_real_xlsx_round_trip_as_stored() {
     // Stored, not effective: the trustee rule keeps its 5 and not-allowed.
     let trustee = &read.rules.as_ref().unwrap()[2];
     assert_eq!(trustee.signatures, 5);
-    assert_eq!(trustee.required(), 1);
+    let native: SigningRule =
+        serde_json::from_value(serde_json::to_value(trustee).unwrap()).unwrap();
+    assert_eq!(native.required(), 1);
 }
 
 #[cfg(feature = "election_config_xlsx")]
@@ -218,6 +220,42 @@ fn a_row_that_does_not_read_is_refused_with_its_place_never_skipped() {
     );
 }
 
+#[cfg(feature = "election_config_xlsx")]
+#[test]
+fn malformed_manual_rules_still_fail_an_xlsx_read() {
+    let broken = grid_sheet(
+        "SigningRules",
+        &RULE_COLUMNS,
+        vec![
+            vec![
+                Cell::text(MANUAL_VERIFICATION_ACTION),
+                Cell::text("required"),
+                Cell::text("two"),
+                Cell::text("allowed"),
+                Cell::text("null"),
+                Cell::Blank,
+            ],
+            vec![
+                Cell::text("authorize-manual-verifications"),
+                Cell::text("required"),
+                Cell::Int(2),
+                Cell::text("allowed"),
+                Cell::text("null"),
+                Cell::Blank,
+            ],
+        ],
+    );
+    let bytes = crate::election_config::xlsx_write::write_xlsx(
+        &Workbook::new(vec![broken]).unwrap(),
+    )
+    .unwrap();
+    let workbook = crate::election_config::xlsx::read_xlsx(&bytes).unwrap();
+    let errors = PlannedSigning::from_workbook(&workbook).unwrap_err();
+    assert_eq!(errors.len(), 2);
+    assert_eq!(errors[0].path, "SigningRules[0].signatures");
+    assert_eq!(errors[1].path, "SigningRules[1]");
+}
+
 #[test]
 fn a_column_the_sheet_does_not_define_is_refused_not_defaulted() {
     let mut header: Vec<Cell> =
@@ -265,4 +303,25 @@ fn the_approval_matrix_keeps_absent_apart_from_empty() {
         Some(json!({}))
     );
     assert_eq!(read(json!({"approval_matrix": null})).approval_matrix, None);
+}
+
+#[test]
+fn manual_verification_needs_the_paired_native_receiving_catalog() {
+    let export = json!({"signing_rules": [
+        {"action": "open-voting"},
+        {"action": MANUAL_VERIFICATION_ACTION}
+    ]});
+    let problem = require_manual_verification_receiving_support(&export, false)
+        .unwrap_err();
+    assert_eq!(
+        problem.id.as_deref(),
+        Some("signing.manual-verification-receiver-required")
+    );
+    assert_eq!(problem.path, "signing_rules[1].action");
+    assert!(require_manual_verification_receiving_support(
+        &json!({"signing_rules": [{"action": "open-voting"}]}),
+        false,
+    )
+    .is_ok());
+    assert!(require_signing_receiver(&export).is_ok());
 }

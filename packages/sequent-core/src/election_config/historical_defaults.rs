@@ -24,8 +24,9 @@
 //!   the whole polling place as its embassy label reads (`Bangkok PE`). The alias stays the polling place, since
 //!   schedules name elections by it. A pattern no election matches is not an
 //!   error: one defaults workbook serves every dump.
-//! - **Areas**: one per precinct cluster (`pop.CLUSTERPOLLCENTER`), named by the
-//!   historical rule (the barangay's name, or the municipality's when the barangay
+//! - **Areas**: one per precinct cluster, resolved from `pop.CLUSTERPOLLCENTER`
+//!   or exact geography when it is NULL, named by the historical rule (the
+//!   barangay's name, or the municipality's when the barangay
 //!   is named after its own post) and described by the cluster's own polling
 //!   place, which is the embassy a preserved voter is shown under. An `Areas` row
 //!   without a `name` gives every area its other columns; a row with a `name`
@@ -37,7 +38,7 @@
 //!   and an election without a schedule is the same warning a full workbook
 //!   gives.
 
-use super::{problem, row, rows_sheet, Data};
+use super::{precinct_barangay, problem, row, rows_sheet, Data};
 use crate::election_config::{
     problem::{Code, Problem},
     sheet::{Row, Workbook},
@@ -101,7 +102,8 @@ pub(super) fn derive(
         if !posts.contains(&post) {
             posts.push(post.clone());
         }
-        let cluster = populations.text(pop, "CLUSTERPOLLCENTER")?;
+        let barangay = precinct_barangay(&populations, pop, &barangays, &bi)?;
+        let cluster = barangays.text(barangay, "ID_BARANGAY")?;
         if let Some(&area) = area_by_cluster.get(&cluster) {
             if !ci.contains_key(&cluster) && area_posts[area] != post {
                 return Err(problem(
@@ -115,8 +117,6 @@ pub(super) fn derive(
             areas_by_precinct.insert(pop, area);
             continue;
         }
-        let barangay =
-            barangays.lookup(&bi, &cluster, pop, "CLUSTERPOLLCENTER")?;
         // The cluster's own center, when it has one, rather than whichever center
         // (a test one, say) happens to come first.
         let own_post = match ci.get(&cluster) {

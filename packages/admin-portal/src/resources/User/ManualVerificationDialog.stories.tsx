@@ -13,7 +13,7 @@ import {
 } from "@/__stories__/AdminStoryProvider"
 import {IPermissions} from "@/types/keycloak"
 import {ManualVerificationDialog} from "./ManualVerification"
-import {REQUEST, VOTER} from "./manualVerificationStoryFixture"
+import {REQUEST, VOTER} from "./__stories__/manualVerificationStoryFixture"
 
 const makeBoundary = () =>
     graphqlBoundary({

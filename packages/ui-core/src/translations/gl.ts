@@ -323,6 +323,18 @@ const galegoTranslation: TranslationType = {
                     },
                 },
                 "candidate": {
+                    "inline-photo": {
+                        lead: "Foto de candidatura non válida",
+                        text: "Foto de candidatura non válida — Usa un único PNG ou JPEG estático por candidatura, agás nas opcións de voto por escrito. Comproba os límites do ficheiro e do libro.",
+                    },
+                    "sql-photo": {
+                        lead: "Foto SQL non válida",
+                        text: "Foto SQL non válida — PICTURE debe ser un BLOB cunha imaxe estática PNG, JPEG, WebP ou AVIF dentro dos límites de importación. Expórtaa sen rotación EXIF nin transformacións de visualización AVIF.",
+                    },
+                    "photo-source-conflict": {
+                        lead: "Dúas fontes para a foto",
+                        text: "Dúas fontes para a foto — Deixa a foto en PICTURE do SQL ou en image_data_url do Excel, pero non nos dous sitios.",
+                    },
                     "contest-missing": {
                         lead: "Falta a votación da candidatura",
                         text: "Falta a votación da candidatura — a candidatura pertence a unha votación que non está neste ficheiro.",
@@ -1081,6 +1093,14 @@ const galegoTranslation: TranslationType = {
                     "trust-not-carried": {
                         lead: "Confianza de certificados non conservada",
                         text: "Confianza de certificados non conservada — o arquivo aberto tiña '{{member}}', que o Architect non conserva. As sinaturas que dependan diso poden fallar ata que se restaure coa configuración de certificados autorizada da plataforma.",
+                    },
+                    "manual-verification-profile-conflict": {
+                        lead: "Perfil de sinatura en conflito",
+                        text: "Perfil de sinatura en conflito — este perfil substituiría «{{action}}». A regra non se modificou. Abre o plan sen o perfil en conflito para seguir editándoo.",
+                    },
+                    "manual-verification-receiver-required": {
+                        lead: "Precísase un receptor compatible",
+                        text: "Precísase un receptor compatible — este receptor non pode aplicar «{{action}}». A regra mantense no libro e no plan. Para xerar unha entrega, utiliza un Architect e un receptor que admitan a sinatura da verificación manual.",
                     },
                     "workbook-needs-current-architect": {
                         lead: "O libro precisa un Architect actual",

@@ -320,6 +320,18 @@ const dutchTranslation: TranslationType = {
                     },
                 },
                 "candidate": {
+                    "inline-photo": {
+                        lead: "Ongeldige kandidatenfoto",
+                        text: "Ongeldige kandidatenfoto — Gebruik één statische PNG of JPEG per kandidaat, behalve bij een invulkeuze. Controleer de limieten van het bestand en de werkmap.",
+                    },
+                    "sql-photo": {
+                        lead: "Ongeldige SQL-foto",
+                        text: "Ongeldige SQL-foto — PICTURE moet een BLOB zijn met een statische PNG, JPEG, WebP of AVIF die aan de importlimieten voldoet. Exporteer de afbeelding zonder EXIF-rotatie of AVIF-weergavetransformaties.",
+                    },
+                    "photo-source-conflict": {
+                        lead: "Twee bronnen voor de kandidatenfoto",
+                        text: "Twee bronnen voor de kandidatenfoto — Bewaar de foto in SQL PICTURE of Excel image_data_url, niet in beide.",
+                    },
                     "contest-missing": {
                         lead: "Stemming van de kandidaat ontbreekt",
                         text: "Stemming van de kandidaat ontbreekt — de kandidaat hoort bij een stemming die niet in dit bestand staat.",
@@ -1078,6 +1090,14 @@ const dutchTranslation: TranslationType = {
                     "trust-not-carried": {
                         lead: "Certificaatvertrouwen niet meegenomen",
                         text: "Certificaatvertrouwen niet meegenomen — het geopende archief bevatte '{{member}}', dat de Architect niet meeneemt. Handtekeningen die ervan afhangen kunnen mislukken tot het via de geautoriseerde certificaatconfiguratie van het platform is hersteld.",
+                    },
+                    "manual-verification-profile-conflict": {
+                        lead: "Conflicterend ondertekeningsprofiel",
+                        text: "Conflicterend ondertekeningsprofiel — dit profiel zou ‘{{action}}’ vervangen. De regel is niet gewijzigd. Open het plan zonder het conflicterende profiel om verder te bewerken.",
+                    },
+                    "manual-verification-receiver-required": {
+                        lead: "Compatibele ontvanger vereist",
+                        text: "Compatibele ontvanger vereist — deze ontvanger kan ‘{{action}}’ niet afdwingen. De regel blijft in de werkmap en het plan staan. Gebruik een Architect en ontvanger die ondertekening van handmatige verificatie ondersteunen om een levering te maken.",
                     },
                     "workbook-needs-current-architect": {
                         lead: "Werkmap vraagt een recente Architect",

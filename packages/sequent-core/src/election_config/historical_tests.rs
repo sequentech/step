@@ -6,6 +6,17 @@ use crate::election_config::{
     TemplateSet,
 };
 
+fn apply_test_candidate_rows(
+    rows: &[Row],
+    candidates: &mut BTreeMap<String, Row>,
+) -> Result<(), Problem> {
+    apply_candidate_rows(
+        rows,
+        candidates,
+        &mut super::super::workbook_photo::Budget::default(),
+    )
+}
+
 fn fixture() -> (Vec<u8>, Vec<u8>) {
     let mut sql=String::from("CREATE TABLE `allbgy` (`ID_BARANGAY` text, `AREANAME` text); INSERT INTO `allbgy` VALUES ('B01','Area One');\nCREATE TABLE `allmun` (`ID_CITY` text, `AREANAME` text); INSERT INTO `allmun` VALUES ('001002','City One');\nCREATE TABLE `polling_centers` (`ID` text, `POLLING_PLACE` text); INSERT INTO `polling_centers` VALUES ('P01','Post One');\nCREATE TABLE `pop` (`CLUSTERPOLLCENTER` text, `POLLCENTER_CODE` text, `PROV_CODE` text, `MUN_CODE` text, `BRGY_CODE` text); INSERT INTO `pop` VALUES ('B01','P01','001','002','003');\nCREATE TABLE `trans_route` (`TRANS_SOURCE_ID` text, `TRANS_DEST_ID` text); INSERT INTO `trans_route` VALUES ('0010020003','DEST01');\nCREATE TABLE `seat` (`DISTRICTCODE` text, `CONTEST` text, `ELIGIBLEAMOUNT` int, `GEOCODE` text); INSERT INTO `seat` VALUES ('S01','Example Seat',1,'G01');\nCREATE TABLE `contest` (`POSTCODE` text, `POSTNAME` text, `SORT_ORDER` int); INSERT INTO `contest` VALUES ('C01','Example Seat',1);\nCREATE TABLE `candidate` (`CAND_CODE` text, `NAMEONBALLOT` text, `POST_CODE` text, `DISTRICTCODE` text, `NOMINATEDBY` text); INSERT INTO `candidate` VALUES ('0007','Example Candidate','C01','S01','PR01');\nCREATE TABLE `party_list` (`CODE_PARTY` text, `SHORT_NAME` text, `NAME_PARTY` text); INSERT INTO `party_list` VALUES ('PR01','EP','Example Party');\nCREATE TABLE `geographical` (`GEOCODE` text); INSERT INTO `geographical` VALUES ('G01');\nCREATE TABLE `voters` (`ID` text); INSERT INTO `voters` VALUES ('private-voter-id');\n");
     for name in [
@@ -586,6 +597,322 @@ fn refuses_a_dangling_precinct_reference_before_building() {
     assert_eq!(refused.report.problems[0].code, Code::DanglingReference);
     assert!(!refused.report.problems[0].message.contains("MISSING"));
 }
+
+fn null_cluster_source() -> (String, Vec<u8>) {
+    let (sql, xlsx) = fixture();
+    let sql = String::from_utf8(sql)
+        .unwrap()
+        .replace(
+            "`ID_BARANGAY` text, `AREANAME` text",
+            "`ID_BARANGAY` text, `AREANAME` text, `ID_CITY` text",
+        )
+        .replace("('B01','Area One')", "('001002003','Area One','001002')")
+        .replace(
+            "('B01','P01','001','002','003')",
+            "(NULL,'P01','001','002','003')",
+        );
+    (sql, xlsx)
+}
+
+#[test]
+fn null_precinct_cluster_uses_exact_geography_without_changing_routes() {
+    let (sql, full) = null_cluster_source();
+    let exact = sql.replace("(NULL,'P01'", "('001002003','P01'");
+    let options = HistoricalOptions {
+        schedule_offset_minutes: Some(480),
+        ..reviewed()
+    };
+    for workbook in [full, defaults_workbook()] {
+        let reference = adapt(exact.as_bytes(), &workbook, &options).unwrap();
+        let post = post_qualification(sql.as_bytes());
+        for source in [&sql, &post] {
+            let result = adapt(source.as_bytes(), &workbook, &options).unwrap();
+            for sheet in ["areas", "areacontests", "contests", "candidates"] {
+                assert_eq!(
+                    result.workbook.rows(sheet)[0].cells,
+                    reference.workbook.rows(sheet)[0].cells,
+                    "{sheet}"
+                );
+            }
+            let area = &result.workbook.rows("areas")[0];
+            assert_eq!(area.text("external_id"), Some("barangay:001002003"));
+            assert_eq!(
+                area.text("annotations.miru:area-station-id"),
+                Some("0010020003")
+            );
+            assert_eq!(
+                area.text("annotations.legacy_destination_id"),
+                Some("DEST01")
+            );
+            assert_eq!(
+                result.summary.precincts[0].workbook_area_rows,
+                reference.summary.precincts[0].workbook_area_rows
+            );
+        }
+    }
+}
+
+#[test]
+fn null_precinct_cluster_never_replaces_an_explicit_value() {
+    let (sql, xlsx) = null_cluster_source();
+    let sql = sql + "INSERT INTO `allbgy` VALUES ('B01','Area One',NULL);";
+    let explicit = sql.replace("(NULL,'P01'", "('B01','P01'");
+    let result = adapt(explicit.as_bytes(), &xlsx, &reviewed()).unwrap();
+    assert_eq!(
+        result.workbook.rows("areas")[0].text("external_id"),
+        Some("barangay:B01")
+    );
+    let bad_explicit = sql.replace("(NULL,'P01'", "('UNKNOWN','P01'");
+    refused_code(
+        bad_explicit.as_bytes(),
+        &xlsx,
+        &reviewed(),
+        Code::DanglingReference,
+    );
+}
+
+#[test]
+fn null_precinct_cluster_refuses_missing_ambiguous_or_conflicting_geography() {
+    let (sql, full) = null_cluster_source();
+    let cases = [
+        (
+            sql.replace("('001002003','Area One'", "('0010020003','Area One'"),
+            Code::DanglingReference,
+            "pop row 1 column CLUSTERPOLLCENTER",
+        ),
+        (
+            sql.clone() + "INSERT INTO `allbgy` VALUES ('001002003','Other Area','001002');",
+            Code::DuplicateId,
+            "allbgy row 2 column ID_BARANGAY",
+        ),
+        (
+            sql.replace("'Area One','001002'", "'Area One','001003'"),
+            Code::ConflictingColumns,
+            "pop row 1 column CLUSTERPOLLCENTER",
+        ),
+        (
+            sql.replace("`AREANAME` text, `ID_CITY` text", "`AREANAME` text")
+                .replace("'Area One','001002'", "'Area One'"),
+            Code::MissingField,
+            "allbgy row 1 column ID_CITY",
+        ),
+        (
+            sql.replace("'002','003')", "'002','')"),
+            Code::MissingField,
+            "pop row 1 column BRGY_CODE",
+        ),
+    ];
+    let options = HistoricalOptions {
+        schedule_offset_minutes: Some(480),
+        ..reviewed()
+    };
+    for workbook in [full, defaults_workbook()] {
+        for (source, code, path) in &cases {
+            let problem =
+                refused_code(source.as_bytes(), &workbook, &options, *code);
+            assert!(problem.path.ends_with(path), "{} != {path}", problem.path);
+        }
+    }
+}
+
+fn post_qualification_route_source() -> (String, Vec<u8>) {
+    let (sql, xlsx) = null_cluster_source();
+    let sql = post_qualification(sql.as_bytes())
+        .replace(
+            "`BRGY_CODE` text);",
+            "`BRGY_CODE` text, `CLUSTER` text, `GROUPNUMBER` text, `CLUSTEREDPRECINCT` text, `CODE` text);",
+        )
+        .replace(
+            "(NULL,'P01','001','002','003')",
+            "(NULL,'P01','001','002','003','17','0017','0017A','0010020030017A')",
+        )
+        .replace("`TRANS_DEST_ID` text);", "`TRANS_DEST_ID` text, `TYPE` text);")
+        .replace(
+            "('0010020003','DEST01')",
+            "('001002','CCS01','CCS'),('0010020017','00042','OVCS')",
+        );
+    (sql, xlsx)
+}
+
+#[test]
+fn post_qualification_cluster_route_keeps_the_exact_station_and_destination() {
+    let (sql, full) = post_qualification_route_source();
+    let without_suffix = sql.replace("0017A", "0017");
+    let options = HistoricalOptions {
+        schedule_offset_minutes: Some(480),
+        ..reviewed()
+    };
+    for workbook in [full, defaults_workbook()] {
+        for source in [&sql, &without_suffix] {
+            let result = adapt(source.as_bytes(), &workbook, &options).unwrap();
+            let area = &result.workbook.rows("areas")[0];
+            assert_eq!(area.text("external_id"), Some("barangay:001002003"));
+            assert_eq!(
+                area.text("annotations.miru:area-station-id"),
+                Some("0010020017")
+            );
+            assert_eq!(
+                area.text("annotations.legacy_destination_id"),
+                Some("00042")
+            );
+        }
+    }
+}
+
+#[test]
+fn post_qualification_cluster_route_does_not_override_the_legacy_exact_route() {
+    let (sql, xlsx) = post_qualification_route_source();
+    // Even with a different cluster route in the dump, retain the old exact
+    // station and do not require cluster corroboration for it.
+    let sql = sql.replace("'17','0017'", "'17','0018'")
+        + "INSERT INTO `trans_routes` VALUES ('0010020003','00099','OVCS');";
+    let result = adapt(sql.as_bytes(), &xlsx, &reviewed()).unwrap();
+    let area = &result.workbook.rows("areas")[0];
+    assert_eq!(
+        area.text("annotations.miru:area-station-id"),
+        Some("0010020003")
+    );
+    assert_eq!(
+        area.text("annotations.legacy_destination_id"),
+        Some("00099")
+    );
+}
+
+#[test]
+fn post_qualification_cluster_route_refuses_unproven_or_conflicting_routes() {
+    let (sql, xlsx) = post_qualification_route_source();
+    let cases = [
+        (
+            sql.replace(",('0010020017','00042','OVCS')", ""),
+            Code::DanglingReference,
+            "trans_routes row 1 column TRANS_SOURCE_ID",
+        ),
+        (
+            sql.replace("'00042','OVCS'", "'00042','CCS'"),
+            Code::InvalidValue,
+            "trans_routes row 2 column TYPE",
+        ),
+        (
+            sql.clone() + "INSERT INTO `trans_routes` VALUES ('0010020017','00043','OVCS');",
+            Code::DuplicateId,
+            "trans_routes row 3 column TRANS_SOURCE_ID",
+        ),
+        (
+            sql.replace("'17','0017'", "'17','0018'"),
+            Code::ConflictingColumns,
+            "pop row 1 column GROUPNUMBER",
+        ),
+        (
+            sql.replace("'17','0017'", "'17','+17'"),
+            Code::InvalidValue,
+            "pop row 1 column GROUPNUMBER",
+        ),
+        (
+            sql.replace("0017A", "0018A"),
+            Code::ConflictingColumns,
+            "pop row 1 column CLUSTEREDPRECINCT",
+        ),
+        (
+            sql.replace("0017A", "00170A"),
+            Code::ConflictingColumns,
+            "pop row 1 column CLUSTEREDPRECINCT",
+        ),
+        (
+            sql.replace("0017A", "0017!"),
+            Code::ConflictingColumns,
+            "pop row 1 column CLUSTEREDPRECINCT",
+        ),
+        (
+            sql.replace("'0010020030017A'", "'0010020040017A'"),
+            Code::ConflictingColumns,
+            "pop row 1 column CODE",
+        ),
+        (
+            sql.clone()
+                + "INSERT INTO `pop` VALUES (NULL,'P01','001','002','003','18','0018','0018A','0010020030018A');"
+                + "INSERT INTO `trans_routes` VALUES ('0010020018','00043','OVCS');",
+            Code::ConflictingColumns,
+            "sheet Areas",
+        ),
+    ];
+    for (source, code, path) in cases {
+        let problem = refused_code(source.as_bytes(), &xlsx, &reviewed(), code);
+        assert!(problem.path.ends_with(path), "{} != {path}", problem.path);
+    }
+}
+
+#[test]
+fn historical_affiliation_ignores_only_blank_codes() {
+    let (sql, xlsx) = fixture();
+    let sql = String::from_utf8(sql).unwrap();
+    let nomination = "'Example Candidate','C01','S01','PR01'";
+    let blank =
+        sql.replace(nomination, "'Example Candidate','C01','S01','  \t  '");
+    let export = built_export(blank.as_bytes(), &xlsx);
+    assert!(export["candidates"][0]["annotations"]
+        ["miru:candidate-affiliation-id"]
+        .is_null());
+
+    let export = built_export(sql.as_bytes(), &xlsx);
+    assert_eq!(
+        export["candidates"][0]["annotations"]["miru:candidate-affiliation-id"],
+        "PR01"
+    );
+
+    for code in ["UNKNOWN", " PR01 "] {
+        let unknown = sql.replace(
+            nomination,
+            &format!("'Example Candidate','C01','S01','{code}'"),
+        );
+        let problem = refused_code(
+            unknown.as_bytes(),
+            &xlsx,
+            &reviewed(),
+            Code::DanglingReference,
+        );
+        assert!(problem.path.ends_with("candidate row 1 column NOMINATEDBY"));
+    }
+}
+
+#[test]
+fn historical_affiliation_uses_exact_registered_name_when_short_name_is_missing(
+) {
+    let (source, xlsx) = fixture();
+    let source = String::from_utf8(source).unwrap();
+    for (short, display) in [
+        ("NULL", "Example Party"),
+        ("'  '", "Example Party"),
+        ("' EP '", " EP "),
+    ] {
+        let sql = source.replace(
+            "('PR01','EP','Example Party')",
+            &format!("('PR01',{short},'Example Party')"),
+        );
+        let export = built_export(sql.as_bytes(), &xlsx);
+        let annotations = &export["candidates"][0]["annotations"];
+        assert_eq!(annotations["miru:candidate-affiliation-id"], "PR01");
+        assert_eq!(
+            annotations["miru:candidate-affiliation-registered-name"],
+            "Example Party"
+        );
+        assert_eq!(annotations["miru:candidate-affiliation-party"], display);
+    }
+
+    for registered in ["NULL", "'   '"] {
+        let bad = source.replace(
+            "('PR01','EP','Example Party')",
+            &format!("('PR01',NULL,{registered})"),
+        );
+        let problem = refused_code(
+            bad.as_bytes(),
+            &xlsx,
+            &reviewed(),
+            Code::MissingField,
+        );
+        assert!(problem.path.ends_with("party_list row 1 column NAME_PARTY"));
+    }
+}
+
 #[test]
 fn outside_seat_candidates_require_explicit_scope_review() {
     let sql = with_second_seat(fixture().0, "('S02','Second Seat',1,'G01')")
@@ -615,6 +942,110 @@ fn first_seat_only(sql: &[u8], xlsx: &[u8]) -> HistoricalOptions {
         ..bound_options(sql, xlsx)
     }
 }
+
+fn vice_president_source() -> (String, Vec<u8>) {
+    let (sql, xlsx) = fixture();
+    let sql = String::from_utf8(sql)
+        .unwrap()
+        .replace(
+            "('S01','Example Seat',1,'G01')",
+            "('S01','VICE PRESIDENT',1,'G01')",
+        )
+        .replace("('C01','Example Seat',1)", "('C01','VICE-PRESIDENT',7)")
+        + "INSERT INTO `candidate` VALUES ('0008','Second Example','C01','S01',NULL);";
+    (sql, xlsx)
+}
+
+#[test]
+fn historical_vice_president_alias_preserves_candidate_placement_and_labels() {
+    let (sql, xlsx) = vice_president_source();
+    let export = built_export(sql.as_bytes(), &xlsx);
+    let exact =
+        sql.replace("('C01','VICE-PRESIDENT',7)", "('C01','VICE PRESIDENT',7)");
+    let exact_export = built_export(exact.as_bytes(), &xlsx);
+    let post = post_qualification(sql.as_bytes());
+    let post_export = built_export(post.as_bytes(), &xlsx);
+    for section in ["contests", "candidates", "area_contests"] {
+        assert_eq!(export[section], exact_export[section], "{section}");
+        assert_eq!(post_export[section], exact_export[section], "{section}");
+    }
+
+    let contest = &export["contests"][0];
+    assert_eq!(localized(contest, "en", "name"), "VICE PRESIDENT");
+    assert_eq!(
+        contest["annotations"]["miru:contest-name"],
+        "VICE PRESIDENT"
+    );
+    assert_eq!(contest["presentation"]["sort_order"], 7);
+    let candidates = export["candidates"].as_array().unwrap();
+    assert_eq!(candidates.len(), 2);
+    for (candidate, (id, name)) in candidates
+        .iter()
+        .zip([("0007", "Example Candidate"), ("0008", "Second Example")])
+    {
+        assert_eq!(candidate["contest_id"], contest["id"]);
+        assert_eq!(candidate["annotations"]["miru:candidate-id"], id);
+        assert_eq!(localized(candidate, "en", "name"), name);
+    }
+}
+
+#[test]
+fn historical_vice_president_alias_does_not_override_an_exact_contest() {
+    let (sql, xlsx) = vice_president_source();
+    let sql = sql + "INSERT INTO `contest` VALUES ('C02','VICE PRESIDENT',9);";
+    let problem = refused_code(
+        sql.as_bytes(),
+        &xlsx,
+        &reviewed(),
+        Code::ConflictingColumns,
+    );
+    assert_eq!(problem.details["contest"], "C01");
+    assert_eq!(problem.details["seatContest"], "C02");
+
+    let exact = sql.replace("'C01','S01'", "'C02','S01'");
+    let export = built_export(exact.as_bytes(), &xlsx);
+    assert_eq!(export["contests"][0]["presentation"]["sort_order"], 9);
+    assert_eq!(export["candidates"].as_array().unwrap().len(), 2);
+}
+
+#[test]
+fn historical_vice_president_alias_does_not_accept_ambiguous_or_other_names() {
+    let (sql, xlsx) = vice_president_source();
+    let duplicate = sql.clone()
+        + "INSERT INTO `contest` VALUES ('C02','VICE-PRESIDENT',9);";
+    let problem = refused_code(
+        duplicate.as_bytes(),
+        &xlsx,
+        &reviewed(),
+        Code::DuplicateId,
+    );
+    assert!(problem.path.ends_with("contest row 2 column POSTNAME"));
+
+    for (seat, contest) in [
+        ("PRESIDENT ELECT", "PRESIDENT-ELECT"),
+        ("VICE-PRESIDENT", "VICE PRESIDENT"),
+        ("Vice President", "VICE-PRESIDENT"),
+    ] {
+        let sql = sql
+            .replace(
+                "('S01','VICE PRESIDENT',1,'G01')",
+                &format!("('S01','{seat}',1,'G01')"),
+            )
+            .replace(
+                "('C01','VICE-PRESIDENT',7)",
+                &format!("('C01','{contest}',7)"),
+            );
+        let problem = refused_code(
+            sql.as_bytes(),
+            &xlsx,
+            &reviewed(),
+            Code::DanglingReference,
+        );
+        assert!(problem.path.ends_with("seat row 1 column CONTEST"));
+        assert_eq!(problem.details["reference"], seat);
+    }
+}
+
 #[test]
 fn a_valid_unselected_contest_is_excluded_and_counted_under_configured_seats_only(
 ) {
@@ -2476,6 +2907,302 @@ fn defaulted() -> HistoricalOptions {
     }
 }
 
+fn postqual_mail_voters(sql: Vec<u8>, rows: &str) -> Vec<u8> {
+    with_voters(
+        sql,
+        &format!(
+            "CREATE TABLE `voters` (`ID` text, `FIRSTNAME` text, `LASTNAME` text, `MAILCOUNTRY` text, `MAILEMBASSY` text); INSERT INTO `voters` VALUES {rows};"
+        ),
+    )
+}
+
+fn postqual_ambiguous_mail_location(voters: &str) -> Vec<u8> {
+    let sql = String::from_utf8(post_qualification_overseas())
+        .unwrap()
+        // Register the disagreeing area first, followed by two agreeing rows.
+        // The last row must not clear the recorded ambiguity.
+        .replace(
+            "('B06','P01','90','06','001','0001A')",
+            "('B07','P01','90','06','004','0003A'),('B06','P01','90','06','001','0001A')",
+        )
+        + "INSERT INTO `allbgy` VALUES ('B07','EXAMPLE AREA');"
+        + "INSERT INTO `trans_routes` VALUES ('90060004','DESTD');";
+    postqual_mail_voters(sql.into_bytes(), voters)
+}
+
+#[test]
+fn post_qualification_unused_mail_ambiguity_does_not_block_a_unique_voter() {
+    let sql = postqual_ambiguous_mail_location(
+        "('safe','Example','Voter','90','02')",
+    );
+    let xlsx = defaults_workbook();
+    let adapted = adapt(&sql, &xlsx, &defaulted()).unwrap();
+    assert_eq!(
+        adapted.summary.source_schema,
+        SourceSchema::PostQualification
+    );
+    assert_eq!(adapted.summary.preserved_voters, 1);
+    assert_eq!(adapted.workbook.rows("areas").len(), 4);
+    let voters = adapted.workbook.rows("voters");
+    assert_eq!(voters.len(), 1);
+    assert_eq!(voters[0].text("area.external_id"), Some("barangay:B02"));
+}
+
+#[test]
+fn post_qualification_reports_ambiguous_and_unmatched_mail_voters_together() {
+    let sql = postqual_ambiguous_mail_location(
+        "('ambiguous','Example','Voter','90','06'),('missing','Example','Voter','99','99'),('safe','Example','Voter','90','02')",
+    );
+    let refused = adapt(&sql, &defaults_workbook(), &defaulted()).unwrap_err();
+    let problems: Vec<_> = refused
+        .report
+        .problems
+        .iter()
+        .map(|problem| (problem.code, problem.path.as_str()))
+        .collect();
+    assert_eq!(
+        problems,
+        [
+            (
+                Code::DuplicateId,
+                "SQL table voters row 1 column MAILEMBASSY"
+            ),
+            (
+                Code::DanglingReference,
+                "SQL table voters row 2 column MAILEMBASSY"
+            ),
+        ],
+    );
+    assert!(refused.summary.generated_rows.is_empty());
+    assert_eq!(refused.summary.preserved_voters, 0);
+}
+
+#[test]
+fn post_qualification_mail_conflict_between_in_scope_and_excluded_rows_is_refused(
+) {
+    let (sql, xlsx) = post_qualification_route_source();
+    let sql = sql
+        + "INSERT INTO `polling_centers` VALUES ('P02','Excluded Post');"
+        + "INSERT INTO `pop` VALUES ('001002003','P02','001','002','003','17','0017','0017B','0010020030017B');";
+    let sql = postqual_mail_voters(
+        sql.into_bytes(),
+        "('ambiguous','Example','Voter','001','002')",
+    );
+    let options = HistoricalOptions {
+        post_coverage: PostCoverage::WorkbookPostsOnly,
+        source_digests: bound_options(&sql, &xlsx).source_digests,
+        ..defaulted()
+    };
+    let refused = adapt(&sql, &xlsx, &options).unwrap_err();
+    assert_eq!(refused.summary.excluded_precinct_rows, 1);
+    assert!(refused.summary.generated_rows.is_empty());
+    assert_eq!(refused.report.problems.len(), 1);
+    assert_eq!(refused.report.problems[0].code, Code::DuplicateId);
+    assert_eq!(
+        refused.report.problems[0].path,
+        "SQL table voters row 1 column MAILEMBASSY"
+    );
+}
+
+#[test]
+fn post_qualification_precinct_tuple_join_retains_strict_source_checks() {
+    let (sql, xlsx) =
+        overseas_voter_fixture(",('B02','P01','90','06','001','0001A')", "");
+    let sql = post_qualification(&sql);
+    let problem =
+        refused_code(sql.as_bytes(), &xlsx, &preserving(), Code::DuplicateId);
+    assert!(problem.path.ends_with("pop row 5 column PRECINCT"));
+}
+
+fn reviewed_mail_office_codes(sql: &[u8], xlsx: &[u8]) -> HistoricalOptions {
+    HistoricalOptions {
+        voter_area_join: Some(VoterAreaJoin::PostQualificationMailOfficeCodes),
+        source_digests: bound_options(sql, xlsx).source_digests,
+        ..defaulted()
+    }
+}
+
+fn add_synthetic_mail_office(
+    sql: String,
+    (province, municipality, barangay): (&str, &str, &str),
+    center: &str,
+    proven: bool,
+) -> String {
+    let city = format!("{province}{municipality}");
+    let id = format!("{city}{barangay}");
+    let barangay_city = if proven { city.as_str() } else { "OTHER" };
+    sql + &format!(
+        "INSERT INTO `allmun` VALUES ('{city}','Synthetic City');
+         INSERT INTO `allbgy` VALUES ('{id}','Area {id}','{barangay_city}');
+         INSERT INTO `trans_routes` VALUES ('{city}0{barangay}','SYNTHETIC','OVCS');
+         INSERT INTO `pop` VALUES ('{id}','{center}','{province}','{municipality}','{barangay}',NULL,NULL,NULL,NULL);"
+    )
+}
+
+#[test]
+fn reviewed_postqual_mail_office_codes_preserve_ordinary_and_verified_office_joins(
+) {
+    let (sql, _) = post_qualification_route_source();
+    let sql = add_synthetic_mail_office(sql, ("AA", "BB", "CC"), "P01", true);
+    let sql = postqual_mail_voters(
+        sql.into_bytes(),
+        "('ordinary','Example','Voter','001','002'),('office','Example','Voter','BB','CC')",
+    );
+    let xlsx = defaults_workbook();
+    let problem =
+        refused_code(&sql, &xlsx, &defaulted(), Code::DanglingReference);
+    assert!(problem.path.ends_with("voters row 2 column MAILEMBASSY"));
+
+    let result =
+        adapt(&sql, &xlsx, &reviewed_mail_office_codes(&sql, &xlsx)).unwrap();
+    let voters = result.workbook.rows("voters");
+    assert_eq!(voters.len(), 2);
+    assert_eq!(
+        voters[0].text("area.external_id"),
+        Some("barangay:001002003")
+    );
+    assert_eq!(voters[1].text("area.external_id"), Some("barangay:AABBCC"));
+    assert_eq!(voters[1].text("source_country"), Some("BB"));
+    assert_eq!(voters[1].text("source_embassy"), Some("CC"));
+    let provenance: Value = serde_json::from_str(
+        result.workbook.rows("electionevent")[0]
+            .text("annotations.import:provenance")
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        provenance["decisions"]["voterAreaJoin"],
+        "post-qualification-mail-office-codes"
+    );
+}
+
+#[test]
+fn reviewed_postqual_mail_office_codes_require_exact_source_binding_and_schema()
+{
+    let (sql, xlsx) = post_qualification_route_source();
+    let sql = postqual_mail_voters(
+        sql.into_bytes(),
+        "('v','Example','Voter','002','003')",
+    );
+    let exact = reviewed_mail_office_codes(&sql, &xlsx);
+    let no_hashes = HistoricalOptions {
+        source_digests: None,
+        ..exact.clone()
+    };
+    let problem = refused_code(&sql, &xlsx, &no_hashes, Code::NotApproved);
+    assert_eq!(problem.path, "historical decisions sourceDigests");
+    let configuration_only = HistoricalOptions {
+        census: CensusPolicy::ConfigurationOnly,
+        ..exact.clone()
+    };
+    let problem =
+        refused_code(&sql, &xlsx, &configuration_only, Code::InvalidValue);
+    assert_eq!(problem.path, "historical decisions voterAreaJoin");
+    for (different_sql, different_xlsx) in [
+        ([sql.as_slice(), b"\n"].concat(), xlsx.clone()),
+        (sql.clone(), [xlsx.as_slice(), b"\n"].concat()),
+    ] {
+        let problem = refused_code(
+            &different_sql,
+            &different_xlsx,
+            &exact,
+            Code::IntegrityMismatch,
+        );
+        assert_eq!(problem.path, "historical decisions sourceDigests");
+    }
+    let (legacy_sql, legacy_xlsx) = fixture();
+    let wrong_schema = reviewed_mail_office_codes(&legacy_sql, &legacy_xlsx);
+    let problem = refused_code(
+        &legacy_sql,
+        &legacy_xlsx,
+        &wrong_schema,
+        Code::InvalidValue,
+    );
+    assert_eq!(problem.path, "historical decisions voterAreaJoin");
+}
+
+#[test]
+fn reviewed_postqual_mail_office_codes_refuse_unproven_and_nonunique_areas() {
+    let (sql, _) = post_qualification_route_source();
+    let xlsx = defaults_workbook();
+    let ambiguous_direct = add_synthetic_mail_office(
+        add_synthetic_mail_office(
+            sql.clone(),
+            ("002", "003", "004"),
+            "P01",
+            true,
+        ),
+        ("002", "003", "005"),
+        "P01",
+        true,
+    )
+    .replacen(
+        "INSERT INTO `allmun` VALUES ('002003','Synthetic City');",
+        "",
+        1,
+    );
+    for (input, code) in [
+        (
+            sql.replace("(NULL,'P01'", "('001002003','P01'")
+                .replace("'Area One','001002'", "'Area One','CONFLICT'"),
+            Code::DanglingReference,
+        ),
+        (
+            add_synthetic_mail_office(
+                sql.clone(),
+                ("009", "002", "003"),
+                "P01",
+                true,
+            ),
+            Code::DuplicateId,
+        ),
+        (
+            add_synthetic_mail_office(
+                sql.clone(),
+                ("009", "002", "003"),
+                "P01",
+                false,
+            ),
+            Code::DuplicateId,
+        ),
+        (
+            add_synthetic_mail_office(sql, ("002", "003", "004"), "P01", true),
+            Code::ConflictingColumns,
+        ),
+        (ambiguous_direct, Code::DuplicateId),
+    ] {
+        let input = postqual_mail_voters(
+            input.into_bytes(),
+            "('v','Example','Voter','002','003')",
+        );
+        let options = reviewed_mail_office_codes(&input, &xlsx);
+        let problem = refused_code(&input, &xlsx, &options, code);
+        assert!(problem.path.ends_with("voters row 1 column MAILEMBASSY"));
+    }
+}
+
+#[test]
+fn reviewed_postqual_mail_office_codes_never_replace_an_excluded_ordinary_key()
+{
+    let (sql, xlsx) = post_qualification_route_source();
+    let sql = add_synthetic_mail_office(
+        sql + "INSERT INTO `polling_centers` VALUES ('P02','Excluded Post');",
+        ("002", "003", "004"),
+        "P02",
+        true,
+    );
+    let sql = postqual_mail_voters(
+        sql.into_bytes(),
+        "('v','Example','Voter','002','003')",
+    );
+    let options = HistoricalOptions {
+        post_coverage: PostCoverage::WorkbookPostsOnly,
+        ..reviewed_mail_office_codes(&sql, &xlsx)
+    };
+    let problem = refused_code(&sql, &xlsx, &options, Code::ConflictingColumns);
+    assert!(problem.path.ends_with("voters row 1 column MAILEMBASSY"));
+}
+
 /// A defaults workbook: without an `Elections` sheet, the elections and areas
 /// come from the SQL. A schedule without an alias is every election's, and an
 /// area row without a name is every area's.
@@ -4015,7 +4742,7 @@ fn candidate_supplements_preserve_localization_and_zero_order() {
             ("presentation.i18n.tl.name", json!("Pangalan")),
         ],
     );
-    apply_candidate_rows(&[supplement], &mut candidates).unwrap();
+    apply_test_candidate_rows(&[supplement], &mut candidates).unwrap();
     let candidate = &candidates["candidate-1"];
     assert_eq!(candidate.get("presentation.sort_order"), Some(&json!(0)));
     assert_eq!(
@@ -4047,19 +4774,26 @@ fn candidate_supplements_reject_unknown_duplicate_and_source_overrides() {
             ],
         )
     };
-    assert!(apply_candidate_rows(&[row_for("missing")], &mut make()).is_err());
-    assert!(apply_candidate_rows(
+    assert!(
+        apply_test_candidate_rows(&[row_for("missing")], &mut make()).is_err()
+    );
+    assert!(apply_test_candidate_rows(
         &[row_for("0007"), row_for("0007")],
         &mut make()
     )
     .is_err());
     let mut forbidden = row_for("0007");
     set(&mut forbidden, "external_id", json!("replacement"));
-    assert!(apply_candidate_rows(&[forbidden], &mut make()).is_err());
+    assert!(apply_test_candidate_rows(&[forbidden], &mut make()).is_err());
 }
 
 #[test]
 fn candidate_supplements_survive_historical_conversion_and_build() {
+    use crate::election_config::{
+        architect, plan_from_workbook::plan_from_workbook,
+        workbook_photo::test_png_url,
+    };
+
     let (sql, bytes) = fixture();
     let workbook = read_xlsx(&bytes).unwrap();
     let mut sheets = workbook.sheets().to_vec();
@@ -4072,25 +4806,164 @@ fn candidate_supplements_survive_historical_conversion_and_build() {
                 ("source_candidate_id", json!("0007")),
                 ("presentation.sort_order", json!(0)),
                 ("presentation.i18n.tl.name", json!("Pangalan")),
+                ("labels", json!({"group": "example"})),
+                ("image_data_url", json!(test_png_url(4, 3))),
             ],
         )],
     ));
     let xlsx = write_xlsx(&Workbook::new(sheets).unwrap()).unwrap();
     let adapted = adapt(&sql, &xlsx, &reviewed()).unwrap();
+    let templates = TemplateSet::builtin().unwrap();
     let bundle = build(
         &adapted.workbook,
-        &TemplateSet::builtin().unwrap(),
+        &templates,
         &BuildOptions::default(),
         &Sources::default(),
     )
     .unwrap();
     let candidate = &bundle.export["candidates"][0];
+    let read = plan_from_workbook(&adapted.workbook)
+        .expect("the same workbook can open in the wizard");
+    let opened = &read.plan.elections[0].contests[0].candidates[0];
+    assert!(!opened.columns.contains_key("image_data_url"));
+
+    // openFromHistorical returns plan JSON that compilePlan reads back.
+    let mut plan =
+        architect::read_plan_value(serde_json::to_value(&read.plan).unwrap())
+            .unwrap()
+            .plan;
+    let photo = plan.elections[0].contests[0].candidates[0]
+        .image
+        .as_ref()
+        .expect("the wizard retained the pixels");
+    assert_eq!(bundle.images.len(), 1);
+    let file = &bundle.images[0];
+    assert_eq!(file.bytes, photo.bytes);
+    assert_eq!(file.file_name, photo.file_name);
+    assert!(file.file_name.starts_with("candidate-photo-"));
+    assert!(file.file_name.ends_with(".png"));
+    assert_eq!(
+        candidate["image_document_id"].as_str(),
+        Some(file.document_id.as_str())
+    );
+    assert_eq!(
+        candidate["presentation"]["urls"],
+        json!([
+            {"is_image": true, "url": file.public_path(&bundle.tenant_id)}
+        ])
+    );
+    assert!(candidate.get("image_data_url").is_none());
     assert_eq!(candidate["presentation"]["sort_order"], json!(0));
     assert_eq!(
         candidate["presentation"]["i18n"]["tl"]["name"],
         json!("Pangalan")
     );
     assert_eq!(candidate["annotations"]["miru:candidate-id"], json!("0007"));
+
+    // The wizard supplies the trustees missing from the historical fixture.
+    plan.trustees = ["trustee-a", "trustee-b"]
+        .map(|name| architect::Trustee {
+            name: name.into(),
+            email: format!("{name}@example.test"),
+        })
+        .to_vec();
+    plan.trustee_threshold = 2;
+    let tenant_id = "00000000-0000-4000-8000-000000000042";
+    let options = BuildOptions {
+        tenant_id: Some(tenant_id.into()),
+        ..BuildOptions::default()
+    };
+    let compile = |plan: &architect::Blueprint| {
+        architect::compile_plan(architect::Compile {
+            plan,
+            templates: &templates,
+            options: &options,
+            profile: None,
+            sources: Some(&read.sources),
+        })
+    };
+    let compiled = compile(&plan).expect("the wizard can compile the photo");
+    assert_eq!(compiled.bundle.tenant_id, tenant_id);
+    assert_eq!(compiled.bundle.images, bundle.images);
+    assert!(compiled.layout.importable.iter().any(|entry| {
+        entry.name == file.entry_name() && entry.bytes == file.bytes
+    }));
+    let compiled_candidate = &compiled.bundle.export["candidates"][0];
+    assert!(compiled_candidate.get("image_data_url").is_none());
+    assert_eq!(compiled_candidate["labels"]["group"], "example");
+    assert_eq!(
+        compiled_candidate["image_document_id"],
+        candidate["image_document_id"]
+    );
+    let url = format!(
+        "tenant-{tenant_id}/document-{}/{}",
+        file.document_id, file.file_name
+    );
+    assert_eq!(
+        compiled_candidate["presentation"]["urls"],
+        json!([{"is_image": true, "url": url}])
+    );
+
+    plan.elections[0].contests[0].candidates[0]
+        .columns
+        .insert("image_data_url".into(), json!(test_png_url(1, 1)));
+    let conflict = compile(&plan).expect_err("two photo sources must conflict");
+    assert!(conflict.errors().any(|problem| {
+        problem.id.as_deref() == Some("candidate.inline-photo")
+            && problem.message.contains("not both")
+    }));
+
+    let duplicate = build(
+        &adapted.workbook,
+        &templates,
+        &BuildOptions {
+            images: vec![file.clone()],
+            ..BuildOptions::default()
+        },
+        &Sources::default(),
+    )
+    .err()
+    .expect("a separately attached photo cannot override the inline photo");
+    assert!(duplicate.errors().any(|problem| {
+        problem.id.as_deref() == Some("candidate.inline-photo")
+            && problem.message.contains("only one photo")
+    }));
+
+    let mut sheets = adapted.workbook.sheets().to_vec();
+    let row = &mut sheets
+        .iter_mut()
+        .find(|sheet| sheet.key == "candidates")
+        .unwrap()
+        .rows[0];
+    set(
+        row,
+        "image_data_url",
+        json!("https://invalid.example/photo.png"),
+    );
+    let invalid = Workbook::new(sheets).unwrap();
+    let direct = build(
+        &invalid,
+        &templates,
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .err()
+    .expect("direct build refuses an invalid photo without a partial archive");
+    let wizard = plan_from_workbook(&invalid)
+        .err()
+        .expect("wizard refuses the same invalid photo");
+    for report in [direct, wizard] {
+        let photo = report
+            .errors()
+            .find(|problem| {
+                problem.id.as_deref() == Some("candidate.inline-photo")
+            })
+            .expect("the problem points to the candidate photo");
+        assert_eq!(
+            photo.at.as_ref().unwrap().column.as_deref(),
+            Some("image_data_url")
+        );
+    }
 }
 
 #[test]
@@ -4326,4 +5199,324 @@ fn workbook_tenant_parameter(xlsx: &[u8], document: Value) -> Vec<u8> {
             )],
         ));
     })
+}
+
+#[test]
+fn sql_picture_reaches_architect_and_native_bundle() {
+    use crate::election_config::{
+        plan_from_workbook::plan_from_workbook, workbook_photo::test_png_url,
+    };
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let (sql, xlsx) = fixture();
+    let url = test_png_url(5, 4);
+    let raw = STANDARD.decode(url.split_once(',').unwrap().1).unwrap();
+    let sql = with_sql_picture(&sql, &format!("X'{}'", hex::encode(raw)));
+    let sql = post_qualification(sql.as_bytes());
+    let adapted = adapt(sql.as_bytes(), &xlsx, &reviewed()).unwrap();
+    let plan = plan_from_workbook(&adapted.workbook).unwrap().plan;
+    let candidate = &plan.elections[0].contests[0].candidates[0];
+    let image = candidate
+        .image
+        .as_ref()
+        .expect("SQL PICTURE must reach the Architect plan");
+    assert!(image.bytes.starts_with(b"\x89PNG\r\n\x1a\n"));
+    assert!(!candidate.columns.contains_key("PICTURE"));
+    assert!(!candidate.columns.contains_key("image_data_url"));
+    let bundle = build(
+        &adapted.workbook,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap();
+    assert_eq!(bundle.images.len(), 1);
+    assert_eq!(bundle.images[0].bytes, image.bytes);
+}
+
+fn with_sql_picture(sql: &[u8], literal: &str) -> String {
+    String::from_utf8(sql.to_vec())
+        .unwrap()
+        .replace(
+            "`NOMINATEDBY` text);",
+            "`NOMINATEDBY` text, `PICTURE` longblob);",
+        )
+        .replace("'S01','PR01');", &format!("'S01','PR01',{literal});"))
+}
+
+#[test]
+fn mixed_mysql_hex_picture_formats_survive_xlsx_and_the_ballot_preview() {
+    use crate::election_config::{
+        plan_from_workbook::plan_from_workbook,
+        preview::{preview_publication, PreviewOptions},
+    };
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let (sql, xlsx) = fixture();
+    let jpeg = include_bytes!("workbook_photo/fixtures/blocks.jpeg");
+    let avif = include_bytes!("workbook_photo/fixtures/blocks.avif");
+    let webp = include_bytes!("workbook_photo/fixtures/blocks.webp");
+    let mut sql = with_sql_picture(&sql, &format!("0x{}", hex::encode(jpeg)));
+    for (code, title, photo) in [
+        ("0008", "Synthetic AVIF", Some(avif.as_slice())),
+        ("0009", "Synthetic WebP", Some(webp.as_slice())),
+        ("0010", "Synthetic no photo", None),
+    ] {
+        let literal = photo.map_or_else(
+            || "NULL".to_string(),
+            |p| format!("0x{}", hex::encode(p)),
+        );
+        sql.push_str(&format!(
+            "INSERT INTO `candidate` VALUES ('{code}','{title}','C01','S01','PR01',{literal});\n"
+        ));
+    }
+    let sql = post_qualification(sql.as_bytes());
+    let adapted = adapt(sql.as_bytes(), &xlsx, &reviewed()).unwrap();
+    let original = plan_from_workbook(&adapted.workbook).unwrap().plan;
+    let reopened = read_xlsx(&write_xlsx(&adapted.workbook).unwrap()).unwrap();
+    let roundtrip = plan_from_workbook(&reopened).unwrap().plan;
+    let candidates = &roundtrip.elections[0].contests[0].candidates;
+    assert_eq!(candidates.len(), 4);
+    let normalized: Vec<_> =
+        candidates.iter().filter_map(|c| c.image.as_ref()).collect();
+    assert_eq!(normalized.len(), 3);
+    assert!(candidates[3].image.is_none());
+    for (before, after) in original.elections[0].contests[0]
+        .candidates
+        .iter()
+        .zip(candidates)
+    {
+        assert_eq!(before.image, after.image);
+    }
+    let bundle = build(
+        &reopened,
+        &TemplateSet::builtin().unwrap(),
+        &BuildOptions::default(),
+        &Sources::default(),
+    )
+    .unwrap();
+    let preview =
+        preview_publication(&bundle, &PreviewOptions::default()).unwrap();
+    let ballot = serde_json::to_string(&preview.ballot_styles).unwrap();
+    for image in normalized {
+        assert!(image.file_name.ends_with(".png"));
+        assert!(image.bytes.starts_with(b"\x89PNG\r\n\x1a\n"));
+        assert!(bundle.images.iter().any(|doc| doc.bytes == image.bytes));
+        assert!(ballot.contains(&format!(
+            "data:image/png;base64,{}",
+            STANDARD.encode(&image.bytes)
+        )));
+    }
+    assert_eq!(bundle.images.len(), 3);
+}
+
+#[test]
+fn excel_photo_remains_the_fallback_for_empty_sql_with_unchanged_formats() {
+    use crate::election_config::plan_from_workbook::plan_from_workbook;
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let (sql, xlsx) = fixture();
+    let sql = with_sql_picture(&sql, "NULL");
+    let jpeg = include_bytes!("workbook_photo/fixtures/blocks.jpeg");
+    let webp = include_bytes!("workbook_photo/fixtures/blocks.webp");
+    let workbook_with_photo = |mime, raw: &[u8]| {
+        changed_workbook(&xlsx, |sheets| {
+            sheets.push(rows_sheet(
+                "Candidates",
+                vec![row(
+                    "Candidates",
+                    0,
+                    vec![
+                        ("source_candidate_id", json!("0007")),
+                        (
+                            "image_data_url",
+                            json!(format!(
+                                "data:{mime};base64,{}",
+                                STANDARD.encode(raw)
+                            )),
+                        ),
+                    ],
+                )],
+            ));
+        })
+    };
+    let workbook = workbook_with_photo("image/jpeg", jpeg);
+    let adapted = adapt(sql.as_bytes(), &workbook, &reviewed()).unwrap();
+    let plan = plan_from_workbook(&adapted.workbook).unwrap().plan;
+    assert!(plan.elections[0].contests[0].candidates[0]
+        .image
+        .as_ref()
+        .unwrap()
+        .bytes
+        .starts_with(b"\x89PNG\r\n\x1a\n"));
+    let workbook = workbook_with_photo("image/webp", webp);
+    let refused = adapt(sql.as_bytes(), &workbook, &reviewed()).unwrap_err();
+    assert!(refused
+        .report
+        .errors()
+        .any(|p| p.id.as_deref() == Some("candidate.inline-photo")));
+}
+
+#[test]
+fn sql_photo_absence_invalid_bytes_and_competing_excel_source_are_explicit() {
+    use crate::election_config::{
+        plan_from_workbook::plan_from_workbook, workbook_photo::test_png_url,
+    };
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let (sql, xlsx) = fixture();
+    for blank in ["NULL", "X''", "_binary ''"] {
+        let s = with_sql_picture(&sql, blank);
+        let adapted = adapt(s.as_bytes(), &xlsx, &reviewed()).unwrap();
+        assert!(plan_from_workbook(&adapted.workbook)
+            .unwrap()
+            .plan
+            .elections[0]
+            .contests[0]
+            .candidates[0]
+            .image
+            .is_none());
+    }
+    for invalid in [
+        "X'474946383961'",
+        "'https://invalid.example/photo'",
+        "X'ffd8ffe0ffd9'",
+    ] {
+        let s = with_sql_picture(&sql, invalid);
+        let refused = adapt(s.as_bytes(), &xlsx, &reviewed()).unwrap_err();
+        assert!(refused
+            .report
+            .errors()
+            .any(|p| p.path == "SQL table candidate row 1 column PICTURE"
+                && p.id.as_deref() == Some("candidate.sql-photo")));
+    }
+    let url = test_png_url(4, 3);
+    let raw = STANDARD.decode(url.split_once(',').unwrap().1).unwrap();
+    let s = with_sql_picture(&sql, &format!("0x{}", hex::encode(raw)));
+    let adapted = adapt(s.as_bytes(), &xlsx, &reviewed()).unwrap();
+    let exported = write_xlsx(&adapted.workbook).unwrap();
+    let reopened = plan_from_workbook(&read_xlsx(&exported).unwrap()).unwrap();
+    assert_eq!(
+        reopened.plan.elections[0].contests[0].candidates[0].image,
+        plan_from_workbook(&adapted.workbook)
+            .unwrap()
+            .plan
+            .elections[0]
+            .contests[0]
+            .candidates[0]
+            .image
+    );
+    let sheet = changed_workbook(&xlsx, |s| {
+        s.push(rows_sheet(
+            "Candidates",
+            vec![row(
+                "Candidates",
+                0,
+                vec![
+                    ("source_candidate_id", json!("0007")),
+                    ("image_data_url", json!(url)),
+                ],
+            )],
+        ))
+    });
+    let dual = adapt(s.as_bytes(), &sheet, &reviewed()).unwrap_err();
+    assert!(dual.report.errors().any(|p| p.id.as_deref()
+        == Some("candidate.photo-source-conflict")
+        && p.at
+            .as_ref()
+            .is_some_and(|o| o.column.as_deref() == Some("image_data_url"))));
+}
+
+#[test]
+fn large_escaped_sql_photo_roundtrips_through_real_xlsx_continuations() {
+    use crate::election_config::plan_from_workbook::plan_from_workbook;
+    // Incompressible deterministic synthetic pixels, no photographs of people.
+    let mut seed = 7u32;
+    let rgb: Vec<u8> = (0..160 * 160 * 3)
+        .map(|_| {
+            seed ^= seed << 13;
+            seed ^= seed >> 17;
+            seed ^= seed << 5;
+            seed as u8
+        })
+        .collect();
+    let mut raw = Vec::new();
+    let mut encoder = png::Encoder::new(&mut raw, 160, 160);
+    encoder.set_color(png::ColorType::Rgb);
+    let mut writer = encoder.write_header().unwrap();
+    writer.write_image_data(&rgb).unwrap();
+    writer.finish().unwrap();
+    assert!(raw.len() > 32_767);
+    let (sql, xlsx) = fixture();
+    let template = with_sql_picture(&sql, "BLOB_GOES_HERE");
+    let (prefix, suffix) = template.split_once("BLOB_GOES_HERE").unwrap();
+    let mut escaped = [prefix.as_bytes(), b"_binary '"].concat();
+    for byte in raw.iter().copied() {
+        match byte {
+            0 => escaped.extend(b"\\0"),
+            0x1a => escaped.extend(b"\\Z"),
+            b'\'' | b'\\' => escaped.extend([b'\\', byte]),
+            _ => escaped.push(byte),
+        }
+    }
+    escaped.push(b'\'');
+    escaped.extend(suffix.bytes());
+    let adapted = adapt(&escaped, &xlsx, &reviewed()).unwrap();
+    let read = plan_from_workbook(&adapted.workbook).unwrap();
+    let typed = read.plan.elections[0].contests[0].candidates[0]
+        .image
+        .as_ref()
+        .unwrap();
+    let reexport = read_xlsx(&write_xlsx(&adapted.workbook).unwrap()).unwrap();
+    // The reader rejoins the physical cells and clears continuation headers.
+    // A single physical cell this large would have been rejected above.
+    assert!(
+        reexport.rows("candidates")[0]
+            .text("image_data_url")
+            .unwrap()
+            .len()
+            > 32_767
+    );
+    let reopened = plan_from_workbook(&reexport).unwrap();
+    assert_eq!(
+        reopened.plan.elections[0].contests[0].candidates[0]
+            .image
+            .as_ref(),
+        Some(typed)
+    );
+}
+
+#[test]
+fn duplicate_source_code_precedes_photo_selection_and_blank_supplement_preserves_sql(
+) {
+    use crate::election_config::workbook_photo::test_png_url;
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let (sql, xlsx) = fixture();
+    let raw = STANDARD
+        .decode(test_png_url(1, 1).split_once(',').unwrap().1)
+        .unwrap();
+    let s = with_sql_picture(&sql, &format!("0x{}", hex::encode(raw)));
+    let shadow=format!("{s}\nINSERT INTO candidate VALUES ('0007','Other','C01','S01','PR01',NULL);");
+    let refused = adapt(shadow.as_bytes(), &xlsx, &reviewed()).unwrap_err();
+    assert!(refused
+        .report
+        .errors()
+        .any(|p| p.code == Code::DuplicateId && p.path.contains("CAND_CODE")));
+    let mut made = BTreeMap::from([(
+        "context".to_string(),
+        row(
+            "Candidates",
+            0,
+            vec![
+                ("annotations.miru:candidate-id", json!("0007")),
+                ("image_data_url", json!("sql-photo")),
+            ],
+        ),
+    )]);
+    let blank = row(
+        "Candidates",
+        0,
+        vec![
+            ("source_candidate_id", json!("0007")),
+            ("image_data_url", json!("   ")),
+        ],
+    );
+    apply_test_candidate_rows(&[blank], &mut made).unwrap();
+    assert_eq!(made["context"].text("image_data_url"), Some("sql-photo"));
 }

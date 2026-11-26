@@ -1875,6 +1875,9 @@ pub fn validate_plan(plan: &Blueprint, sources: &Sources) -> Report {
             &mut report,
         );
     }
+    if let Some(problem) = plan.signing.receiver_notice("signing.rules") {
+        report.push(problem);
+    }
     // Trust configuration the opened archive had and the Architect does not
     // carry: said on every validation, so it survives a save and a reopen and
     // reaches the Final Review, rather than once on open.
