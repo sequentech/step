@@ -325,7 +325,7 @@ export type RecoveryBlock = "unsettled" | "rosterChanged" | "requirementsUnknown
 
 export type Recovery =
     | {kind: "none"}
-    | {kind: "blocked"; taskId: string; reason: RecoveryBlock}
+    | {kind: "blocked"; taskId: string; reason: RecoveryBlock; applied: PackageSection[]}
     | {
           kind: "recoverable"
           taskId: string
@@ -410,7 +410,7 @@ export const readRecovery = (
         view.outcome === "unknown" ||
         view.sections.some((section) => !!section.inFlight || section.state === "submitting")
     ) {
-        return {kind: "blocked", taskId, reason: "unsettled"}
+        return {kind: "blocked", taskId, reason: "unsettled", applied}
     }
     const began = readRunIdentity(latest.annotations)?.roster
     const now = trust.binding
@@ -421,12 +421,12 @@ export const readRecovery = (
           String(now.generation) === String(began.generation) &&
           now.requiredApprovals === began.requiredApprovals
         : !trust.managed
-    if (!sameRoster) return {kind: "blocked", taskId, reason: "rosterChanged"}
+    if (!sameRoster) return {kind: "blocked", taskId, reason: "rosterChanged", applied}
     const ownFollow =
         followed && followed.taskId === taskId && followed.mode === "apply" ? followed : null
     const requirements =
         readRunIdentity(latest.annotations)?.requirements ?? ownFollow?.requirements ?? null
-    if (!requirements) return {kind: "blocked", taskId, reason: "requirementsUnknown"}
+    if (!requirements) return {kind: "blocked", taskId, reason: "requirementsUnknown", applied}
     return {
         kind: "recoverable",
         taskId,

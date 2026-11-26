@@ -1053,7 +1053,11 @@ const SettingsConfigurationPackageForScope: React.FC<{
                 {runCard}
                 <TenantReceipt
                     receipt={receipt}
-                    partialTaskId={recovery.kind === "none" ? undefined : recovery.taskId}
+                    partialTaskId={
+                        recovery.kind !== "none" && recovery.applied.length
+                            ? recovery.taskId
+                            : undefined
+                    }
                     onHistory={() => setTab("history")}
                 />
             </Stack>

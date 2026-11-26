@@ -143,13 +143,16 @@ jest.mock("@/providers/AuthContextProvider", () => {
 })
 // The real drawer and screen are exercised in SettingsConfigurationPackage.upload.test.tsx.
 jest.mock("@/components/election-event/import-data/ImportScreen", () => ({
-    ImportScreen: ({doImport}: any) => (
-        <button
-            onClick={() => doImport("doc-1", mockSha, undefined, mockEncryptedSha)}
-            data-testid="drawer-upload"
-        >
-            upload
-        </button>
+    ImportScreen: ({doImport, doCancel}: any) => (
+        <>
+            <button
+                onClick={() => doImport("doc-1", mockSha, undefined, mockEncryptedSha)}
+                data-testid="drawer-upload"
+            >
+                upload
+            </button>
+            <button onClick={doCancel} data-testid="drawer-cancel">Cancel</button>
+        </>
     ),
 }))
 jest.mock("@/components/ElectionHeader", () => () => null)
@@ -1977,6 +1980,21 @@ describe("configuration package hub layout", () => {
                 requirements: ORIGINAL_REQUIREMENTS,
             })
             expect(mockManagedApply).not.toHaveBeenCalled()
+        })
+
+        it("cancels recovery without changing or locking the existing requirements", () => {
+            mockHistory = [stoppedRow(partialApply()), completedRow]
+            render(<SettingsConfigurationPackage />)
+            showAdvanced()
+            const trustees = screen.getByRole("checkbox", {name: "trustees"}) as HTMLInputElement
+            expect(trustees.checked).toBe(true)
+            fireEvent.click(screen.getByTestId("package-preview-remaining"))
+            expect(screen.getByTestId("package-recovery-identity")).toBeTruthy()
+            fireEvent.click(screen.getByTestId("drawer-cancel"))
+            expect(screen.queryByTestId("package-recovery-identity")).toBeNull()
+            expect(trustees.checked).toBe(true)
+            expect(trustees.disabled).toBe(false)
+            expect(mockApply).not.toHaveBeenCalled()
         })
 
         it("asks for the same file elsewhere and refuses any other package", async () => {

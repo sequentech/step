@@ -395,7 +395,7 @@ describe("readRecovery: continuing the same signed import", () => {
 
     it("takes legacy requirements only from the browser that followed the run", () => {
         const unrecorded = row(partialApply({requirements: null}))
-        expect(readRecovery([unrecorded], "t1", legacy, null)).toEqual({
+        expect(readRecovery([unrecorded], "t1", legacy, null)).toMatchObject({
             kind: "blocked",
             taskId: "task-a",
             reason: "requirementsUnknown",
