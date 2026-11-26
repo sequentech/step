@@ -7,8 +7,9 @@
 # server. Point PG_BIN at a complete local PostgreSQL installation.
 set -euo pipefail
 umask 077
-dir=$(cd "$(dirname "$0")" && pwd)
-migrations="$dir/../migrations/backend-db"
+root=$(cd "$(dirname "$0")/.." && pwd)
+fixtures="$root/hasura/tests"
+migrations="$root/hasura/migrations/backend-db"
 work=$(mktemp -d "/tmp/verified-cast-key-test.XXXXXXXX")
 pg_bin="${PG_BIN:-$(dirname "$(command -v psql)")}"
 finish() {
@@ -53,7 +54,7 @@ publication="$migrations/1795658400100_verified_cast_vote_key_publication"
 sql -f "$publication/up.sql"
 sql -f "$publication/down.sql"
 sql -f "$publication/up.sql"
-sql -f "$dir/verified-cast-vote-key-publication.test.sql"
+sql -f "$fixtures/verified-cast-vote-key-publication.test.sql"
 
 # Both contenders address the same pending receipt; exactly one distinct
 # point wins, and no eventual rekey or second receipt is possible.
