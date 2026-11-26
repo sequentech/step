@@ -101,7 +101,8 @@ const galegoTranslation: TranslationType = {
             noArea: "ningunha área ou unha área descoñecida",
             rehearsal: {
                 label: "Comparación",
-                readOnly: "Comparación de ensaio só de lectura. Non se escribe nada en ningún evento nin se rexistra preparación.",
+                readOnly:
+                    "Comparación de ensaio só de lectura. Non se escribe nada en ningún evento nin se rexistra preparación.",
                 modes: {
                     production: "Preparación de produción (asinada)",
                     rehearsal_ert_stl: "Ensaio: ERT e STL (só lectura)",
@@ -115,9 +116,12 @@ const galegoTranslation: TranslationType = {
                     stl: "Evento STL",
                 },
                 verdicts: {
-                    consistent: "Comparación de ensaio coherente. Non é unha verificación de preparación.",
-                    inconsistent: "Comparación de ensaio incoherente. Resolva os achados e execútea de novo.",
-                    not_verified: "Non verificado. A evidencia dispoñible non pode probar esta comparación.",
+                    consistent:
+                        "Comparación de ensaio coherente. Non é unha verificación de preparación.",
+                    inconsistent:
+                        "Comparación de ensaio incoherente. Resolva os achados e execútea de novo.",
+                    not_verified:
+                        "Non verificado. A evidencia dispoñible non pode probar esta comparación.",
                 },
                 chips: {
                     consistent: "Coherente",
@@ -132,9 +136,12 @@ const galegoTranslation: TranslationType = {
                     seal: "Publicación e selos propios de cada ensaio",
                 },
                 findings: {
-                    revision_not_distinct: "Ambos eventos teñen a revisión de paquete {{revision}}; cada un necesita a súa propia revisión importada por separado.",
-                    subset_area_exceeds: "O censo STL ten {{stl}} votantes en {{area}}, máis que os {{official}} do censo oficial certificado.",
-                    subset_not_verified: "Subconxunto non verificado: as importacións certificadas só rexistran hashes de ficheiro e recontos por área. Non hai identidade estable de votante, rexistro certificado de pertenza nin selección aprobada de votantes STL que probe que cada votante STL é votante oficial.",
+                    revision_not_distinct:
+                        "Ambos eventos teñen a revisión de paquete {{revision}}; cada un necesita a súa propia revisión importada por separado.",
+                    subset_area_exceeds:
+                        "O censo STL ten {{stl}} votantes en {{area}}, máis que os {{official}} do censo oficial certificado.",
+                    subset_not_verified:
+                        "Subconxunto non verificado: as importacións certificadas só rexistran hashes de ficheiro e recontos por área. Non hai identidade estable de votante, rexistro certificado de pertenza nin selección aprobada de votantes STL que probe que cada votante STL é votante oficial.",
                 },
             },
             eventRoles: {

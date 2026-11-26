@@ -622,7 +622,8 @@ const englishTranslation = {
             noArea: "no or an unknown area",
             rehearsal: {
                 label: "Comparison",
-                readOnly: "Read-only rehearsal comparison. Nothing is written to either event and no readiness is recorded.",
+                readOnly:
+                    "Read-only rehearsal comparison. Nothing is written to either event and no readiness is recorded.",
                 modes: {
                     production: "Production readiness (signed)",
                     rehearsal_ert_stl: "Rehearsal: ERT and STL (read-only)",
@@ -636,9 +637,12 @@ const englishTranslation = {
                     stl: "STL event",
                 },
                 verdicts: {
-                    consistent: "Rehearsal comparison consistent. This is not a readiness verification.",
-                    inconsistent: "Rehearsal comparison inconsistent. Resolve the findings and run it again.",
-                    not_verified: "Not verified. The available evidence cannot prove this comparison.",
+                    consistent:
+                        "Rehearsal comparison consistent. This is not a readiness verification.",
+                    inconsistent:
+                        "Rehearsal comparison inconsistent. Resolve the findings and run it again.",
+                    not_verified:
+                        "Not verified. The available evidence cannot prove this comparison.",
                 },
                 chips: {
                     consistent: "Consistent",
@@ -653,9 +657,12 @@ const englishTranslation = {
                     seal: "Each rehearsal’s own publication and seals",
                 },
                 findings: {
-                    revision_not_distinct: "Both events carry package revision {{revision}}; each needs its own separately imported revision.",
-                    subset_area_exceeds: "The STL census has {{stl}} voters in {{area}}, more than the {{official}} of the official certified census.",
-                    subset_not_verified: "Subset not verified: certified voter imports record only file hashes and counts by area. There is no stable voter identity, certified membership record or approved selection of STL voters to prove each STL voter is an official voter.",
+                    revision_not_distinct:
+                        "Both events carry package revision {{revision}}; each needs its own separately imported revision.",
+                    subset_area_exceeds:
+                        "The STL census has {{stl}} voters in {{area}}, more than the {{official}} of the official certified census.",
+                    subset_not_verified:
+                        "Subset not verified: certified voter imports record only file hashes and counts by area. There is no stable voter identity, certified membership record or approved selection of STL voters to prove each STL voter is an official voter.",
                 },
             },
             eventRoles: {

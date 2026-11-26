@@ -101,7 +101,8 @@ const catalanTranslation: TranslationType = {
             noArea: "cap àrea o una àrea desconeguda",
             rehearsal: {
                 label: "Comparació",
-                readOnly: "Comparació d’assaig només de lectura. No s’escriu res a cap esdeveniment ni es registra preparació.",
+                readOnly:
+                    "Comparació d’assaig només de lectura. No s’escriu res a cap esdeveniment ni es registra preparació.",
                 modes: {
                     production: "Preparació de producció (signada)",
                     rehearsal_ert_stl: "Assaig: ERT i STL (només lectura)",
@@ -115,9 +116,12 @@ const catalanTranslation: TranslationType = {
                     stl: "Esdeveniment STL",
                 },
                 verdicts: {
-                    consistent: "Comparació d’assaig coherent. No és una verificació de preparació.",
-                    inconsistent: "Comparació d’assaig incoherent. Resoleu les troballes i torneu-la a executar.",
-                    not_verified: "No verificat. L’evidència disponible no pot provar aquesta comparació.",
+                    consistent:
+                        "Comparació d’assaig coherent. No és una verificació de preparació.",
+                    inconsistent:
+                        "Comparació d’assaig incoherent. Resoleu les troballes i torneu-la a executar.",
+                    not_verified:
+                        "No verificat. L’evidència disponible no pot provar aquesta comparació.",
                 },
                 chips: {
                     consistent: "Coherent",
@@ -132,9 +136,12 @@ const catalanTranslation: TranslationType = {
                     seal: "Publicació i segells propis de cada assaig",
                 },
                 findings: {
-                    revision_not_distinct: "Tots dos esdeveniments tenen la revisió de paquet {{revision}}; cadascun necessita la seva pròpia revisió importada per separat.",
-                    subset_area_exceeds: "El cens STL té {{stl}} votants a {{area}}, més que els {{official}} del cens oficial certificat.",
-                    subset_not_verified: "Subconjunt no verificat: les importacions certificades només registren hashes de fitxer i recomptes per àrea. No hi ha identitat estable de votant, registre certificat de pertinença ni selecció aprovada de votants STL que provi que cada votant STL és votant oficial.",
+                    revision_not_distinct:
+                        "Tots dos esdeveniments tenen la revisió de paquet {{revision}}; cadascun necessita la seva pròpia revisió importada per separat.",
+                    subset_area_exceeds:
+                        "El cens STL té {{stl}} votants a {{area}}, més que els {{official}} del cens oficial certificat.",
+                    subset_not_verified:
+                        "Subconjunt no verificat: les importacions certificades només registren hashes de fitxer i recomptes per àrea. No hi ha identitat estable de votant, registre certificat de pertinença ni selecció aprovada de votants STL que provi que cada votant STL és votant oficial.",
                 },
             },
             eventRoles: {

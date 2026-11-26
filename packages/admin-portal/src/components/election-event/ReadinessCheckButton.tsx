@@ -29,11 +29,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {IPermissions} from "@/types/keycloak"
-import {
-    GET_READINESS_EVENTS,
-    READINESS_CHECK,
-    READINESS_REHEARSAL,
-} from "@/queries/ReadinessCheck"
+import {GET_READINESS_EVENTS, READINESS_CHECK, READINESS_REHEARSAL} from "@/queries/ReadinessCheck"
 import type {
     GetReadinessEventsQuery,
     GetReadinessEventsQueryVariables,

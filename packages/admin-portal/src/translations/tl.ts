@@ -101,7 +101,8 @@ const tagalogTranslation: TranslationType = {
             noArea: "walang area o hindi kilalang area",
             rehearsal: {
                 label: "Paghahambing",
-                readOnly: "Read-only na paghahambing ng rehearsal. Walang isinusulat sa alinmang event at walang naitatalang readiness.",
+                readOnly:
+                    "Read-only na paghahambing ng rehearsal. Walang isinusulat sa alinmang event at walang naitatalang readiness.",
                 modes: {
                     production: "Production readiness (pinirmahan)",
                     rehearsal_ert_stl: "Rehearsal: ERT at STL (read-only)",
@@ -115,9 +116,12 @@ const tagalogTranslation: TranslationType = {
                     stl: "STL event",
                 },
                 verdicts: {
-                    consistent: "Tugma ang paghahambing ng rehearsal. Hindi ito pagpapatunay ng readiness.",
-                    inconsistent: "Hindi tugma ang paghahambing ng rehearsal. Ayusin ang mga natuklasan at patakbuhin muli.",
-                    not_verified: "Hindi napatunayan. Hindi kayang patunayan ng magagamit na ebidensya ang paghahambing na ito.",
+                    consistent:
+                        "Tugma ang paghahambing ng rehearsal. Hindi ito pagpapatunay ng readiness.",
+                    inconsistent:
+                        "Hindi tugma ang paghahambing ng rehearsal. Ayusin ang mga natuklasan at patakbuhin muli.",
+                    not_verified:
+                        "Hindi napatunayan. Hindi kayang patunayan ng magagamit na ebidensya ang paghahambing na ito.",
                 },
                 chips: {
                     consistent: "Tugma",
@@ -125,16 +129,20 @@ const tagalogTranslation: TranslationType = {
                     not_verified: "Hindi napatunayan",
                 },
                 checks: {
-                    configuration: "Parehong aprubadong pinirmahang configuration, hiwalay na in-import",
+                    configuration:
+                        "Parehong aprubadong pinirmahang configuration, hiwalay na in-import",
                     own_census: "Sariling sertipikadong census ng bawat event",
                     census_subset: "Ang STL census ay subset ng opisyal na census",
                     lifecycle: "Lifecycle: hindi nagalaw ang opisyal, sarado ang mga rehearsal",
                     seal: "Sariling publikasyon at selyo ng bawat rehearsal",
                 },
                 findings: {
-                    revision_not_distinct: "Parehong may package revision {{revision}} ang dalawang event; bawat isa ay nangangailangan ng sariling hiwalay na in-import na revision.",
-                    subset_area_exceeds: "May {{stl}} botante ang STL census sa {{area}}, higit sa {{official}} ng opisyal na sertipikadong census.",
-                    subset_not_verified: "Hindi napatunayan ang subset: ang mga sertipikadong import ay nagtatala lamang ng mga file hash at bilang bawat area. Walang matatag na pagkakakilanlan ng botante, sertipikadong talaan ng pagiging miyembro o aprubadong pagpili ng mga STL na botante upang patunayan na bawat STL na botante ay opisyal na botante.",
+                    revision_not_distinct:
+                        "Parehong may package revision {{revision}} ang dalawang event; bawat isa ay nangangailangan ng sariling hiwalay na in-import na revision.",
+                    subset_area_exceeds:
+                        "May {{stl}} botante ang STL census sa {{area}}, higit sa {{official}} ng opisyal na sertipikadong census.",
+                    subset_not_verified:
+                        "Hindi napatunayan ang subset: ang mga sertipikadong import ay nagtatala lamang ng mga file hash at bilang bawat area. Walang matatag na pagkakakilanlan ng botante, sertipikadong talaan ng pagiging miyembro o aprubadong pagpili ng mga STL na botante upang patunayan na bawat STL na botante ay opisyal na botante.",
                 },
             },
             eventRoles: {

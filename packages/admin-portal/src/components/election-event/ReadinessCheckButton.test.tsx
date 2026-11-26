@@ -79,8 +79,7 @@ function open() {
     render(<ReadinessCheckButton event={event(official, "Official")} />)
     fireEvent.click(screen.getByRole("button", {name: "readiness.action"}))
 }
-const comparisonControl = () =>
-    screen.getByRole("combobox", {name: /^readiness\.rehearsal\.label/})
+const comparisonControl = () => screen.getByRole("combobox", {name: /^readiness\.rehearsal\.label/})
 function select(name = "Rehearsal", label = "readiness.testedEvent") {
     fireEvent.change(screen.getByRole("combobox", {name: label}), {
         target: {value: name},
