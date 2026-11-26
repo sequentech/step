@@ -472,26 +472,9 @@ const SettingsConfigurationPackageForScope: React.FC<{
         setRequirements(next)
     }
 
-    const toggleSection = (section: PackageSection) =>
-        changeRequirements({
-            ...requirements,
-            sections: requirements.sections.includes(section)
-                ? requirements.sections.filter((s) => s !== section)
-                : PACKAGE_SECTIONS.filter(
-                      (s) => s === section || requirements.sections.includes(s)
-                  ),
-        })
-
-    const running = submitting || (!!submitted && !finished && !unreadable)
-    const canApply =
-        !running &&
-        mayApply(previewed, tenantId, documentId, requirements, expectedSha) &&
-        matchesTrust(roster.status, previewed)
-    const shaMismatch = !!previewed && !shaMatches(previewed.view, expectedSha)
-    const noRecord = !!submitted && finished && !view
     const retry =
         !unreadable &&
-        noRecord &&
+        !view &&
         submitted?.mode === "preview" &&
         submitted.actor === authContext.userId &&
         task?.id === submitted.taskId &&
@@ -514,6 +497,24 @@ const SettingsConfigurationPackageForScope: React.FC<{
             retry.requirements
         )
     }
+
+    const toggleSection = (section: PackageSection) =>
+        changeRequirements({
+            ...requirements,
+            sections: requirements.sections.includes(section)
+                ? requirements.sections.filter((s) => s !== section)
+                : PACKAGE_SECTIONS.filter(
+                      (s) => s === section || requirements.sections.includes(s)
+                  ),
+        })
+
+    const running = submitting || (!!submitted && !finished && !unreadable)
+    const canApply =
+        !running &&
+        mayApply(previewed, tenantId, documentId, requirements, expectedSha) &&
+        matchesTrust(roster.status, previewed)
+    const shaMismatch = !!previewed && !shaMatches(previewed.view, expectedSha)
+    const noRecord = !!submitted && finished && !view
 
     return (
         <Box sx={{p: 1}}>
@@ -704,20 +705,18 @@ const SettingsConfigurationPackageForScope: React.FC<{
                     <Typography variant="body2" data-testid="package-task">
                         {t("configurationPackage.task", {taskId: submitted.taskId})}
                     </Typography>
-                    <Typography variant="body2" data-testid="package-outcome">
+                    <Typography variant="body2" data-testid="package-outcome" hidden={!!retry}>
                         {unreadable
                             ? t("configurationPackage.unreadable", {
                                   reason: taskError?.message
                                       ? safeText(taskError.message)
                                       : t("configurationPackage.notFound"),
                               })
-                            : retry
-                              ? t("configurationPackage.retryRequirements.refused")
-                              : noRecord
-                                ? t("configurationPackage.stoppedWithoutRecord")
-                                : finished
-                                  ? t(`configurationPackage.outcome.${view?.outcome ?? "unknown"}`)
-                                  : t("configurationPackage.running")}
+                            : noRecord
+                              ? t("configurationPackage.stoppedWithoutRecord")
+                              : finished
+                                ? t(`configurationPackage.outcome.${view?.outcome ?? "unknown"}`)
+                                : t("configurationPackage.running")}
                     </Typography>
                     {retry && (
                         <Alert
@@ -725,6 +724,9 @@ const SettingsConfigurationPackageForScope: React.FC<{
                             sx={{mt: 1}}
                             data-testid="package-retry-requirements"
                         >
+                            <Typography variant="body2" data-testid="package-retry-outcome">
+                                {t("configurationPackage.retryRequirements.refused")}
+                            </Typography>
                             <Typography variant="body2">
                                 {t("configurationPackage.retryRequirements.original", {
                                     sections:

@@ -515,7 +515,7 @@ it("previews the original six requirements with the same protected upload only o
     expect(mockApply.mock.calls[0][0].variables.requirements.sections).toEqual(["election-event"])
     mockTask = task("changed-options", "FAILED", {packageRetry: retryNotice})
     rerender(<SettingsConfigurationPackage />)
-    expect(screen.getByTestId("package-outcome").textContent).toContain(
+    expect(screen.getByTestId("package-retry-outcome").textContent).toContain(
         "configurationPackage.retryRequirements.refused"
     )
     expect(screen.getByTestId("package-retry-requirements").textContent).toContain(

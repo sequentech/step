@@ -882,37 +882,6 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn a_run_resumes_from_its_own_record_before_a_newer_one() {
-        let own = record(Outcome::Unknown);
-        let newer = record(Outcome::Applied);
-        // Newest first, as the lookup orders them.
-        let rows = vec![
-            row("newer", Some(&newer)),
-            row("own", Some(&own)),
-            row("fresh", None),
-        ];
-        assert_eq!(
-            choose_prior(rows.clone(), "own").unwrap().unwrap().outcome,
-            Outcome::Unknown
-        );
-        // A new run (its row has no record yet) takes the newest record.
-        assert_eq!(
-            choose_prior(rows, "fresh").unwrap().unwrap().outcome,
-            Outcome::Applied
-        );
-        assert!(choose_prior(vec![row("fresh", None)], "fresh")
-            .unwrap()
-            .is_none());
-    }
-
-    #[test]
-    fn an_unreadable_record_stops_the_run() {
-        let mut broken = row("own", None);
-        broken.annotations = Some(json!({APPLICATION_KEY: {"format": 1}}));
-        assert!(choose_prior(vec![broken], "own").is_err());
-    }
-
     #[tokio::test]
     async fn retry_hint_can_only_annotate_a_new_active_task_with_the_matching_protected_uploader() {
         let pool = super::apply_test_schema::pool().await;
@@ -1000,6 +969,37 @@ mod tests {
         hinted_task.annotations = Some(annotations);
         assert!(choose_prior(vec![hinted_task], "other").unwrap().is_none());
         tx.rollback().await.unwrap();
+    }
+
+    #[test]
+    fn a_run_resumes_from_its_own_record_before_a_newer_one() {
+        let own = record(Outcome::Unknown);
+        let newer = record(Outcome::Applied);
+        // Newest first, as the lookup orders them.
+        let rows = vec![
+            row("newer", Some(&newer)),
+            row("own", Some(&own)),
+            row("fresh", None),
+        ];
+        assert_eq!(
+            choose_prior(rows.clone(), "own").unwrap().unwrap().outcome,
+            Outcome::Unknown
+        );
+        // A new run (its row has no record yet) takes the newest record.
+        assert_eq!(
+            choose_prior(rows, "fresh").unwrap().unwrap().outcome,
+            Outcome::Applied
+        );
+        assert!(choose_prior(vec![row("fresh", None)], "fresh")
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn an_unreadable_record_stops_the_run() {
+        let mut broken = row("own", None);
+        broken.annotations = Some(json!({APPLICATION_KEY: {"format": 1}}));
+        assert!(choose_prior(vec![broken], "own").is_err());
     }
 
     /// Whether another connection could take the tenant's import lock now.
