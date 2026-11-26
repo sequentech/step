@@ -2115,69 +2115,75 @@ async fn get_election_event_status_distinguishes_a_missing_event_from_a_missing_
 // ---------------------------------------------------------------------------
 
 #[tokio::test]
-async fn insert_ballot_style_writes_and_returns_the_style() {
+async fn insert_ballot_styles_writes_every_style_of_the_publication() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
     let f = Fixture::new(&tx, line!());
     let a = f.scope().await;
     let election = f.election(a).await;
-    let area = f.area(a).await;
+    let areas = [f.area(a).await, f.area(a).await];
     let publication = f.publication(a, PublicationRow::default()).await;
-    let id = f.id();
+    let styles: Vec<ballot_style::NewBallotStyle> = areas
+        .iter()
+        .map(|area| ballot_style::NewBallotStyle {
+            id: f.id(),
+            election_id: election,
+            area_id: *area,
+            ballot_eml: format!("{{\"area\": \"{area}\"}}"),
+        })
+        .collect();
 
-    let style = ballot_style::insert_ballot_style(
-        &tx,
-        &id.to_string(),
-        &a.tenant_id(),
-        &a.event_id(),
-        &election.to_string(),
-        &area.to_string(),
-        Some("{\"ballot\": true}".to_string()),
-        Some("PENDING".to_string()),
-        &publication.to_string(),
-    )
-    .await
-    .unwrap();
-
-    let now = Some(local(now(&tx).await));
-    assert_eq!(
-        style,
-        BallotStyle {
-            id: id.to_string(),
-            tenant_id: a.tenant_id(),
-            election_id: election.to_string(),
-            area_id: Some(area.to_string()),
-            created_at: now,
-            last_updated_at: now,
-            labels: None,
-            annotations: None,
-            ballot_eml: Some("{\"ballot\": true}".to_string()),
-            ballot_signature: None,
-            status: Some("PENDING".to_string()),
-            election_event_id: a.event_id(),
-            deleted_at: None,
-            ballot_publication_id: publication.to_string(),
-        }
-    );
-    let row = tx
-        .query_one(
-            "SELECT election_id, area_id, ballot_publication_id, ballot_eml, status
-             FROM sequent_backend.ballot_style
-             WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3",
-            &[&a.tenant, &a.event, &id],
-        )
+    ballot_style::insert_ballot_styles(&tx, a.tenant, a.event, publication, &styles)
         .await
         .unwrap();
-    assert_eq!(row.get::<_, Uuid>(0), election);
-    assert_eq!(row.get::<_, Uuid>(1), area);
-    assert_eq!(row.get::<_, Uuid>(2), publication);
-    assert_eq!(row.get::<_, String>(3), "{\"ballot\": true}");
-    assert_eq!(row.get::<_, String>(4), "PENDING");
+
+    let now = now(&tx).await;
+    for style in &styles {
+        let row = tx
+            .query_one(
+                "SELECT election_id, area_id, ballot_publication_id, ballot_eml, status,
+                        created_at, last_updated_at
+                 FROM sequent_backend.ballot_style
+                 WHERE tenant_id = $1 AND election_event_id = $2 AND id = $3",
+                &[&a.tenant, &a.event, &style.id],
+            )
+            .await
+            .unwrap();
+        assert_eq!(row.get::<_, Uuid>(0), election);
+        assert_eq!(row.get::<_, Uuid>(1), style.area_id);
+        assert_eq!(row.get::<_, Uuid>(2), publication);
+        assert_eq!(row.get::<_, String>(3), style.ballot_eml);
+        assert_eq!(row.get::<_, Option<String>>(4), None);
+        assert_eq!(row.get::<_, DateTime<Utc>>(5), now);
+        assert_eq!(row.get::<_, DateTime<Utc>>(6), now);
+    }
     tx.rollback().await.unwrap();
 }
 
 #[tokio::test]
-async fn insert_ballot_style_reports_a_publication_of_another_event_as_an_opaque_insert_error() {
+async fn insert_ballot_styles_with_no_styles_writes_nothing() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let publication = f.publication(a, PublicationRow::default()).await;
+
+    ballot_style::insert_ballot_styles(&tx, a.tenant, a.event, publication, &[])
+        .await
+        .unwrap();
+
+    let count: i64 = scalar(
+        &tx,
+        "SELECT count(*) FROM sequent_backend.ballot_style WHERE tenant_id = $1",
+        &[&a.tenant],
+    )
+    .await;
+    assert_eq!(count, 0);
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn insert_ballot_styles_reports_a_publication_of_another_event_as_an_insert_error() {
     let mut client = connect().await;
     let tx = client.transaction().await.unwrap();
     let f = Fixture::new(&tx, line!());
@@ -2186,59 +2192,19 @@ async fn insert_ballot_style_reports_a_publication_of_another_event_as_an_opaque
     let election = f.election(a).await;
     let area = f.area(a).await;
     let foreign_publication = f.publication(sibling, PublicationRow::default()).await;
+    let styles = [ballot_style::NewBallotStyle {
+        id: f.id(),
+        election_id: election,
+        area_id: area,
+        ballot_eml: "{}".to_string(),
+    }];
 
-    let error = ballot_style::insert_ballot_style(
-        &tx,
-        &f.id().to_string(),
-        &a.tenant_id(),
-        &a.event_id(),
-        &election.to_string(),
-        &area.to_string(),
-        None,
-        None,
-        &foreign_publication.to_string(),
-    )
-    .await
-    .unwrap_err();
+    let error =
+        ballot_style::insert_ballot_styles(&tx, a.tenant, a.event, foreign_publication, &styles)
+            .await
+            .unwrap_err();
 
-    // The foreign key violation is flattened to tokio-postgres' "db error".
-    assert_eq!(error.to_string(), "Error inserting row: db error");
-    tx.rollback().await.unwrap();
-}
-
-#[tokio::test]
-async fn insert_ballot_style_rejects_invalid_uuids_before_writing() {
-    let mut client = connect().await;
-    let tx = client.transaction().await.unwrap();
-    let f = Fixture::new(&tx, line!());
-    let a = f.scope().await;
-    let election = f.election(a).await.to_string();
-    let area = f.area(a).await.to_string();
-    let publication = f
-        .publication(a, PublicationRow::default())
-        .await
-        .to_string();
-    let id = f.id().to_string();
-    let (tenant, event) = (a.tenant_id(), a.event_id());
-    let fields = [&id, &tenant, &event, &election, &area, &publication];
-
-    for position in 0..fields.len() {
-        let mut values: Vec<&str> = fields.iter().map(|value| value.as_str()).collect();
-        values[position] = BAD_UUID;
-        assert_invalid_uuid(
-            ballot_style::insert_ballot_style(
-                &tx, values[0], values[1], values[2], values[3], values[4], None, None, values[5],
-            )
-            .await,
-        );
-    }
-    let count: i64 = scalar(
-        &tx,
-        "SELECT count(*) FROM sequent_backend.ballot_style WHERE tenant_id = $1",
-        &[&a.tenant],
-    )
-    .await;
-    assert_eq!(count, 0);
+    assert_eq!(error.to_string(), "Error inserting ballot styles");
     tx.rollback().await.unwrap();
 }
 
