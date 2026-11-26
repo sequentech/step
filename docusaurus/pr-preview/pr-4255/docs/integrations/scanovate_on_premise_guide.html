@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Scanovate On-Premise Services | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/integrations/scanovate_on_premise_guide"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Scanovate On-Premise Services | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4255/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/integrations/scanovate_on_premise_guide"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/integrations/scanovate_on_premise_guide" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/integrations/scanovate_on_premise_guide" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Scanovate On-Premise Services","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4255/docs/integrations/scanovate_on_premise_guide"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4255/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4255/assets/js/runtime~main.b8cdcc9e.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4255/assets/js/runtime~main.b8df7857.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4255/assets/js/main.bd140909.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -414,9 +414,11 @@ of its configuration chooses another (<code>kiosk_mode</code> only turns the req
 into a preference). That suits a voter holding their own phone over a
 passport, and not a tablet on a stand that faces the voter.</p>
 <p>The capture step therefore offers the other camera itself. When the device
-lists more than one camera, the document step shows <strong>Use the front camera</strong>
-over a corner of Scanovate&#x27;s page (<em>Use the rear camera</em> once the front one is
-chosen). The choice opens Scanovate&#x27;s page again, since that page opens its
+lists more than one camera, the document step shows the switch button of the
+photo holding the document, in the same corner (top left) and named <strong>Use the
+front camera</strong> (<em>Use the rear camera</em> once the front one is chosen); it stays
+there however the device is held (see
+<a href="#choosing-the-camera" class="">Choosing the camera</a>). The choice opens Scanovate&#x27;s page again, since that page opens its
 camera once, and is kept in the browser&#x27;s storage for the site
 (<code>sequent.scanovate.documentCamera</code>), so a tablet set to its front camera
 stays so for every voter after that. The face check opens the camera
@@ -487,9 +489,11 @@ results the services post to it.</p>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="choosing-the-camera">Choosing the camera<a href="#choosing-the-camera" class="hash-link" aria-label="Direct link to Choosing the camera" title="Direct link to Choosing the camera" translate="no">​</a></h3>
 <p>Each step&#x27;s camera is opened by whichever page owns the step:</p>
 <table><thead><tr><th>Step</th><th>Opened by</th><th>Camera</th><th>Switch</th></tr></thead><tbody><tr><td>Scan your ID</td><td>OCR&#x27;s own page (in the iframe)</td><td>The rear camera on phones and tablets, or the front one once chosen on the device</td><td><strong>Use the front camera</strong> / <strong>Use the rear camera</strong>: see <a href="#which-camera-scans-the-document" class="">Which camera scans the document</a></td></tr><tr><td>Check your face</td><td>Liveness Plus&#x27;s own page (in the iframe)</td><td>Scanovate&#x27;s choice</td><td>None: see below</td></tr><tr><td>Photo holding the ID</td><td>Our capture page (<code>scanovate/HoldingCamera.tsx</code>)</td><td>The front camera first (<code>HOLDING_CAMERA</code> in <code>scanovate/cameraSession.ts</code>)</td><td>Yes, whenever the browser gives more than one camera</td></tr></tbody></table>
-<p>On the holding photo, a switch button (top left, across from the close
-button, and under the Sequent mark where that corner shows it, on windows
-wider than 720 px) appears only when the browser lists more than one camera the page can
+<p>The document scan and the holding photo show the same switch button, in the
+same place: top left, across from the close button, and under the Sequent mark
+where that corner shows it (windows wider than 720 px). It is placed in the
+window, over the camera, and keeps its place when the device is turned.</p>
+<p>On the holding photo, the switch appears only when the browser lists more than one camera the page can
 open, whatever the device or browser, without looking at the user agent: a
 phone or tablet in Chrome or Safari, or a computer with an external webcam.
 With a single camera, or before the voter allows the camera, there&#x27;s no
@@ -528,6 +532,39 @@ has to come from Scanovate, as a supported setting (a <code>video_config</code> 
 page URL parameter for the side or the device) or a switch in their page,
 that keeps IAD&#x27;s checks as they are. Until then, a tablet that opens its rear
 camera for the face check can&#x27;t be corrected from our page.</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="the-document-page-after-the-device-is-turned">The document page after the device is turned<a href="#the-document-page-after-the-device-is-turned" class="hash-link" aria-label="Direct link to The document page after the device is turned" title="Direct link to The document page after the device is turned" translate="no">​</a></h4>
+<p>OCR&#x27;s page fits its camera, and the frame that shows where to put the
+document, to its window when the camera starts and again 50 ms after each
+resize of the window. A tablet that is turned changes the window first, and
+its camera gives the image the other way round a moment later: the page can
+be left with a layout made of the old sizes, the camera as a small column in
+the middle of a wide window or wider than a narrow one.</p>
+<p>The login page therefore asks OCR&#x27;s page to lay itself out again, by sending
+its window the <code>resize</code> event the browser sends, 300 ms and 1 s after the
+login page&#x27;s window changes size or orientation, and 100 ms after the
+camera&#x27;s image changes shape (<code>scanovate/layout.ts</code>). Nothing of OCR&#x27;s page
+is changed, and it needs the page to be served from the login page&#x27;s origin.
+The face check&#x27;s page is not sent anything.</p>
+<h4 class="anchor anchorTargetStickyNavbar_Vzrq" id="how-often-the-browser-asks-for-the-camera">How often the browser asks for the camera<a href="#how-often-the-browser-asks-for-the-camera" class="hash-link" aria-label="Direct link to How often the browser asks for the camera" title="Direct link to How often the browser asks for the camera" translate="no">​</a></h4>
+<p>Chrome remembers the voter&#x27;s answer for the site: it asks once. Safari (iPhone
+and iPad) remembers it for the frame that asked, so three steps that each
+open the camera from a place of their own make it ask three times. Two things
+are done about it, and one is a setting of the device:</p>
+<ul>
+<li class="">The face check opens in the frame of the document scan, in place of the
+page that finished (no step is added to the browser&#x27;s Back), when both
+pages are served from the login page&#x27;s own origin, as this deployment does.
+The photo holding the document is opened by the login page itself, which is
+another frame: Safari asks once more there. A retry after a problem, and the
+camera switch of the document scan, open a new frame.</li>
+<li class="">Safari lists all the cameras only to the frame that was allowed one, so the
+login page counts the cameras in Scanovate&#x27;s frame too before it offers the
+switch of the document scan.</li>
+<li class="">A tablet set up for enrollment can stop Safari from asking at all: in
+<strong>Settings → Apps → Safari → Camera</strong>, choose <strong>Allow</strong> (or, for this site
+only, the page menu in the address bar → <strong>Website Settings → Camera →
+Allow</strong>).</li>
+</ul>
 <h3 class="anchor anchorTargetStickyNavbar_Vzrq" id="token-verification-and-callbacks">Token verification and callbacks<a href="#token-verification-and-callbacks" class="hash-link" aria-label="Direct link to Token verification and callbacks" title="Direct link to Token verification and callbacks" translate="no">​</a></h3>
 <p>Both services call Keycloak, server to server, with the secret in the query
 string of the URLs of their <code>service_config.json</code>:</p>
