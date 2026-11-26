@@ -72,6 +72,19 @@ async fn readiness_requires_a_verified_operator_and_valid_distinct_event_ids_bef
         assert_eq!(body["message"], message);
         assert_eq!(body["extensions"]["code"], "InvalidReadinessCheck");
     }
+    // Invalid comparison syntax must be rejected by Rocket before a database
+    // connection: it must not accidentally become a strict signed check.
+    for (key, value) in [
+        ("mode", "rehearsal_ert_stl"),
+        ("comparision", "rehearsal_official_ert"),
+        ("comparison", "rehearsal"),
+    ] {
+        let mut invalid = input.clone();
+        invalid[key] = json!(value);
+        let response =
+            post(&client, "/readiness-check", &operator, &invalid).await;
+        assert_eq!(response.status(), Status::UnprocessableEntity, "{key}");
+    }
     // A valid operator and request get past both gates and reach the first
     // backend, which this fixture deliberately leaves unavailable.
     let (status, _) =
@@ -229,6 +242,29 @@ fn readiness_returns_failed_checks_without_recording_a_success() {
         let operator = Claims::new(&official.tenant_id, "operator")
             .roles([Permissions::READINESS_CHECK]);
         let before = audit_entries(&services, &official.tenant_id).await;
+        // Every explicit rehearsal reaches the read-only route (and its SHOW
+        // guard) over this isolated migrated fixture, without a signed receipt.
+        for comparison in [
+            "rehearsal_ert_stl",
+            "rehearsal_official_ert",
+            "rehearsal_official_stl",
+        ] {
+            let mut rehearsal =
+                request(&official.election_event_id, &tested.election_event_id);
+            rehearsal["comparison"] = json!(comparison);
+            let (status, body) = json(
+                post(&client, "/readiness-check", &operator, &rehearsal).await,
+            )
+            .await;
+            assert_eq!(status, Status::Ok, "{comparison}: {body}");
+            assert_eq!(body["comparison"], comparison);
+            assert!(body.get("passed").is_none());
+            assert!(body.get("log_entry_id").is_none());
+            assert_eq!(
+                audit_entries(&services, &official.tenant_id).await,
+                before
+            );
+        }
         let (status, body) = json(
             post(
                 &client,

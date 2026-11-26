@@ -495,6 +495,46 @@ const RosterSetup: React.FC<{
                     <Typography component="h2" variant="h5" id={dialogId} sx={{mb: 2}}>
                         {t("configurationPackage.roster.manage")}
                     </Typography>
+                    {/* Choose file, Verify, Activate: where this drawer is, never a gate. */}
+                    <Box
+                        component="ol"
+                        aria-label={String(t("configurationPackage.roster.steps.label"))}
+                        data-testid="signer-roster-steps"
+                        sx={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: 2,
+                            listStyle: "none",
+                            m: 0,
+                            mb: 2,
+                            p: 0,
+                        }}
+                    >
+                        {(["choose", "verify", "activate"] as const).map((step, index) => {
+                            // Verified: the receiver returned the candidate, so Activate is next.
+                            const current = candidate
+                                ? 2
+                                : busy && operation.current === "review"
+                                  ? 1
+                                  : 0
+                            return (
+                                <Box
+                                    component="li"
+                                    key={step}
+                                    aria-current={index === current ? "step" : undefined}
+                                    sx={{
+                                        typography: "body2",
+                                        fontWeight: index === current ? 500 : 400,
+                                        color:
+                                            index === current ? "text.primary" : "text.secondary",
+                                    }}
+                                >
+                                    {index < current ? "✓ " : `${index + 1}. `}
+                                    {t(`configurationPackage.roster.steps.${step}`)}
+                                </Box>
+                            )
+                        })}
+                    </Box>
                     <Typography variant="body2" paragraph>
                         {t("configurationPackage.roster.independent")}
                     </Typography>
@@ -659,15 +699,9 @@ export const ArchitectSignerRoster: React.FC<{
             <Typography component="h3" variant="subtitle1">
                 {t("configurationPackage.roster.title")}
             </Typography>
-            <Typography
-                id={statusTextId}
-                variant="body2"
-                sx={{overflowWrap: "anywhere"}}
-                aria-live="polite"
-            >
+            <Typography id={statusTextId} variant="body2" aria-live="polite">
                 {ready
-                    ? t("configurationPackage.roster.active", {
-                          hash: status.active_sha256,
+                    ? t("configurationPackage.roster.activeSummary", {
                           approvals: status.required_approvals,
                       })
                     : t(
@@ -678,6 +712,31 @@ export const ArchitectSignerRoster: React.FC<{
                                 : "configurationPackage.roster.unavailable"
                       )}
             </Typography>
+            {ready && (
+                <Box component="details" sx={{mt: 0.5}} data-testid="signer-roster-fingerprint">
+                    <Typography
+                        component="summary"
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{cursor: "pointer"}}
+                    >
+                        {t("configurationPackage.roster.fingerprint")}
+                    </Typography>
+                    <Typography
+                        component="code"
+                        variant="caption"
+                        sx={{
+                            display: "block",
+                            mt: 0.5,
+                            fontFamily: "monospace",
+                            overflowWrap: "anywhere",
+                            userSelect: "all",
+                        }}
+                    >
+                        {status.active_sha256}
+                    </Typography>
+                </Box>
+            )}
             {!loading && (!status || status.mode === "unavailable") && (
                 <Button variant="text" onClick={() => void refresh()}>
                     {t("configurationPackage.roster.retry")}

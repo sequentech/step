@@ -874,7 +874,9 @@ export const ImportScreenMemo: React.MemoExoticComponent<React.FC<ImportScreenPr
                             ? String(
                                   t("electionEventScreen.import.create", {defaultValue: "Create"})
                               )
-                            : t("electionEventScreen.import.import")}
+                            : signedDeliveryUpload
+                              ? t("configurationPackage.preview")
+                              : t("electionEventScreen.import.import")}
                     </ImportStyles.ImportButton>
                 </Box>
 

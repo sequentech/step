@@ -102,10 +102,58 @@ const dutchTranslation: TranslationType = {
             noDetail: "De server gaf geen verdere details voor deze controle.",
             reasons: "Waarom het mislukte",
             noArea: "geen of een onbekend gebied",
+            rehearsal: {
+                label: "Vergelijking",
+                readOnly:
+                    "Alleen-lezen oefenvergelijking. Er wordt niets naar de evenementen geschreven en er wordt geen gereedheid vastgelegd.",
+                modes: {
+                    production: "Productiegereedheid (ondertekend)",
+                    rehearsal_ert_stl: "Oefening: ERT en STL (alleen-lezen)",
+                    rehearsal_official_ert: "Oefening: officieel en ERT (alleen-lezen)",
+                    rehearsal_official_stl: "Oefening: officieel en STL (alleen-lezen)",
+                },
+                roles: {
+                    official: "Officieel evenement",
+                    tested: "Getest evenement",
+                    ert: "ERT-evenement",
+                    stl: "STL-evenement",
+                },
+                verdicts: {
+                    consistent: "Oefenvergelijking consistent. Dit is geen gereedheidsverificatie.",
+                    inconsistent:
+                        "Oefenvergelijking inconsistent. Los de bevindingen op en voer haar opnieuw uit.",
+                    not_verified:
+                        "Niet geverifieerd. Het beschikbare bewijs kan deze vergelijking niet aantonen.",
+                },
+                chips: {
+                    consistent: "Consistent",
+                    inconsistent: "Inconsistent",
+                    not_verified: "Niet geverifieerd",
+                },
+                checks: {
+                    configuration:
+                        "Dezelfde goedgekeurde ondertekende configuratie, apart geïmporteerd",
+                    own_census: "Eigen gecertificeerd kiezersbestand per evenement",
+                    census_subset:
+                        "Het STL-kiezersbestand is een deelverzameling van het officiële",
+                    lifecycle: "Levenscyclus: officieel onaangeroerd, oefeningen gesloten",
+                    seal: "Eigen publicatie en verzegelingen van elke oefening",
+                },
+                findings: {
+                    revision_not_distinct:
+                        "Beide evenementen hebben pakketrevisie {{revision}}; elk heeft een eigen, apart geïmporteerde revisie nodig.",
+                    subset_area_exceeds:
+                        "Het STL-kiezersbestand heeft {{stl}} kiezers in {{area}}, meer dan de {{official}} van het officiële gecertificeerde bestand.",
+                    subset_not_verified:
+                        "Deelverzameling niet geverifieerd: gecertificeerde imports leggen alleen bestandshashes en aantallen per gebied vast. Er is geen stabiele kiezersidentiteit, gecertificeerd lidmaatschapsregister of goedgekeurde selectie van STL-kiezers om aan te tonen dat elke STL-kiezer een officiële kiezer is.",
+                },
+            },
             eventRoles: {
                 official: "officiële",
                 tested: "geteste",
                 both: "beide",
+                ert: "ERT",
+                stl: "STL",
             },
             scope: {
                 event: "Het {{event}} evenement",
