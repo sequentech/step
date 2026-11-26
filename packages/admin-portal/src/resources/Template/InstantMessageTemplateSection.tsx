@@ -31,8 +31,14 @@ import {
     templateApprovalRows,
     templatePurpose,
 } from "@/services/templateApproval"
-import {accountCapabilities} from "@/services/messaging"
-import {EMessageChannel, EMessagePurpose} from "@/types/messaging"
+import {accountCapabilities, defaultTemplateButtons} from "@/services/messaging"
+import {
+    EMessageChannel,
+    EMessagePurpose,
+    EMessagingProvider,
+    ITemplateButton,
+} from "@/types/messaging"
+import {TemplateButtonsInput} from "@/components/TemplateButtonsInput"
 
 export type InstantMessageChannel =
     | EMessageChannel.WHATSAPP
@@ -225,6 +231,33 @@ export const ProviderTemplateInputs: React.FC<InstantMessageTemplateSectionProps
                 label={String(t("messaging.templates.providerLanguage"))}
                 helperText={String(t(`messaging.templates.providerLanguageHelp.${channel}`))}
             />
+            {channel === EMessageChannel.WHATSAPP ? <ProviderTemplateButtons /> : null}
+        </Box>
+    )
+}
+
+/**
+ * The buttons of the WhatsApp provider template this message names, as WhatsApp
+ * through Infobip sends them. Without one, the event's binding and its buttons
+ * are used.
+ */
+const ProviderTemplateButtons: React.FC = () => {
+    const {t} = useTranslation()
+    const {setValue} = useFormContext()
+    const source = "template.whatsapp.buttons"
+    const buttons = useWatch({name: source}) as ITemplateButton[] | null | undefined
+    const purpose = templatePurpose(useWatch({name: "type"}) as string | undefined)
+    return (
+        <Box sx={{display: "flex", flexDirection: "column", gap: 0.5}}>
+            <TemplateButtonsInput
+                buttons={buttons}
+                defaults={defaultTemplateButtons(EMessagingProvider.WHATSAPP_INFOBIP, purpose)}
+                disabled={false}
+                onChange={(next) => setValue(source, next, {shouldDirty: true})}
+            />
+            <Typography variant="caption" color="text.secondary">
+                {t("messaging.templates.buttonsHelp")}
+            </Typography>
         </Box>
     )
 }

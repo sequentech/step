@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
+import {EVENT_LOG_STATEMENT_KINDS} from "../../../src/components/logs/logScope"
 import {test, expect} from "../fixtures"
 import {EVENT_ID, EVENT_URL, JOSE, MARIA, mockSigningEvent, type Person} from "./data"
 
@@ -226,8 +227,11 @@ test("Election Event > Logs filters by any statement kind under Add filter", asy
     await page.getByRole("menuitemcheckbox", {name: "Statement kind", exact: true}).click()
     await page.getByRole("combobox", {name: "Statement kind", exact: true}).click()
     const options = page.getByRole("option").filter({hasText: /\w/})
-    // The backend's 76 kinds, by name.
-    await expect(options).toHaveCount(76)
+    // The UI registry is independently checked against the backend StatementType.
+    await expect(options).toHaveCount(EVENT_LOG_STATEMENT_KINDS.length)
+    await expect(
+        page.getByRole("option", {name: "Cast ballot encryption key published", exact: true})
+    ).toHaveCount(1)
     await expect(page.getByRole("option", {name: "Lockdown changed", exact: true})).toHaveCount(1)
     await expect(page.getByRole("option", {name: "SigningActionExecuted"})).toHaveCount(0)
     await page.getByRole("option", {name: "Approval threshold reached", exact: true}).click()

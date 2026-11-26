@@ -108,7 +108,7 @@ pub fn report_failure_kind(provider: MessagingProvider, error_code: Option<&str>
         MessagingProvider::WHATSAPP_CLOUD_API | MessagingProvider::MESSENGER_SEND_API => {
             META_TRANSIENT_REPORT_CODES.contains(&code)
         }
-        MessagingProvider::VIBER_INFOBIP => {
+        MessagingProvider::VIBER_INFOBIP | MessagingProvider::WHATSAPP_INFOBIP => {
             let code = code.to_ascii_uppercase();
             INFOBIP_TRANSIENT_ERRORS
                 .iter()
@@ -158,6 +158,15 @@ mod tests {
         );
         assert_eq!(
             report_failure_kind(WHATSAPP_CLOUD_API, None),
+            FailureKind::PERMANENT
+        );
+        // WhatsApp through Infobip reports Infobip's error names.
+        assert_eq!(
+            report_failure_kind(WHATSAPP_INFOBIP, Some("EC_ABSENT_SUBSCRIBER")),
+            FailureKind::TRANSIENT
+        );
+        assert_eq!(
+            report_failure_kind(WHATSAPP_INFOBIP, Some("130429")),
             FailureKind::PERMANENT
         );
     }

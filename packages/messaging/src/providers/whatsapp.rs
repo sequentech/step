@@ -376,6 +376,7 @@ mod tests {
                 code: Some("123456".to_string()),
             },
             provider_template: Some("comelec_otp".to_string()),
+            template_buttons: None,
             idempotency_key: "key-1".to_string(),
             expires_at: Some(Utc::now() + Duration::minutes(5)),
             last_inbound_at: None,

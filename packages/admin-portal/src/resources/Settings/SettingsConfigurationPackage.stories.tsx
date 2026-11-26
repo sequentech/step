@@ -22,6 +22,7 @@ interface Scenario {
     blocked: boolean
     unavailable: boolean
     managedRoster: boolean
+    replaceMessagingAccount: boolean
 }
 const DOCUMENT_ID = storyId(41, 1)
 const TASK_ID = storyId(41, 2)
@@ -37,6 +38,7 @@ const meta = {
         blocked: false,
         unavailable: false,
         managedRoster: false,
+        replaceMessagingAccount: false,
     },
     beforeEach: async ({args}) => {
         sessionStorage.clear()
@@ -56,7 +58,7 @@ const meta = {
             status: {preview: {changes: unknown[]}}
         }
         tenantSection.status.preview.changes = [{action: "update", keys: ["language_conf"]}]
-        if (!args.blocked) {
+        if (!args.blocked && args.replaceMessagingAccount) {
             Object.assign(annotations.application, {
                 managedRequirements: COMPLETE_DELIVERY,
                 messagingPlanSha256: "cd".repeat(32),
@@ -203,6 +205,7 @@ async function preview(canvasElement: HTMLElement) {
 }
 
 export const PreviewAndConfirm: Story = {
+    args: {replaceMessagingAccount: true},
     parameters: {
         widgets: [
             "SettingsConfigurationPackageForScope",
@@ -234,6 +237,30 @@ export const PreviewAndConfirm: Story = {
         )
 
         // Opening confirmation never applies; the only mutation so far is preview.
+        expect(
+            graphql.calls
+                .filter(({name}) => name === "ApplyConfigurationPackage")
+                .map(({variables}) => variables.mode)
+        ).toEqual(["preview"])
+        expect(graphql.unexpected).toEqual([])
+    },
+}
+
+export const PortableMessagingReplacement: Story = {
+    args: {replaceMessagingAccount: true},
+    parameters: {widgets: ["PortableReplacementWarning"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const warning = i18n.t("configurationPackage.messagingReplaceWarning")
+        await preview(canvasElement)
+        const section = within(await canvas.findByTestId("section-messaging-accounts"))
+        await expect(section.getByText(warning)).toBeVisible()
+        const apply = canvas.getByTestId("package-apply")
+        await waitFor(() => expect(apply).toBeEnabled())
+        await userEvent.click(apply)
+        const dialog = within(await within(document.body).findByRole("dialog"))
+        await waitFor(() => expect(dialog.getByText(warning)).toBeVisible())
+        // Reviewing the replacement never applies it.
         expect(
             graphql.calls
                 .filter(({name}) => name === "ApplyConfigurationPackage")

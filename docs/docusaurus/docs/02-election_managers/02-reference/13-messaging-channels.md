@@ -27,7 +27,7 @@ email.
 
 | Channel | Provider | Recipient | Codes | Notices |
 |---|---|---|---|---|
-| WhatsApp | WhatsApp Cloud API | Phone number (E.164) | Approved authentication template | Approved utility templates |
+| WhatsApp | WhatsApp Cloud API, or WhatsApp Business through Infobip | Phone number (E.164) | Approved authentication template | Approved utility templates |
 | Viber | Viber Business Messages through Infobip | Phone number (E.164) | Partner-approved OTP template, or free text | Partner-approved templates, or free text |
 | Messenger | Messenger Send API | Page-scoped ID | A message in the chat the voter opened with Get Started | A message within 24 hours of the voter's Get Started, or an approved utility template after it |
 | SMS | Amazon SNS | Phone number (E.164) | Transactional SMS | Free text |
@@ -73,7 +73,8 @@ Each account shows three separate states, with the time of the last check
     subscribed to the Facebook Page.
   - *Needs approved template*: WhatsApp, and Viber accounts that send
     approved templates, only send approved templates. WhatsApp approvals
-    are read from Meta on each check. Viber templates are entered on the
+    are read on each check, from Meta or, for an account through Infobip,
+    from Infobip. Viber templates are entered on the
     account, per purpose and language, with the ID the partner gave when
     it approved them, because Infobip's template API is not generally
     available. A Viber account that sends free text needs no template (see
@@ -113,7 +114,7 @@ or *Not reported*:
 - the WhatsApp number's status, display-name status, quality rating and
   messaging limit. A quality warning from Meta is shown as a warning,
   not as pending approval: the number still sends;
-- the Viber partner login;
+- the Infobip login, for Viber and for WhatsApp through Infobip;
 - the Messenger Page's `pages_messaging` permission, the app's subscription
   and the Get Started button;
 - the callback address;
@@ -186,15 +187,17 @@ one public address. Each account that receives callbacks shows its own
 - **WhatsApp and Messenger**: the callback URL and a **verify token** go in
   the Meta app's webhook settings. The verify token is generated on the
   account and shown once. Reports are checked with the app secret.
-- **Viber**: see [Viber delivery reports](#viber-delivery-reports).
+- **Viber, and WhatsApp through Infobip**: see
+  [Infobip delivery reports](#infobip-delivery-reports).
 - **Email through SES**: see [Email receipts](#email-receipts).
 
 If the deployment has no public callback address configured, the account's
 drawer shows *Callback address not configured* instead of a URL. Delivery
 for the account's channel then shows as *Unavailable* (never as zero
 delivered), with that reason, and a Messenger account is not *Ready for
-OTP*: Messenger codes need Get Started, which arrives as a callback. A
-Viber account whose report credentials were never generated also shows
+OTP*: Messenger codes need Get Started, which arrives as a callback. An
+Infobip account (Viber, or WhatsApp through Infobip) whose report
+credentials were never generated also shows
 delivery as *Unavailable*, with *Generate the report credentials and create
 the Infobip subscription*. If the callback URL can't be loaded at all, the
 drawer says so.
@@ -274,21 +277,22 @@ codes as free text before choosing it. Switching keeps the approved
 templates entered on the account, for a switch back, and keeps its last
 connection check.
 
-### Viber delivery reports
+### Infobip delivery reports
 
-Infobip sends Viber delivery reports through a subscription (notification
-profile) that you create in Infobip:
+Infobip sends delivery reports, for Viber and for WhatsApp through
+Infobip, through a subscription (notification profile) that you create in
+Infobip for each account:
 
-1. Save the Viber account, then press **Generate report credentials** in
-   its drawer. The **report username and password** are shown once, with
-   the callback URL and these steps.
-2. In Infobip, create a subscription for Viber delivery reports with the
-   account's callback URL, and choose **Basic** authentication with that
-   username and password.
+1. Save the account, then press **Generate report credentials** in its
+   drawer. The **report username and password** are shown once, with the
+   callback URL and these steps.
+2. In Infobip, create a subscription for the channel's delivery reports
+   with the account's callback URL, and choose **Basic** authentication
+   with that username and password.
 
 Generating them again replaces them at once, so the drawer asks first when
-they are already set: until the Infobip subscription has the new ones,
-Viber reports are refused and messages stay *Accepted*.
+they are already set: until the Infobip subscription has the new ones, the
+account's reports are refused and messages stay *Accepted*.
 
 A report without those credentials, or with wrong ones, is refused. The
 platform doesn't send a report address with each message, so reports only
@@ -534,6 +538,18 @@ binding closes the previous editor and retains its changes. Add opens the new
 binding immediately; saving highlights and opens incomplete bindings. Save includes all bindings,
 including those whose editors are closed.
 
+For WhatsApp through Infobip, a binding also has **Template buttons**: the
+value each of its template's buttons is sent with, in the template's button
+order. **Default for the purpose** sends, for codes, a URL button carrying
+the code followed by a quick reply `NA`, and no buttons for notices. **Set
+for this template** lists the template's own: each a **URL** button (the
+code's copy-code button, or a link's variable part) or a **Quick reply**
+(its payload); `{{code}}` becomes the code, and an empty list sends no
+buttons. Infobip refuses a message whose template has buttons without
+values, and a button without a value can't be saved. A message template
+that names its own WhatsApp provider template sets that template's buttons
+the same way, in **Templates**.
+
 The **Message type or template** field offers translated names for built-in
 messages, such as **Verification code** or **Enrollment rejected**, and the
 administrator-defined aliases from **Templates**. Custom aliases can also be
@@ -653,7 +669,8 @@ message: for example, the provider didn't answer in time. Such a message is
 **never resent automatically**, because the voter may already have it.
 
 - Where the provider can be asked (Viber through Infobip), the platform asks
-  it again regularly and updates the message.
+  it again regularly and updates the message. Infobip can't be asked about
+  a WhatsApp message: it waits for its delivery report.
 - An Unknown message older than 24 hours is shown as **Unresolved**:
   delivery couldn't be confirmed. It is not counted as failed, because it
   may have arrived.
@@ -696,7 +713,7 @@ What to do with Unknown and Unresolved messages:
 | Can't be retried: the message couldn't be prepared again | Message | The retry couldn't read its template, voter or event in time |
 | Not the voter's channel | Message | A notice was asked for on a channel that isn't the voter's; nothing is sent on either |
 | Not sent: the voter is connected to another Messenger Page | Message | The account's Messenger Page changed after the voter connected; the voter connects again at their next sign-in (see [Changing the number or the Page](#changing-the-number-or-the-page)). Nothing was handed to the provider |
-| Generate the report credentials and create the Infobip subscription | Account | A Viber account without report credentials: its receipts are unavailable |
+| Generate the report credentials and create the Infobip subscription | Account | An Infobip account (Viber, or WhatsApp through Infobip) without report credentials: its receipts are unavailable |
 | The voter's channel changed: not retried | Message | The voter changed channel before the retry was due |
 | The worker stopped before sending | Message | Never handed to the provider; retried like a temporary failure |
 | The worker stopped before recording the outcome | Message | May have been sent; shown as Unknown and never resent |
@@ -769,7 +786,12 @@ In short:
   credentials and run **Check connection**: the check reads the approval
   from the number's status. A Solution
   Partner that serves the Cloud API from its own address is entered with
-  its API base URL.
+  its API base URL. Through Infobip instead, Infobip registers the number
+  and submits the templates to Meta: enter the account's Infobip API base
+  URL, the number and an API key with the `whatsapp:manage` and
+  `whatsapp:message:send` scopes, run **Check connection**, which reads
+  the number's approved templates from Infobip, and create the
+  [report subscription](#infobip-delivery-reports).
 - **Viber**: choose the partner. Infobip is built in; another partner needs
   an adapter. Enter the partner's credentials and choose the account's
   [message content](#viber-message-content): its approved templates, or

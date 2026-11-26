@@ -138,7 +138,7 @@ pub fn send_readiness(
 
 /// What stops the account's callbacks from reaching Step, for a given
 /// public base URL: the callback address ([`callback_readiness_with`]) and,
-/// for Viber, the report credentials its Infobip subscription sends, read
+/// for Infobip, the report credentials its subscription sends, read
 /// from the vault's credential records. Receipts are unavailable while any
 /// is set; Messenger isn't ready for codes without the address.
 pub fn callback_blockers_with(
@@ -151,7 +151,11 @@ pub fn callback_blockers_with(
     {
         blockers.push(ReadinessBlocker::CALLBACK_NOT_CONFIGURED);
     }
-    if account.provider == MessagingProvider::VIBER_INFOBIP
+    // Infobip's report subscriptions send the report credentials.
+    if account
+        .provider
+        .accepted_credentials()
+        .contains(&CredentialName::REPORT_PASSWORD)
         && !(account
             .credentials
             .contains_key(&CredentialName::REPORT_USERNAME)
@@ -185,6 +189,7 @@ fn callback_provider(provider: MessagingProvider) -> Option<CallbackProvider> {
             Some(CallbackProvider::META)
         }
         MessagingProvider::VIBER_INFOBIP => Some(CallbackProvider::VIBER),
+        MessagingProvider::WHATSAPP_INFOBIP => Some(CallbackProvider::INFOBIP),
         MessagingProvider::AWS_SES => Some(CallbackProvider::AWS),
         MessagingProvider::AWS_SNS
         | MessagingProvider::SMTP
@@ -339,7 +344,7 @@ pub fn entered_credentials(
     Ok(entered)
 }
 
-/// Generates new report credentials for an Infobip Viber account: the Basic
+/// Generates new report credentials for an Infobip account: the Basic
 /// auth its report subscription sends. Returned once, to be shown once;
 /// only the vault keeps them. The previous ones stop working.
 pub async fn generate_report_credentials(
@@ -915,6 +920,10 @@ mod tests {
                 CallbackProvider::META,
             ),
             (MessagingProvider::VIBER_INFOBIP, CallbackProvider::VIBER),
+            (
+                MessagingProvider::WHATSAPP_INFOBIP,
+                CallbackProvider::INFOBIP,
+            ),
             (MessagingProvider::AWS_SES, CallbackProvider::AWS),
         ] {
             let readiness = callback_readiness_with(Some(base), provider, KEY);
@@ -969,6 +978,11 @@ mod tests {
                 sender: "Elections".to_string(),
                 content_mode: Default::default(),
                 approved_templates: Default::default(),
+            },
+            MessagingProvider::WHATSAPP_INFOBIP => AccountSender::WHATSAPP_INFOBIP {
+                base_url: "https://a.api.infobip.com".to_string(),
+                sender_number: "447796344125".to_string(),
+                display_name: None,
             },
             _ => AccountSender::AWS_SNS {
                 sender_id: None,
@@ -1040,6 +1054,24 @@ mod tests {
                 ReadinessBlocker::CALLBACK_NOT_CONFIGURED,
                 ReadinessBlocker::REPORT_CREDENTIALS_MISSING
             ]
+        );
+        // WhatsApp through Infobip reports through the same subscription.
+        let whatsapp = |credentials: &[CredentialName]| {
+            stored(MessagingProvider::WHATSAPP_INFOBIP, credentials)
+        };
+        assert_eq!(
+            callback_blockers_with(base, &whatsapp(&[CredentialName::API_KEY])),
+            vec![ReadinessBlocker::REPORT_CREDENTIALS_MISSING]
+        );
+        assert_eq!(
+            callback_blockers_with(
+                base,
+                &whatsapp(&[
+                    CredentialName::REPORT_USERNAME,
+                    CredentialName::REPORT_PASSWORD
+                ])
+            ),
+            vec![]
         );
         // SMS through SNS sends no callbacks.
         assert_eq!(

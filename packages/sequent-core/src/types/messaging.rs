@@ -118,6 +118,9 @@ pub enum MessagingProvider {
     /// Viber Business Messages through Infobip. This is not Viber's bot
     /// API.
     VIBER_INFOBIP,
+    /// WhatsApp Business through Infobip, which registers the sender and
+    /// relays Meta's approved templates.
+    WHATSAPP_INFOBIP,
     /// Removed: a provider described by configuration. Parses so stored
     /// accounts load; see [`MessagingProvider::support`].
     HTTP_API,
@@ -211,6 +214,9 @@ impl MessagingProvider {
                 Some(MessageChannel::MESSENGER)
             }
             MessagingProvider::VIBER_INFOBIP => Some(MessageChannel::VIBER),
+            MessagingProvider::WHATSAPP_INFOBIP => {
+                Some(MessageChannel::WHATSAPP)
+            }
             MessagingProvider::HTTP_API | MessagingProvider::CONSOLE => None,
         }
     }
@@ -283,6 +289,19 @@ impl MessagingProvider {
                 delivery_feedback: DeliveryFeedback::PROVIDER_RECEIPTS,
                 reconciliation: true,
                 conversation_window_hours: None,
+                requires_provider_approval: false,
+            },
+            // Meta's rules, through Infobip: approved templates outside the
+            // 24-hour window. Infobip has no WhatsApp message lookup, and
+            // registering the sender is its approval.
+            MessagingProvider::WHATSAPP_INFOBIP => ProviderCapabilities {
+                channel,
+                recipient: RecipientKind::PHONE_NUMBER,
+                purposes: both.clone(),
+                template_required_for: both,
+                delivery_feedback: DeliveryFeedback::PROVIDER_RECEIPTS,
+                reconciliation: false,
+                conversation_window_hours: Some(24),
                 requires_provider_approval: false,
             },
             MessagingProvider::HTTP_API | MessagingProvider::CONSOLE => {
@@ -742,6 +761,65 @@ pub enum ViberContentMode {
     FREE_TEXT,
 }
 
+/// The kind of a template button that takes a value when sent.
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    EnumString,
+)]
+pub enum TemplateButtonType {
+    /// A URL button: the value completes its address. An authentication
+    /// template's copy-code button is sent as one, with the code.
+    URL,
+    /// A quick reply: the value is the payload returned when it is pressed.
+    QUICK_REPLY,
+}
+
+/// A value [`TEMPLATE_BUTTON_CODE`] in a button's parameter becomes the
+/// code being sent.
+pub const TEMPLATE_BUTTON_CODE: &str = "{{code}}";
+
+/// One button of an approved template, as it is sent.
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct TemplateButton {
+    #[serde(rename = "type")]
+    pub kind: TemplateButtonType,
+    /// The value; [`TEMPLATE_BUTTON_CODE`] is replaced with the code.
+    pub parameter: String,
+}
+
+impl MessagingProvider {
+    /// The buttons a template is sent with when its binding or message sets
+    /// none. WhatsApp through Infobip sends a code's template with its
+    /// copy-code button, carrying the code, then a quick reply; everything
+    /// else sends none.
+    pub fn default_template_buttons(
+        &self,
+        purpose: MessagePurpose,
+    ) -> Vec<TemplateButton> {
+        match (self, purpose) {
+            (MessagingProvider::WHATSAPP_INFOBIP, MessagePurpose::OTP) => vec![
+                TemplateButton {
+                    kind: TemplateButtonType::URL,
+                    parameter: TEMPLATE_BUTTON_CODE.to_string(),
+                },
+                TemplateButton {
+                    kind: TemplateButtonType::QUICK_REPLY,
+                    parameter: "NA".to_string(),
+                },
+            ],
+            _ => vec![],
+        }
+    }
+}
+
 /// Why a purpose cannot be enabled on an account, most fundamental first.
 #[allow(non_camel_case_types)]
 #[derive(
@@ -1182,6 +1260,11 @@ pub struct TemplateBinding {
     /// `en_US` for `en`.
     #[serde(default)]
     pub provider_language: Option<String>,
+    /// The values of the template's buttons, in its button order. `None`:
+    /// the provider's default for the purpose
+    /// ([`MessagingProvider::default_template_buttons`]); empty: none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub buttons: Option<Vec<TemplateButton>>,
 }
 
 impl TemplateBinding {
@@ -1264,6 +1347,12 @@ pub enum MessagingConfigError {
     },
     OUT_OF_WINDOW_NOT_SUPPORTED {
         channel: MessageChannel,
+    },
+    /// A binding's template button has no value.
+    TEMPLATE_BUTTON_WITHOUT_VALUE {
+        channel: MessageChannel,
+        purpose: MessagePurpose,
+        language: String,
     },
     /// Messenger notices reach voters outside the 24-hour window only as
     /// an approved utility template: bind one for notices.
@@ -1451,6 +1540,22 @@ impl EventMessagingConfig {
                         purpose: *purpose,
                         blockers: readiness.blockers,
                     });
+                }
+            }
+            for binding in &channel_config.templates {
+                if binding
+                    .buttons
+                    .iter()
+                    .flatten()
+                    .any(|button| button.parameter.trim().is_empty())
+                {
+                    errors.push(
+                        MessagingConfigError::TEMPLATE_BUTTON_WITHOUT_VALUE {
+                            channel,
+                            purpose: binding.purpose,
+                            language: binding.language.clone(),
+                        },
+                    );
                 }
             }
             let template_purposes = &account.capabilities.template_required_for;
@@ -1678,6 +1783,16 @@ pub enum AccountSender {
         /// switching back finds them.
         #[serde(default)]
         content_mode: ViberContentMode,
+    },
+    WHATSAPP_INFOBIP {
+        /// The account's Infobip API base URL.
+        base_url: String,
+        /// The WhatsApp number registered with Infobip, in international
+        /// format without `+`, such as `447796344125`.
+        sender_number: String,
+        /// The business name voters see, when it isn't the number.
+        #[serde(default)]
+        display_name: Option<String>,
     },
     /// Any provider with a JSON HTTP API, described by configuration.
     HTTP_API(HttpApiSender),
@@ -1951,6 +2066,17 @@ impl AccountSender {
                 ("base_url", Some(base_url.trim_end_matches('/'))),
                 ("sender", Some(sender.as_str())),
             ],
+            AccountSender::WHATSAPP_INFOBIP {
+                base_url,
+                sender_number,
+                ..
+            } => vec![
+                ("base_url", Some(base_url.trim_end_matches('/'))),
+                (
+                    "sender_number",
+                    Some(sender_number.trim().trim_start_matches('+')),
+                ),
+            ],
             AccountSender::HTTP_API(_) | AccountSender::CONSOLE {} => vec![],
         };
         AccountIdentity {
@@ -2022,6 +2148,9 @@ impl AccountSender {
             AccountSender::VIBER_INFOBIP { .. } => {
                 MessagingProvider::VIBER_INFOBIP
             }
+            AccountSender::WHATSAPP_INFOBIP { .. } => {
+                MessagingProvider::WHATSAPP_INFOBIP
+            }
             AccountSender::CONSOLE {} => MessagingProvider::CONSOLE,
         }
     }
@@ -2055,6 +2184,21 @@ impl AccountSender {
                 page_name, page_id, ..
             } => Some(page_name.clone().unwrap_or(page_id.clone())),
             AccountSender::VIBER_INFOBIP { sender, .. } => Some(sender.clone()),
+            AccountSender::WHATSAPP_INFOBIP {
+                sender_number,
+                display_name,
+                ..
+            } => Some(
+                display_name
+                    .clone()
+                    .filter(|name| !name.trim().is_empty())
+                    .unwrap_or_else(|| {
+                        format!(
+                            "+{}",
+                            sender_number.trim().trim_start_matches('+')
+                        )
+                    }),
+            ),
             AccountSender::HTTP_API(api) => api.label.clone(),
             AccountSender::CONSOLE {} => None,
         }
@@ -2143,7 +2287,10 @@ impl MessagingProvider {
             | MessagingProvider::MESSENGER_SEND_API => {
                 vec![CredentialName::ACCESS_TOKEN]
             }
-            MessagingProvider::VIBER_INFOBIP => vec![CredentialName::API_KEY],
+            MessagingProvider::VIBER_INFOBIP
+            | MessagingProvider::WHATSAPP_INFOBIP => {
+                vec![CredentialName::API_KEY]
+            }
             MessagingProvider::SMTP => vec![CredentialName::SMTP_PASSWORD],
             MessagingProvider::AWS_SES
             | MessagingProvider::AWS_SNS
@@ -2166,7 +2313,8 @@ impl MessagingProvider {
                 CredentialName::APP_SECRET,
                 CredentialName::VERIFY_TOKEN,
             ],
-            MessagingProvider::VIBER_INFOBIP => vec![
+            MessagingProvider::VIBER_INFOBIP
+            | MessagingProvider::WHATSAPP_INFOBIP => vec![
                 CredentialName::API_KEY,
                 CredentialName::REPORT_USERNAME,
                 CredentialName::REPORT_PASSWORD,
@@ -2420,6 +2568,7 @@ mod tests {
             language: language.to_string(),
             provider_template: template.to_string(),
             provider_language: None,
+            buttons: None,
         }
     }
 
@@ -2851,6 +3000,163 @@ mod tests {
         // Neither the mode nor the templates are part of the identity: a
         // switch keeps the account's last check.
         assert_eq!(free_text.identity(), stored.identity());
+    }
+
+    #[test]
+    fn a_templates_buttons_are_set_on_its_binding_else_the_providers_default() {
+        let button = |kind, parameter: &str| TemplateButton {
+            kind,
+            parameter: parameter.to_string(),
+        };
+        // Out of the box, WhatsApp through Infobip sends a code's template
+        // with the code's button and a quick reply; nothing else has any.
+        assert_eq!(
+            MessagingProvider::WHATSAPP_INFOBIP
+                .default_template_buttons(MessagePurpose::OTP),
+            vec![
+                button(TemplateButtonType::URL, TEMPLATE_BUTTON_CODE),
+                button(TemplateButtonType::QUICK_REPLY, "NA"),
+            ]
+        );
+        for (provider, purpose) in [
+            (MessagingProvider::WHATSAPP_INFOBIP, MessagePurpose::NOTICE),
+            (MessagingProvider::WHATSAPP_CLOUD_API, MessagePurpose::OTP),
+            (MessagingProvider::VIBER_INFOBIP, MessagePurpose::OTP),
+        ] {
+            assert!(provider.default_template_buttons(purpose).is_empty());
+        }
+        // Bindings saved before buttons existed load, and save as they were.
+        let stored = serde_json::json!({"purpose": "OTP", "language": "en",
+            "provider_template": "authentication"});
+        let binding: TemplateBinding =
+            serde_json::from_value(stored.clone()).expect("binding");
+        assert_eq!(binding.buttons, None);
+        assert_eq!(
+            serde_json::to_value(&binding).expect("json").get("buttons"),
+            None
+        );
+        let configured = serde_json::json!({"purpose": "NOTICE",
+            "language": "en", "provider_template": "polls_close",
+            "buttons": [{"type": "URL", "parameter": "vote"},
+                        {"type": "QUICK_REPLY", "parameter": "STOP"}]});
+        let binding: TemplateBinding =
+            serde_json::from_value(configured.clone()).expect("binding");
+        assert_eq!(
+            serde_json::to_value(&binding).expect("json")["buttons"],
+            configured["buttons"]
+        );
+        let mut unknown = configured;
+        unknown["buttons"][0]["type"] = "CALL".into();
+        assert!(serde_json::from_value::<TemplateBinding>(unknown).is_err());
+    }
+
+    #[test]
+    fn a_bound_template_button_needs_a_value() {
+        let accounts = vec![account(
+            "wa-1",
+            MessageChannel::WHATSAPP,
+            MessagingProvider::WHATSAPP_INFOBIP,
+            ready_check(&[
+                (MessagePurpose::OTP, "en"),
+                (MessagePurpose::NOTICE, "en"),
+            ]),
+        )];
+        let config = EventMessagingConfig {
+            channels: vec![EventChannelConfig {
+                templates: vec![
+                    TemplateBinding {
+                        purpose: MessagePurpose::OTP,
+                        buttons: Some(vec![]),
+                        ..binding(None, "en", "authentication")
+                    },
+                    TemplateBinding {
+                        buttons: Some(vec![TemplateButton {
+                            kind: TemplateButtonType::QUICK_REPLY,
+                            parameter: " ".to_string(),
+                        }]),
+                        ..binding(None, "en", "polls_close")
+                    },
+                ],
+                ..channel_config(
+                    MessageChannel::WHATSAPP,
+                    "wa-1",
+                    &[MessagePurpose::OTP, MessagePurpose::NOTICE],
+                )
+            }],
+            ..Default::default()
+        };
+        assert_eq!(
+            config.validate(TENANT, &accounts, &[]),
+            Err(vec![MessagingConfigError::TEMPLATE_BUTTON_WITHOUT_VALUE {
+                channel: MessageChannel::WHATSAPP,
+                purpose: MessagePurpose::NOTICE,
+                language: "en".to_string(),
+            }])
+        );
+    }
+
+    #[test]
+    fn whatsapp_through_infobip_sends_approved_templates_with_an_api_key() {
+        let sender: AccountSender = serde_json::from_value(serde_json::json!({
+            "provider": "WHATSAPP_INFOBIP",
+            "base_url": "https://abc.api.infobip.com/",
+            "sender_number": "+447796344125",
+            "display_name": "COMELEC"
+        }))
+        .expect("sender");
+        let provider = sender.provider();
+        assert_eq!(provider, MessagingProvider::WHATSAPP_INFOBIP);
+        assert_eq!(provider.channel(), Some(MessageChannel::WHATSAPP));
+        assert_eq!(provider.support(), ProviderSupport::SUPPORTED);
+        assert!(provider.capabilities(MessageChannel::VIBER).is_none());
+        let capabilities = sender
+            .capabilities(MessageChannel::WHATSAPP)
+            .expect("capabilities");
+        assert_eq!(
+            capabilities,
+            ProviderCapabilities {
+                channel: MessageChannel::WHATSAPP,
+                recipient: RecipientKind::PHONE_NUMBER,
+                purposes: vec![MessagePurpose::OTP, MessagePurpose::NOTICE],
+                template_required_for: vec![
+                    MessagePurpose::OTP,
+                    MessagePurpose::NOTICE
+                ],
+                delivery_feedback: DeliveryFeedback::PROVIDER_RECEIPTS,
+                // Infobip has no WhatsApp message lookup.
+                reconciliation: false,
+                conversation_window_hours: Some(24),
+                // Infobip registers the sender: no separate approval.
+                requires_provider_approval: false,
+            }
+        );
+        assert_eq!(
+            sender.identity().ids,
+            BTreeMap::from([
+                (
+                    "base_url".to_string(),
+                    "https://abc.api.infobip.com".to_string()
+                ),
+                ("sender_number".to_string(), "447796344125".to_string()),
+            ])
+        );
+        assert_eq!(sender.public_label(), Some("COMELEC".to_string()));
+        let unnamed: AccountSender =
+            serde_json::from_value(serde_json::json!({
+                "provider": "WHATSAPP_INFOBIP",
+                "base_url": "https://abc.api.infobip.com",
+                "sender_number": "447796344125"
+            }))
+            .expect("sender");
+        assert_eq!(unnamed.public_label(), Some("+447796344125".to_string()));
+        assert_eq!(
+            provider.required_credentials(),
+            vec![CredentialName::API_KEY]
+        );
+        assert_eq!(
+            provider.accepted_credentials(),
+            MessagingProvider::VIBER_INFOBIP.accepted_credentials()
+        );
     }
 
     fn channel_config(

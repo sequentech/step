@@ -217,6 +217,9 @@ pub enum CallbackProvider {
     META,
     /// Viber through Infobip (`/webhooks/viber/{key}`).
     VIBER,
+    /// Infobip's other channels: WhatsApp (`/webhooks/infobip/{key}`).
+    /// Reports carry the same Basic auth as Viber's.
+    INFOBIP,
     /// SNS-wrapped SES events and SNS subscription confirmation
     /// (`/webhooks/aws/{key}`).
     AWS,
@@ -239,6 +242,7 @@ impl CallbackProvider {
         match self {
             Self::META => "meta",
             Self::VIBER => "viber",
+            Self::INFOBIP => "infobip",
             Self::AWS => "aws",
         }
     }
@@ -778,6 +782,10 @@ mod tests {
             format!("http://messaging-webhooks:8410/webhooks/viber/{KEY}")
         );
         assert_eq!(CallbackProvider::AWS.path_segment(), "aws");
+        assert_eq!(
+            CallbackProvider::INFOBIP.callback_url("https://callbacks.example.org", KEY),
+            format!("https://callbacks.example.org/webhooks/infobip/{KEY}")
+        );
     }
 
     #[test]

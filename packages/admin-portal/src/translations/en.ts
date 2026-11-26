@@ -6989,6 +6989,8 @@ const englishTranslation = {
                     "{{channel}} cannot send {{purpose}} yet. Missing: {{blockers}}.",
                 TEMPLATE_NOT_APPROVED:
                     "The {{channel}} template for {{purpose}} in {{language}} is not approved by the provider.",
+                TEMPLATE_BUTTON_WITHOUT_VALUE:
+                    "A {{channel}} template button for {{purpose}} in {{language}} has no value.",
                 OUT_OF_WINDOW_NOT_SUPPORTED:
                     "{{channel}} cannot send outside a conversation window with this account: it has no conversation window, or its notices already need a template.",
                 ELECTION_CHANNEL_NOT_ENABLED:
@@ -7018,6 +7020,7 @@ const englishTranslation = {
                 WHATSAPP_CLOUD_API: "WhatsApp Cloud API (Meta)",
                 MESSENGER_SEND_API: "Messenger Platform (Meta)",
                 VIBER_INFOBIP: "Viber Business Messages (Infobip)",
+                WHATSAPP_INFOBIP: "WhatsApp Business (Infobip)",
                 CONSOLE: "Console (no longer supported)",
                 HTTP_API: "Custom HTTP API (no longer supported)",
             },
@@ -7079,6 +7082,24 @@ const englishTranslation = {
                 REPORT_PASSWORD: "Report password",
             },
             deliveryUnavailable: "Delivery unavailable",
+            templateButtons: {
+                title: "Template buttons",
+                help: "The values the template's buttons are sent with, in the order they appear in the template. {{code}} becomes the code being sent.",
+                choice: {
+                    DEFAULT: "Default for the purpose",
+                    CUSTOM: "Set for this template",
+                },
+                type: "Button type",
+                parameter: "Value",
+                add: "Add button",
+                remove: "Remove button",
+                none: "No buttons",
+                required: "Enter a value",
+                types: {
+                    URL: "URL (copy code or link)",
+                    QUICK_REPLY: "Quick reply",
+                },
+            },
             templates: {
                 noMethod: "Choose at least one method for the template.",
                 parameters: "Template parameters",
@@ -7110,6 +7131,8 @@ const englishTranslation = {
                 approvedWording: "Approved wording",
                 approvedWordingHelp:
                     "A copy of the approved template, used as a preview. Changing it here does not change what the provider sends.",
+                buttonsHelp:
+                    "Used by WhatsApp through Infobip with the provider template above. Without one, the event's template and its buttons are used.",
                 viberWording: "Wording",
                 viberWordingHelp:
                     "An account that sends free text sends this wording as written. With approved templates it is a copy of the template, used as a preview, and does not change what is sent.",
@@ -7463,6 +7486,7 @@ const englishTranslation = {
                 page_name: "Page name",
                 page_username: "Page username",
                 base_url: "API base URL",
+                sender_number: "Sender number",
                 sender: "Sender name",
                 provider_approval: "Provider approval",
                 is_default: "Default {{channel}} account for new election events",
@@ -7481,6 +7505,8 @@ const englishTranslation = {
                 page_username: "Used for the m.me link voters open to get their code.",
                 api_version: "For example v23.0.",
                 base_url: "The account's Infobip API base URL.",
+                sender_number:
+                    "The WhatsApp number registered with Infobip, in international format, such as 447796344125.",
                 sender: "The approved sender voters see.",
                 provider_approval:
                     "Meta allows government messaging on WhatsApp only through an approved arrangement. Choose Provider approval confirmed once Meta has approved it for this account; until then OTPs and notices cannot be enabled for it.",
@@ -7580,6 +7606,10 @@ const englishTranslation = {
                 VIBER_INFOBIP: {
                     API_KEY: "The Infobip API key.",
                 },
+                WHATSAPP_INFOBIP: {
+                    API_KEY:
+                        "The Infobip API key, with the whatsapp:manage and whatsapp:message:send scopes.",
+                },
             },
             webhook: {
                 title: "Delivery reports",
@@ -7590,6 +7620,8 @@ const englishTranslation = {
                         "Enter this callback URL in Meta's webhook settings. Delivery reports and the voter's Get Started tap arrive here and are checked with the app secret.",
                     VIBER_INFOBIP:
                         "Infobip sends Viber delivery reports to this callback URL through a subscription with Basic authentication.",
+                    WHATSAPP_INFOBIP:
+                        "Infobip sends WhatsApp delivery reports to this callback URL through a subscription with Basic authentication.",
                     AWS_SES:
                         "Subscribe this callback URL (HTTPS) to the delivery notifications topic. Delivery and bounce events arrive here and are checked with Amazon's signature.",
                 },
@@ -7654,13 +7686,14 @@ const englishTranslation = {
                 copyPassword: "Copy report password",
                 error: "The report credentials could not be generated.",
                 step: {
-                    subscription: "In Infobip, create a subscription for Viber delivery reports.",
+                    subscription:
+                        "In Infobip, create a subscription for {{channel}} delivery reports.",
                     url: "Set its URL to this account's callback URL.",
                     auth: "Choose Basic authentication and enter the report user name and password.",
                 },
                 confirmTitle: "Replace the report credentials?",
                 confirmBody:
-                    "The current report user name and password stop working at once. Until Infobip's subscription has the new ones, Viber delivery reports are refused and messages stay Accepted.",
+                    "The current report user name and password stop working at once. Until Infobip's subscription has the new ones, {{channel}} delivery reports are refused and messages stay Accepted.",
                 confirm: "Replace",
             },
         },
