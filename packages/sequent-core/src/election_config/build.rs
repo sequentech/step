@@ -114,7 +114,11 @@ pub fn control_columns(sheet_key: &str) -> &'static [&'static str] {
         ],
         SHEET_ELECTIONS => &[IVR_I18N_COLUMN],
         SHEET_CONTESTS => &["election.external_id", IVR_I18N_COLUMN],
-        SHEET_CANDIDATES => &["contest.external_id", IVR_I18N_COLUMN],
+        SHEET_CANDIDATES => &[
+            "contest.external_id",
+            IVR_I18N_COLUMN,
+            super::workbook_photo::COLUMN,
+        ],
         SHEET_AREAS => &["parent.external_id"],
         SHEET_AREA_CONTESTS => &["area.external_id", "contest.external_id"],
         SHEET_SCHEDULED_EVENTS => &[
@@ -866,6 +870,13 @@ impl<'a> Builder<'a> {
             }
         }
 
+        if let Err(problem) =
+            super::signing_sheet::require_signing_receiver(&export)
+        {
+            self.report.push(problem);
+            return Err(self.report);
+        }
+
         // Built after the entities, because every one of these resolves an
         // external_id against them.
         let voters = self.build_voters();
@@ -1521,6 +1532,7 @@ impl<'a> Builder<'a> {
         let rows: Vec<Row> = self.workbook.rows(SHEET_CANDIDATES).to_vec();
         let mut candidates = Vec::new();
         let mut seen: Vec<(String, usize)> = Vec::new();
+        let mut photos = super::workbook_photo::Budget::default();
 
         for row in &rows {
             let Some(external_id) =
@@ -1561,6 +1573,35 @@ impl<'a> Builder<'a> {
                 ],
             );
             candidate.insert("external_id".to_string(), json!(external_id));
+
+            // An inline photo is converted to the same attached public image
+            // as one chosen in the wizard. Never emit its data URL into JSON.
+            match photos.read(row) {
+                Ok(Some(photo)) => {
+                    let document_id = super::architect::image_document_id(
+                        &self.ids,
+                        &external_id,
+                    );
+                    if self.image_for(&document_id).is_some() {
+                        self.report.push(super::workbook_photo::problem(
+                            row,
+                            "provide only one photo for a candidate",
+                        ));
+                    } else {
+                        candidate.insert(
+                            "image_document_id".to_string(),
+                            json!(document_id),
+                        );
+                        self.images.push(ImageFile {
+                            document_id,
+                            file_name: photo.file_name,
+                            bytes: photo.bytes,
+                        });
+                    }
+                }
+                Ok(None) => (),
+                Err(problem) => self.report.push(problem),
+            }
 
             // The photograph's other half. `image_document_id` came from the row;
             // the url is composed here because it embeds the tenant, and this is

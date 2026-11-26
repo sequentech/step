@@ -7,6 +7,7 @@ import {
     PACKAGE_PERMISSIONS,
     PACKAGE_SECTIONS,
     changeLines,
+    hasPortableReplacement,
     isFinished,
     lastLogLine,
     mayApply,
@@ -332,6 +333,23 @@ describe("portable messaging preview", () => {
                 {reference: "package:sns", action: "reuse", channel: "SMS", provider: "AWS_SNS"},
             ])
         ).toEqual(["package:ses · create · EMAIL · AWS_SES", "package:sns · reuse · SMS · AWS_SNS"])
+    })
+
+    it("shows a typed portable replacement and never displays account IDs or keys", () => {
+        const change = {
+            reference: "package:sns",
+            action: "replace",
+            channel: "SMS",
+            provider: "AWS_SNS",
+            accountId: "private-id",
+            secret: "not-for-display",
+        }
+        expect(hasPortableReplacement([change])).toBe(true)
+        expect(hasPortableReplacement([{...change, action: "reuse"}])).toBe(false)
+        expect(hasPortableReplacement([{...change, reference: "not-a-portable-ref"}])).toBe(false)
+        expect(changeLines([change], "Localized replacement")).toEqual([
+            "package:sns · Localized replacement · SMS · AWS_SNS",
+        ])
     })
 
     it("distinguishes a linked account from an enabled OTP or notice", () => {

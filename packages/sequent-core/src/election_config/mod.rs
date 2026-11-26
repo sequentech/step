@@ -37,6 +37,11 @@ mod messaging_config;
 #[cfg(feature = "election_config_templates")]
 pub mod portable_messaging;
 
+/// AWS key pairs beside, never inside, a signed delivery: the sidecar, its
+/// signed commitment and the installation record seal.
+#[cfg(feature = "election_config_signing")]
+pub mod messaging_credentials;
+
 /// What a bundle becomes as files. Needs the builder, so it shares its feature;
 /// the zip writer itself is behind `election_config_archive`.
 #[cfg(feature = "election_config_templates")]
@@ -219,6 +224,9 @@ pub mod xlsx_write;
 /// Reading a workbook back as a plan — the inverse of `architect::to_workbook`.
 #[cfg(feature = "election_config_templates")]
 pub mod plan_from_workbook;
+
+#[cfg(feature = "election_config_templates")]
+mod workbook_photo;
 
 /// Reading an election event exported from the Admin Portal back as a plan — the
 /// inverse of what `build` writes. Gated with the emitter it inverts, and no

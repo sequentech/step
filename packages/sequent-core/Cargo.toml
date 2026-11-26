@@ -130,6 +130,15 @@ csv = "1.3.0"
 # reading authoring spreadsheets; optional so front ends with no workbook to read
 # do not carry it into their WASM bundle
 calamine = { version = "0.36", features = ["dates"], optional = true }
+# An inline workbook portrait is a small, validated PNG; normal clients need no decoder.
+png = { version = "0.18", optional = true }
+# Pure Rust decoders already present in the workspace lock; bounded scalar JPEG in WASM too.
+zune-jpeg = { version = "0.4.21", default-features = false, optional = true }
+zune-core = { version = "0.4.12", default-features = false, optional = true }
+# SQL source portraits only. AVIF uses the bounded pure-Rust still decoder;
+# neither this nor WebP requires a browser or native codec library.
+avif-rust = { version = "=0.3.0", default-features = false, optional = true }
+oxideav-webp = { version = "=0.3.2", default-features = false, optional = true }
 
 # uuid5 for the deterministic ids a generated bundle uses. The `uuid` crate is not
 # used for this: its v4 feature pulls getrandom, whose WASM support is version
@@ -167,6 +176,8 @@ x509-parser = { version = "0.18.1", default-features = false, optional = true }
 # Verifying browser FIDO2 (WebAuthn) assertions offline: ES256 and SHA-256,
 # the same ring rustls-webpki already brings (wasm32 has its own entry below).
 ring = { version = "0.17", optional = true }
+# Clearing messaging credential and record-key buffers (already in the lock).
+zeroize = { version = "1.8", optional = true }
 
 
 # WASM plugin management
@@ -205,16 +216,16 @@ default_features = ["dep:electoral-log", "dep:num-bigint", "dep:tempfile", "dep:
 # Reading .xlsx into an election_config::sheet::Workbook. Separate from
 # default_features because admin-portal and voting-portal have no workbook to
 # read and should not pay for a spreadsheet parser in their bundle.
-election_config_xlsx = ["default_features", "dep:calamine", "dep:zip"]
+election_config_xlsx = ["default_features", "dep:calamine", "dep:zip", "dep:avif-rust", "dep:oxideav-webp"]
 # Rendering the base entity templates. Separate from `reports`, which also brings
 # a headless browser and three AWS SDKs; this needs only the template engine.
-election_config_templates = ["default_features", "areas", "dep:handlebars"]
+election_config_templates = ["default_features", "areas", "dep:handlebars", "dep:png", "dep:zune-jpeg", "dep:zune-core"]
 # Writing the importable zip. Separate again: a front end that only validates an
 # existing bundle has nothing to write.
 election_config_archive = ["election_config_templates", "dep:zip"]
 # Checking a signed configuration package: its signer, its approvals and
 # every file. Separate from the archive, which only writes and reads zips.
-election_config_signing = ["election_config_archive", "dep:rustls-webpki", "dep:rustls-pki-types", "dep:x509-parser", "dep:ring"]
+election_config_signing = ["election_config_archive", "dep:rustls-webpki", "dep:rustls-pki-types", "dep:x509-parser", "dep:ring", "dep:zeroize"]
 # Monitoring dashboards: their configuration, its policy and its presets. Pure,
 # like election_config, so the Admin Portal can check an edit before saving it.
 monitoring = ["dep:serde_yaml", "dep:indexmap", "dep:sha2"]

@@ -444,11 +444,24 @@ async fn execute(
     }
     let package_messaging = portable_accounts
         .map(|definitions| {
+            // Delivered AWS key pairs live in the vault under the protected
+            // staging document only; an ordinary document carries none.
+            let staged_document = if protected_stage {
+                Some(uuid::Uuid::parse_str(&body.document_id)?)
+            } else {
+                None
+            };
             Ok::<_, anyhow::Error>(std::sync::Arc::new(PackageMessaging::new(
                 sequent_core::services::uuid_validation::parse_uuid_v4(&body.tenant_id)?,
                 package_sha256.clone(),
                 definitions,
                 confirmed_messaging,
+                staged_document,
+                // Harvest sets this from the verified JWT (audit::actor), never
+                // from the request body: staged credentials need their uploader.
+                body.audit_actor
+                    .as_ref()
+                    .and_then(|actor| actor.user_id.clone()),
             )))
         })
         .transpose()?;

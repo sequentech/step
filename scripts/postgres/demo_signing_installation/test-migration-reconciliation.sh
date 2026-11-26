@@ -49,13 +49,23 @@ digest() {
 sql 'CREATE DATABASE before_1600'
 export PGDATABASE=before_1600
 sql 'CREATE EXTENSION pgcrypto; CREATE EXTENSION unaccent;'
-: >"$dir/before.sql"; : >"$dir/later.sql"
+: >"$dir/before.sql"; : >"$dir/later.sql"; : >"$dir/legacy-hsm.sql"; : >"$dir/pending-extra.sql"
+append_migration() { { echo 'BEGIN;'; cat "$1/up.sql"; echo; echo 'COMMIT;'; } >>"$2"; }
 for d in "$m"/*/; do
     n=$(basename "$d"); n=${n%%_*}
-    if [ "$n" -lt 1794700001600 ]; then out="$dir/before.sql"
-    elif [ "$n" -gt 1794700001610 ]; then out="$dir/later.sql"
-    else continue; fi
-    { echo 'BEGIN;'; cat "$d/up.sql"; echo; echo 'COMMIT;'; } >>"$out"
+    if [ "$n" -lt 1794700001600 ]; then
+        append_migration "$d" "$dir/before.sql"
+    elif [ "$n" -gt 1794700001610 ]; then
+        append_migration "$d" "$dir/later.sql"
+        # Only this portable-independent HSM lineage could have been
+        # applied alongside the old demo 1600. Portable 1650 guards
+        # canonical cast sealing and must remain pending on this upgrade.
+        if [ "$n" -ge 1794700001700 ] && [ "$n" -le 1794700002340 ]; then
+            append_migration "$d" "$dir/legacy-hsm.sql"
+        else
+            append_migration "$d" "$dir/pending-extra.sql"
+        fi
+    fi
 done
 export PGOPTIONS='-c client_min_messages=error'
 psql -f "$dir/before.sql" >"$dir/before.log"
@@ -109,11 +119,13 @@ for state in cast_only demo_only both; do
     if [ "$state" != demo_only ]; then apply "$dir/old-cast.sql"; publish; hc=t; fi
     if [ "$state" != cast_only ]; then apply "$dir/old-demo.sql"; hd=t; fi
     # Simulate an existing database whose Hasura catalogue already has 1600
-    # and later versions. Only the newly introduced version will be pending.
-    psql -f "$dir/later.sql" >"$dir/later.log"
+    # and the later HSM versions. Apply pending integration extras (such as
+    # portable 1650) after reconciliation, not as if they were in that lineage.
+    psql -f "$dir/legacy-hsm.sql" >"$dir/legacy-hsm.log"
     if [ "$hd" = t ]; then register; fi
     snapshot "$hc" "$hd" >"$dir/before"
     apply "$fix/up.sql"; apply "$fix/up.sql"
+    psql -f "$dir/pending-extra.sql" >"$dir/pending-extra.log"
     snapshot "$hc" "$hd" >"$dir/after"; diff -u "$dir/before" "$dir/after"
     assert_sql "SELECT NOT sequent_backend.operational_signing_hsm_required('$other') AND (SELECT count(*) FROM sequent_backend.tenant)=2
         AND (SELECT count(*) FROM sequent_backend.election_event)=1 AND (SELECT count(*) FROM sequent_backend.election)=1
