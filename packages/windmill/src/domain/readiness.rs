@@ -408,7 +408,10 @@ fn configuration_findings(
     findings
 }
 
-pub(crate) fn certification_findings(event: &EventEvidence, role: EventRole) -> Vec<ReadinessFinding> {
+pub(crate) fn certification_findings(
+    event: &EventEvidence,
+    role: EventRole,
+) -> Vec<ReadinessFinding> {
     use FindingCode::*;
     let name = role_name(role);
     let mut findings = Vec::new();
@@ -756,7 +759,9 @@ pub(crate) fn finished_findings(tested: &EventEvidence, role: EventRole) -> Vec<
             ReadinessFinding::new(
                 BoxesUnsealed,
                 role,
-                format!("Election {election} of the {name} event has {count} unsealed ballot boxes"),
+                format!(
+                    "Election {election} of the {name} event has {count} unsealed ballot boxes"
+                ),
             )
             .election(election)
             .value("unsealed", count),

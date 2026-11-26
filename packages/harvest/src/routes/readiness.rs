@@ -21,6 +21,7 @@ use windmill::services::readiness::ReadinessStage;
 /// In rehearsal modes the first position holds the first role the mode
 /// names (ERT, or the official event) and the second the other one.
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ReadinessInput {
     official_event_id: String,
     tested_event_id: String,
@@ -139,11 +140,13 @@ pub async fn readiness_check(
         .await
         .map_err(internal)?;
     if let Some(comparison) = input.comparison.unwrap_or_default().rehearsal() {
-        // The database enforces the no-write path: a read-only repeatable
-        // read snapshot, always rolled back, with no recorder at all.
+        // Read committed observes work that finished while the advisory lock
+        // was waiting. A snapshot fixed during authorization would predate
+        // that work while the separate evidence stores return current data.
+        // The transaction stays read-only and never has a recorder.
         let tx = client
             .build_transaction()
-            .isolation_level(tokio_postgres::IsolationLevel::RepeatableRead)
+            .isolation_level(tokio_postgres::IsolationLevel::ReadCommitted)
             .read_only(true)
             .start()
             .await
@@ -262,8 +265,7 @@ mod tests {
 
     #[test]
     fn an_absent_or_null_mode_is_the_strict_production_check() {
-        let (official, tested) =
-            (uuid::Uuid::new_v4(), uuid::Uuid::new_v4());
+        let (official, tested) = (uuid::Uuid::new_v4(), uuid::Uuid::new_v4());
         for body in [
             serde_json::json!({"official_event_id": official, "tested_event_id": tested}),
             serde_json::json!({"official_event_id": official, "tested_event_id": tested, "comparison": null}),

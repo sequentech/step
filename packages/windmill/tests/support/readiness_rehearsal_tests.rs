@@ -159,18 +159,32 @@ fn each_mode_reports_its_roles_and_only_official_stl_is_never_consistent() {
         );
         let kinds: Vec<_> = report.checks.iter().map(|check| check.kind).collect();
         for kind in [Configuration, OwnCensus, Lifecycle, Seal] {
-            assert_eq!(check(&report, kind).verdict, RehearsalVerdict::Consistent, "{comparison:?} {kind:?}: {:#?}", report.checks);
+            assert_eq!(
+                check(&report, kind).verdict,
+                RehearsalVerdict::Consistent,
+                "{comparison:?} {kind:?}: {:#?}",
+                report.checks
+            );
         }
         if comparison == RehearsalComparison::OfficialStl {
-            assert_eq!(kinds, [Configuration, OwnCensus, CensusSubset, Lifecycle, Seal]);
+            assert_eq!(
+                kinds,
+                [Configuration, OwnCensus, CensusSubset, Lifecycle, Seal]
+            );
             assert_eq!(report.verdict, RehearsalVerdict::NotVerified);
             let subset = check(&report, CensusSubset);
             assert_eq!(subset.verdict, RehearsalVerdict::NotVerified);
             assert_eq!(subset.findings.len(), 1);
             assert_eq!(subset.findings[0].code, FindingCode::SubsetNotVerified);
             assert_eq!(subset.findings[0].values["missing"], SUBSET_MISSING_PROOF);
-            for proof in ["stable_voter_identity", "certified_membership", "approved_selection"] {
-                assert!(SUBSET_MISSING_PROOF.split(',').any(|missing| missing == proof));
+            for proof in [
+                "stable_voter_identity",
+                "certified_membership",
+                "approved_selection",
+            ] {
+                assert!(SUBSET_MISSING_PROOF
+                    .split(',')
+                    .any(|missing| missing == proof));
             }
         } else {
             assert_eq!(kinds, [Configuration, OwnCensus, Lifecycle, Seal]);
@@ -182,7 +196,10 @@ fn each_mode_reports_its_roles_and_only_official_stl_is_never_consistent() {
 #[test]
 fn certified_censuses_are_never_compared_for_equality() {
     // The lineage's three certified files and counts all differ.
-    for comparison in [RehearsalComparison::ErtStl, RehearsalComparison::OfficialErt] {
+    for comparison in [
+        RehearsalComparison::ErtStl,
+        RehearsalComparison::OfficialErt,
+    ] {
         let (reference, compared) = pair(comparison);
         assert_ne!(reference["voters"]["sha256"], compared["voters"]["sha256"]);
         assert_ne!(
@@ -190,11 +207,20 @@ fn certified_censuses_are_never_compared_for_equality() {
             compared["voters"]["counts_by_area"]
         );
         let report = compare(comparison, reference, compared);
-        assert_eq!(report.verdict, RehearsalVerdict::Consistent, "{:#?}", report.checks);
-        assert!(report.checks.iter().flat_map(|check| &check.findings).all(|finding| !matches!(
-            finding.code,
-            FindingCode::VoterFileMismatch | FindingCode::VoterCountMismatch
-        )));
+        assert_eq!(
+            report.verdict,
+            RehearsalVerdict::Consistent,
+            "{:#?}",
+            report.checks
+        );
+        assert!(report
+            .checks
+            .iter()
+            .flat_map(|check| &check.findings)
+            .all(|finding| !matches!(
+                finding.code,
+                FindingCode::VoterFileMismatch | FindingCode::VoterCountMismatch
+            )));
     }
 }
 
@@ -215,12 +241,18 @@ fn a_census_that_exceeds_the_official_one_is_proven_not_a_subset() {
         .map(|finding| {
             assert_eq!(finding.code, FindingCode::SubsetAreaExceeds);
             assert_eq!(finding.event, EventRole::Stl);
-            (finding.area.clone().unwrap(), finding.values["official"].clone())
+            (
+                finding.area.clone().unwrap(),
+                finding.values["official"].clone(),
+            )
         })
         .collect();
     assert_eq!(
         exceeded,
-        [("Area B".to_string(), "2".to_string()), ("Area Z".into(), "0".into())]
+        [
+            ("Area B".to_string(), "2".to_string()),
+            ("Area Z".into(), "0".into())
+        ]
     );
 }
 
@@ -242,35 +274,166 @@ fn every_gap_refuses_on_the_event_and_check_where_it_was_observed() {
     for comparison in ALL {
         let (left, right) = comparison.roles();
         // (event side, JSON path, replacement, refusing check, code, role)
-        let cases: Vec<(bool, &str, Value, RehearsalCheckKind, FindingCode, EventRole)> = vec![
-            (true, "/configuration/content_sha256", json!("00".repeat(32)), Configuration, FindingCode::ContentMismatch, EventRole::Both),
-            (true, "/configuration/approvers", json!(approvers(&["Someone Else"])), Configuration, FindingCode::ApproversMismatch, EventRole::Both),
-            (true, "/configuration/external_id", json!("other-2028"), Configuration, FindingCode::ExternalIdMismatch, EventRole::Both),
-            (true, "/configuration/areas", json!(["Area A"]), Configuration, FindingCode::AreasMismatch, left),
-            (false, "/configuration/approvers", json!([]), Configuration, FindingCode::ConfigurationIncomplete, left),
-            (true, "/configuration", Value::Null, Configuration, FindingCode::ConfigurationMissing, right),
-            (true, "/voters", Value::Null, OwnCensus, FindingCode::VoterImportMissing, right),
-            (false, "/voter_log_delivered", json!(false), OwnCensus, FindingCode::VoterReceiptNotSigned, left),
-            (true, "/voters/declared_sha256", Value::Null, OwnCensus, FindingCode::VoterFileNotCertified, right),
-            (true, "/current_voter_counts/Area A", json!(99), OwnCensus, FindingCode::RegistryCountChanged, right),
-            (false, "/voter_import_in_progress", json!(true), OwnCensus, FindingCode::VoterImportInProgress, left),
-            (true, "/all_channels_closed", json!(false), Lifecycle, FindingCode::ChannelsOpen, right),
-            (true, "/sealed_boxes", json!([]), Seal, FindingCode::BoxesUnsealed, right),
-            (true, "/seal_at_close", json!(false), Seal, FindingCode::SealAtCloseOff, right),
-            (true, "/publication/matches_manifest", json!(false), Seal, FindingCode::PublicationMismatch, right),
+        let cases: Vec<(
+            bool,
+            &str,
+            Value,
+            RehearsalCheckKind,
+            FindingCode,
+            EventRole,
+        )> = vec![
+            (
+                true,
+                "/configuration/content_sha256",
+                json!("00".repeat(32)),
+                Configuration,
+                FindingCode::ContentMismatch,
+                EventRole::Both,
+            ),
+            (
+                true,
+                "/configuration/approvers",
+                json!(approvers(&["Someone Else"])),
+                Configuration,
+                FindingCode::ApproversMismatch,
+                EventRole::Both,
+            ),
+            (
+                true,
+                "/configuration/external_id",
+                json!("other-2028"),
+                Configuration,
+                FindingCode::ExternalIdMismatch,
+                EventRole::Both,
+            ),
+            (
+                true,
+                "/configuration/areas",
+                json!(["Area A"]),
+                Configuration,
+                FindingCode::AreasMismatch,
+                left,
+            ),
+            (
+                false,
+                "/configuration/approvers",
+                json!([]),
+                Configuration,
+                FindingCode::ConfigurationIncomplete,
+                left,
+            ),
+            (
+                true,
+                "/configuration",
+                Value::Null,
+                Configuration,
+                FindingCode::ConfigurationMissing,
+                right,
+            ),
+            (
+                true,
+                "/voters",
+                Value::Null,
+                OwnCensus,
+                FindingCode::VoterImportMissing,
+                right,
+            ),
+            (
+                false,
+                "/voter_log_delivered",
+                json!(false),
+                OwnCensus,
+                FindingCode::VoterReceiptNotSigned,
+                left,
+            ),
+            (
+                true,
+                "/voters/declared_sha256",
+                Value::Null,
+                OwnCensus,
+                FindingCode::VoterFileNotCertified,
+                right,
+            ),
+            (
+                true,
+                "/current_voter_counts/Area A",
+                json!(99),
+                OwnCensus,
+                FindingCode::RegistryCountChanged,
+                right,
+            ),
+            (
+                false,
+                "/voter_import_in_progress",
+                json!(true),
+                OwnCensus,
+                FindingCode::VoterImportInProgress,
+                left,
+            ),
+            (
+                true,
+                "/all_channels_closed",
+                json!(false),
+                Lifecycle,
+                FindingCode::ChannelsOpen,
+                right,
+            ),
+            (
+                true,
+                "/sealed_boxes",
+                json!([]),
+                Seal,
+                FindingCode::BoxesUnsealed,
+                right,
+            ),
+            (
+                true,
+                "/seal_at_close",
+                json!(false),
+                Seal,
+                FindingCode::SealAtCloseOff,
+                right,
+            ),
+            (
+                true,
+                "/publication/matches_manifest",
+                json!(false),
+                Seal,
+                FindingCode::PublicationMismatch,
+                right,
+            ),
         ];
         for (compared_side, path, replacement, kind, code, role) in cases {
             let (mut reference, mut compared) = pair(comparison);
-            let target = if compared_side { &mut compared } else { &mut reference };
+            let target = if compared_side {
+                &mut compared
+            } else {
+                &mut reference
+            };
             let (parent, key) = path.rsplit_once('/').unwrap();
-            let parent = if parent.is_empty() { &mut *target } else { target.pointer_mut(parent).unwrap() };
+            let parent = if parent.is_empty() {
+                &mut *target
+            } else {
+                target.pointer_mut(parent).unwrap()
+            };
             parent[key] = replacement;
             let report = compare(comparison, reference, compared);
-            assert_eq!(report.verdict, RehearsalVerdict::Inconsistent, "{comparison:?} {path}");
+            assert_eq!(
+                report.verdict,
+                RehearsalVerdict::Inconsistent,
+                "{comparison:?} {path}"
+            );
             let refused = check(&report, kind);
-            assert_eq!(refused.verdict, RehearsalVerdict::Inconsistent, "{comparison:?} {path}");
+            assert_eq!(
+                refused.verdict,
+                RehearsalVerdict::Inconsistent,
+                "{comparison:?} {path}"
+            );
             assert!(
-                refused.findings.iter().any(|finding| finding.code == code && finding.event == role),
+                refused
+                    .findings
+                    .iter()
+                    .any(|finding| finding.code == code && finding.event == role),
                 "{comparison:?} {path}: {:#?}",
                 refused.findings
             );
@@ -285,7 +448,9 @@ fn separate_imports_need_distinct_revisions_and_events() {
         compared["configuration"]["revision"] = reference["configuration"]["revision"].clone();
         let report = compare(comparison, reference.clone(), compared);
         let findings = &check(&report, RehearsalCheckKind::Configuration).findings;
-        assert!(findings.iter().any(|finding| finding.code == FindingCode::RevisionNotDistinct));
+        assert!(findings
+            .iter()
+            .any(|finding| finding.code == FindingCode::RevisionNotDistinct));
         assert_eq!(report.verdict, RehearsalVerdict::Inconsistent);
 
         let report = compare(comparison, reference.clone(), reference);
@@ -305,46 +470,90 @@ fn lifecycle_direction_is_by_role_and_rehearsals_are_not_production_zero() {
     assert!(ert["ballot_count"].as_u64().unwrap() > 0);
     assert!(stl["tally_session_count"].as_u64().unwrap() > 0);
     let report = compare(RehearsalComparison::ErtStl, ert.clone(), stl.clone());
-    assert_eq!(report.verdict, RehearsalVerdict::Consistent, "{:#?}", report.checks);
-    assert!(report.checks.iter().flat_map(|check| &check.findings).all(|finding| finding.event != EventRole::Official));
+    assert_eq!(
+        report.verdict,
+        RehearsalVerdict::Consistent,
+        "{:#?}",
+        report.checks
+    );
+    assert!(report
+        .checks
+        .iter()
+        .flat_map(|check| &check.findings)
+        .all(|finding| finding.event != EventRole::Official));
 
     // The official event must be untouched: a used event in the official
     // position is refused, and an unopened event cannot stand in for ERT.
     let (official, ert, _) = lineage();
-    let reversed = compare(RehearsalComparison::OfficialErt, ert.clone(), official.clone());
+    let reversed = compare(
+        RehearsalComparison::OfficialErt,
+        ert.clone(),
+        official.clone(),
+    );
     let lifecycle = check(&reversed, Lifecycle);
     assert_eq!(lifecycle.verdict, RehearsalVerdict::Inconsistent);
-    for code in [FindingCode::BallotsPresent, FindingCode::TallySessionsPresent, FindingCode::VotingStarted] {
-        assert!(lifecycle.findings.iter().any(|finding| finding.code == code && finding.event == EventRole::Official), "{code:?}");
+    for code in [
+        FindingCode::BallotsPresent,
+        FindingCode::TallySessionsPresent,
+        FindingCode::VotingStarted,
+    ] {
+        assert!(
+            lifecycle
+                .findings
+                .iter()
+                .any(|finding| finding.code == code && finding.event == EventRole::Official),
+            "{code:?}"
+        );
     }
-    assert!(lifecycle.findings.iter().any(|finding| finding.code == FindingCode::ChannelsOpen && finding.event == EventRole::Ert));
-    assert_eq!(check(&reversed, RehearsalCheckKind::Seal).verdict, RehearsalVerdict::Inconsistent);
+    assert!(lifecycle.findings.iter().any(
+        |finding| finding.code == FindingCode::ChannelsOpen && finding.event == EventRole::Ert
+    ));
+    assert_eq!(
+        check(&reversed, RehearsalCheckKind::Seal).verdict,
+        RehearsalVerdict::Inconsistent
+    );
 
     // Lifecycle and seals are separate questions with separate verdicts.
     let (official, mut ert, _) = lineage();
     ert["sealed_boxes"] = json!([]);
     let report = compare(RehearsalComparison::OfficialErt, official, ert);
-    assert_eq!(check(&report, Lifecycle).verdict, RehearsalVerdict::Consistent);
-    assert_eq!(check(&report, RehearsalCheckKind::Seal).verdict, RehearsalVerdict::Inconsistent);
+    assert_eq!(
+        check(&report, Lifecycle).verdict,
+        RehearsalVerdict::Consistent
+    );
+    assert_eq!(
+        check(&report, RehearsalCheckKind::Seal).verdict,
+        RehearsalVerdict::Inconsistent
+    );
 }
 
 #[test]
 fn no_publication_is_compared_across_events() {
     // An untouched official event has no publication of its own to compare;
     // each rehearsal event only answers for its own publication.
-    for comparison in [RehearsalComparison::OfficialErt, RehearsalComparison::OfficialStl] {
+    for comparison in [
+        RehearsalComparison::OfficialErt,
+        RehearsalComparison::OfficialStl,
+    ] {
         let (official, compared) = pair(comparison);
         assert!(official["publication"].is_null());
         let report = compare(comparison, official, compared);
-        assert!(report.checks.iter().flat_map(|check| &check.findings).all(|finding| !matches!(
-            finding.code,
-            FindingCode::PublicationMissing | FindingCode::PublicationEmpty
-        )));
+        assert!(report
+            .checks
+            .iter()
+            .flat_map(|check| &check.findings)
+            .all(|finding| !matches!(
+                finding.code,
+                FindingCode::PublicationMissing | FindingCode::PublicationEmpty
+            )));
     }
     let (_, ert, mut stl) = lineage();
     stl["publication"]["publication_id"] = json!(Uuid::new_v4().to_string());
     stl["publication"]["design_count"] = json!(7);
-    assert_eq!(compare(RehearsalComparison::ErtStl, ert, stl).verdict, RehearsalVerdict::Consistent);
+    assert_eq!(
+        compare(RehearsalComparison::ErtStl, ert, stl).verdict,
+        RehearsalVerdict::Consistent
+    );
 }
 
 #[test]
