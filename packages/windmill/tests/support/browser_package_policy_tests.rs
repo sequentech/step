@@ -204,7 +204,10 @@ fn managed_roster_mode_is_explicit_tenant_scoped_and_has_no_fallback() {
         panic!("expected managed roster mode: {mode:?}");
     };
     assert_eq!(config.required, 2);
-    let stale_value = ("WINDMILL_WEBAUTHN_PACKAGES_ROSTER_ADMIN_SUBJECTS", "ignored-old-value");
+    let stale_value = (
+        "WINDMILL_WEBAUTHN_PACKAGES_ROSTER_ADMIN_SUBJECTS",
+        "ignored-old-value",
+    );
     let mut legacy = values.to_vec();
     legacy.push(stale_value);
     assert!(matches!(policy(&legacy), BrowserPolicy::Managed(_)));

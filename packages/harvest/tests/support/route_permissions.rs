@@ -126,7 +126,9 @@ impl Identity {
             _ => TENANT_ID,
         };
         let subject = match self {
-            Self::UnlistedRosterOperator => "edfc7aed-0ef3-4c54-a155-db2bb9c54d70",
+            Self::UnlistedRosterOperator => {
+                "edfc7aed-0ef3-4c54-a155-db2bb9c54d70"
+            }
             Self::RosterOperator => "0490df33-69ca-42cd-927d-178341a0ad92",
             _ => USER_ID,
         };
