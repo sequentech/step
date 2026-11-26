@@ -58,17 +58,28 @@ class EnrollmentDocumentPolicyTest {
   @Test
   void leavesUnrelatedDocumentsSharedByTheOtpAuthenticatorUnchanged() {
     Response codePage = Response.ok("<p>OTP</p>", MediaType.TEXT_HTML_TYPE).build();
-    var enrollment = contextAt("auth/realms/example/login-actions/registration");
-    assertEquals(
-        EnrollmentDocumentPolicy.NO_DISPLAY_CAPTURE,
-        EnrollmentDocumentPolicy.forRegistrationRoute(enrollment, codePage)
-            .getHeaderString(EnrollmentDocumentPolicy.HEADER));
+    for (String path :
+        List.of(
+            "realms/example/login-actions/registration",
+            "auth/realms/example/login-actions/registration/",
+            "realms/example/protocol/openid-connect/registrations",
+            "auth/realms/example/protocol/openid-connect/registrations/")) {
+      assertEquals(
+          EnrollmentDocumentPolicy.NO_DISPLAY_CAPTURE,
+          EnrollmentDocumentPolicy.forRegistrationRoute(contextAt(path), codePage)
+              .getHeaderString(EnrollmentDocumentPolicy.HEADER),
+          path);
+    }
 
     for (String path :
         List.of(
             "auth/realms/example/login-actions/authenticate",
             "realms/example/login-actions/reset-credentials",
             "realms/example/login-actions/registration-copy",
+            "realms/example/login-actions/registration/extra",
+            "realms//login-actions/registration",
+            "realms/example/protocol/openid-connect/auth",
+            "realms/example/protocol/saml/registrations",
             "other/example/login-actions/registration")) {
       assertSame(
           codePage, EnrollmentDocumentPolicy.forRegistrationRoute(contextAt(path), codePage), path);
@@ -83,11 +94,31 @@ class EnrollmentDocumentPolicyTest {
     assertSame(json, EnrollmentDocumentPolicy.protectHtml(json));
   }
 
+  @Test
+  void malformedQuotedOrStructuredMembersCannotInvalidateTheResult() {
+    assertEquals(
+        "camera=(self), microphone=(), display-capture=()",
+        EnrollmentDocumentPolicy.restrict(
+            List.of(
+                "camera=(self), geolocation=(\"https://not-closed",
+                "broken=(self, microphone=(), junk=, display-capture=(self)")));
+    assertEquals(
+        "camera=*, interest-cohort=();report-to=\"a,\\\"b\", display-capture=()",
+        EnrollmentDocumentPolicy.restrict(
+            List.of("camera=*, interest-cohort=();report-to=\"a,\\\"b\", display-capture=*")));
+  }
+
   private static AuthenticationFlowContext contextAt(String path) {
     AuthenticationFlowContext context = mock(AuthenticationFlowContext.class);
+    var uri = uriAt(path);
+    when(context.getUriInfo()).thenReturn(uri);
+    return context;
+  }
+
+  static KeycloakUriInfo uriAt(String path) {
     KeycloakUriInfo uri = mock(KeycloakUriInfo.class);
     List<PathSegment> segments =
-        Arrays.stream(path.split("/"))
+        Arrays.stream(path.split("/", -1))
             .map(
                 element -> {
                   PathSegment segment = mock(PathSegment.class);
@@ -96,7 +127,6 @@ class EnrollmentDocumentPolicyTest {
                 })
             .toList();
     when(uri.getPathSegments()).thenReturn(segments);
-    when(context.getUriInfo()).thenReturn(uri);
-    return context;
+    return uri;
   }
 }

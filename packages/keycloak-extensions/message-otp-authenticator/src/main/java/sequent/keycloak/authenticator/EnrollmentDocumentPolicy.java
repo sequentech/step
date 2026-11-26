@@ -10,6 +10,7 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 import org.keycloak.authentication.AuthenticationFlowContext;
 import org.keycloak.services.resources.LoginActionsService;
 
@@ -18,33 +19,60 @@ public final class EnrollmentDocumentPolicy {
   public static final String HEADER = "Permissions-Policy";
   public static final String NO_DISPLAY_CAPTURE = "display-capture=()";
   private static final String DISPLAY_CAPTURE = "display-capture";
+  // Permissions-Policy is a Structured Fields dictionary. Admit whole dictionary members,
+  // not an unbalanced/poisoning fragment that could make a browser ignore the entire field.
+  private static final String KEY = "[a-z*][a-z0-9_.*-]*";
+  private static final String TOKEN = "[A-Za-z*][A-Za-z0-9!#$%&'*+.^_`|~:/-]*+";
+  private static final String TEXT = "\"(?:[\\x20-\\x21\\x23-\\x5b\\x5d-\\x7e]++|\\\\[\"\\\\])*+\"";
+  private static final String NUMBER = "-?(?:[0-9]{1,12}\\.[0-9]{1,3}|[0-9]{1,15})";
+  private static final String BYTES =
+      ":(?:[A-Za-z0-9+/]{4})*+(?:[A-Za-z0-9+/]{2}(?:==)?|[A-Za-z0-9+/]{3}=?)?:";
+  private static final String BARE =
+      "(?:" + TEXT + "|" + TOKEN + "|" + NUMBER + "|\\?[01]|" + BYTES + ")";
+  private static final String PARAMS = "(?:; *" + KEY + "(?:=" + BARE + ")?)*+";
+  private static final String ITEM = BARE + PARAMS;
+  private static final String INNER_LIST = "\\( *(?:" + ITEM + "(?: +" + ITEM + ")*+)? *\\)";
+  private static final Pattern MEMBER =
+      Pattern.compile("(" + KEY + ")(?:=(?:" + BARE + "|" + INNER_LIST + "))?" + PARAMS);
 
   private EnrollmentDocumentPolicy() {}
 
-  /** An enrollment step (for example OTP) can also be used in ordinary login. */
-  static Response forRegistrationRoute(AuthenticationFlowContext context, Response response) {
-    UriInfo uri = context.getUriInfo();
+  /** Both pinned Keycloak entry points: OIDC sign-up and the registration form action. */
+  public static boolean isRegistrationRoute(UriInfo uri) {
     if (uri == null) {
-      return response;
+      return false;
     }
-    // Match Keycloak's protocol-independent registration endpoint (including under /auth),
-    // not the authentication endpoint, a query parameter, or a previously used session flow.
+    // Check the served request path, not a query parameter or a stale authentication-session note.
+    // A configured relative path (e.g. /auth) can precede /realms; a trailing slash is equivalent.
     List<PathSegment> path = uri.getPathSegments();
-    int n = path.size();
-    if (n < 4
-        || !"realms".equals(path.get(n - 4).getPath())
-        || !"login-actions".equals(path.get(n - 2).getPath())
-        || !LoginActionsService.REGISTRATION_PATH.equals(path.get(n - 1).getPath())) {
-      return response;
+    int end = path.size();
+    while (end > 0 && path.get(end - 1).getPath().isEmpty()) {
+      end--;
     }
-    return protectHtml(response);
+    return (realmAt(path, end - 4)
+            && "login-actions".equals(path.get(end - 2).getPath())
+            && LoginActionsService.REGISTRATION_PATH.equals(path.get(end - 1).getPath()))
+        || (realmAt(path, end - 5)
+            && "protocol".equals(path.get(end - 3).getPath())
+            && "openid-connect".equals(path.get(end - 2).getPath())
+            && "registrations".equals(path.get(end - 1).getPath()));
+  }
+
+  private static boolean realmAt(List<PathSegment> path, int i) {
+    return i >= 0 && "realms".equals(path.get(i).getPath()) && !path.get(i + 1).getPath().isBlank();
+  }
+
+  /** A step like OTP can also run in ordinary login. Leave those responses alone. */
+  public static Response forRegistrationRoute(
+      AuthenticationFlowContext context, Response response) {
+    return isRegistrationRoute(context.getUriInfo()) ? protectHtml(response) : response;
   }
 
   /**
    * Deny calls to getDisplayMedia from this enrollment document and its frames. This is not
    * protection against OS screenshots, recordings outside this document, or physical cameras.
    */
-  public static Response protectHtml(Response response) {
+  static Response protectHtml(Response response) {
     if (response == null
         || !response.hasEntity()
         || response.getStatusInfo().getFamily() == Response.Status.Family.REDIRECTION
@@ -66,7 +94,7 @@ public final class EnrollmentDocumentPolicy {
     return builder.header(HEADER, restrict(policies)).build();
   }
 
-  /** Keep every other directive, including origins/parameters containing quoted commas. */
+  /** Keep valid unrelated members, including origins/parameters containing quoted commas. */
   static String restrict(List<String> policies) {
     List<String> directives = new ArrayList<>();
     for (String policy : policies) {
@@ -86,7 +114,9 @@ public final class EnrollmentDocumentPolicy {
           start = i + 1;
         }
       }
-      keepDirective(directives, policy.substring(start));
+      if (!quoted && !escaped) {
+        keepDirective(directives, policy.substring(start));
+      }
     }
     // Replace any previous value for this feature, even if it allowed display capture.
     directives.add(NO_DISPLAY_CAPTURE);
@@ -95,9 +125,8 @@ public final class EnrollmentDocumentPolicy {
 
   private static void keepDirective(List<String> directives, String value) {
     String directive = value.strip();
-    int separator = directive.indexOf('=');
-    String name = separator < 0 ? directive : directive.substring(0, separator).strip();
-    if (!directive.isEmpty() && !DISPLAY_CAPTURE.equalsIgnoreCase(name)) {
+    var member = MEMBER.matcher(directive);
+    if (member.matches() && !DISPLAY_CAPTURE.equals(member.group(1))) {
       directives.add(directive);
     }
   }

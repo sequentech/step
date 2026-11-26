@@ -340,7 +340,8 @@ public class ScanovateAuthenticator implements Authenticator {
       headers.options().allowFrameSrc(services.onPrem().origin());
     }
     context.challenge(
-        EnrollmentDocumentPolicy.protectHtml(
+        EnrollmentDocumentPolicy.forRegistrationRoute(
+            context,
             context
                 .form()
                 .setAttribute(FTL_SCANOVATE, capture)
@@ -654,7 +655,8 @@ public class ScanovateAuthenticator implements Authenticator {
     }
     authSession.setAuthNote(CONFIRMATION_CASE_NOTE, caseId);
     context.challenge(
-        EnrollmentDocumentPolicy.protectHtml(
+        EnrollmentDocumentPolicy.forRegistrationRoute(
+            context,
             context
                 .form()
                 .setAttribute(
@@ -710,7 +712,8 @@ public class ScanovateAuthenticator implements Authenticator {
       return;
     }
     context.challenge(
-        EnrollmentDocumentPolicy.protectHtml(
+        EnrollmentDocumentPolicy.forRegistrationRoute(
+            context,
             context
                 .form()
                 .setAttribute(FTL_ERROR, messageKey)

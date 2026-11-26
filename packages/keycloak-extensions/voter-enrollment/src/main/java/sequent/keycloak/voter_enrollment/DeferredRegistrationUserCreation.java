@@ -679,9 +679,11 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
     final String formMode = configMap.get(FORM_MODE);
-    if (FormMode.REGISTRATION.getValue().equals(formMode)) {
-      // Keycloak renders the registration HTML after FormActions build the page. Append our
-      // directive without replacing any existing Permissions-Policy field on that response.
+    if (!FormMode.LOGIN.getValue().equals(formMode)
+        && EnrollmentDocumentPolicy.isRegistrationRoute(context.getUriInfo())) {
+      // Keycloak renders the page after FormActions and exposes no final Response here.
+      // The stock offline ingress and Keycloak do not set Permissions-Policy. Append without
+      // replacing unrelated transport fields; rendered authenticator pages are merged separately.
       context
           .getSession()
           .getContext()

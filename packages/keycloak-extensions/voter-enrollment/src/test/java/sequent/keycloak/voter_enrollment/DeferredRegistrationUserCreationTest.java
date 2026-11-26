@@ -23,7 +23,9 @@ import static org.mockito.Mockito.when;
 
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
+import jakarta.ws.rs.core.PathSegment;
 import jakarta.ws.rs.core.Response;
+import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.List;
@@ -45,6 +47,7 @@ import org.keycloak.http.HttpResponse;
 import org.keycloak.models.AuthenticatorConfigModel;
 import org.keycloak.models.KeycloakContext;
 import org.keycloak.models.KeycloakSession;
+import org.keycloak.models.KeycloakUriInfo;
 import org.keycloak.models.PasswordPolicy;
 import org.keycloak.models.RealmModel;
 import org.keycloak.models.SubjectCredentialManager;
@@ -52,6 +55,7 @@ import org.keycloak.models.UserModel;
 import org.keycloak.models.UserProvider;
 import org.keycloak.protocol.oidc.endpoints.AuthorizationEndpoint;
 import org.keycloak.provider.ProviderConfigProperty;
+import org.keycloak.representations.idm.AuthenticatorConfigRepresentation;
 import org.keycloak.services.messages.Messages;
 import org.keycloak.sessions.AuthenticationSessionModel;
 import org.keycloak.sessions.RootAuthenticationSessionModel;
@@ -61,6 +65,7 @@ import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
 import org.keycloak.userprofile.UserProfileProvider;
 import org.keycloak.userprofile.ValidationException;
+import org.keycloak.util.JsonSerialization;
 import org.keycloak.validate.ValidationError;
 import org.mockito.ArgumentMatchers;
 import org.mockito.InOrder;
@@ -784,7 +789,6 @@ class DeferredRegistrationUserCreationTest {
     when(attributes.getMetadata("username")).thenReturn(metadata);
     when(attributes.getMetadata(UserModel.LOCALE)).thenReturn(metadata);
 
-    responseFor(context);
     action.buildPage(context, form);
     verify(form, never()).setFormData(any());
 
@@ -827,7 +831,6 @@ class DeferredRegistrationUserCreationTest {
     when(authenticationSession.getAuthNote(anyString()))
         .thenAnswer(i -> notes.get(i.getArgument(0)));
 
-    responseFor(context);
     when(request.getHttpMethod()).thenReturn("POST");
     action.buildPage(context, form);
     verify(form, never()).setFormData(any());
@@ -842,25 +845,33 @@ class DeferredRegistrationUserCreationTest {
   }
 
   @Test
-  void aFirstVisitHasNothingEnteredAndDisallowsDisplayCapture() {
+  void shippedComelecFormDisallowsDisplayCaptureOnItsFirstVisitWithoutAFormMode() throws Exception {
     DeferredRegistrationUserCreation action = new DeferredRegistrationUserCreation();
     FormContext context = mock(FormContext.class);
     LoginFormsProvider form = mock(LoginFormsProvider.class);
-    AuthenticatorConfigModel config = mock(AuthenticatorConfigModel.class);
+    AuthenticatorConfigModel config = new AuthenticatorConfigModel();
     HttpRequest request = mock(HttpRequest.class);
     AuthenticationSessionModel authenticationSession = mock(AuthenticationSessionModel.class);
-
-    Map<String, String> configValues = new java.util.HashMap<>();
-    configValues.put(DeferredRegistrationUserCreation.FORM_MODE, "REGISTRATION");
+    // Exact drupc settings copied from the shipped COMELEC keycloak.hbs. The offline image's
+    // Maven stage copies provider sources, not the Windmill template directory.
+    try (InputStream input = getClass().getResourceAsStream("/comelec-registration-drupc.json")) {
+      assertTrue(input != null);
+      config.setConfig(
+          JsonSerialization.readValue(input, AuthenticatorConfigRepresentation.class).getConfig());
+    }
+    assertFalse(config.getConfig().containsKey(DeferredRegistrationUserCreation.FORM_MODE));
     when(context.getAuthenticatorConfig()).thenReturn(config);
-    when(config.getConfig()).thenReturn(configValues);
     when(context.getHttpRequest()).thenReturn(request);
     when(request.getHttpMethod()).thenReturn("GET");
     when(context.getAuthenticationSession()).thenReturn(authenticationSession);
+    when(context.getRealm()).thenReturn(mock(RealmModel.class));
+    var uri = uriAt("auth", "realms", "test", "protocol", "openid-connect", "registrations", "");
+    when(context.getUriInfo()).thenReturn(uri);
 
     HttpResponse response = responseFor(context);
     action.buildPage(context, form);
     verify(form, never()).setFormData(any());
+    verify(form).setAttribute("formMode", null);
     verify(response).addHeader("Permissions-Policy", "display-capture=()");
     verify(response, never()).setHeader(eq("Permissions-Policy"), anyString());
   }
@@ -876,6 +887,8 @@ class DeferredRegistrationUserCreationTest {
         .thenReturn(Map.of(DeferredRegistrationUserCreation.FORM_MODE, "LOGIN"));
     when(context.getAuthenticationSession()).thenReturn(mock(AuthenticationSessionModel.class));
 
+    var uri = uriAt("realms", "test", "login-actions", "registration");
+    when(context.getUriInfo()).thenReturn(uri);
     HttpResponse response = responseFor(context);
     action.buildPage(context, form);
 
@@ -902,7 +915,6 @@ class DeferredRegistrationUserCreationTest {
                 clientNote("username"), "voter@example.com",
                 clientNote("invalid field"), "value"));
 
-    responseFor(context);
     action.buildPage(context, form);
     verify(form, never()).setError(LoginHintAuthorizationRequestFilter.INVALID_REQUEST_DESCRIPTION);
 
@@ -918,6 +930,21 @@ class DeferredRegistrationUserCreationTest {
         assertThrows(AuthenticationFlowException.class, () -> action.buildPage(context, form));
 
     assertEquals(response, failure.getResponse());
+  }
+
+  private static KeycloakUriInfo uriAt(String... paths) {
+    KeycloakUriInfo uri = mock(KeycloakUriInfo.class);
+    List<PathSegment> segments =
+        Stream.of(paths)
+            .map(
+                path -> {
+                  PathSegment segment = mock(PathSegment.class);
+                  when(segment.getPath()).thenReturn(path);
+                  return segment;
+                })
+            .toList();
+    when(uri.getPathSegments()).thenReturn(segments);
+    return uri;
   }
 
   private static HttpResponse responseFor(FormContext context) {

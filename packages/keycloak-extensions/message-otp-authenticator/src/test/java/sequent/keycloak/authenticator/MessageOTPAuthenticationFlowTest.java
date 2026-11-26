@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
@@ -118,6 +119,46 @@ class MessageOTPAuthenticationFlowTest {
     verify(context, never()).success();
     verify(sms).sendFeedback(PHONE, false, realm, user, session);
     assertEquals(CODE, notes.get(Utils.CODE));
+  }
+
+  @Test
+  void otpCodeAndHardErrorPagesAreProtectedOnlyDuringRegistration() {
+    Response code = Response.ok("OTP", MediaType.TEXT_HTML_TYPE).build();
+    Response hardError =
+        Response.status(Response.Status.BAD_REQUEST)
+            .type(MediaType.TEXT_HTML_TYPE)
+            .entity("OTP error")
+            .header(EnrollmentDocumentPolicy.HEADER, "camera=(self), display-capture=(self)")
+            .build();
+    when(form.createForm("message-otp.login.ftl")).thenReturn(code);
+    when(form.createErrorPage(Response.Status.BAD_REQUEST)).thenReturn(hardError);
+
+    var registration =
+        EnrollmentDocumentPolicyTest.uriAt("realms/test/login-actions/registration/");
+    when(context.getUriInfo()).thenReturn(registration);
+    authenticator.action(context);
+    var protectedCode = ArgumentCaptor.forClass(Response.class);
+    verify(context)
+        .failureChallenge(eq(AuthenticationFlowError.INVALID_CREDENTIALS), protectedCode.capture());
+    assertEquals(
+        "display-capture=()",
+        protectedCode.getValue().getHeaderString(EnrollmentDocumentPolicy.HEADER));
+    verify(form).createForm("message-otp.login.ftl");
+
+    configMap.put(Utils.ONE_TIME_LINK, "true");
+    authenticator.action(context);
+    var protectedError = ArgumentCaptor.forClass(Response.class);
+    verify(context)
+        .failureChallenge(eq(AuthenticationFlowError.ACCESS_DENIED), protectedError.capture());
+    assertEquals(
+        "camera=(self), display-capture=()",
+        protectedError.getValue().getHeaderString(EnrollmentDocumentPolicy.HEADER));
+    assertEquals(400, protectedError.getValue().getStatus());
+
+    var login = EnrollmentDocumentPolicyTest.uriAt("realms/test/login-actions/authenticate");
+    when(context.getUriInfo()).thenReturn(login);
+    authenticator.action(context);
+    verify(context).failureChallenge(AuthenticationFlowError.ACCESS_DENIED, hardError);
   }
 
   @Test

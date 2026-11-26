@@ -31,6 +31,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.MultivaluedHashMap;
+import jakarta.ws.rs.core.PathSegment;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.net.URI;
@@ -196,6 +197,16 @@ class ScanovateAuthenticatorTest {
     when(context.getEvent()).thenReturn(event);
     KeycloakUriInfo uriInfo = mock(KeycloakUriInfo.class);
     when(uriInfo.getBaseUri()).thenReturn(URI.create("https://kc/"));
+    List<PathSegment> registrationSegments =
+        Stream.of("realms", "r", "login-actions", "registration")
+            .map(
+                path -> {
+                  PathSegment segment = mock(PathSegment.class);
+                  when(segment.getPath()).thenReturn(path);
+                  return segment;
+                })
+            .toList();
+    when(uriInfo.getPathSegments()).thenReturn(registrationSegments);
     when(context.getUriInfo()).thenReturn(uriInfo);
     RealmModel realm = mock(RealmModel.class);
     when(realm.getName()).thenReturn("r");

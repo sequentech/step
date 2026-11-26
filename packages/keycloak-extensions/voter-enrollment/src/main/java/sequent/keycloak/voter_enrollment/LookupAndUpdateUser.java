@@ -263,7 +263,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                   EnrollmentWindows.dateTimeZoneMessageKey(
                       context.getRealm(), context.getSession().getContext().resolveLocale(null)))
               .createForm(template);
-      context.challenge(EnrollmentDocumentPolicy.protectHtml(form));
+      context.challenge(EnrollmentDocumentPolicy.forRegistrationRoute(context, form));
 
       return;
     }
@@ -357,10 +357,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         context.attempted();
         context.failureChallenge(
             AuthenticationFlowError.INTERNAL_ERROR,
-            context
-                .form()
-                .setError(Utils.ERROR_GENERATING_APPROVAL, sessionId)
-                .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+            EnrollmentDocumentPolicy.forRegistrationRoute(
+                context,
+                context
+                    .form()
+                    .setError(Utils.ERROR_GENERATING_APPROVAL, sessionId)
+                    .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR)));
         return;
       }
 
@@ -488,7 +490,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                           context.getRealm(),
                           context.getSession().getContext().resolveLocale(null)))
                   .createForm("registration-manual-finish.ftl");
-          context.challenge(EnrollmentDocumentPolicy.protectHtml(form));
+          context.challenge(EnrollmentDocumentPolicy.forRegistrationRoute(context, form));
           context.getEvent().success();
 
           sendManualCommunication(
@@ -518,7 +520,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
                   .setAttribute("rejectReason", rejectionReason)
                   .createForm("registration-rejected-finish.ftl");
 
-          context.challenge(EnrollmentDocumentPolicy.protectHtml(form));
+          context.challenge(EnrollmentDocumentPolicy.forRegistrationRoute(context, form));
           context
               .getEvent()
               .error(
@@ -541,10 +543,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
         error.printStackTrace();
         context.failureChallenge(
             AuthenticationFlowError.INTERNAL_ERROR,
-            context
-                .form()
-                .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
-                .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+            EnrollmentDocumentPolicy.forRegistrationRoute(
+                context,
+                context
+                    .form()
+                    .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
+                    .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR)));
         return;
       }
     }
@@ -569,10 +573,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       context.attempted();
       context.failureChallenge(
           AuthenticationFlowError.INTERNAL_ERROR,
-          context
-              .form()
-              .setError(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET_ERROR, sessionId)
-              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+          EnrollmentDocumentPolicy.forRegistrationRoute(
+              context,
+              context
+                  .form()
+                  .setError(Utils.ERROR_USER_ATTRIBUTES_NOT_UNSET_ERROR, sessionId)
+                  .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR)));
       return;
     }
 
@@ -701,10 +707,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
           log.errorv("there was an error {0}", error);
           context.failureChallenge(
               AuthenticationFlowError.INTERNAL_ERROR,
-              context
-                  .form()
-                  .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
-                  .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+              EnrollmentDocumentPolicy.forRegistrationRoute(
+                  context,
+                  context
+                      .form()
+                      .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
+                      .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR)));
           return;
         }
       }
@@ -718,7 +726,7 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       // Clear the user and show the finish form.
       context.clearUser();
       Response form = context.form().createForm("registration-finish.ftl");
-      context.challenge(EnrollmentDocumentPolicy.protectHtml(form));
+      context.challenge(EnrollmentDocumentPolicy.forRegistrationRoute(context, form));
     }
   }
 
@@ -979,14 +987,16 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       // still asks again, and never shows a result windmill hasn't recorded.
       context.failureChallenge(
           AuthenticationFlowError.INTERNAL_ERROR,
-          context
-              .form()
-              .setError(
-                  outcome == LateRejectionOutcome.REFUSED
-                      ? Utils.ERROR_EMAIL_IN_USE_NOT_RECORDED
-                      : Utils.ERROR_GENERATING_APPROVAL,
-                  sessionId)
-              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+          EnrollmentDocumentPolicy.forRegistrationRoute(
+              context,
+              context
+                  .form()
+                  .setError(
+                      outcome == LateRejectionOutcome.REFUSED
+                          ? Utils.ERROR_EMAIL_IN_USE_NOT_RECORDED
+                          : Utils.ERROR_GENERATING_APPROVAL,
+                      sessionId)
+                  .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR)));
       return;
     }
 
@@ -997,7 +1007,8 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
     authSession.removeAuthNote(EMAIL_IN_USE_REJECTION_NOTE);
 
     context.challenge(
-        EnrollmentDocumentPolicy.protectHtml(
+        EnrollmentDocumentPolicy.forRegistrationRoute(
+            context,
             context
                 .form()
                 .setAttribute("rejectReason", reason)
@@ -1020,10 +1031,12 @@ public class LookupAndUpdateUser implements Authenticator, AuthenticatorFactory 
       log.errorv("rejectEmailInUse(): the rejection was not sent: {0}", error);
       context.failureChallenge(
           AuthenticationFlowError.INTERNAL_ERROR,
-          context
-              .form()
-              .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
-              .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR));
+          EnrollmentDocumentPolicy.forRegistrationRoute(
+              context,
+              context
+                  .form()
+                  .setError(Utils.ERROR_MESSAGE_NOT_SENT, sessionId)
+                  .createErrorPage(Response.Status.INTERNAL_SERVER_ERROR)));
     }
   }
 
