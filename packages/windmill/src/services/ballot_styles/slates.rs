@@ -14,6 +14,7 @@ use sequent_core::slates::{
     canonicalize, check_ballot_style, check_election, parse, SLATES_ANNOTATION,
 };
 use sequent_core::types::hasura::core::{Candidate, Contest, Election};
+use serde::Deserialize;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use tracing::{event, Level};
@@ -72,40 +73,73 @@ pub fn validate_elections_slates(
     reject_if_any(reasons)
 }
 
-fn parse_ballot_styles(publication: &Value) -> Result<Vec<BallotStyle>> {
-    publication
-        .as_array()
-        .context("Ballot publication must be an array of ballot styles")?
-        .iter()
-        .map(|ballot_style| {
-            serde_json::from_value(ballot_style.clone()).context("Can't read stored ballot style")
-        })
-        .collect()
+fn read_ballot_style(ballot_style: &Value) -> Result<BallotStyle> {
+    BallotStyle::deserialize(ballot_style).context("Can't read stored ballot style")
 }
 
-/// Check the slates stored in a generated publication before it goes live.
+fn record_slates(published: &mut BTreeMap<String, Option<String>>, ballot_style: &BallotStyle) {
+    if published.contains_key(&ballot_style.election_id) {
+        return;
+    }
+    let annotation = ballot_style
+        .election_annotations
+        .as_ref()
+        .and_then(|annotations| annotations.get(SLATES_ANNOTATION))
+        .map(|text| {
+            canonicalize(text, &slates_path(&ballot_style.election_id))
+                .unwrap_or_else(|_| text.clone())
+        });
+    published.insert(ballot_style.election_id.clone(), annotation);
+}
+
+/// Record the slate configuration a stored ballot style publishes for its
+/// election, in canonical form. The first style read for an election wins.
+pub fn record_published_slates(
+    published: &mut BTreeMap<String, Option<String>>,
+    ballot_style: &Value,
+) -> Result<()> {
+    record_slates(published, &read_ballot_style(ballot_style)?);
+    Ok(())
+}
+
+/// Check the slates stored in a generated publication before it goes live,
+/// one ballot style at a time.
 ///
 /// A draft generated before slates were validated, or edited directly, never
 /// went through [`validate_elections_slates`]. Each stored ballot style is
 /// checked as a voter will receive it, and a contest it does not carry must
 /// still be one of its election's contests.
-pub fn validate_publication_slates(publication: &Value, contests: &[Contest]) -> Result<()> {
-    let mut election_contest_ids: HashMap<&str, HashSet<&str>> = HashMap::new();
-    for contest in contests {
-        election_contest_ids
-            .entry(contest.election_id.as_str())
-            .or_default()
-            .insert(contest.id.as_str());
+pub struct StoredSlatesCheck<'a> {
+    election_contest_ids: HashMap<&'a str, HashSet<&'a str>>,
+    reasons: BTreeSet<String>,
+    published: BTreeMap<String, Option<String>>,
+}
+
+impl<'a> StoredSlatesCheck<'a> {
+    pub fn new(contests: &'a [Contest]) -> Self {
+        let mut election_contest_ids: HashMap<&str, HashSet<&str>> = HashMap::new();
+        for contest in contests {
+            election_contest_ids
+                .entry(contest.election_id.as_str())
+                .or_default()
+                .insert(contest.id.as_str());
+        }
+        Self {
+            election_contest_ids,
+            reasons: BTreeSet::new(),
+            published: BTreeMap::new(),
+        }
     }
 
-    let mut reasons = BTreeSet::new();
-    for ballot_style in parse_ballot_styles(publication)? {
+    pub fn add(&mut self, stored: &Value) -> Result<()> {
+        let ballot_style = read_ballot_style(stored)?;
+        record_slates(&mut self.published, &ballot_style);
         let path = slates_path(&ballot_style.election_id);
         let errors: Vec<String> = error_reasons(check_ballot_style(&ballot_style, &path)).collect();
         let is_readable = errors.is_empty();
-        reasons.extend(errors);
+        self.reasons.extend(errors);
         if !is_readable {
-            continue;
+            return Ok(());
         }
         let Some(config) = ballot_style
             .election_annotations
@@ -113,9 +147,11 @@ pub fn validate_publication_slates(publication: &Value, contests: &[Contest]) ->
             .and_then(|annotations| annotations.get(SLATES_ANNOTATION))
             .and_then(|text| parse(text, &path).ok())
         else {
-            continue;
+            return Ok(());
         };
-        let known = election_contest_ids.get(ballot_style.election_id.as_str());
+        let known = self
+            .election_contest_ids
+            .get(ballot_style.election_id.as_str());
         for slate in &config.slates {
             for contest_id in slate.members.keys() {
                 let in_style = ballot_style
@@ -124,40 +160,34 @@ pub fn validate_publication_slates(publication: &Value, contests: &[Contest]) ->
                     .any(|contest| &contest.id == contest_id);
                 let in_election = known.is_some_and(|ids| ids.contains(contest_id.as_str()));
                 if !in_style && !in_election {
-                    reasons.insert(format!(
+                    self.reasons.insert(format!(
                         "{path}: slate '{}' lists contest {contest_id}, which is not in the election",
                         slate.id
                     ));
                 }
             }
         }
+        Ok(())
     }
-    reject_if_any(reasons)
-}
 
-/// The slate configuration each election publishes, in canonical form.
-fn published_slates(publication: &Value) -> Result<BTreeMap<String, Option<String>>> {
-    let mut slates = BTreeMap::new();
-    for ballot_style in parse_ballot_styles(publication)? {
-        let annotation = ballot_style
-            .election_annotations
-            .as_ref()
-            .and_then(|annotations| annotations.get(SLATES_ANNOTATION))
-            .map(|text| {
-                canonicalize(text, &slates_path(&ballot_style.election_id))
-                    .unwrap_or_else(|_| text.clone())
-            });
-        slates.entry(ballot_style.election_id).or_insert(annotation);
+    /// Reject the publication if any stored ballot style had an error problem.
+    pub fn validate(&self) -> Result<()> {
+        reject_if_any(self.reasons.clone())
     }
-    Ok(slates)
+
+    /// The slate configuration each election of the publication publishes.
+    pub fn published(&self) -> &BTreeMap<String, Option<String>> {
+        &self.published
+    }
 }
 
 /// Reject a publication that changes the slates of an election whose voting
-/// has started. `previous` holds the live ballot styles of started elections
-/// only.
-pub fn validate_slates_unchanged(previous: &Value, current: &Value) -> Result<()> {
-    let previous = published_slates(previous)?;
-    let current = published_slates(current)?;
+/// has started. `previous` holds the published slates of started elections
+/// only, as recorded by [`record_published_slates`].
+pub fn validate_slates_unchanged(
+    previous: &BTreeMap<String, Option<String>>,
+    current: &BTreeMap<String, Option<String>>,
+) -> Result<()> {
     let reasons = current
         .iter()
         .filter(|(election_id, slates)| {
@@ -267,6 +297,26 @@ mod tests {
             .clone()
     }
 
+    fn check_stored(publication: &Value, contests: &[Contest]) -> Result<()> {
+        let mut check = StoredSlatesCheck::new(contests);
+        for ballot_style in publication.as_array().unwrap() {
+            check.add(ballot_style)?;
+        }
+        check.validate()
+    }
+
+    fn published(publication: &Value) -> BTreeMap<String, Option<String>> {
+        let mut published = BTreeMap::new();
+        for ballot_style in publication.as_array().unwrap() {
+            record_published_slates(&mut published, ballot_style).unwrap();
+        }
+        published
+    }
+
+    fn unchanged(previous: &Value, current: &Value) -> Result<()> {
+        validate_slates_unchanged(&published(previous), &published(current))
+    }
+
     #[test]
     fn elections_without_slates_are_published_as_before() {
         let ids = vec![ELECTION.to_string()];
@@ -274,8 +324,8 @@ mod tests {
             validate_elections_slates(&ids, &elections(json!({})), &contests(), &candidates())
                 .is_ok()
         );
-        assert!(validate_publication_slates(&publication(None), &contests()).is_ok());
-        assert!(validate_slates_unchanged(&publication(None), &publication(None)).is_ok());
+        assert!(check_stored(&publication(None), &contests()).is_ok());
+        assert!(unchanged(&publication(None), &publication(None)).is_ok());
     }
 
     #[test]
@@ -289,7 +339,7 @@ mod tests {
             &candidates()
         )
         .is_ok());
-        assert!(validate_publication_slates(&publication(Some(&slates())), &contests()).is_ok());
+        assert!(check_stored(&publication(Some(&slates())), &contests()).is_ok());
     }
 
     #[test]
@@ -311,10 +361,7 @@ mod tests {
     fn publishing_rejects_a_stored_contest_outside_the_election() {
         let mut slates = slates();
         slates["slates"][0]["members"]["contest-elsewhere"] = json!(["elsewhere-a"]);
-        let reasons = reasons(validate_publication_slates(
-            &publication(Some(&slates)),
-            &contests(),
-        ));
+        let reasons = reasons(check_stored(&publication(Some(&slates)), &contests()));
         assert_eq!(reasons.len(), 1);
         assert!(reasons[0].contains("contest-elsewhere"));
     }
@@ -323,17 +370,13 @@ mod tests {
     fn publishing_rejects_a_stored_member_missing_from_its_contest() {
         let mut slates = slates();
         slates["slates"][0]["members"][TRUSTEES] = json!(["trustee-gone"]);
-        assert!(!reasons(validate_publication_slates(
-            &publication(Some(&slates)),
-            &contests()
-        ))
-        .is_empty());
+        assert!(!reasons(check_stored(&publication(Some(&slates)), &contests())).is_empty());
     }
 
     #[test]
     fn publishing_rejects_an_unreadable_stored_configuration() {
         let publication = publication(Some(&json!({"version": 2, "slates": []})));
-        assert!(!reasons(validate_publication_slates(&publication, &contests())).is_empty());
+        assert!(!reasons(check_stored(&publication, &contests())).is_empty());
     }
 
     #[test]
@@ -342,17 +385,13 @@ mod tests {
         let mut renamed = slates();
         renamed["slates"][0]["name"]["en"] = json!("Forward");
 
-        assert!(validate_slates_unchanged(&previous, &publication(Some(&slates()))).is_ok());
+        assert!(unchanged(&previous, &publication(Some(&slates()))).is_ok());
         for changed in [publication(Some(&renamed)), publication(None)] {
-            let reasons = reasons(validate_slates_unchanged(&previous, &changed));
+            let reasons = reasons(unchanged(&previous, &changed));
             assert_eq!(reasons.len(), 1);
         }
         assert_eq!(
-            reasons(validate_slates_unchanged(
-                &publication(None),
-                &publication(Some(&slates()))
-            ))
-            .len(),
+            reasons(unchanged(&publication(None), &publication(Some(&slates())))).len(),
             1
         );
     }
@@ -364,13 +403,13 @@ mod tests {
         current[0]["election_annotations"] = json!({
             SLATES_ANNOTATION: serde_json::to_string_pretty(&slates()).unwrap()
         });
-        assert!(validate_slates_unchanged(&previous, &current).is_ok());
+        assert!(unchanged(&previous, &current).is_ok());
     }
 
     #[test]
     fn an_election_that_has_not_started_may_change_its_slates() {
         let mut renamed = slates();
         renamed["slates"][0]["name"]["en"] = json!("Forward");
-        assert!(validate_slates_unchanged(&json!([]), &publication(Some(&renamed))).is_ok());
+        assert!(unchanged(&json!([]), &publication(Some(&renamed))).is_ok());
     }
 }

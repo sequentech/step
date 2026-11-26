@@ -6,7 +6,9 @@ use crate::postgres::ballot_publication::{
     insert_ballot_publication, lock_publication_event, soft_delete_other_ballot_publications,
     update_ballot_publication,
 };
-use crate::postgres::ballot_style::get_publication_ballot_styles;
+use crate::postgres::ballot_style::{
+    get_publication_ballot_eml_page, get_publication_ballot_styles,
+};
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::{get_election_by_id, get_elections_ids, update_election_status};
 use crate::postgres::election_event::{get_election_event_by_id, update_election_event_status};
@@ -36,6 +38,8 @@ use tracing::{event, instrument, Level};
 use super::ballot_style;
 use super::slates;
 
+const VALIDATION_PAGE_SIZE: i64 = 64;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ContestAcclamationState {
     name: Option<String>,
@@ -59,55 +63,50 @@ impl BallotPublicationValidationError {
     }
 }
 
-fn collect_acclamation_states(
-    publication: &Value,
-) -> Result<BTreeMap<String, ContestAcclamationState>> {
-    let ballot_styles = publication
-        .as_array()
-        .context("Ballot publication must be an array of ballot styles")?;
-    let mut states: BTreeMap<String, ContestAcclamationState> = BTreeMap::new();
+/// Add the acclamation value of each contest in a stored ballot style.
+fn add_acclamation_states(
+    states: &mut BTreeMap<String, ContestAcclamationState>,
+    ballot_style: &Value,
+) -> Result<()> {
+    let contests = ballot_style
+        .get("contests")
+        .and_then(Value::as_array)
+        .context("Ballot style must contain a contests array")?;
 
-    for ballot_style in ballot_styles {
-        let contests = ballot_style
-            .get("contests")
-            .and_then(Value::as_array)
-            .context("Ballot style must contain a contests array")?;
-
-        for contest in contests {
-            let contest_id = contest
-                .get("id")
-                .and_then(Value::as_str)
-                .context("Ballot contest must contain a string id")?;
-            let is_acclaimed = match contest.get("is_acclaimed") {
-                None | Some(Value::Null) => false,
-                Some(Value::Bool(value)) => *value,
-                Some(_) => {
-                    return Err(anyhow!(
-                        "Ballot contest {contest_id} has a non-boolean is_acclaimed value"
-                    ))
-                }
-            };
-            let state = ContestAcclamationState {
-                name: contest
-                    .get("name")
-                    .and_then(Value::as_str)
-                    .map(str::to_owned),
-                is_acclaimed,
-            };
-
-            if let Some(existing) = states.get(contest_id) {
-                if existing.is_acclaimed != state.is_acclaimed {
-                    return Err(anyhow!(
-                        "Contest {contest_id} has inconsistent is_acclaimed values in one ballot publication"
-                    ));
-                }
-            } else {
-                states.insert(contest_id.to_owned(), state);
+    for contest in contests {
+        let contest_id = contest
+            .get("id")
+            .and_then(Value::as_str)
+            .context("Ballot contest must contain a string id")?;
+        let is_acclaimed = match contest.get("is_acclaimed") {
+            None | Some(Value::Null) => false,
+            Some(Value::Bool(value)) => *value,
+            Some(_) => {
+                return Err(anyhow!(
+                    "Ballot contest {contest_id} has a non-boolean is_acclaimed value"
+                ))
             }
+        };
+        let state = ContestAcclamationState {
+            name: contest
+                .get("name")
+                .and_then(Value::as_str)
+                .map(str::to_owned),
+            is_acclaimed,
+        };
+
+        if let Some(existing) = states.get(contest_id) {
+            if existing.is_acclaimed != state.is_acclaimed {
+                return Err(anyhow!(
+                    "Contest {contest_id} has inconsistent is_acclaimed values in one ballot publication"
+                ));
+            }
+        } else {
+            states.insert(contest_id.to_owned(), state);
         }
     }
 
-    Ok(states)
+    Ok(())
 }
 
 fn merge_acclamation_states(
@@ -167,14 +166,14 @@ fn election_has_started(status: &ElectionStatus) -> bool {
     .any(|started_at| started_at.is_some())
 }
 
-/// The live ballot styles of each election in `ballot_publication` whose
-/// voting has started, one publication per election.
-async fn started_elections_published_styles(
+/// For each election in `ballot_publication` whose voting has started, its
+/// latest published publication.
+async fn started_elections_publications(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     ballot_publication: &BallotPublication,
-) -> Result<Vec<Value>> {
+) -> Result<Vec<(String, String)>> {
     let election_ids = ballot_publication
         .election_ids
         .as_ref()
@@ -212,77 +211,75 @@ async fn started_elections_published_styles(
             continue;
         };
 
-        publications.push(
-            get_publication_json(
-                hasura_transaction,
-                tenant_id.to_owned(),
-                election_event_id.to_owned(),
-                previous_publication.id,
-                Some(election_id.clone()),
-                None,
-                None,
-            )
-            .await?,
-        );
+        publications.push((election_id.clone(), previous_publication.id));
     }
     Ok(publications)
 }
 
-async fn validate_published_slates(
+/// Call `visit` with each stored ballot style of a publication, optionally of
+/// one election only. Styles are read a page at a time, so a publication with
+/// thousands of areas is never held in memory at once. As in
+/// [`get_publication_json`], a style without a readable EML is skipped.
+async fn for_each_publication_style(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    ballot_publication_id: &str,
+    election_id: Option<&str>,
+    mut visit: impl FnMut(&Value) -> Result<()>,
+) -> Result<()> {
+    let mut after_id = None;
+    loop {
+        let page = get_publication_ballot_eml_page(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            ballot_publication_id,
+            election_id,
+            after_id,
+            VALIDATION_PAGE_SIZE,
+        )
+        .await?;
+        let Some(last_id) = page.last().map(|(id, _)| *id) else {
+            return Ok(());
+        };
+        after_id = Some(last_id);
+        for ballot_eml in page.into_iter().filter_map(|(_, ballot_eml)| ballot_eml) {
+            if let Ok(ballot_style) = deserialize_str::<Value>(&ballot_eml) {
+                visit(&ballot_style)?;
+            }
+        }
+    }
+}
+
+/// Check a generated publication's stored ballot styles before it goes live:
+/// their slates must be valid, and elections whose voting has started can't
+/// change their contests' acclamation values or their slates.
+async fn validate_publication_styles(
     hasura_transaction: &Transaction<'_>,
     tenant_id: &str,
     election_event_id: &str,
     ballot_publication: &BallotPublication,
 ) -> Result<()> {
-    let current = get_publication_json(
-        hasura_transaction,
-        tenant_id.to_owned(),
-        election_event_id.to_owned(),
-        ballot_publication.id.clone(),
-        None,
-        None,
-        None,
-    )
-    .await?;
     let contests = export_contests(hasura_transaction, tenant_id, election_event_id).await?;
-    slates::validate_publication_slates(&current, &contests)?;
-
-    let previous = started_elections_published_styles(
+    let mut current_acclamation = BTreeMap::new();
+    let mut current_slates = slates::StoredSlatesCheck::new(&contests);
+    for_each_publication_style(
         hasura_transaction,
         tenant_id,
         election_event_id,
-        ballot_publication,
+        &ballot_publication.id,
+        None,
+        |ballot_style| {
+            add_acclamation_states(&mut current_acclamation, ballot_style)?;
+            current_slates.add(ballot_style)
+        },
     )
-    .await?
-    .into_iter()
-    .flat_map(|publication| match publication {
-        Value::Array(ballot_styles) => ballot_styles,
-        other => vec![other],
-    })
-    .collect();
-    slates::validate_slates_unchanged(&Value::Array(previous), &current)
-}
+    .await?;
 
-async fn validate_published_acclamation_status(
-    hasura_transaction: &Transaction<'_>,
-    tenant_id: &str,
-    election_event_id: &str,
-    ballot_publication: &BallotPublication,
-) -> Result<()> {
-    let current = collect_acclamation_states(
-        &get_publication_json(
-            hasura_transaction,
-            tenant_id.to_owned(),
-            election_event_id.to_owned(),
-            ballot_publication.id.clone(),
-            None,
-            None,
-            None,
-        )
-        .await?,
-    )?;
-    let mut previous = BTreeMap::new();
-    for publication in started_elections_published_styles(
+    let mut previous_acclamation = BTreeMap::new();
+    let mut previous_slates = BTreeMap::new();
+    for (election_id, publication_id) in started_elections_publications(
         hasura_transaction,
         tenant_id,
         election_event_id,
@@ -290,10 +287,25 @@ async fn validate_published_acclamation_status(
     )
     .await?
     {
-        merge_acclamation_states(&mut previous, collect_acclamation_states(&publication)?)?;
+        let mut publication_acclamation = BTreeMap::new();
+        for_each_publication_style(
+            hasura_transaction,
+            tenant_id,
+            election_event_id,
+            &publication_id,
+            Some(&election_id),
+            |ballot_style| {
+                add_acclamation_states(&mut publication_acclamation, ballot_style)?;
+                slates::record_published_slates(&mut previous_slates, ballot_style)
+            },
+        )
+        .await?;
+        merge_acclamation_states(&mut previous_acclamation, publication_acclamation)?;
     }
 
-    validate_acclamation_states(&previous, &current)
+    validate_acclamation_states(&previous_acclamation, &current_acclamation)?;
+    current_slates.validate()?;
+    slates::validate_slates_unchanged(&previous_slates, current_slates.published())
 }
 
 #[instrument(skip(hasura_transaction), err)]
@@ -414,15 +426,7 @@ pub async fn update_publish_ballot(
         return Ok(());
     }
 
-    validate_published_acclamation_status(
-        hasura_transaction,
-        &tenant_id,
-        &election_event_id,
-        &ballot_publication,
-    )
-    .await?;
-
-    validate_published_slates(
+    validate_publication_styles(
         hasura_transaction,
         &tenant_id,
         &election_event_id,
@@ -660,6 +664,16 @@ mod tests {
 
     fn publication(contests: Value) -> Value {
         json!([{ "contests": contests }])
+    }
+
+    fn collect_acclamation_states(
+        publication: &Value,
+    ) -> Result<BTreeMap<String, ContestAcclamationState>> {
+        let mut states = BTreeMap::new();
+        for ballot_style in publication.as_array().unwrap() {
+            add_acclamation_states(&mut states, ballot_style)?;
+        }
+        Ok(states)
     }
 
     #[test]
