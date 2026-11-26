@@ -66,7 +66,11 @@ export const SectionBadgeChip: React.FC<{badge: SectionBadge}> = ({badge}) => {
             variant={badge === "applied" || badge === "failed" ? "filled" : "outlined"}
             label={String(t(`configurationPackage.hub.badge.${badge}`))}
             data-badge={badge}
-            sx={{"blockSize": "auto", "& .MuiChip-label": {whiteSpace: "normal"}}}
+            sx={{
+                "blockSize": "auto",
+                "&.MuiChip-outlined": {color: "text.primary"},
+                "& .MuiChip-label": {whiteSpace: "normal"},
+            }}
         />
     )
 }
@@ -288,12 +292,14 @@ export const PackageRail: React.FC<{
             }}
         >
             <List
+                component="div"
                 dense
                 disablePadding
                 sx={{display: "flex", flexDirection: {xs: "row", md: "column"}, gap: 0.25}}
             >
                 {item("overview", String(t("configurationPackage.hub.rail.overview")), null)}
                 <ListSubheader
+                    component="div"
                     disableSticky
                     sx={{
                         display: {xs: "none", md: "block"},

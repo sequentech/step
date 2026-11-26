@@ -1085,7 +1085,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
                             {t("configurationPackage.hub.historicalSections")}
                         </Typography>
                     )}
-                    <List dense disablePadding>
+                    <List component="div" dense disablePadding>
                         {sectionRows.map(({section, badge, view: row}, index) => {
                             const summary = row
                                 ? [
@@ -1926,7 +1926,7 @@ const ApplicationTable: React.FC<{
                 variant="outlined"
                 tabIndex={0}
                 role="region"
-                aria-label={String(t("configurationPackage.workflow.result"))}
+                aria-label={String(t("configurationPackage.sectionResults"))}
                 sx={{maxInlineSize: "100%"}}
             >
                 <Table size="small" data-testid="package-sections">
@@ -2187,6 +2187,7 @@ const ApplicationHistory: React.FC<{
                 }}
             >
                 <List
+                    component="div"
                     dense
                     data-testid="package-history"
                     aria-label={String(t("configurationPackage.history"))}

@@ -366,10 +366,10 @@ export const readRecovery = (
     // still stops the search rather than letting us assume it was only a preview.
     const latest = rows?.find((row) => {
         const report = readApplication(row.annotations)
-        return (
-            report?.mode !== "preview" ||
-            !["SUCCESS", "FAILED"].includes(row.execution_status ?? "")
-        )
+        const status = row.execution_status
+        const hasSavedApplication = asRecord(row.annotations).application != null
+        if (status === "FAILED" && !hasSavedApplication) return false
+        return report?.mode !== "preview" || !["SUCCESS", "FAILED"].includes(status ?? "")
     })
     if (!latest || !tenantId || latest.execution_status !== "FAILED") return {kind: "none"}
     const view = readApplication(latest.annotations)

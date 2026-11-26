@@ -87,6 +87,7 @@ const spanishTranslation: TranslationType = {
             },
         },
         configurationPackage: {
+            sectionResults: "Resultados por sección",
             hub: {
                 recovery: {
                     title: "Esta importación se detuvo a mitad y se puede continuar",

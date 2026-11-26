@@ -496,6 +496,20 @@ describe("readRecovery: continuing the same signed import", () => {
         })
     })
 
+    it("retains the unfinished Apply after a later recordless failed task", () => {
+        expect(
+            readRecovery([row({}, "task-later", "FAILED"), row(partialApply())], "t1", legacy, null)
+        ).toMatchObject({kind: "recoverable", taskId: "task-a"})
+        expect(
+            readRecovery(
+                [row({application: {}}, "task-malformed", "FAILED"), row(partialApply())],
+                "t1",
+                legacy,
+                null
+            )
+        ).toEqual({kind: "none"})
+    })
+
     it("offers nothing for a failed Apply that applied nothing yet", () => {
         const {application} = partialApply()
         const untouched = {

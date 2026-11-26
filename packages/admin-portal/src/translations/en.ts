@@ -80,6 +80,7 @@ const englishTranslation = {
             },
         },
         configurationPackage: {
+            sectionResults: "Section results",
             hub: {
                 recovery: {
                     title: "This import stopped partway and can be continued",
