@@ -967,6 +967,7 @@ mod tests {
             MessagingProvider::VIBER_INFOBIP => AccountSender::VIBER_INFOBIP {
                 base_url: "https://a.api.infobip.com".to_string(),
                 sender: "Elections".to_string(),
+                content_mode: Default::default(),
                 approved_templates: Default::default(),
             },
             _ => AccountSender::AWS_SNS {

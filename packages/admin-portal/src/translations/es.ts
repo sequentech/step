@@ -6770,11 +6770,16 @@ const spanishTranslation: TranslationType = {
                 intro: {
                     WHATSAPP:
                         "WhatsApp solo envía plantillas que Meta aprobó para la cuenta de WhatsApp Business. El mensaje debe coincidir con la plantilla aprobada; elige qué rellena sus parámetros.",
-                    VIBER: "Viber solo envía códigos y mensajes transaccionales con plantillas aprobadas por el socio de Viber. El mensaje debe coincidir con la plantilla aprobada; elige qué rellena sus parámetros.",
+                    VIBER: "Una cuenta de Viber envía plantillas aprobadas por el socio de Viber o texto libre. Con plantillas aprobadas, el mensaje debe coincidir con la plantilla; elige qué rellena sus parámetros. Con texto libre, el texto de abajo se envía tal cual.",
                 },
                 approvedWording: "Texto aprobado",
                 approvedWordingHelp:
                     "Una copia de la plantilla aprobada, usada como vista previa. Cambiarla aquí no cambia lo que envía el proveedor.",
+                viberWording: "Texto",
+                viberWordingHelp:
+                    "Una cuenta que envía texto libre envía este texto tal cual. Con plantillas aprobadas es una copia de la plantilla, usada como vista previa, y no cambia lo que se envía.",
+                sendsWrittenText:
+                    "Esta cuenta envía texto libre: el texto de arriba se envía tal cual y no necesita plantilla aprobada.",
                 providerTemplateTitle: "Plantilla del proveedor",
                 providerTemplateHelp:
                     "Opcional. El nombre o ID de la plantilla aprobada en el proveedor. Si está vacío, se usa la plantilla del evento electoral vinculada al alias de esta plantilla, o la predeterminada del evento para el propósito.",
@@ -7195,6 +7200,19 @@ const spanishTranslation: TranslationType = {
                 templateId: "ID de plantilla del socio",
                 add: "Añadir plantilla",
                 remove: "Quitar plantilla",
+                contentMode: {
+                    title: "Contenido de los mensajes",
+                    APPROVED_TEMPLATES: "Plantillas aprobadas",
+                    FREE_TEXT: "Texto libre",
+                },
+                contentModeHelp: {
+                    APPROVED_TEMPLATES:
+                        "Los códigos y mensajes se envían con las plantillas que aprobó el socio de Viber, indicadas abajo.",
+                    FREE_TEXT:
+                        "Los códigos y mensajes se envían con su propio texto, como los SMS. No hace falta ninguna plantilla aprobada.",
+                },
+                freeTextWarning:
+                    "Viber factura los mensajes transaccionales enviados sin plantilla aprobada a su tarifa promocional y puede rechazar contenido promocional como primer mensaje a un votante. Confirma con el socio que esta cuenta puede enviar códigos como texto libre.",
             },
             limits: {
                 title: "Límites de envío",

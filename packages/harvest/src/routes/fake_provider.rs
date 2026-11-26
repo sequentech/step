@@ -185,7 +185,7 @@ pub fn mount(
                     meta_lookup,
                     get_started,
                     infobip_send,
-                    infobip_balance,
+                    infobip_viber_templates,
                     infobip_logs,
                     aws_post,
                     aws_get,
@@ -2005,17 +2005,15 @@ async fn infobip_send(
     )
 }
 
-/// The Infobip account check. It needs an `App` key, as Infobip's does;
+/// The Viber sender check. It needs an `App` key, as Infobip's does;
 /// any key is valid (the check also runs on a key not stored yet).
-#[get("/infobip/account/1/balance")]
-fn infobip_balance(
+#[get("/infobip/viber/1/senders/<_sender>/templates")]
+fn infobip_viber_templates(
+    _sender: &str,
     authorization: ProviderAuthorization,
 ) -> (Status, Json<Value>) {
     match authorization.infobip_key() {
-        Some(_) => (
-            Status::Ok,
-            Json(json!({"balance": 1000.0, "currency": "EUR"})),
-        ),
+        Some(_) => (Status::Ok, Json(json!({"templates": []}))),
         None => infobip_refused(Refused::CREDENTIAL),
     }
 }

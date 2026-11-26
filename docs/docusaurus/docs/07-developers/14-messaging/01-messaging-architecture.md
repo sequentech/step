@@ -483,8 +483,8 @@ the provider reported: the token's validity, expiry and missing
 permissions (Meta `debug_token`); the app secret, checked with
 `appsecret_proof`; the WhatsApp number's status, display-name status,
 quality rating and messaging limit; template category and status per
-language; the Viber partner login (Infobip balance); the Messenger Page's
-`pages_messaging`, app subscription and Get Started button; and the
+language; the Viber partner login (Infobip sender template access); the
+Messenger Page's `pages_messaging`, app subscription and Get Started button; and the
 callback readiness. WhatsApp approval comes from the number's status and
 display-name status; an administrator's entry counts only while the check
 reports nothing. `FLAGGED` and `RATE_LIMITED` are a quality warning, not a

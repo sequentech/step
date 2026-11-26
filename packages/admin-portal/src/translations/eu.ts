@@ -6553,11 +6553,16 @@ const basqueTranslation: TranslationType = {
                 intro: {
                     WHATSAPP:
                         "WhatsApp-ek Meta-k WhatsApp Business kontuarentzat onartutako txantiloiak soilik bidaltzen ditu. Mezuak txantiloi onartuarekin bat etorri behar du; aukeratu zerk betetzen dituen parametroak.",
-                    VIBER: "Viber-ek kodeak eta transakzio-mezuak Viber bazkideak onartutako txantiloiekin soilik bidaltzen ditu. Mezuak txantiloi onartuarekin bat etorri behar du; aukeratu zerk betetzen dituen parametroak.",
+                    VIBER: "Viber kontu batek Viber bazkideak onartutako txantiloiak edo testu librea bidaltzen ditu. Txantiloi onartuekin, mezuak txantiloiarekin bat etorri behar du; aukeratu zerk betetzen dituen parametroak. Testu librearekin, beheko testua dagoen bezala bidaltzen da.",
                 },
                 approvedWording: "Testu onartua",
                 approvedWordingHelp:
                     "Txantiloi onartuaren kopia bat, aurrebista gisa erabilia. Hemen aldatzeak ez du aldatzen hornitzaileak bidaltzen duena.",
+                viberWording: "Testua",
+                viberWordingHelp:
+                    "Testu librea bidaltzen duen kontu batek testu hau dagoen bezala bidaltzen du. Txantiloi onartuekin, txantiloiaren kopia bat da, aurrebista gisa erabilia, eta ez du aldatzen bidaltzen dena.",
+                sendsWrittenText:
+                    "Kontu honek testu librea bidaltzen du: goiko testua dagoen bezala bidaltzen da eta ez du txantiloi onarturik behar.",
                 providerTemplateTitle: "Hornitzailearen txantiloia",
                 providerTemplateHelp:
                     "Aukerakoa. Txantiloi onartuak hornitzailean duen izena edo IDa. Hutsik badago, txantiloi honen aliasari lotutako hauteskunde-gertaeraren txantiloia erabiltzen da, edo gertaeraren helbururako lehenetsia.",
@@ -6973,6 +6978,19 @@ const basqueTranslation: TranslationType = {
                 templateId: "Bazkidearen txantiloi-IDa",
                 add: "Gehitu txantiloia",
                 remove: "Kendu txantiloia",
+                contentMode: {
+                    title: "Mezuen edukia",
+                    APPROVED_TEMPLATES: "Txantiloi onartuak",
+                    FREE_TEXT: "Testu librea",
+                },
+                contentModeHelp: {
+                    APPROVED_TEMPLATES:
+                        "Kodeak eta mezuak Viber bazkideak onartutako txantiloiekin bidaltzen dira, behean adierazitakoekin.",
+                    FREE_TEXT:
+                        "Kodeak eta mezuak beren testuarekin bidaltzen dira, SMSak bezala. Ez da txantiloi onarturik behar.",
+                },
+                freeTextWarning:
+                    "Viber-ek txantiloi onarturik gabe bidalitako transakzio-mezuak sustapen-tarifan kobratzen ditu, eta hautesle bati bidalitako lehen mezu gisa sustapen-edukia uka dezake. Berretsi bazkidearekin kontu honek kodeak testu libre gisa bidal ditzakeela.",
             },
             limits: {
                 title: "Bidalketa-mugak",

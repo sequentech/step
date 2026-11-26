@@ -252,6 +252,45 @@ export const ViberTemplates: Story = {
     },
 }
 
+export const ViberFreeText: Story = {
+    args: {account: EStoryAccount.VIBER},
+    parameters: {widgets: ["ViberContentModeInput", "ViberTemplatesEditor"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await expect(canvas.getByRole("radio", {name: "Approved templates"})).toBeChecked()
+        await userEvent.click(canvas.getByRole("radio", {name: "Free text"}))
+        await expect(canvas.getByRole("radio", {name: "Free text"})).toBeChecked()
+        expect(canvas.queryByRole("textbox", {name: "Partner template ID"})).toBeNull()
+        const warning = canvas.getByText(/promotional rate/)
+        await expect(warning).toBeVisible()
+        const section = canvas.getByRole("radiogroup").parentElement as HTMLElement
+        const originalWidth = section.style.width
+        try {
+            for (const width of [320, 512]) {
+                section.style.width = `${width}px`
+                await waitFor(() => {
+                    const bounds = section.getBoundingClientRect()
+                    // MUI pulls radio labels left by design, so only their
+                    // right edge is checked.
+                    for (const label of Array.from(section.querySelectorAll("label"))) {
+                        expect(label.getBoundingClientRect().right).toBeLessThanOrEqual(
+                            bounds.right + 1
+                        )
+                    }
+                    const rect = warning.getBoundingClientRect()
+                    expect(rect.left).toBeGreaterThanOrEqual(bounds.left)
+                    expect(rect.right).toBeLessThanOrEqual(bounds.right + 1)
+                })
+            }
+        } finally {
+            section.style.width = originalWidth
+        }
+        // Back to templates: the entered ones are still there.
+        await userEvent.click(canvas.getByRole("radio", {name: "Approved templates"}))
+        await expect(canvas.getAllByRole("textbox", {name: "Partner template ID"})).toHaveLength(3)
+    },
+}
+
 export const ViberReportCredentials: Story = {
     args: {account: EStoryAccount.VIBER},
     parameters: {

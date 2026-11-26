@@ -87,6 +87,12 @@ export enum EOutOfWindowPolicy {
     UTILITY_MESSAGES = "UTILITY_MESSAGES",
 }
 
+/** What a Viber account sends: approved templates, or the message's own text. */
+export enum EViberContentMode {
+    APPROVED_TEMPLATES = "APPROVED_TEMPLATES",
+    FREE_TEXT = "FREE_TEXT",
+}
+
 /**
  * How an account's readiness is established. Readiness always comes from the
  * provider's check; `ADMIN_CONFIRMED` is parse-only, read as `PROVIDER_CHECK`
@@ -341,6 +347,8 @@ export type IAccountSender =
           base_url: string
           sender: string
           approved_templates?: IViberApprovedTemplates
+          /** Absent on accounts saved before it existed: approved templates. */
+          content_mode?: EViberContentMode
       }
     /** Unsupported; its other fields are ignored. */
     | {provider: EMessagingProvider.HTTP_API; label?: string | null}
