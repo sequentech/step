@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {act, fireEvent, render, screen, within} from "@testing-library/react"
+import {act, fireEvent, render, screen, waitFor, within} from "@testing-library/react"
 import {ThemeProvider} from "@mui/material/styles"
 import {adminTheme} from "../../../../ui-essentials/src/services/theme"
 import {record, refusedPreview} from "./configurationPackage.fixture"
@@ -1526,6 +1526,10 @@ describe("configuration package hub layout", () => {
         showAdvanced()
         fireEvent.click(screen.getByRole("checkbox", {name: "census"}))
         expect(applyButton().disabled).toBe(true)
+        // The disabled Apply points at the reason it is off.
+        const reason = screen.getByTestId("package-stale-reason")
+        expect(applyButton().getAttribute("aria-describedby")).toBe(reason.id)
+        expect(reason.textContent).toBe("configurationPackage.hub.staleReason")
         mockApply.mockResolvedValueOnce(accepted("task-p2"))
         await act(async () => {
             fireEvent.click(screen.getByTestId("package-preview-again"))
@@ -1627,11 +1631,22 @@ describe("configuration package hub layout", () => {
         rerender(<SettingsConfigurationPackage />)
         expect(screen.queryByTestId("package-blocked-historical")).toBeNull()
         fireEvent.click(screen.getByTestId("package-change-requirements"))
-        fireEvent.click(
-            within(screen.getByTestId("package-requirements-picker")).getByRole("checkbox", {
-                name: "trustees",
+        // The drawer is modal: its own controls are reachable, the page behind it is not.
+        const drawer = screen.getByTestId("package-upload-drawer")
+        fireEvent.click(within(drawer).getByRole("checkbox", {name: "trustees"}))
+        expect(
+            within(drawer).getByRole("button", {
+                name: "configurationPackage.hub.actions.previewAgainSame",
             })
-        )
+        ).toBeTruthy()
+        expect(
+            screen.queryByRole("heading", {
+                name: "configurationPackage.workflow.phases.previewAgain.title",
+            })
+        ).toBeNull()
+        // Close it as a user would, keeping the changed requirements.
+        fireEvent.keyDown(drawer, {key: "Escape"})
+        await waitFor(() => expect(screen.queryByTestId("package-upload-drawer")).toBeNull())
         // What that run found stays visible, as that run's history.
         expect(screen.getByTestId("package-blocked").getAttribute("data-historical")).toBe("true")
         expect(screen.getByTestId("package-blocked").textContent).toContain("unknown role x")
@@ -1644,9 +1659,15 @@ describe("configuration package hub layout", () => {
         // Fail closed: nothing to apply until a new Preview succeeds.
         expect(applyButton().disabled).toBe(true)
         mockApply.mockResolvedValueOnce(accepted("task-p2"))
+        // Preview again from the page header: the same import, no new upload.
         await act(async () => {
-            fireEvent.click(screen.getByTestId("package-drawer-preview-again"))
+            fireEvent.click(
+                within(screen.getByTestId("package-workflow")).getByRole("button", {
+                    name: "configurationPackage.hub.actions.previewAgain",
+                })
+            )
         })
+        expect(screen.queryByTestId("package-upload-drawer")).toBeNull()
         expect(mockApply.mock.calls.map(([options]) => options.variables)).toEqual([
             expect.objectContaining({documentId: "doc-1", mode: "preview"}),
             expect.objectContaining({
@@ -1663,6 +1684,49 @@ describe("configuration package hub layout", () => {
         mockTask = task("task-p2", "FAILED", refusedPreview(["unknown role x"]))
         rerender(<SettingsConfigurationPackage />)
         expect(screen.getByTestId("package-blocked").getAttribute("data-historical")).toBeNull()
+        expect(mockManagedApply).not.toHaveBeenCalled()
+    })
+
+    it("previews the same import again from inside the requirements drawer", async () => {
+        mockApply.mockResolvedValue(accepted("task-p"))
+        const {rerender} = render(<SettingsConfigurationPackage />)
+        await upload()
+        mockTask = task(
+            "task-p",
+            "FAILED",
+            refusedPreview(["unknown role x"], {missingTrustees: true})
+        )
+        rerender(<SettingsConfigurationPackage />)
+        fireEvent.click(screen.getByTestId("package-change-requirements"))
+        const drawer = screen.getByTestId("package-upload-drawer")
+        // Not offered until the requirements differ from the refused run's.
+        expect(
+            within(drawer).queryByRole("button", {
+                name: "configurationPackage.hub.actions.previewAgainSame",
+            })
+        ).toBeNull()
+        fireEvent.click(within(drawer).getByRole("checkbox", {name: "trustees"}))
+        mockApply.mockResolvedValueOnce(accepted("task-p2"))
+        await act(async () => {
+            fireEvent.click(
+                within(drawer).getByRole("button", {
+                    name: "configurationPackage.hub.actions.previewAgainSame",
+                })
+            )
+        })
+        await waitFor(() => expect(screen.queryByTestId("package-upload-drawer")).toBeNull())
+        expect(mockApply.mock.calls.map(([options]) => options.variables)).toEqual([
+            expect.objectContaining({documentId: "doc-1", mode: "preview"}),
+            expect.objectContaining({
+                documentId: "doc-1",
+                mode: "preview",
+                requirements: {
+                    sections: COMPLETE_DELIVERY.sections.filter((s) => s !== "trustees"),
+                    census: "required",
+                },
+            }),
+        ])
+        expect(applyButton().disabled).toBe(true)
         expect(mockManagedApply).not.toHaveBeenCalled()
     })
 
@@ -1696,8 +1760,57 @@ describe("configuration package hub layout", () => {
         mockTask = task("task-a", "FAILED", record("applied"))
         rerender(<SettingsConfigurationPackage />)
         expect(screen.getByTestId("package-workflow").getAttribute("data-phase")).toBe("attention")
+        expect(screen.getByTestId("package-outcome").textContent).toBe(
+            "configurationPackage.hub.appliedNotConfirmed"
+        )
+        expect(
+            screen
+                .getByTestId("package-section-row-tenant-configuration")
+                .querySelector("[data-badge]")
+                ?.getAttribute("data-badge")
+        ).toBe("notConfirmed")
         mockTask = task("task-a", "SUCCESS", record("applied"))
         rerender(<SettingsConfigurationPackage />)
         expect(screen.getByTestId("package-workflow").getAttribute("data-phase")).toBe("complete")
+    })
+
+    it("shows an applied record on a task that did not succeed as not confirmed in History", () => {
+        mockHistory = [
+            {
+                id: "task-contradicted",
+                created_at: "2026-11-25T10:00:00Z",
+                execution_status: "FAILED",
+                executed_by_user: "ops.backup",
+                annotations: record("applied"),
+            },
+            {
+                id: "task-confirmed",
+                created_at: "2026-11-24T14:02:00Z",
+                execution_status: "SUCCESS",
+                executed_by_user: "ops.lead",
+                annotations: record("applied"),
+            },
+        ]
+        render(<SettingsConfigurationPackage />)
+        // The receipt skips the contradicted run.
+        expect(screen.getByTestId("package-receipt").textContent).toContain("task-confirmed")
+        expect(screen.getByTestId("package-receipt").textContent).not.toContain("task-contradicted")
+        fireEvent.click(screen.getByTestId("package-rail-history"))
+        const chip = (id: string) =>
+            screen.getByTestId(`package-history-row-${id}`).querySelector(".MuiChip-root")
+        expect(chip("task-contradicted")?.textContent).toBe(
+            "configurationPackage.hub.appliedNotConfirmed"
+        )
+        expect(chip("task-contradicted")?.className).not.toContain("MuiChip-colorSuccess")
+        expect(chip("task-confirmed")?.textContent).toBe("applied")
+        expect(chip("task-confirmed")?.className).toContain("MuiChip-colorSuccess")
+        const detail = screen.getByTestId("package-history-detail")
+        expect(detail.textContent).toContain("configurationPackage.hub.appliedNotConfirmed")
+        expect(detail.querySelector('[data-badge="applied"]')).toBeNull()
+        expect(detail.querySelector('[data-badge="notConfirmed"]')).toBeTruthy()
+        fireEvent.click(screen.getByTestId("package-history-row-task-confirmed"))
+        expect(
+            screen.getByTestId("package-history-detail").querySelector('[data-badge="applied"]')
+        ).toBeTruthy()
     })
 })

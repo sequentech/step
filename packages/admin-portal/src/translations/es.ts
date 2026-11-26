@@ -112,6 +112,9 @@ const spanishTranslation: TranslationType = {
                 historicalBlockers:
                     "De la previsualización anterior, que usó otros requisitos. Previsualiza de nuevo para ver qué bloquea los requisitos elegidos ahora.",
                 historicalSections: "Según la previsualización anterior, con otros requisitos.",
+                appliedNotConfirmed: "Registrado como aplicado, pero la tarea no terminó con éxito",
+                staleReason:
+                    "Esta previsualización está desactualizada: cambiaron los requisitos, el documento o la confianza de firma. Previsualiza de nuevo antes de aplicar.",
                 historyStarted: "Inicio",
                 noAccess: {
                     title: "No puedes importar paquetes de configuración en este inquilino.",

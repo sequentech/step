@@ -46,7 +46,8 @@ export const sectionBadge = (section: SectionView | undefined, running: boolean)
         case "unchanged":
             return "unchanged"
         case "previewed":
-            return section.preview?.needsApply ? "willChange" : "unchanged"
+            // The same predicate as the confirmation and the count, Messaging included.
+            return proposesChange(section) ? "willChange" : "unchanged"
         case "blocked":
             return "blocked"
         case "missing":
@@ -73,14 +74,43 @@ export interface SectionRow {
 }
 
 /** Every package section once, in the order the platform applies them. */
+/**
+ * Whether a run is a confirmed application: an apply record whose outcome is
+ * applied on a task row that ended in SUCCESS. The header, the receipt, History
+ * and the section badges all use this one rule.
+ */
+export const isConfirmedApply = (
+    view: ApplicationView | null | undefined,
+    executionStatus: string | null | undefined
+): boolean => view?.mode === "apply" && view.outcome === "applied" && executionStatus === "SUCCESS"
+
+/** A record that says applied on a task row that does not confirm it. */
+export const isUnconfirmedApplied = (
+    view: ApplicationView | null | undefined,
+    executionStatus: string | null | undefined
+): boolean => view?.outcome === "applied" && !isConfirmedApply(view, executionStatus)
+
+/**
+ * Every package section once, in the order the platform applies them. Pass the
+ * run's task execution_status: when the record claims an applied run the task
+ * row does not confirm, no section is shown as applied.
+ */
 export const orderedSectionBadges = (
     view: ApplicationView | null | undefined,
-    running: boolean
-): SectionRow[] =>
-    PACKAGE_SECTIONS.map((section) => {
+    running: boolean,
+    executionStatus: string | null | undefined
+): SectionRow[] => {
+    const unconfirmed = isUnconfirmedApplied(view, executionStatus)
+    return PACKAGE_SECTIONS.map((section) => {
         const found = view?.sections.find((s) => s.section === section)
-        return {section, badge: sectionBadge(found, running), view: found}
+        const badge = sectionBadge(found, running)
+        return {
+            section,
+            badge: unconfirmed && badge === "applied" ? "notConfirmed" : badge,
+            view: found,
+        }
     })
+}
 
 export type RunStep = "package" | "preview" | "review" | "apply"
 export type StageState =
@@ -196,11 +226,7 @@ export const lastAppliedReceipt = (
     if (!rows) return undefined
     for (const row of rows) {
         const view = readApplication(row.annotations)
-        if (
-            row.execution_status === "SUCCESS" &&
-            view?.mode === "apply" &&
-            view.outcome === "applied"
-        ) {
+        if (view && isConfirmedApply(view, row.execution_status)) {
             return {
                 taskId: row.id,
                 appliedAt: row.created_at,

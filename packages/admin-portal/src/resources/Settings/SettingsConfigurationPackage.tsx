@@ -79,6 +79,8 @@ import {
     type TrustBlock,
     changingSections,
     headerActions,
+    isConfirmedApply,
+    isUnconfirmedApplied,
     lastAppliedReceipt,
     missingPackagePermissions,
     orderedSectionBadges,
@@ -634,7 +636,18 @@ const SettingsConfigurationPackageForScope: React.FC<{
               ? `${applyReasonId}-sha`
               : previewTrustChanged
                 ? `${applyReasonId}-trust`
-                : undefined
+                : phase === "previewAgain"
+                  ? refusal || blockers.length > 0
+                      ? `${applyReasonId}-blocked`
+                      : `${applyReasonId}-stale`
+                  : undefined
+    // An out-of-date Preview's disabled Apply says why, when nothing more specific does.
+    const showStaleReason =
+        phase === "previewAgain" &&
+        !shaMismatch &&
+        !previewTrustChanged &&
+        !refusal &&
+        blockers.length === 0
 
     const openDocumentId = () => {
         setTab("overview")
@@ -766,7 +779,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
                     }
                   : {label: String(t("configurationPackage.hub.trustLegacy"))}
     const shownView = submitted && !unreadable ? view : null
-    const sectionRows = orderedSectionBadges(shownView, running)
+    const sectionRows = orderedSectionBadges(shownView, running, task?.execution_status)
     const stages = runStages(phase, submitted?.mode)
     const receipt = lastAppliedReceipt(historyData?.sequent_backend_tasks_execution)
     const runCard = (
@@ -805,6 +818,16 @@ const SettingsConfigurationPackageForScope: React.FC<{
                     <Typography variant="body2" color="text.secondary">
                         {t("configurationPackage.hub.noRun")}
                     </Typography>
+                )}
+                {showStaleReason && (
+                    <Alert
+                        severity="info"
+                        role="status"
+                        id={`${applyReasonId}-stale`}
+                        data-testid="package-stale-reason"
+                    >
+                        {t("configurationPackage.hub.staleReason")}
+                    </Alert>
                 )}
                 {!canApply && (refusal || blockers.length > 0) ? (
                     <Alert
@@ -1030,9 +1053,11 @@ const SettingsConfigurationPackageForScope: React.FC<{
                                 : noRecord
                                   ? t("configurationPackage.stoppedWithoutRecord")
                                   : finished
-                                    ? t(
-                                          `configurationPackage.outcome.${view?.outcome ?? "unknown"}`
-                                      )
+                                    ? isUnconfirmedApplied(view, task?.execution_status)
+                                        ? t("configurationPackage.hub.appliedNotConfirmed")
+                                        : t(
+                                              `configurationPackage.outcome.${view?.outcome ?? "unknown"}`
+                                          )
                                     : t("configurationPackage.running")}
                         </Typography>
                         {retry && (
@@ -1895,7 +1920,9 @@ const ApplicationHistory: React.FC<{
         ? [
               [
                   String(t("configurationPackage.hub.historyOutcome")),
-                  String(record?.outcome ?? selected.execution_status ?? "?"),
+                  isUnconfirmedApplied(record, selected.execution_status)
+                      ? String(t("configurationPackage.hub.appliedNotConfirmed"))
+                      : String(record?.outcome ?? selected.execution_status ?? "?"),
               ],
               [String(t("configurationPackage.hub.historyStarted")), selected.created_at],
               ...(selected.executed_by_user
@@ -1954,7 +1981,11 @@ const ApplicationHistory: React.FC<{
                 >
                     {list.map((row, index) => {
                         const rowRecord = readApplication(row.annotations)
-                        const outcome = rowRecord?.outcome ?? row.execution_status
+                        // Green and "applied" only for a confirmed application.
+                        const confirmed = isConfirmedApply(rowRecord, row.execution_status)
+                        const outcome = isUnconfirmedApplied(rowRecord, row.execution_status)
+                            ? String(t("configurationPackage.hub.appliedNotConfirmed"))
+                            : (rowRecord?.outcome ?? row.execution_status)
                         const isSelected = row.id === selected?.id
                         return (
                             <ListItemButton
@@ -2002,13 +2033,11 @@ const ApplicationHistory: React.FC<{
                                         {t("configurationPackage.task", {taskId: row.id})}
                                     </Typography>
                                 </Box>
-                                {/* Only a stored applied outcome is green; a bare execution status stays neutral. */}
+                                {/* Only a confirmed application is green; anything else stays neutral. */}
                                 <Chip
                                     size="small"
-                                    variant={
-                                        rowRecord?.outcome === "applied" ? "filled" : "outlined"
-                                    }
-                                    color={rowRecord?.outcome === "applied" ? "success" : "default"}
+                                    variant={confirmed ? "filled" : "outlined"}
+                                    color={confirmed ? "success" : "default"}
                                     label={String(outcome ?? "?")}
                                     sx={{
                                         "blockSize": "auto",
@@ -2073,7 +2102,7 @@ const ApplicationHistory: React.FC<{
                         </Box>
                         {record && (
                             <List dense disablePadding sx={{mt: 1}}>
-                                {orderedSectionBadges(record, false).map(
+                                {orderedSectionBadges(record, false, selected.execution_status).map(
                                     ({section, badge}, index) => (
                                         <ListItem
                                             key={section}

@@ -60,7 +60,12 @@ const HISTORY = [
 
 const Hub: React.FC<Scenario> = ({phase, run, mode, trustLabel}) => {
     const [tab, setTab] = useState<HubTab>("overview")
-    const rows = orderedSectionBadges(readApplication(annotations(run)), false)
+    // The task status the platform writes with each record: FAILED for refused or failed.
+    const rows = orderedSectionBadges(
+        readApplication(annotations(run)),
+        false,
+        run === "blocked" || run === "failed" ? "FAILED" : "SUCCESS"
+    )
     const actions = headerActions(phase)
     const label = (action: string) => i18n.t(`configurationPackage.hub.actions.${action}`)
     return (

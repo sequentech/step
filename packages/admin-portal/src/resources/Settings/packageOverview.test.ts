@@ -13,6 +13,7 @@ import {
 import {
     changingSections,
     headerActions,
+    isConfirmedApply,
     lastAppliedReceipt,
     readRunIdentity,
     missingPackagePermissions,
@@ -69,7 +70,7 @@ describe("sectionBadge reads only the recorded section state", () => {
 it("lists every section once, in the platform's apply order, whatever the record's order", () => {
     const view = readApplication(record("applied"))
     const reversed = view && {...view, sections: [...view.sections].reverse()}
-    const badges = orderedSectionBadges(reversed, false)
+    const badges = orderedSectionBadges(reversed, false, "SUCCESS")
     expect(badges.map((b) => b.section)).toEqual([...PACKAGE_SECTIONS])
     expect(badges.find((b) => b.section === "tenant-configuration")?.badge).toBe("applied")
     expect(badges.find((b) => b.section === "election-event")?.badge).toBe("applied")
@@ -78,7 +79,7 @@ it("lists every section once, in the platform's apply order, whatever the record
 
 it("folds a refused preview's blocked and missing rows into the ordered sections", () => {
     const view = readApplication(refusedPreview(["unknown role x"], {missingTrustees: true}))
-    const badges = orderedSectionBadges(view, false)
+    const badges = orderedSectionBadges(view, false, "FAILED")
     expect(badges.find((b) => b.section === "tenant-configuration")?.badge).toBe("blocked")
     expect(badges.find((b) => b.section === "trustees")?.badge).toBe("missing")
 })
@@ -285,4 +286,50 @@ it("does not list a messaging section whose preview proposes no account change",
     const view = readApplication(annotations)!
     expect(changingSections(view)).toEqual(["tenant-configuration"])
     expect(sectionsToChange(view)).toBe(1)
+})
+
+describe("applied is claimed only when the record and the task row agree", () => {
+    const applied = () => readApplication(record("applied"))
+    it.each([
+        ["SUCCESS", true],
+        ["FAILED", false],
+        ["CANCELLED", false],
+        ["IN_PROGRESS", false],
+        [undefined, false],
+    ])("task %s → confirmed %s", (status, confirmed) => {
+        expect(isConfirmedApply(applied(), status)).toBe(confirmed)
+        const badge = orderedSectionBadges(applied(), false, status).find(
+            (row) => row.section === "tenant-configuration"
+        )?.badge
+        expect(badge).toBe(confirmed ? "applied" : "notConfirmed")
+    })
+    it("keeps a partially failed run's genuinely applied sections", () => {
+        const failed = readApplication(record("failed"))
+        const rows = orderedSectionBadges(failed, false, "FAILED")
+        expect(rows.find((row) => row.section === "tenant-configuration")?.badge).toBe("applied")
+        expect(rows.find((row) => row.section === "election-event")?.badge).toBe("failed")
+    })
+    it("never counts a preview as an application", () => {
+        expect(isConfirmedApply(readApplication(record("previewed")), "SUCCESS")).toBe(false)
+    })
+})
+
+it("badges a previewed Messaging account change as Will change, as the confirmation lists it", () => {
+    expect(
+        sectionBadge(
+            {
+                section: "messaging-accounts",
+                members: [],
+                state: "previewed",
+                preview: {
+                    needsApply: false,
+                    blockers: [],
+                    changes: [{reference: "package:ses", action: "replace"}],
+                },
+                earlierApplied: false,
+                submissions: [],
+            },
+            false
+        )
+    ).toBe("willChange")
 })

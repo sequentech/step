@@ -105,6 +105,9 @@ const englishTranslation = {
                 historicalBlockers:
                     "From the earlier preview, which used other requirements. Preview again to see what blocks the requirements selected now.",
                 historicalSections: "As found by the earlier preview, with other requirements.",
+                appliedNotConfirmed: "Recorded as applied, but the task did not succeed",
+                staleReason:
+                    "This preview is out of date: the requirements, document or signing trust changed. Preview again before applying.",
                 historyStarted: "Started",
                 noAccess: {
                     title: "You can't import configuration packages on this tenant.",
