@@ -6,11 +6,14 @@ import React from "react"
 import {fireEvent, render, screen} from "@testing-library/react"
 import {MemoryRouter} from "react-router-dom"
 import App from "./App"
+import SequentLogo from "@sequentech/ui-essentials/public/Sequent_logo.svg"
+import BlankLogoImg from "@sequentech/ui-essentials/public/blank_logo.svg"
 
 jest.mock(
     "@sequentech/ui-core",
     () => ({
         ...jest.requireActual("../../ui-core/src/services/sanitizePresentationCss"),
+        ...jest.requireActual("../../ui-core/src/services/pageBranding"),
         applyConfigurationLanguagePolicy: jest.fn(),
         ETranslationScope: {BALLOT_VERIFIER: "ballot-verifier"},
         getValueFromCookie: jest.fn(),
@@ -25,8 +28,9 @@ jest.mock(
     () => {
         const {createElement} = require("react")
         return {
-            Footer: () => null,
-            Header: () => null,
+            Footer: () => createElement("footer"),
+            Header: ({logoUrl}: {logoUrl?: string}) =>
+                createElement("header", {"data-logo": logoUrl}),
             NotFoundScreen: () => null,
             PageBanner: ({children}: React.PropsWithChildren) =>
                 createElement("main", null, children),
@@ -142,4 +146,69 @@ test("keeps images from the public bucket", () => {
     expect(getComputedStyle(wrapper).backgroundImage).toContain(
         "https://files.example.org/public/logo.png"
     )
+})
+
+describe("the event's branding", () => {
+    const eventWith = (fields: Record<string, unknown>) => ({
+        ballot_eml: {election_event_presentation: {css: "", ...fields}},
+    })
+    const logo = () => document.querySelector("header")?.getAttribute("data-logo")
+    const tabIcons = () =>
+        Array.from(document.head.querySelectorAll("link[data-page-branding]")).map((link) =>
+            link.getAttribute("href")
+        )
+
+    test("shows nothing of the platform while the event is unknown", () => {
+        renderApp()
+
+        expect(document.querySelector("footer")).toBeNull()
+        expect(logo()).toBe(BlankLogoImg)
+        expect(tabIcons()).toEqual(["data:,"])
+    })
+
+    test("shows the platform's logo, footer and icons for an event that sets none", () => {
+        mockBallotStyle = eventWith({logo_url: null})
+
+        const wrapper = renderApp()
+
+        expect(document.querySelector("footer")).not.toBeNull()
+        expect(logo()).toBe(SequentLogo)
+        expect(tabIcons()).toContain("/favicon.ico")
+        expect(wrapper.classList.contains("platform-branding-hidden")).toBe(false)
+    })
+
+    test("shows only the event's own branding when the platform is hidden", () => {
+        mockBallotStyle = eventWith({
+            logo_url: null,
+            favicon_url: "https://event.example/icon.png",
+            page_title: "Check your ballot",
+            platform_branding_policy: "hide",
+        })
+
+        const wrapper = renderApp()
+
+        expect(document.querySelector("footer")).toBeNull()
+        expect(logo()).toBe(BlankLogoImg)
+        expect(tabIcons()).toEqual(["https://event.example/icon.png"])
+        expect(document.title).toBe("Check your ballot")
+        expect(wrapper.classList.contains("platform-branding-hidden")).toBe(true)
+    })
+
+    test("follows the event inside an imported auditable ballot", () => {
+        mockBallotStyle = eventWith({logo_url: "https://event.example/published.svg"})
+        mockImportedBallot = {
+            election_config: {
+                election_event_presentation: {
+                    css: "",
+                    logo_url: "https://event.example/imported.svg",
+                    platform_branding_policy: "hide",
+                },
+            },
+        }
+
+        renderApp()
+        fireEvent.click(screen.getByRole("button", {name: "Import ballot"}))
+
+        expect(document.querySelector("footer")).toBeNull()
+    })
 })
