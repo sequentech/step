@@ -87,7 +87,71 @@ const spanishTranslation: TranslationType = {
             },
         },
         configurationPackage: {
+            workflow: {
+                censusRequired: "Censo obligatorio",
+                censusOptional: "Censo opcional",
+                steps: {
+                    upload: "Subir",
+                    preview: "Previsualizar",
+                    review: "Revisar",
+                    apply: "Aplicar",
+                },
+                phases: {
+                    waitingForTrust: {
+                        title: "Comprobando la confianza en los firmantes",
+                        help: "La importación estará disponible cuando se haya cargado la lista de firmantes de esta organización.",
+                    },
+                    trustBlocked: {
+                        title: "La importación no está disponible",
+                        help: "La lista de firmantes no permite actualmente importaciones para esta organización. La lista de firmantes muestra lo que falta.",
+                    },
+                    choose: {
+                        title: "Sube un paquete para previsualizarlo",
+                        help: "Elige un ZIP o un EZIP cifrado con contraseña, exportado por Election Architect.",
+                    },
+                    starting: {
+                        title: "Iniciando…",
+                        help: "Solicitando a la plataforma que cree la tarea.",
+                    },
+                    previewing: {
+                        title: "Previsualizando el paquete",
+                        help: "La plataforma está comparando el paquete con esta organización. Una previsualización no cambia nada.",
+                    },
+                    previewBlocked: {
+                        title: "La previsualización ha encontrado bloqueos",
+                        help: "Cada bloqueo aparece bajo su sección en el resultado. Corrígelo en el paquete o en la organización y vuelve a previsualizar.",
+                    },
+                    previewAgain: {
+                        title: "Vuelve a previsualizar antes de aplicar",
+                        help: "Necesitas una previsualización que coincida con los requisitos, la confianza y el SHA-256 introducido, si lo hay. Vuelve a subir el paquete o abre Opciones avanzadas para previsualizar un ZIP existente con su ID de documento.",
+                    },
+                    review: {
+                        title: "Revisa los cambios propuestos",
+                        help: "Comprueba cada sección que la previsualización cambiaría. Nada cambia hasta que selecciones Aplicar y confirmes.",
+                    },
+                    applying: {
+                        title: "Aplicando el paquete",
+                        help: "La plataforma vuelve a previsualizar primero el paquete y se detiene ante cualquier bloqueo. Los estados de las secciones se actualizan en el resultado a medida que las tareas se resuelven.",
+                    },
+                    complete: {
+                        title: "Paquete aplicado",
+                        help: "Esta ejecución ha registrado el paquete como aplicado. El resultado y las aplicaciones anteriores conservan el registro.",
+                    },
+                    attention: {
+                        title: "Comprueba el resultado antes de hacer cualquier otra cosa",
+                        help: "Lee el mensaje y el resultado registrado antes de continuar. Si hay dudas sobre el resultado, consulta las aplicaciones anteriores: es posible que algunas secciones ya se hayan aplicado.",
+                    },
+                },
+                optionsSummary: "{{selected}} de {{available}} secciones obligatorias",
+                evidence: "Miembros del paquete registrados ({{count}})",
+                noHistory: "No hay aplicaciones anteriores registradas para esta organización.",
+                trust: "Confianza en los firmantes para esta organización",
+                result: "Resultado de esta ejecución",
+            },
             roster: {
+                activeSummary:
+                    "Activo. Cada paquete necesita al menos {{approvals}} aprobaciones distintas, más un firmante final independiente.",
+                fingerprint: "Mostrar la huella del lista de firmantes (SHA-256)",
                 title: "Lista de firmantes de Architect",
                 loading: "Comprobando la configuración de confianza…",
                 active: "Lista activa: {{hash}}. El receptor requiere al menos {{approvals}} aprobaciones distintas y una firma final independiente.",
@@ -202,7 +266,7 @@ const spanishTranslation: TranslationType = {
             preview: "Vista previa",
             apply: "Aplicar",
             blocked:
-                "La vista previa encontró bloqueos: corrige el paquete o el cliente y vuelve a previsualizar.",
+                "No se puede aplicar. Corrige el paquete o la organización y vuelve a previsualizar:",
             noTask: "La plataforma no devolvió ninguna tarea.",
             mode: {preview: "Vista previa", apply: "Aplicación"},
             task: "Tarea {{taskId}}",

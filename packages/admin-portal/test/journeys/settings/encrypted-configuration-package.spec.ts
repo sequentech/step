@@ -143,7 +143,7 @@ test("unlocks an encrypted configuration in the real Worker and uploads only the
     ])
     expect(portal.graphql.callsTo("ApplyConfigurationPackage")).toEqual([])
 
-    await drawer.getByRole("button", {name: "Import", exact: true}).click()
+    await drawer.getByRole("button", {name: "Preview", exact: true}).click()
     await expect(page.getByTestId("package-task")).toBeVisible()
     expect(
         portal.graphql.callsTo("ApplyConfigurationPackage").map(({variables}) => variables)

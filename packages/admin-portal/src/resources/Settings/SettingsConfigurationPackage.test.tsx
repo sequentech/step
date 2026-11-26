@@ -157,6 +157,15 @@ const accepted = (id: string) => ({
 })
 const applyButton = () => screen.getByTestId("package-apply") as HTMLButtonElement
 
+const showAdvanced = () => {
+    const details = screen.getByTestId("package-advanced-details") as HTMLDetailsElement
+    const summary = details.querySelector("summary")
+    if (!summary) throw new Error("Advanced options has no disclosure")
+    if (!details.open) fireEvent.click(summary)
+    expect(details.open).toBe(true)
+    return {details, summary}
+}
+
 beforeEach(() => {
     jest.clearAllMocks()
     sessionStorage.clear()
@@ -205,7 +214,45 @@ it("is not offered without every permission", () => {
     expect(screen.queryByTestId("configuration-signing")).toBeNull()
 })
 
-it("shows Advanced controls without an accordion and keeps explicit generic legacy setup", () => {
+it("offers one initial next action and summarizes the closed advanced options without submitting", () => {
+    render(<SettingsConfigurationPackage />)
+    const workflow = screen.getByTestId("package-workflow")
+    expect(
+        within(workflow).getByRole("heading", {
+            name: "configurationPackage.workflow.phases.choose.title",
+        })
+    ).toBeTruthy()
+    expect(workflow.querySelector('[aria-current="step"]')?.textContent).toContain(
+        "configurationPackage.workflow.steps.upload"
+    )
+    expect(screen.queryByRole("button", {name: "configurationPackage.apply"})).toBeNull()
+    expect(
+        screen.getByTestId("package-advanced-details").querySelector("summary")?.textContent
+    ).toContain("configurationPackage.workflow.censusRequired")
+    expect(applyButton().disabled).toBe(true)
+    expect(mockApply).not.toHaveBeenCalled()
+})
+
+it("never signals Review after changing an already-previewed requirement", async () => {
+    await previewed()
+    const workflow = screen.getByTestId("package-workflow")
+    expect(
+        within(workflow).getByRole("heading", {
+            name: "configurationPackage.workflow.phases.review.title",
+        })
+    ).toBeTruthy()
+    showAdvanced()
+    fireEvent.click(screen.getByRole("checkbox", {name: "census"}))
+    expect(
+        within(workflow).getByRole("heading", {
+            name: "configurationPackage.workflow.phases.previewAgain.title",
+        })
+    ).toBeTruthy()
+    expect(applyButton().disabled).toBe(true)
+    expect(mockApply.mock.calls.map(([options]) => options.variables.mode)).toEqual(["preview"])
+})
+
+it("discloses advanced controls on demand without changing requirements, including legacy setup", () => {
     render(<SettingsConfigurationPackage />)
     const upload = screen.getByRole("button", {
         name: "configurationPackage.upload",
@@ -214,9 +261,17 @@ it("shows Advanced controls without an accordion and keeps explicit generic lega
         name: "configurationPackage.advanced",
     })
     expect(upload.compareDocumentPosition(advanced) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(advanced.querySelector("summary")).toBeNull()
+    expect((screen.getByTestId("package-advanced-details") as HTMLDetailsElement).open).toBe(false)
+    const {summary} = showAdvanced()
     expect(screen.getByRole("checkbox", {name: "census"})).toBeTruthy()
     expect(screen.queryByTestId("configuration-signing")).toBeNull()
+    fireEvent.click(screen.getByRole("checkbox", {name: "census"}))
+    fireEvent.click(summary)
+    expect(
+        within(advanced).getByText(/configurationPackage\.workflow\.censusOptional/)
+    ).toBeTruthy()
+    showAdvanced()
+    expect((screen.getByRole("checkbox", {name: "census"}) as HTMLInputElement).checked).toBe(false)
     const setup = screen.getByRole("button", {
         name: "configurationPackage.legacySetup",
     })
@@ -381,6 +436,7 @@ it("resumes the task it was following after a reload in the same tenant", async 
 it("clears the preview approval when the requirements change", async () => {
     await previewed()
     expect(applyButton().disabled).toBe(false)
+    showAdvanced()
     fireEvent.click(screen.getByLabelText("census"))
     expect(applyButton().disabled).toBe(true)
     // Changing them back still needs a new preview.
@@ -391,6 +447,7 @@ it("clears the preview approval when the requirements change", async () => {
 it("clears the preview approval when the document changes", async () => {
     await previewed()
     expect(applyButton().disabled).toBe(false)
+    showAdvanced()
     fireEvent.change(screen.getByLabelText("configurationPackage.documentId"), {
         target: {value: "doc-2"},
     })
@@ -408,6 +465,7 @@ it("submits nothing once a permission is lost", async () => {
 it("can preview a document uploaded before, as the CLI's --document-id does", async () => {
     mockApply.mockResolvedValue(accepted("task-p"))
     render(<SettingsConfigurationPackage />)
+    showAdvanced()
     fireEvent.change(screen.getByLabelText("configurationPackage.documentId"), {
         target: {value: " doc-9 "},
     })
@@ -534,6 +592,7 @@ it("previews the original six requirements with the same protected upload only o
         encryptedPayloadSha256: retryNotice.packageSha256,
     })
     expect(mockManagedApply).not.toHaveBeenCalled()
+    showAdvanced()
     expect((screen.getByRole("checkbox", {name: "trustees"}) as HTMLInputElement).checked).toBe(
         false
     )
@@ -601,6 +660,7 @@ it("does not allow retry when roster trust, authority or selected document chang
     mockTask = task("changed-options", "FAILED", {packageRetry: retryNotice})
     rerender(<SettingsConfigurationPackage />)
     expect(retryButton()).toBeTruthy()
+    showAdvanced()
     const entry = screen.getByRole("textbox", {name: "configurationPackage.documentId"})
     fireEvent.change(entry, {target: {value: "different-document"}})
     expect(retryButton()).toBeNull()
@@ -1077,6 +1137,7 @@ it("keeps managed trust roster-only and unlocks ZIP/document selection only afte
     expect(upload.getAttribute("aria-describedby")).toBeTruthy()
     fireEvent.click(upload)
     expect(screen.queryByTestId("package-upload-drawer")).toBeNull()
+    showAdvanced()
     const documentId = screen.getByRole("textbox", {
         name: "configurationPackage.signedDocumentId",
     }) as HTMLInputElement

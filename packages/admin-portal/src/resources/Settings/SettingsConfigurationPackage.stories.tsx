@@ -9,7 +9,7 @@ import {resourceBoundary} from "@/__stories__/resourceBoundary"
 import {storyId} from "@/__stories__/fixtures"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {SettingsConfigurationPackage} from "./SettingsConfigurationPackage"
-import {PACKAGE_PERMISSIONS} from "./configurationPackage"
+import {COMPLETE_DELIVERY, PACKAGE_PERMISSIONS} from "./configurationPackage"
 import {record} from "./configurationPackage.fixture"
 
 interface Scenario {
@@ -42,6 +42,37 @@ const meta = {
             status: {preview: {changes: unknown[]}}
         }
         tenantSection.status.preview.changes = [{action: "update", keys: ["language_conf"]}]
+        if (!args.blocked) {
+            Object.assign(annotations.application, {
+                managedRequirements: COMPLETE_DELIVERY,
+                messagingPlanSha256: "cd".repeat(32),
+            })
+            Object.assign(annotations.application.coverage.sections, {
+                "messaging-accounts": {
+                    state: "present",
+                    members: ["tenant_messaging_accounts.json"],
+                },
+            })
+            annotations.application.sections.push({
+                section: "messaging-accounts",
+                members: ["tenant_messaging_accounts.json"],
+                status: {
+                    state: "ready",
+                    preview: {
+                        needsApply: true,
+                        blockers: [],
+                        changes: [
+                            {
+                                reference: "package:training-notices",
+                                action: "replace",
+                                channel: "EMAIL",
+                                provider: "AWS_SES",
+                            },
+                        ],
+                    },
+                },
+            })
+        }
         let approvalPolicy: {required_approvals: number | null; generation: string} = {
             required_approvals: null,
             generation: "0",
@@ -113,6 +144,18 @@ const meta = {
 export default meta
 type Story = StoryObj<Scenario>
 
+async function showAdvanced(canvasElement: HTMLElement) {
+    const details = within(canvasElement).getByTestId(
+        "package-advanced-details"
+    ) as HTMLDetailsElement
+    if (!details.open) {
+        const summary = details.querySelector("summary")
+        if (!summary) throw new Error("Advanced options has no disclosure")
+        await userEvent.click(summary)
+    }
+    await expect(details).toHaveAttribute("open")
+}
+
 async function preview(canvasElement: HTMLElement) {
     const canvas = within(canvasElement)
     await waitFor(() =>
@@ -120,6 +163,7 @@ async function preview(canvasElement: HTMLElement) {
             canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
         ).toBeEnabled()
     )
+    await showAdvanced(canvasElement)
     await userEvent.type(
         canvas.getByRole("textbox", {name: i18n.t("configurationPackage.documentId")}),
         DOCUMENT_ID
@@ -132,11 +176,16 @@ async function preview(canvasElement: HTMLElement) {
 
 export const PreviewAndConfirm: Story = {
     parameters: {
-        widgets: ["SettingsConfigurationPackageForScope", "ApplicationTable", "ProposedChanges"],
+        widgets: [
+            "SettingsConfigurationPackageForScope",
+            "ApplicationTable",
+            "ProposedChanges",
+            "PortableReplacementWarning",
+        ],
     },
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await expect(canvas.getByTestId("package-apply")).toBeDisabled()
+        await expect(canvas.getByTestId("package-apply")).not.toBeVisible()
         await preview(canvasElement)
         await waitFor(() => expect(canvas.getByTestId("package-apply")).toBeEnabled())
         await expect(canvas.getByTestId("package-members")).toHaveTextContent(
@@ -150,6 +199,10 @@ export const PreviewAndConfirm: Story = {
         await expect(dialog.getByTestId("package-proposed-changes")).toHaveTextContent(
             "language_conf"
         )
+        await expect(
+            dialog.getByText(i18n.t("configurationPackage.messagingReplaceWarning"))
+        ).toBeVisible()
+
         // Opening confirmation never applies; the only mutation so far is preview.
         expect(
             graphql.calls
@@ -210,6 +263,7 @@ export const PermissionRequired: Story = {
 }
 
 export const UploadFirst: Story = {
+    parameters: {widgets: ["ApplicationHistory"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await waitFor(() =>
@@ -220,7 +274,9 @@ export const UploadFirst: Story = {
         await expect(
             canvas.getByRole("region", {name: i18n.t("configurationPackage.advanced")})
         ).toBeVisible()
-        await expect(canvas.getByTestId("package-apply")).toBeDisabled()
+        await expect(canvas.getByTestId("package-apply")).not.toBeVisible()
+        await expect(canvas.getByTestId("package-advanced-details")).not.toHaveAttribute("open")
+        await showAdvanced(canvasElement)
         await expect(
             canvas.getByRole("button", {name: i18n.t("configurationPackage.legacySetup")})
         ).toHaveAttribute("aria-expanded", "false")
@@ -251,6 +307,7 @@ export const RosterNotInstalled: Story = {
             reference.border,
         ])
         await expect(upload).toHaveAttribute("aria-describedby")
+        await showAdvanced(canvasElement)
         await expect(
             canvas.getByRole("textbox", {name: i18n.t("configurationPackage.signedDocumentId")})
         ).toBeDisabled()

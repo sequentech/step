@@ -80,7 +80,71 @@ const englishTranslation = {
             },
         },
         configurationPackage: {
+            workflow: {
+                censusRequired: "Census required",
+                censusOptional: "Census optional",
+                steps: {
+                    upload: "Upload",
+                    preview: "Preview",
+                    review: "Review",
+                    apply: "Apply",
+                },
+                phases: {
+                    waitingForTrust: {
+                        title: "Checking signer trust",
+                        help: "Import becomes available once this tenant's signer roster has loaded.",
+                    },
+                    trustBlocked: {
+                        title: "Import is unavailable",
+                        help: "The signer roster does not currently allow imports for this tenant. The signer roster shows what is missing.",
+                    },
+                    choose: {
+                        title: "Upload a package to preview",
+                        help: "Choose a ZIP or password-encrypted EZIP exported by Election Architect.",
+                    },
+                    starting: {
+                        title: "Starting…",
+                        help: "Asking the platform to create the task.",
+                    },
+                    previewing: {
+                        title: "Previewing the package",
+                        help: "The platform is comparing the package with this tenant. A preview changes nothing.",
+                    },
+                    previewBlocked: {
+                        title: "The preview found blockers",
+                        help: "Each blocker is listed under its section in the result. Fix it in the package or on the tenant, then preview again.",
+                    },
+                    previewAgain: {
+                        title: "Preview again before applying",
+                        help: "You need a current preview matching the requirements, signer trust and any entered SHA-256. Upload the package again, or open Advanced options to preview an existing ZIP by its document ID.",
+                    },
+                    review: {
+                        title: "Review the proposed changes",
+                        help: "Check each section the preview would change. Nothing changes until you select Apply and confirm.",
+                    },
+                    applying: {
+                        title: "Applying the package",
+                        help: "The platform previews the package again first and stops at any blocker. Section states update in the result as tasks settle.",
+                    },
+                    complete: {
+                        title: "Package applied",
+                        help: "This run recorded the package as applied. The result and the earlier applications keep the record.",
+                    },
+                    attention: {
+                        title: "Check the result before doing anything else",
+                        help: "Read the message and any recorded result before continuing. If the outcome is uncertain, check earlier applications; some sections may already have been applied.",
+                    },
+                },
+                optionsSummary: "{{selected}} of {{available}} sections required",
+                evidence: "Recorded package members ({{count}})",
+                noHistory: "No earlier applications are recorded for this tenant.",
+                trust: "Signer trust for this tenant",
+                result: "Result of this run",
+            },
             roster: {
+                activeSummary:
+                    "Active. Each package needs at least {{approvals}} distinct approvals, plus a separate final signer.",
+                fingerprint: "Show roster fingerprint (SHA-256)",
                 title: "Architect signer roster",
                 loading: "Checking receiver trust…",
                 active: "Active roster: {{hash}}. The receiver requires at least {{approvals}} distinct approvals and a separate final signer.",
@@ -191,8 +255,7 @@ const englishTranslation = {
             documentId: "Or an uploaded document id",
             preview: "Preview",
             apply: "Apply",
-            blocked:
-                "The preview found blockers: fix the package or the tenant, then preview again.",
+            blocked: "Apply is blocked. Fix the package or the tenant, then preview again:",
             noTask: "The platform returned no task.",
             mode: {preview: "Preview", apply: "Application"},
             task: "Task {{taskId}}",

@@ -22,7 +22,9 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
-    Divider,
+    Chip,
+    Paper,
+    Stack,
     Drawer,
     FormControlLabel,
     List,
@@ -30,6 +32,7 @@ import {
     Table,
     TableBody,
     TableCell,
+    TableContainer,
     TableHead,
     TableRow,
     TextField,
@@ -59,6 +62,7 @@ import {
     useArchitectSignerRoster,
 } from "./ArchitectSignerRoster"
 import {ConfigurationSigningSettings} from "./ConfigurationSigningSettings"
+import {PackageImportWorkflow, packageImportPhase} from "./PackageImportWorkflow"
 import {
     ActiveSubmission,
     ApplicationView,
@@ -116,6 +120,10 @@ const SettingsConfigurationPackageForScope: React.FC<{
     const showManualEntry = roster.status !== null && roster.status.mode !== "unavailable"
     const rosterStatusId = useId()
     const advancedHeadingId = useId()
+    const runHeadingId = useId()
+    const historyHeadingId = useId()
+    const confirmTitleId = useId()
+    const applyReasonId = useId()
     const packageRequest = useRef(false)
     const refreshedElectionTask = useRef<string | null>(null)
 
@@ -515,289 +523,445 @@ const SettingsConfigurationPackageForScope: React.FC<{
         matchesTrust(roster.status, previewed)
     const shaMismatch = !!previewed && !shaMatches(previewed.view, expectedSha)
     const noRecord = !!submitted && finished && !view
+    const phase = packageImportPhase({
+        permitsImport,
+        rosterLoading: roster.loading,
+        submitting,
+        running,
+        submittedMode: submitted?.mode,
+        outcome: view?.outcome,
+        canApply,
+        hasBlockers: !!previewed?.view.blockers.length,
+        unreadable,
+        noRecord,
+        hasError: !!error,
+        hasScopeMismatch: !!previewed && !canApply,
+    })
+    const showApply = canApply || phase === "previewBlocked" || phase === "previewAgain"
+    const previewTrustChanged =
+        !!previewed &&
+        mayApply(previewed, tenantId, documentId, requirements, expectedSha) &&
+        !matchesTrust(roster.status, previewed)
+    const applyDisabledReason =
+        phase === "previewBlocked"
+            ? `${applyReasonId}-blocked`
+            : shaMismatch
+              ? `${applyReasonId}-sha`
+              : previewTrustChanged
+                ? `${applyReasonId}-trust`
+                : undefined
 
     return (
-        <Box sx={{p: 1}}>
-            <Typography className="title" variant="h4" component="h2">
-                {t("configurationPackage.title")}
-            </Typography>
-            <Typography variant="body1" paragraph>
-                {t("configurationPackage.description")}
-            </Typography>
-            <Typography variant="body2" data-testid="package-tenant">
-                {t("configurationPackage.tenant", {tenantId})}
-            </Typography>
-
-            <Divider sx={{my: 2}} />
-            <Button
-                variant="contained"
-                disabled={running || !permitsImport}
-                aria-describedby={!permitsImport ? rosterStatusId : undefined}
-                sx={{"&&.Mui-disabled": disabledButtonStyle}}
-                onClick={() => {
-                    if (!running && permitsImport) setOpenUpload(true)
-                }}
-            >
-                {t("configurationPackage.upload")}
-            </Button>
-            <Typography variant="body2" sx={{mt: 1}}>
-                {t("configurationPackage.verificationNote")}
-            </Typography>
-
-            <ArchitectSignerRoster
-                tenantId={tenantId}
-                status={roster.status}
-                loading={roster.loading}
-                statusTextId={rosterStatusId}
-                refresh={roster.read}
-            />
+        <Box sx={{p: {xs: 0, sm: 1}, maxWidth: 1440, mx: "auto", minWidth: 0}}>
+            <Stack spacing={1} sx={{mb: 2}}>
+                <Typography variant="h4" component="h2" sx={{textAlign: "start", m: 0}}>
+                    {t("configurationPackage.title")}
+                </Typography>
+                <Typography variant="body1" color="text.secondary" sx={{maxWidth: "75ch"}}>
+                    {t("configurationPackage.description")}
+                </Typography>
+                <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    data-testid="package-tenant"
+                    sx={{overflowWrap: "anywhere"}}
+                >
+                    {t("configurationPackage.tenant", {tenantId})}
+                </Typography>
+            </Stack>
 
             <Box
-                component="section"
-                aria-labelledby={advancedHeadingId}
-                sx={{my: 2}}
-                data-testid="package-advanced"
+                sx={{
+                    display: "grid",
+                    gridTemplateColumns: {
+                        xs: "minmax(0, 1fr)",
+                        lg: "minmax(0, 1fr) minmax(280px, 32%)",
+                    },
+                    alignItems: "start",
+                    gap: 2,
+                }}
             >
-                <Typography id={advancedHeadingId} component="h3" variant="h6">
-                    {t("configurationPackage.advanced")}
-                </Typography>
-                <Box sx={{mt: 2}}>
-                    <Typography variant="subtitle1" component="h4">
-                        {t("configurationPackage.requirements")}
-                    </Typography>
-                    {PACKAGE_SECTIONS.map((section) => (
-                        <FormControlLabel
-                            key={section}
-                            control={
-                                <Checkbox
-                                    checked={requirements.sections.includes(section)}
-                                    onChange={() => toggleSection(section)}
-                                    inputProps={{"aria-label": section}}
-                                />
-                            }
-                            label={String(t(`configurationPackage.sections.${section}`))}
-                        />
-                    ))}
-                    <FormControlLabel
-                        control={
-                            <Checkbox
-                                checked={requirements.census === "required"}
-                                onChange={(event) =>
-                                    changeRequirements({
-                                        ...requirements,
-                                        census: event.target.checked ? "required" : "optional",
-                                    })
-                                }
-                                inputProps={{"aria-label": "census"}}
-                            />
+                <Stack spacing={2} sx={{minWidth: 0}}>
+                    <PackageImportWorkflow
+                        phase={phase}
+                        uploadAction={
+                            <Button
+                                variant={phase === "review" ? "secondary" : "contained"}
+                                disabled={running || !permitsImport}
+                                aria-describedby={!permitsImport ? rosterStatusId : undefined}
+                                sx={{"&&.Mui-disabled": disabledButtonStyle}}
+                                onClick={() => {
+                                    if (!running && permitsImport) setOpenUpload(true)
+                                }}
+                            >
+                                {t("configurationPackage.upload")}
+                            </Button>
                         }
-                        label={String(t("configurationPackage.censusRequired"))}
-                    />
-                </Box>
-                {showManualEntry && (
-                    <Box
-                        sx={{
-                            display: "flex",
-                            gap: 2,
-                            alignItems: "center",
-                            flexWrap: "wrap",
-                        }}
+                        applyAction={
+                            <Button
+                                variant="contained"
+                                color="warning"
+                                disabled={!canApply}
+                                aria-describedby={
+                                    showApply && !canApply ? applyDisabledReason : undefined
+                                }
+                                hidden={!showApply}
+                                sx={{
+                                    "display": showApply ? undefined : "none",
+                                    "&&.Mui-disabled": disabledButtonStyle,
+                                }}
+                                data-testid="package-apply"
+                                onClick={() => setConfirming(true)}
+                            >
+                                {t("configurationPackage.apply")}
+                            </Button>
+                        }
                     >
-                        <TextField
-                            size="small"
-                            label={String(
-                                t(
-                                    roster.status?.mode === "portal_managed"
-                                        ? "configurationPackage.signedDocumentId"
-                                        : "configurationPackage.documentId"
-                                )
-                            )}
-                            helperText={String(t("configurationPackage.existingDocumentHelp"))}
-                            slotProps={{
-                                formHelperText: {sx: {"&.Mui-disabled": {color: "text.secondary"}}},
-                            }}
-                            disabled={running || !permitsImport}
-                            value={typedDocumentId}
-                            onChange={(event) => {
-                                setPreviewed(null)
-                                setTypedDocumentId(event.target.value)
-                            }}
-                        />
-                        <Button
+                        {!canApply && previewed?.view.blockers.length ? (
+                            <Alert
+                                severity="warning"
+                                role="status"
+                                id={`${applyReasonId}-blocked`}
+                                data-testid="package-blocked"
+                            >
+                                <Typography variant="body2" sx={{fontWeight: "medium"}}>
+                                    {t("configurationPackage.blocked")}
+                                </Typography>
+                                <Box component="ul" sx={{m: 0, mt: 0.5, pl: 2.5}}>
+                                    {previewed.view.blockers.map((blocker, index) => (
+                                        <Typography
+                                            component="li"
+                                            variant="body2"
+                                            key={`${index}:${blocker}`}
+                                        >
+                                            {safeText(blocker)}
+                                        </Typography>
+                                    ))}
+                                </Box>
+                            </Alert>
+                        ) : null}
+                        {previewTrustChanged && (
+                            <Alert severity="warning" role="status" id={`${applyReasonId}-trust`}>
+                                {t("configurationPackage.roster.previewAgain")}
+                            </Alert>
+                        )}
+                        {shaMismatch && (
+                            <Alert
+                                severity="error"
+                                sx={{overflowWrap: "anywhere"}}
+                                data-testid="package-sha-mismatch"
+                                id={`${applyReasonId}-sha`}
+                            >
+                                {t("configurationPackage.shaMismatch", {expected: expectedSha})}
+                            </Alert>
+                        )}
+                        {error && (
+                            <Alert
+                                severity="error"
+                                sx={{overflowWrap: "anywhere"}}
+                                data-testid="package-error"
+                            >
+                                {safeText(error)}
+                            </Alert>
+                        )}
+                    </PackageImportWorkflow>
+                    {submitted && (
+                        <Paper
+                            component="section"
                             variant="outlined"
-                            disabled={running || !permitsImport || !typedDocumentId.trim()}
-                            onClick={() => {
-                                const document = typedDocumentId.trim()
-                                setDocumentId(document)
-                                // A typed document id carries no entered digest.
-                                setExpectedSha(null)
-                                submit("preview", document, null)
-                            }}
+                            aria-labelledby={runHeadingId}
+                            sx={{p: 2, minWidth: 0, overflowWrap: "anywhere"}}
+                            data-testid="package-run"
                         >
-                            {t("configurationPackage.preview")}
-                        </Button>
-                    </Box>
-                )}
-                {roster.status?.mode === "not_enabled" && (
-                    <Box sx={{my: 2}}>
-                        <Button
-                            variant="text"
-                            aria-expanded={legacySetupTenant === tenantId}
-                            aria-controls={legacySetupId}
-                            onClick={() =>
-                                setLegacySetupTenant(
-                                    legacySetupTenant === tenantId ? null : tenantId
-                                )
-                            }
-                        >
-                            {t("configurationPackage.legacySetup")}
-                        </Button>
-                        <Box id={legacySetupId}>
-                            {legacySetupTenant === tenantId && (
-                                <ConfigurationSigningSettings key={tenantId} tenantId={tenantId} />
+                            <Typography id={runHeadingId} variant="h6" component="h3">
+                                {t("configurationPackage.workflow.result")}
+                            </Typography>
+                            <Typography variant="subtitle1" component="h4" sx={{mt: 1}}>
+                                {t(`configurationPackage.mode.${submitted.mode}`)}
+                            </Typography>
+                            <Typography
+                                variant="body2"
+                                data-testid="package-outcome"
+                                hidden={!!retry}
+                                aria-live="polite"
+                                aria-atomic="true"
+                                sx={{fontWeight: "medium"}}
+                            >
+                                {unreadable
+                                    ? t("configurationPackage.unreadable", {
+                                          reason: taskError?.message
+                                              ? safeText(taskError.message)
+                                              : t("configurationPackage.notFound"),
+                                      })
+                                    : noRecord
+                                      ? t("configurationPackage.stoppedWithoutRecord")
+                                      : finished
+                                        ? t(
+                                              `configurationPackage.outcome.${view?.outcome ?? "unknown"}`
+                                          )
+                                        : t("configurationPackage.running")}
+                            </Typography>
+                            {retry && (
+                                <Alert
+                                    severity="warning"
+                                    sx={{mt: 1}}
+                                    data-testid="package-retry-requirements"
+                                >
+                                    <Typography variant="body2" data-testid="package-retry-outcome">
+                                        {t("configurationPackage.retryRequirements.refused")}
+                                    </Typography>
+                                    <Typography variant="body2">
+                                        {t("configurationPackage.retryRequirements.original", {
+                                            sections:
+                                                retry.requirements.sections
+                                                    .map((section) =>
+                                                        t(
+                                                            `configurationPackage.sections.${section}`
+                                                        )
+                                                    )
+                                                    .join(", ") ||
+                                                t("configurationPackage.retryRequirements.none"),
+                                        })}
+                                    </Typography>
+                                    <Typography variant="body2">
+                                        {t(
+                                            `configurationPackage.retryRequirements.${retry.requirements.census}`
+                                        )}
+                                    </Typography>
+                                    <Button
+                                        variant="outlined"
+                                        size="small"
+                                        sx={{mt: 1}}
+                                        disabled={running || !permitsImport}
+                                        onClick={previewOriginalRequirements}
+                                    >
+                                        {t("configurationPackage.retryRequirements.preview")}
+                                    </Button>
+                                </Alert>
                             )}
-                        </Box>
-                    </Box>
-                )}
-            </Box>
-            <Box>
-                <Button
-                    variant="contained"
-                    color="warning"
-                    disabled={!canApply}
-                    data-testid="package-apply"
-                    onClick={() => setConfirming(true)}
-                >
-                    {t("configurationPackage.apply")}
-                </Button>
-            </Box>
-            <Typography variant="caption" display="block" sx={{mt: 1}}>
-                {t("configurationPackage.applyRechecks")}
-            </Typography>
-            {!canApply && previewed?.view.blockers.length ? (
-                <Alert severity="warning" sx={{mt: 1}}>
-                    {t("configurationPackage.blocked")}
-                </Alert>
-            ) : null}
-            {previewed &&
-                mayApply(previewed, tenantId, documentId, requirements, expectedSha) &&
-                !matchesTrust(roster.status, previewed) && (
-                    <Alert severity="warning" sx={{mt: 1}}>
-                        {t("configurationPackage.roster.previewAgain")}
-                    </Alert>
-                )}
-            {shaMismatch && (
-                <Alert severity="error" sx={{mt: 1}} data-testid="package-sha-mismatch">
-                    {t("configurationPackage.shaMismatch", {expected: expectedSha})}
-                </Alert>
-            )}
-            {error && (
-                <Alert severity="error" sx={{mt: 1}} data-testid="package-error">
-                    {safeText(error)}
-                </Alert>
-            )}
-
-            {submitted && (
-                <Box sx={{mt: 2}} data-testid="package-run">
-                    <Typography variant="h6" component="h3">
-                        {t(`configurationPackage.mode.${submitted.mode}`)}
-                    </Typography>
-                    <Typography variant="body2" data-testid="package-task">
-                        {t("configurationPackage.task", {taskId: submitted.taskId})}
-                    </Typography>
-                    <Typography variant="body2" data-testid="package-outcome" hidden={!!retry}>
-                        {unreadable
-                            ? t("configurationPackage.unreadable", {
-                                  reason: taskError?.message
-                                      ? safeText(taskError.message)
-                                      : t("configurationPackage.notFound"),
-                              })
-                            : noRecord
-                              ? t("configurationPackage.stoppedWithoutRecord")
-                              : finished
-                                ? t(`configurationPackage.outcome.${view?.outcome ?? "unknown"}`)
-                                : t("configurationPackage.running")}
-                    </Typography>
-                    {retry && (
-                        <Alert
-                            severity="warning"
-                            sx={{mt: 1}}
-                            data-testid="package-retry-requirements"
-                        >
-                            <Typography variant="body2" data-testid="package-retry-outcome">
-                                {t("configurationPackage.retryRequirements.refused")}
-                            </Typography>
-                            <Typography variant="body2">
-                                {t("configurationPackage.retryRequirements.original", {
-                                    sections:
-                                        retry.requirements.sections
-                                            .map((section) =>
-                                                t(`configurationPackage.sections.${section}`)
-                                            )
-                                            .join(", ") ||
-                                        t("configurationPackage.retryRequirements.none"),
-                                })}
-                            </Typography>
-                            <Typography variant="body2">
-                                {t(
-                                    `configurationPackage.retryRequirements.${retry.requirements.census}`
-                                )}
+                            {noRecord && !retry && lastLogLine(task?.logs) && (
+                                <Typography variant="body2" data-testid="package-last-log">
+                                    {t("configurationPackage.lastLog", {
+                                        message: safeText(lastLogLine(task?.logs) ?? ""),
+                                    })}
+                                </Typography>
+                            )}
+                            {view && finished && view.outcome === "previewed" && (
+                                <Typography variant="body2">
+                                    {t("configurationPackage.toChange", {
+                                        count: sectionsToChange(view),
+                                    })}
+                                </Typography>
+                            )}
+                            {view && (
+                                <Box sx={{my: 1.5}}>
+                                    <ApplicationTable view={view} />
+                                </Box>
+                            )}
+                            <Typography variant="body2" data-testid="package-task">
+                                {t("configurationPackage.task", {taskId: submitted.taskId})}
                             </Typography>
                             <Button
-                                variant="outlined"
                                 size="small"
                                 sx={{mt: 1}}
-                                disabled={running || !permitsImport}
-                                onClick={previewOriginalRequirements}
+                                data-testid="package-stop-following"
+                                onClick={stopFollowing}
                             >
-                                {t("configurationPackage.retryRequirements.preview")}
+                                {t("configurationPackage.stopFollowing")}
                             </Button>
-                        </Alert>
+                        </Paper>
                     )}
-                    {noRecord && !retry && lastLogLine(task?.logs) && (
-                        <Typography variant="body2" data-testid="package-last-log">
-                            {t("configurationPackage.lastLog", {
-                                message: safeText(lastLogLine(task?.logs) ?? ""),
-                            })}
-                        </Typography>
-                    )}
-                    {view && finished && view.outcome === "previewed" && (
-                        <Typography variant="body2">
-                            {t("configurationPackage.toChange", {
-                                count: sectionsToChange(view),
-                            })}
-                        </Typography>
-                    )}
-                    {view && <ApplicationTable view={view} />}
-                    <Button
-                        size="small"
-                        sx={{mt: 1}}
-                        data-testid="package-stop-following"
-                        onClick={stopFollowing}
+                    <Paper
+                        component="section"
+                        variant="outlined"
+                        aria-labelledby={historyHeadingId}
+                        sx={{p: 2, minWidth: 0}}
                     >
-                        {t("configurationPackage.stopFollowing")}
-                    </Button>
-                </Box>
-            )}
-
-            <Divider sx={{my: 2}} />
-            <Typography variant="h6" component="h3">
-                {t("configurationPackage.history")}
-            </Typography>
-            <List dense data-testid="package-history">
-                {(historyData?.sequent_backend_tasks_execution ?? []).map((row: any) => {
-                    const record = readApplication(row.annotations)
-                    return (
-                        <ListItem key={row.id}>
-                            {`${row.created_at} · ${row.id} · ${record?.mode ?? "?"} · ${
-                                record?.outcome ?? row.execution_status
-                            }${record?.packageSha256 ? ` · ${record.packageSha256.slice(0, 12)}` : ""}`}
-                        </ListItem>
-                    )
-                })}
-            </List>
-
-            <ArchitectApprovalPolicy key={tenantId} tenantId={tenantId} />
+                        <Typography id={historyHeadingId} variant="h6" component="h3">
+                            {t("configurationPackage.history")}
+                        </Typography>
+                        <ApplicationHistory rows={historyData?.sequent_backend_tasks_execution} />
+                    </Paper>
+                </Stack>
+                <Stack spacing={2} sx={{minWidth: 0}}>
+                    {roster.status?.mode !== "not_enabled" && (
+                        <Paper
+                            component="section"
+                            variant="outlined"
+                            aria-label={String(t("configurationPackage.workflow.trust"))}
+                            sx={{px: 2, pb: 2, minWidth: 0}}
+                        >
+                            <ArchitectSignerRoster
+                                tenantId={tenantId}
+                                status={roster.status}
+                                loading={roster.loading}
+                                statusTextId={rosterStatusId}
+                                refresh={roster.read}
+                            />
+                        </Paper>
+                    )}
+                    <Paper
+                        component="section"
+                        variant="outlined"
+                        aria-labelledby={advancedHeadingId}
+                        sx={{p: 2, minWidth: 0}}
+                        data-testid="package-advanced"
+                    >
+                        {/* Uncontrolled: closed by default, never opened, closed or reset from state. */}
+                        <Box component="details" data-testid="package-advanced-details">
+                            <Box
+                                component="summary"
+                                sx={{
+                                    "cursor": "pointer",
+                                    "borderRadius": 1,
+                                    "&:focus-visible": {
+                                        outline: (theme) =>
+                                            `2px solid ${theme.palette.primary.main}`,
+                                        outlineOffset: 2,
+                                    },
+                                }}
+                            >
+                                <Typography id={advancedHeadingId} component="span" variant="h6">
+                                    {t("configurationPackage.advanced")}
+                                </Typography>
+                                <Typography
+                                    component="span"
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{display: "block"}}
+                                >
+                                    {t("configurationPackage.workflow.optionsSummary", {
+                                        selected: requirements.sections.length,
+                                        available: PACKAGE_SECTIONS.length,
+                                    })}
+                                    {" · "}
+                                    {t(
+                                        requirements.census === "required"
+                                            ? "configurationPackage.workflow.censusRequired"
+                                            : "configurationPackage.workflow.censusOptional"
+                                    )}
+                                </Typography>
+                            </Box>
+                            <Box sx={{my: 2, display: "grid"}}>
+                                <Typography variant="subtitle1" component="h4">
+                                    {t("configurationPackage.requirements")}
+                                </Typography>
+                                {PACKAGE_SECTIONS.map((section) => (
+                                    <FormControlLabel
+                                        key={section}
+                                        control={
+                                            <Checkbox
+                                                checked={requirements.sections.includes(section)}
+                                                onChange={() => toggleSection(section)}
+                                                inputProps={{"aria-label": section}}
+                                            />
+                                        }
+                                        label={String(
+                                            t(`configurationPackage.sections.${section}`)
+                                        )}
+                                    />
+                                ))}
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            checked={requirements.census === "required"}
+                                            onChange={(event) =>
+                                                changeRequirements({
+                                                    ...requirements,
+                                                    census: event.target.checked
+                                                        ? "required"
+                                                        : "optional",
+                                                })
+                                            }
+                                            inputProps={{"aria-label": "census"}}
+                                        />
+                                    }
+                                    label={String(t("configurationPackage.censusRequired"))}
+                                />
+                            </Box>
+                            {showManualEntry && (
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        gap: 2,
+                                        alignItems: "center",
+                                        flexWrap: "wrap",
+                                    }}
+                                >
+                                    <TextField
+                                        size="small"
+                                        fullWidth
+                                        label={String(
+                                            t(
+                                                roster.status?.mode === "portal_managed"
+                                                    ? "configurationPackage.signedDocumentId"
+                                                    : "configurationPackage.documentId"
+                                            )
+                                        )}
+                                        helperText={String(
+                                            t("configurationPackage.existingDocumentHelp")
+                                        )}
+                                        slotProps={{
+                                            formHelperText: {
+                                                sx: {"&.Mui-disabled": {color: "text.secondary"}},
+                                            },
+                                        }}
+                                        disabled={running || !permitsImport}
+                                        value={typedDocumentId}
+                                        onChange={(event) => {
+                                            setPreviewed(null)
+                                            setTypedDocumentId(event.target.value)
+                                        }}
+                                    />
+                                    <Button
+                                        variant="outlined"
+                                        size="small"
+                                        disabled={
+                                            running || !permitsImport || !typedDocumentId.trim()
+                                        }
+                                        onClick={() => {
+                                            const document = typedDocumentId.trim()
+                                            setDocumentId(document)
+                                            // A typed document id carries no entered digest.
+                                            setExpectedSha(null)
+                                            submit("preview", document, null)
+                                        }}
+                                    >
+                                        {t("configurationPackage.preview")}
+                                    </Button>
+                                </Box>
+                            )}
+                            {roster.status?.mode === "not_enabled" && (
+                                <Box sx={{my: 2}}>
+                                    <Button
+                                        variant="text"
+                                        aria-expanded={legacySetupTenant === tenantId}
+                                        aria-controls={legacySetupId}
+                                        onClick={() =>
+                                            setLegacySetupTenant(
+                                                legacySetupTenant === tenantId ? null : tenantId
+                                            )
+                                        }
+                                    >
+                                        {t("configurationPackage.legacySetup")}
+                                    </Button>
+                                    <Box id={legacySetupId}>
+                                        {legacySetupTenant === tenantId && (
+                                            <ConfigurationSigningSettings
+                                                key={tenantId}
+                                                tenantId={tenantId}
+                                            />
+                                        )}
+                                    </Box>
+                                </Box>
+                            )}
+                        </Box>
+                    </Paper>
+                    <Paper variant="outlined" sx={{px: 2, minWidth: 0}}>
+                        <ArchitectApprovalPolicy key={tenantId} tenantId={tenantId} />
+                    </Paper>
+                </Stack>
+            </Box>
 
             {/* The page's own upload: no election-event dry run, no shared import state. */}
             <Drawer
@@ -864,8 +1028,16 @@ const SettingsConfigurationPackageForScope: React.FC<{
                 </Box>
             </Drawer>
 
-            <Dialog open={confirming} onClose={() => setConfirming(false)}>
-                <DialogTitle>{t("configurationPackage.confirmTitle")}</DialogTitle>
+            <Dialog
+                open={confirming}
+                onClose={() => setConfirming(false)}
+                aria-labelledby={confirmTitleId}
+                fullWidth
+                maxWidth="sm"
+            >
+                <DialogTitle id={confirmTitleId}>
+                    {t("configurationPackage.confirmTitle")}
+                </DialogTitle>
                 <DialogContent>
                     <Typography variant="body2" paragraph>
                         {t("configurationPackage.confirmBody", {tenantId})}
@@ -873,7 +1045,12 @@ const SettingsConfigurationPackageForScope: React.FC<{
                     {previewed && <ProposedChanges view={previewed.view} />}
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setConfirming(false)}>
+                    <Button
+                        variant="cancel"
+                        autoFocus
+                        disableFocusRipple
+                        onClick={() => setConfirming(false)}
+                    >
                         {t("configurationPackage.cancel")}
                     </Button>
                     <Button
@@ -951,88 +1128,284 @@ const ProposedChanges: React.FC<{view: ApplicationView}> = ({view}) => {
 
 const ApplicationTable: React.FC<{view: ApplicationView}> = ({view}) => {
     const {t} = useTranslation()
+    const namedSections: readonly string[] = PACKAGE_SECTIONS
+    const rowLabelSx = {
+        position: "sticky",
+        insetInlineStart: 0,
+        zIndex: 1,
+        bgcolor: "background.paper",
+    } as const
     return (
         <>
-            <Table size="small" data-testid="package-sections">
-                <TableHead>
-                    <TableRow>
-                        <TableCell>{t("configurationPackage.columns.section")}</TableCell>
-                        <TableCell>{t("configurationPackage.columns.state")}</TableCell>
-                        <TableCell>{t("configurationPackage.columns.task")}</TableCell>
-                        <TableCell>{t("configurationPackage.columns.details")}</TableCell>
-                    </TableRow>
-                </TableHead>
-                <TableBody>
-                    {view.sections.map((section) => (
-                        <TableRow key={section.section} data-testid={`section-${section.section}`}>
-                            <TableCell>{section.section}</TableCell>
-                            <TableCell>
-                                {section.state}
-                                {section.reconciled
-                                    ? ` (${t("configurationPackage.reconciled")})`
-                                    : ""}
+            <TableContainer
+                component={Paper}
+                variant="outlined"
+                tabIndex={0}
+                role="region"
+                aria-label={String(t("configurationPackage.workflow.result"))}
+                sx={{maxInlineSize: "100%"}}
+            >
+                <Table size="small" data-testid="package-sections">
+                    <TableHead>
+                        <TableRow>
+                            <TableCell sx={rowLabelSx}>
+                                {t("configurationPackage.columns.section")}
                             </TableCell>
-                            <TableCell>{section.taskId ?? "—"}</TableCell>
-                            <TableCell>
-                                {section.preview?.blockers.map((blocker) => (
-                                    <div
-                                        key={blocker}
-                                    >{`${t("configurationPackage.blocker")}: ${blocker}`}</div>
-                                ))}
-                                {section.preview && section.preview.needsApply ? (
-                                    <div>{t("configurationPackage.needsApply")}</div>
-                                ) : null}
-                                {view.mode === "preview" &&
-                                    section.section === "messaging-accounts" && (
-                                        <PortableReplacementWarning
-                                            changes={section.preview?.changes}
-                                        />
-                                    )}
-                                {section.preview
-                                    ? changeLines(
-                                          section.preview.changes,
-                                          t("configurationPackage.messagingReplaceAction")
-                                      ).map((line, index) => <div key={index}>{line}</div>)
-                                    : null}
-                                {section.error && <div>{safeText(section.error)}</div>}
-                                {/* Only a section a run confirmed applied is called applied. */}
-                                {section.earlierApplied && section.state !== "applied" ? (
-                                    <div>{t("configurationPackage.earlierApplied")}</div>
-                                ) : null}
-                                {section.submissions.length > 0 && section.state !== "applied" ? (
-                                    <div>
-                                        {t("configurationPackage.earlierTasks", {
-                                            tasks: section.submissions.join(", "),
-                                        })}
-                                    </div>
-                                ) : null}
-                                {section.inFlight ? (
-                                    <div>
-                                        {t("configurationPackage.inFlight", {
-                                            taskId: section.inFlight,
-                                        })}
-                                    </div>
-                                ) : null}
-                                {section.members.length > 0 && (
-                                    <div>{section.members.join(", ")}</div>
-                                )}
-                            </TableCell>
+                            <TableCell>{t("configurationPackage.columns.state")}</TableCell>
+                            <TableCell>{t("configurationPackage.columns.task")}</TableCell>
+                            <TableCell>{t("configurationPackage.columns.details")}</TableCell>
                         </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {view.sections.map((section) => (
+                            <TableRow
+                                key={section.section}
+                                data-testid={`section-${section.section}`}
+                                sx={{verticalAlign: "top"}}
+                            >
+                                <TableCell component="th" scope="row" sx={rowLabelSx}>
+                                    {namedSections.includes(section.section)
+                                        ? String(
+                                              t(`configurationPackage.sections.${section.section}`)
+                                          )
+                                        : section.section}
+                                </TableCell>
+                                <TableCell>
+                                    {/* Only a stored applied state is green; anything else stays neutral. */}
+                                    <Chip
+                                        size="small"
+                                        variant={
+                                            section.state === "applied" ? "filled" : "outlined"
+                                        }
+                                        color={section.state === "applied" ? "success" : "default"}
+                                        label={`${section.state}${
+                                            section.reconciled
+                                                ? ` (${t("configurationPackage.reconciled")})`
+                                                : ""
+                                        }`}
+                                        sx={{
+                                            "blockSize": "auto",
+                                            "& .MuiChip-label": {
+                                                whiteSpace: "normal",
+                                                overflowWrap: "anywhere",
+                                            },
+                                        }}
+                                    />
+                                </TableCell>
+                                <TableCell sx={{fontFamily: "monospace", overflowWrap: "anywhere"}}>
+                                    {section.taskId ?? "—"}
+                                </TableCell>
+                                <TableCell sx={(theme) => ({minInlineSize: theme.spacing(30)})}>
+                                    <Box
+                                        sx={(theme) => ({
+                                            display: "grid",
+                                            rowGap: theme.spacing(0.5),
+                                            overflowWrap: "anywhere",
+                                        })}
+                                    >
+                                        {Array.from(new Set(section.preview?.blockers ?? [])).map(
+                                            (blocker) => (
+                                                <div key={blocker}>{`${t(
+                                                    "configurationPackage.blocker"
+                                                )}: ${safeText(blocker)}`}</div>
+                                            )
+                                        )}
+                                        {section.preview && section.preview.needsApply ? (
+                                            <div>{t("configurationPackage.needsApply")}</div>
+                                        ) : null}
+                                        {view.mode === "preview" &&
+                                            section.section === "messaging-accounts" && (
+                                                <PortableReplacementWarning
+                                                    changes={section.preview?.changes}
+                                                />
+                                            )}
+                                        {section.preview
+                                            ? changeLines(
+                                                  section.preview.changes,
+                                                  t("configurationPackage.messagingReplaceAction")
+                                              ).map((line, index) => <div key={index}>{line}</div>)
+                                            : null}
+                                        {section.error && (
+                                            <Typography
+                                                variant="body2"
+                                                component="div"
+                                                color="error"
+                                            >
+                                                {safeText(section.error)}
+                                            </Typography>
+                                        )}
+                                        {/* Only a section a run confirmed applied is called applied. */}
+                                        {section.earlierApplied && section.state !== "applied" ? (
+                                            <div>{t("configurationPackage.earlierApplied")}</div>
+                                        ) : null}
+                                        {section.submissions.length > 0 &&
+                                        section.state !== "applied" ? (
+                                            <div>
+                                                {t("configurationPackage.earlierTasks", {
+                                                    tasks: section.submissions.join(", "),
+                                                })}
+                                            </div>
+                                        ) : null}
+                                        {section.inFlight ? (
+                                            <div>
+                                                {t("configurationPackage.inFlight", {
+                                                    taskId: section.inFlight,
+                                                })}
+                                            </div>
+                                        ) : null}
+                                        {section.members.length > 0 && (
+                                            <div>{section.members.join(", ")}</div>
+                                        )}
+                                    </Box>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+            {/* Native disclosure: keyboard-operable, and the list stays mounted while closed. */}
+            <Box component="details" sx={(theme) => ({marginBlockStart: theme.spacing(1)})}>
+                <Typography
+                    component="summary"
+                    variant="body2"
+                    sx={(theme) => ({
+                        "cursor": "pointer",
+                        "inlineSize": "fit-content",
+                        "maxInlineSize": "100%",
+                        "paddingBlock": theme.spacing(0.5),
+                        "paddingInline": theme.spacing(0.5),
+                        "fontWeight": theme.typography.fontWeightMedium,
+                        "&:focus-visible": {
+                            outline: `2px solid ${theme.palette.primary.main}`,
+                            outlineOffset: theme.spacing(0.25),
+                        },
+                    })}
+                >
+                    {t("configurationPackage.workflow.evidence", {count: view.members.length})}
+                </Typography>
+                <Typography
+                    variant="subtitle2"
+                    component="h4"
+                    sx={(theme) => ({marginBlockStart: theme.spacing(1)})}
+                >
+                    {t("configurationPackage.members")}
+                </Typography>
+                <List dense data-testid="package-members">
+                    {view.members.map((member, index) => (
+                        <ListItem
+                            key={`${member.container ?? ""}:${member.path}:${index}`}
+                            sx={{overflowWrap: "anywhere"}}
+                        >
+                            {`${member.container ? `${member.container} › ` : ""}${
+                                member.path
+                            } — ${member.disposition}${
+                                member.section ? ` (${member.section})` : ""
+                            }`}
+                        </ListItem>
                     ))}
-                </TableBody>
-            </Table>
-            <Typography variant="subtitle2" component="h4" sx={{mt: 1}}>
-                {t("configurationPackage.members")}
-            </Typography>
-            <List dense data-testid="package-members">
-                {view.members.map((member, index) => (
-                    <ListItem key={`${member.container ?? ""}:${member.path}:${index}`}>
-                        {`${member.container ? `${member.container} › ` : ""}${member.path} — ${
-                            member.disposition
-                        }${member.section ? ` (${member.section})` : ""}`}
-                    </ListItem>
-                ))}
+                </List>
+            </Box>
+        </>
+    )
+}
+
+/** Earlier runs in the order the query returned them: only what each row already stores. */
+const ApplicationHistory: React.FC<{
+    rows:
+        | readonly {
+              id: string
+              created_at: string
+              annotations?: unknown
+              execution_status?: string | null
+          }[]
+        | undefined
+}> = ({rows}) => {
+    const {t} = useTranslation()
+    return (
+        <>
+            <List
+                dense
+                data-testid="package-history"
+                aria-label={String(t("configurationPackage.history"))}
+            >
+                {(rows ?? []).map((row, index) => {
+                    const record = readApplication(row.annotations)
+                    const mode: unknown = record?.mode
+                    const outcome = record?.outcome ?? row.execution_status
+                    return (
+                        <ListItem
+                            key={`${row.id}:${index}`}
+                            divider
+                            disableGutters
+                            sx={(theme) => ({
+                                display: "flex",
+                                flexWrap: "wrap",
+                                alignItems: "center",
+                                columnGap: theme.spacing(1.5),
+                                rowGap: theme.spacing(0.5),
+                            })}
+                        >
+                            {/* The stored timestamp as-is: no locale is guessed. */}
+                            <Typography
+                                variant="body2"
+                                component="time"
+                                dateTime={row.created_at}
+                                color="text.secondary"
+                            >
+                                {row.created_at}
+                            </Typography>
+                            <Typography
+                                variant="body2"
+                                component="span"
+                                sx={{fontFamily: "monospace", overflowWrap: "anywhere"}}
+                            >
+                                {t("configurationPackage.task", {taskId: row.id})}
+                            </Typography>
+                            <Typography
+                                variant="body2"
+                                component="span"
+                                sx={(theme) => ({fontWeight: theme.typography.fontWeightMedium})}
+                            >
+                                {mode === "preview" || mode === "apply"
+                                    ? String(t(`configurationPackage.mode.${mode}`))
+                                    : typeof mode === "string" && mode
+                                      ? mode
+                                      : "?"}
+                            </Typography>
+                            {/* Only a stored applied outcome is green; a bare execution status stays neutral. */}
+                            <Chip
+                                size="small"
+                                variant={record?.outcome === "applied" ? "filled" : "outlined"}
+                                color={record?.outcome === "applied" ? "success" : "default"}
+                                label={String(outcome ?? "?")}
+                                sx={{
+                                    "blockSize": "auto",
+                                    "& .MuiChip-label": {
+                                        whiteSpace: "normal",
+                                        overflowWrap: "anywhere",
+                                    },
+                                }}
+                            />
+                            {typeof record?.packageSha256 === "string" && record.packageSha256 ? (
+                                <Typography
+                                    variant="body2"
+                                    component="span"
+                                    color="text.secondary"
+                                    sx={{fontFamily: "monospace"}}
+                                >
+                                    {record.packageSha256.slice(0, 12)}
+                                </Typography>
+                            ) : null}
+                        </ListItem>
+                    )
+                })}
             </List>
+            {/* Empty only once the query has answered; undefined rows say nothing. */}
+            {rows && rows.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                    {t("configurationPackage.workflow.noHistory")}
+                </Typography>
+            ) : null}
         </>
     )
 }

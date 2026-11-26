@@ -659,15 +659,9 @@ export const ArchitectSignerRoster: React.FC<{
             <Typography component="h3" variant="subtitle1">
                 {t("configurationPackage.roster.title")}
             </Typography>
-            <Typography
-                id={statusTextId}
-                variant="body2"
-                sx={{overflowWrap: "anywhere"}}
-                aria-live="polite"
-            >
+            <Typography id={statusTextId} variant="body2" aria-live="polite">
                 {ready
-                    ? t("configurationPackage.roster.active", {
-                          hash: status.active_sha256,
+                    ? t("configurationPackage.roster.activeSummary", {
                           approvals: status.required_approvals,
                       })
                     : t(
@@ -678,6 +672,31 @@ export const ArchitectSignerRoster: React.FC<{
                                 : "configurationPackage.roster.unavailable"
                       )}
             </Typography>
+            {ready && (
+                <Box component="details" sx={{mt: 0.5}} data-testid="signer-roster-fingerprint">
+                    <Typography
+                        component="summary"
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{cursor: "pointer"}}
+                    >
+                        {t("configurationPackage.roster.fingerprint")}
+                    </Typography>
+                    <Typography
+                        component="code"
+                        variant="caption"
+                        sx={{
+                            display: "block",
+                            mt: 0.5,
+                            fontFamily: "monospace",
+                            overflowWrap: "anywhere",
+                            userSelect: "all",
+                        }}
+                    >
+                        {status.active_sha256}
+                    </Typography>
+                </Box>
+            )}
             {!loading && (!status || status.mode === "unavailable") && (
                 <Button variant="text" onClick={() => void refresh()}>
                     {t("configurationPackage.roster.retry")}

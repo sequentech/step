@@ -184,7 +184,7 @@ it("uploads the delivery through its own drawer and previews it, never the event
         fireEvent.change(screen.getByLabelText("Import file"), {target: {files: [file]}})
     })
     await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
-    const importButton = screen.getByRole("button", {name: "electionEventScreen.import.import"})
+    const importButton = screen.getByRole("button", {name: "configurationPackage.preview"})
     await waitFor(() => expect((importButton as HTMLButtonElement).disabled).toBe(false))
     await act(async () => {
         fireEvent.click(importButton)
@@ -219,7 +219,7 @@ describe("the SHA-256 typed for the upload", () => {
         })
         await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1))
         const importButton = screen.getByRole("button", {
-            name: "electionEventScreen.import.import",
+            name: "configurationPackage.preview",
         })
         await waitFor(() => expect((importButton as HTMLButtonElement).disabled).toBe(false))
         await act(async () => {
@@ -360,7 +360,7 @@ describe("password-encrypted signed delivery in the real upload drawer", () => {
         })
         expect(Array.from(new Uint8Array(contents))).toEqual(Array.from(bytes))
         const preview = await screen.findByRole("button", {
-            name: "electionEventScreen.import.import",
+            name: "configurationPackage.preview",
         })
         await waitFor(() => expect((preview as HTMLButtonElement).disabled).toBe(false))
         await act(async () => {
@@ -465,7 +465,7 @@ describe("password-encrypted signed delivery in the real upload drawer", () => {
             })
             expect(shaInput.value).toBe("")
             const preview = await screen.findByRole("button", {
-                name: "electionEventScreen.import.import",
+                name: "configurationPackage.preview",
             })
             await waitFor(() => expect((preview as HTMLButtonElement).disabled).toBe(false))
             fireEvent.click(preview)
@@ -597,7 +597,7 @@ describe("an encrypted package carrying messaging credentials (V2)", () => {
         // The password reaches only that request: never GraphQL or storage.
         expect(JSON.stringify(mockGetUploadUrl.mock.calls)).not.toContain(PASSWORD)
         const preview = await screen.findByRole("button", {
-            name: "electionEventScreen.import.import",
+            name: "configurationPackage.preview",
         })
         await waitFor(() => expect((preview as HTMLButtonElement).disabled).toBe(false))
         await act(async () => {
