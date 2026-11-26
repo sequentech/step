@@ -14,7 +14,7 @@ use crate::postgres::{
 };
 use crate::services::audit_log::AuditActor;
 use crate::services::audit_log_writer::delivery_id;
-use crate::services::ballot_box_reads::get_event_ballot_box;
+use crate::services::ballot_box_reads::{get_event_ballot_box, get_event_ballot_box_read_only};
 use crate::services::ballot_box_seal::{deadline, expected_ballot_boxes};
 use crate::services::ballot_styles::design_check::check_active_publication_designs;
 use crate::services::database::get_keycloak_pool;
@@ -267,7 +267,7 @@ fn complete_designs(approved: &[BallotDesign], published: &[DesignDigest]) -> bo
 
 /// Inspect the active publication and seals of an event in its tested role.
 pub async fn snapshot(tx: &Transaction<'_>, tenant: &str, event_id: &str) -> Result<EventEvidence> {
-    snapshot_for(tx, tenant, event_id, SnapshotScope::Tested).await
+    snapshot_for(tx, tenant, event_id, SnapshotScope::Tested, false).await
 }
 
 #[derive(Clone, Copy)]
@@ -334,6 +334,7 @@ async fn snapshot_for(
     tenant: &str,
     event_id: &str,
     scope: SnapshotScope,
+    read_only: bool,
 ) -> Result<EventEvidence> {
     let event = election_event::get_election_event_by_id(tx, tenant, event_id).await?;
     let presentation = event.get_presentation()?.unwrap_or_default();
@@ -342,7 +343,11 @@ async fn snapshot_for(
         .iter()
         .map(|election| election.id.clone())
         .collect();
-    let ballot_box = get_event_ballot_box(tx, tenant, event_id).await?;
+    let ballot_box = if read_only {
+        get_event_ballot_box_read_only(tx, tenant, event_id).await?
+    } else {
+        get_event_ballot_box(tx, tenant, event_id).await?
+    };
     // Counts every stored status, including ballots not yet sequenced. All
     // current elections of this event are official; practice uses isolated
     // events until EMS-TEST-VOTING supplies an explicit designation contract.
@@ -466,7 +471,7 @@ pub async fn verify(
     actor: &AuditActor,
 ) -> Result<ReadinessReport> {
     let evidence = ReadinessEvidence {
-        official: snapshot_for(tx, tenant, official, SnapshotScope::Official)
+        official: snapshot_for(tx, tenant, official, SnapshotScope::Official, false)
             .await
             .context(ReadinessStage::OfficialEvidence)?,
         tested: snapshot(tx, tenant, tested)
@@ -553,10 +558,10 @@ pub async fn compare_rehearsal(
         "A rehearsal comparison runs only in a read-only transaction"
     );
     let (left, right) = comparison.roles();
-    let reference_evidence = snapshot_for(tx, tenant, reference, rehearsal_scope(left))
+    let reference_evidence = snapshot_for(tx, tenant, reference, rehearsal_scope(left), true)
         .await
         .context(ReadinessStage::ReferenceEvidence)?;
-    let compared_evidence = snapshot_for(tx, tenant, compared, rehearsal_scope(right))
+    let compared_evidence = snapshot_for(tx, tenant, compared, rehearsal_scope(right), true)
         .await
         .context(ReadinessStage::ComparedEvidence)?;
     Ok(evaluate_rehearsal(

@@ -7,7 +7,7 @@
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::services::cast_votes::CastVoteStatus;
 use crate::services::election_event_board::get_election_event_board;
-use crate::services::electoral_log_board::get_event_store;
+use crate::services::electoral_log_board::{get_event_databases, get_event_store};
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
@@ -33,6 +33,32 @@ pub async fn get_event_ballot_box(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<EventBallotBox> {
+    let board = event_ballot_box_board(hasura_transaction, tenant_id, election_event_id).await?;
+    Ok(EventBallotBox {
+        store: get_event_store(election_event_id).await?,
+        board,
+    })
+}
+
+/// A read-only store of a board already provisioned for this election event.
+pub async fn get_event_ballot_box_read_only(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<EventBallotBox> {
+    let board = event_ballot_box_board(hasura_transaction, tenant_id, election_event_id).await?;
+    let store = get_event_databases()
+        .await?
+        .existing_event_store_read_only(election_event_id, tenant_id)
+        .await?;
+    Ok(EventBallotBox { store, board })
+}
+
+async fn event_ballot_box_board(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<String> {
     let row = hasura_transaction
         .query_opt(
             "SELECT bulletin_board_reference FROM sequent_backend.election_event \
@@ -43,12 +69,7 @@ pub async fn get_event_ballot_box(
         .context("Error reading the election event's board")?
         .ok_or_else(|| anyhow!("Election event {election_event_id} not found"))?;
     let reference: Option<Value> = row.try_get(0)?;
-    let board =
-        get_election_event_board(reference).context("Election event has no electoral-log board")?;
-    Ok(EventBallotBox {
-        store: get_event_store(election_event_id).await?,
-        board,
-    })
+    get_election_event_board(reference).context("Election event has no electoral-log board")
 }
 
 /// Ballots of an election's area whose outcome is pending, which the tally refuses
