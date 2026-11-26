@@ -176,17 +176,20 @@ fn reports_verify_and_parse_as_the_backend_reads_them() {
         })] if page_scoped_id == "9123" && reference == "ref-1"
     ));
 
-    let body = infobip_delivered("keycloak:k:1", "34600000001", now);
-    let events = parsed::infobip::parse_events(body.as_bytes()).unwrap();
-    assert!(matches!(
-        events.as_slice(),
-        [WebhookEvent::Status(parsed::StatusReport {
-            provider_message_id,
-            state: MessageAttemptState::DELIVERED,
-            error_code: None,
-            ..
-        })] if provider_message_id == "keycloak:k:1"
-    ));
+    for channel in [MessageChannel::VIBER, MessageChannel::WHATSAPP] {
+        let body =
+            infobip_delivered(channel, "keycloak:k:1", "34600000001", now);
+        let events = parsed::infobip::parse_events(body.as_bytes()).unwrap();
+        assert!(matches!(
+            events.as_slice(),
+            [WebhookEvent::Status(parsed::StatusReport {
+                provider_message_id,
+                state: MessageAttemptState::DELIVERED,
+                error_code: None,
+                ..
+            })] if provider_message_id == "keycloak:k:1"
+        ));
+    }
 }
 
 #[test]
@@ -827,8 +830,10 @@ async fn assert_ready(stack: &Stack, accounts: &[(&str, MessageChannel)]) {
             assert!(readiness.is_ready(), "{channel} {purpose}: {readiness:?}");
         }
         let details = &check.details;
-        match channel {
-            MessageChannel::WHATSAPP | MessageChannel::MESSENGER => {
+        let provider = account.sender.provider();
+        match provider {
+            MessagingProvider::WHATSAPP_CLOUD_API
+            | MessagingProvider::MESSENGER_SEND_API => {
                 let token = details.token.as_ref().expect("debug_token read");
                 assert!(
                     token.valid && token.missing_scopes.is_empty(),
@@ -842,8 +847,8 @@ async fn assert_ready(stack: &Stack, accounts: &[(&str, MessageChannel)]) {
             }
             _ => assert_eq!(details.token, None, "{channel}"),
         }
-        match channel {
-            MessageChannel::WHATSAPP => {
+        match provider {
+            MessagingProvider::WHATSAPP_CLOUD_API => {
                 let number = details.whatsapp_number.as_ref().expect("number");
                 assert_eq!(number.status.as_deref(), Some("CONNECTED"));
                 assert_eq!(number.name_status.as_deref(), Some("APPROVED"));
@@ -854,13 +859,14 @@ async fn assert_ready(stack: &Stack, accounts: &[(&str, MessageChannel)]) {
                     Some(ProviderApproval::CONFIRMED)
                 );
             }
-            MessageChannel::MESSENGER => {
+            MessagingProvider::MESSENGER_SEND_API => {
                 let page = details.messenger.as_ref().expect("Page status");
                 assert_eq!(page.pages_messaging, Some(true));
                 assert!(page.subscribed);
                 assert_eq!(page.get_started, Some(true));
             }
-            MessageChannel::VIBER => {
+            MessagingProvider::VIBER_INFOBIP
+            | MessagingProvider::WHATSAPP_INFOBIP => {
                 let login =
                     details.partner_login.as_ref().expect("partner login");
                 assert!(login.accepted, "{login:?}");
@@ -868,12 +874,23 @@ async fn assert_ready(stack: &Stack, accounts: &[(&str, MessageChannel)]) {
             }
             _ => {}
         }
+        // WhatsApp through Infobip reads the number's templates from
+        // Infobip; it has no Meta token or number status.
+        if provider == MessagingProvider::WHATSAPP_INFOBIP {
+            assert_eq!(details.whatsapp_number, None);
+            assert_eq!(details.templates_reason, None);
+            assert!(!details.templates.is_empty());
+            assert!(details.templates.iter().all(|template| {
+                template.status == "APPROVED" && template.category.is_some()
+            }));
+        }
         let template = |purpose: MessagePurpose, name: &str| TemplateBinding {
             purpose,
             key: None,
             language: "en".to_string(),
             provider_template: name.to_string(),
             provider_language: None,
+            buttons: None,
         };
         let templates = match channel {
             MessageChannel::WHATSAPP => vec![
@@ -1032,6 +1049,41 @@ async fn sends_need_the_account_credential_and_belong_to_its_tenant() {
             "R6-01: a Viber send with {authorization:?} answered {status}"
         );
     }
+    let whatsapp_number =
+        format!("4477{:010}", Uuid::new_v4().as_u128() % 10_000_000_000);
+    stack
+        .account_as(
+            &a,
+            json!({"provider": "WHATSAPP_INFOBIP",
+                   "base_url": "https://infobip.example.org",
+                   "sender_number": whatsapp_number}),
+            json!({"API_KEY": "key-a"}),
+            json!({"generate_report_credentials": true}),
+        )
+        .await;
+    let whatsapp_send = |message_id: &str, to: &str| {
+        json!({"messages": [{"from": whatsapp_number, "to": to,
+               "messageId": message_id,
+               "content": {"templateName": "step_code", "language": "en",
+                           "templateData": {"body": {"placeholders": ["111111"]}}}}]})
+        .to_string()
+    };
+    for authorization in [None, Some("App not-the-key")] {
+        let (status, _) = stack
+            .raw(
+                post.clone(),
+                &format!("{BASE}/infobip/whatsapp/1/message/template"),
+                authorization,
+                "application/json",
+                whatsapp_send(&unique("forged-"), "+34600000096"),
+            )
+            .await;
+        expect!(
+            failures,
+            status == 401,
+            "R6-01: an Infobip WhatsApp send with {authorization:?} answered {status}"
+        );
+    }
     let sms_sender = unique("Sms");
     stack
         .account_as(
@@ -1066,7 +1118,12 @@ async fn sends_need_the_account_credential_and_belong_to_its_tenant() {
         );
     }
     let refused = stack.list_as(&a).await;
-    for to in ["+34600000099", "+34600000098", "+34600000097"] {
+    for to in [
+        "+34600000099",
+        "+34600000098",
+        "+34600000097",
+        "+34600000096",
+    ] {
         expect!(
             failures,
             refused.iter().all(|m| m["recipient"] != to),
@@ -1479,6 +1536,44 @@ async fn adapters_send_and_check_through_the_routes_and_reports_reach_the_ledger
     assert_eq!(listed["sender"], viber_sender.as_str());
     assert_eq!(listed["content"]["template_name"], "fake-viber-code");
     assert_eq!(listed["content"]["code"], "000000");
+
+    // WhatsApp through Infobip: Meta's code template sent with Infobip's
+    // key; the report comes through the Infobip route with Basic auth.
+    let whatsapp_number =
+        format!("4477{:010}", Uuid::new_v4().as_u128() % 10_000_000_000);
+    let infobip_whatsapp = stack
+        .account(
+            json!({
+                "provider": "WHATSAPP_INFOBIP",
+                "base_url": "https://infobip.example.org",
+                "sender_number": whatsapp_number,
+                "display_name": "Elections",
+            }),
+            json!({"API_KEY": "synthetic-key"}),
+            json!({"generate_report_credentials": true}),
+        )
+        .await;
+    let sent = stack
+        .test_send(
+            &infobip_whatsapp,
+            json!({"purpose": "OTP", "destination": PHONE, "language": "en",
+                   "template": "step_code"}),
+        )
+        .await;
+    let listed = stack.assert_delivered(&sent).await;
+    assert_eq!(listed["channel"], "WHATSAPP");
+    assert_eq!(listed["provider"], "WHATSAPP_INFOBIP");
+    assert_eq!(listed["sender"], whatsapp_number.as_str());
+    assert_eq!(listed["recipient"], PHONE.trim_start_matches('+'));
+    assert_eq!(listed["content"]["template_name"], "step_code");
+    assert_eq!(listed["content"]["template_language"], "en");
+    assert_eq!(listed["content"]["code"], "000000");
+    // An event's WhatsApp channel has one account: this one is judged alone.
+    assert_ready(
+        &stack,
+        &[(infobip_whatsapp.as_str(), MessageChannel::WHATSAPP)],
+    )
+    .await;
 
     // SMS through SNS: no report, as in production.
     let sms_sender = unique("Sms");

@@ -379,6 +379,7 @@ mod tests {
                 code: None,
             },
             provider_template: None,
+            template_buttons: None,
             idempotency_key: "k".to_string(),
             expires_at: None,
             last_inbound_at: None,

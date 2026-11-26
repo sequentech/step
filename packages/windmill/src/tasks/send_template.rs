@@ -316,6 +316,7 @@ fn provider_templates(body: &SendTemplateBody) -> BTreeMap<MessageChannel, Provi
             ProviderTemplate {
                 name,
                 language: config.provider_language.clone().filter(|l| !l.is_empty()),
+                buttons: config.buttons.clone(),
             },
         ))
     })

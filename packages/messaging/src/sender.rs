@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Duration, Utc};
 use sequent_core::types::messaging::{
     AccountCheck, AccountLimits, MessageAttemptState, MessageChannel, MessageContent,
-    MessagePurpose, OutOfWindowPolicy, ProviderCapabilities,
+    MessagePurpose, OutOfWindowPolicy, ProviderCapabilities, TemplateButton,
 };
 use strum_macros::{Display, EnumString};
 
@@ -24,6 +24,11 @@ pub struct OutboundMessage {
     pub content: MessageContent,
     /// Provider-approved template for this purpose and language.
     pub provider_template: Option<String>,
+    /// The values of that template's buttons, in its button order. `None`:
+    /// the provider's default for the purpose
+    /// ([`sequent_core::types::messaging::MessagingProvider::default_template_buttons`]);
+    /// empty: none.
+    pub template_buttons: Option<Vec<TemplateButton>>,
     /// Sent to providers that deduplicate requests.
     pub idempotency_key: String,
     /// Codes only: never sent after this instant.
@@ -228,6 +233,7 @@ mod tests {
                 code: Some("123456".to_string()),
             },
             provider_template: None,
+            template_buttons: None,
             idempotency_key: "key".to_string(),
             expires_at: Some(Utc::now() + Duration::minutes(5)),
             last_inbound_at: None,

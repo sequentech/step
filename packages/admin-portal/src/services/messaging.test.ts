@@ -6,11 +6,14 @@ import {
     EMessageChannel,
     EMessagePurpose,
     EViberContentMode,
+    ETemplateButtonType,
+    TEMPLATE_BUTTON_CODE,
     EMessagingProvider,
     EOutOfWindowPolicy,
     EProviderApproval,
     EReadinessBlocker,
     EReadinessPolicy,
+    ERecipientKind,
     ECredentialName,
     IAccountCheck,
     IAccountSummary,
@@ -22,6 +25,7 @@ import {
 } from "@/types/messaging"
 import {
     acceptedCredentials,
+    defaultTemplateButtons,
     accountDeliveryFeedback,
     accountIdentity,
     checkedForAnotherIdentity,
@@ -169,6 +173,7 @@ describe("provider capabilities", () => {
     it("lists only the channel's own adapters for a new account", () => {
         expect(providersForChannel(EMessageChannel.WHATSAPP)).toEqual([
             EMessagingProvider.WHATSAPP_CLOUD_API,
+            EMessagingProvider.WHATSAPP_INFOBIP,
         ])
         expect(providersForChannel(EMessageChannel.EMAIL)).toEqual([
             EMessagingProvider.AWS_SES,
@@ -197,7 +202,44 @@ describe("provider capabilities", () => {
             EMessagingProvider.WHATSAPP_CLOUD_API,
             EMessagingProvider.MESSENGER_SEND_API,
             EMessagingProvider.VIBER_INFOBIP,
+            EMessagingProvider.WHATSAPP_INFOBIP,
         ])
+    })
+
+    it("sends WhatsApp through Infobip with Meta's rules and Infobip's credentials", () => {
+        const sender = {
+            provider: EMessagingProvider.WHATSAPP_INFOBIP,
+            base_url: "https://x.api.infobip.com/",
+            sender_number: " +447796344125 ",
+        } as const
+        expect(providerChannel(EMessagingProvider.WHATSAPP_INFOBIP)).toBe(EMessageChannel.WHATSAPP)
+        expect(senderCapabilities(sender, EMessageChannel.WHATSAPP)).toEqual({
+            channel: EMessageChannel.WHATSAPP,
+            recipient: ERecipientKind.PHONE_NUMBER,
+            purposes: [EMessagePurpose.OTP, EMessagePurpose.NOTICE],
+            template_required_for: [EMessagePurpose.OTP, EMessagePurpose.NOTICE],
+            delivery_feedback: EDeliveryFeedback.PROVIDER_RECEIPTS,
+            reconciliation: false,
+            conversation_window_hours: 24,
+            requires_provider_approval: false,
+        })
+        expect(senderCapabilities(sender, EMessageChannel.VIBER)).toBeNull()
+        expect(requiredCredentials(EMessagingProvider.WHATSAPP_INFOBIP)).toEqual([
+            ECredentialName.API_KEY,
+        ])
+        expect(acceptedCredentials(EMessagingProvider.WHATSAPP_INFOBIP)).toEqual(
+            acceptedCredentials(EMessagingProvider.VIBER_INFOBIP)
+        )
+        expect(typedCredentials(EMessagingProvider.WHATSAPP_INFOBIP)).toEqual([
+            ECredentialName.API_KEY,
+        ])
+        expect(accountSenderLabel(sender)).toBe("+447796344125")
+        expect(accountSenderLabel({...sender, display_name: "COMELEC"})).toBe("COMELEC")
+        // The same ids as `AccountSender::identity`.
+        expect(accountIdentity(sender)).toEqual({
+            provider: EMessagingProvider.WHATSAPP_INFOBIP,
+            ids: {base_url: "https://x.api.infobip.com", sender_number: "447796344125"},
+        })
     })
 
     it("a free-text Viber account needs no template; a stored one still does", () => {
@@ -773,6 +815,59 @@ describe("template and out-of-window validation", () => {
                 language: "en",
             },
         ])
+    })
+
+    it("refuses a bound template button without a value, as the backend does", () => {
+        const whatsapp = account(
+            "wa-1",
+            EMessageChannel.WHATSAPP,
+            EMessagingProvider.WHATSAPP_INFOBIP,
+            readyCheck([[EMessagePurpose.NOTICE, "en"]])
+        )
+        const withButtons = (parameter: string) =>
+            config({
+                channels: [
+                    {
+                        ...channelConfig(EMessageChannel.WHATSAPP, "wa-1", [
+                            EMessagePurpose.NOTICE,
+                        ]),
+                        templates: [
+                            {
+                                ...binding(null, "en", "polls_close"),
+                                buttons: [{type: ETemplateButtonType.QUICK_REPLY, parameter}],
+                            },
+                        ],
+                    },
+                ],
+            })
+        expect(validateEventMessagingConfig(withButtons("STOP"), TENANT, [whatsapp], [])).toEqual(
+            []
+        )
+        expect(validateEventMessagingConfig(withButtons(" "), TENANT, [whatsapp], [])).toEqual([
+            {
+                kind: "TEMPLATE_BUTTON_WITHOUT_VALUE",
+                channel: EMessageChannel.WHATSAPP,
+                purpose: EMessagePurpose.NOTICE,
+                language: "en",
+            },
+        ])
+    })
+
+    it("sends a code's template through Infobip WhatsApp with the code and a quick reply by default", () => {
+        // As `MessagingProvider::default_template_buttons`.
+        expect(
+            defaultTemplateButtons(EMessagingProvider.WHATSAPP_INFOBIP, EMessagePurpose.OTP)
+        ).toEqual([
+            {type: ETemplateButtonType.URL, parameter: TEMPLATE_BUTTON_CODE},
+            {type: ETemplateButtonType.QUICK_REPLY, parameter: "NA"},
+        ])
+        for (const [provider, purpose] of [
+            [EMessagingProvider.WHATSAPP_INFOBIP, EMessagePurpose.NOTICE],
+            [EMessagingProvider.WHATSAPP_CLOUD_API, EMessagePurpose.OTP],
+            [EMessagingProvider.VIBER_INFOBIP, EMessagePurpose.OTP],
+        ] as const) {
+            expect(defaultTemplateButtons(provider, purpose)).toEqual([])
+        }
     })
 
     it("lets Messenger send utility messages outside the window", () => {

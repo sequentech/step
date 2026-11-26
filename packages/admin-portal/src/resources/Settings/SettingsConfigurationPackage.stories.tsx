@@ -9,7 +9,7 @@ import {resourceBoundary} from "@/__stories__/resourceBoundary"
 import {storyId} from "@/__stories__/fixtures"
 import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {SettingsConfigurationPackage} from "./SettingsConfigurationPackage"
-import {PACKAGE_PERMISSIONS} from "./configurationPackage"
+import {COMPLETE_DELIVERY, PACKAGE_PERMISSIONS} from "./configurationPackage"
 import {record} from "./configurationPackage.fixture"
 
 interface Scenario {
@@ -50,25 +50,35 @@ const meta = {
         }
         tenantSection.status.preview.changes = [{action: "update", keys: ["language_conf"]}]
         if (args.replaceMessagingAccount) {
-            annotations.application.sections.push({
+            const {application} = annotations
+            const members = ["tenant_messaging_accounts.json"]
+            const sections = {
+                ...application.coverage.sections,
+                "messaging-accounts": {state: "present", members},
+            }
+            application.coverage = {...application.coverage, sections}
+            Object.assign(application, {
+                managedRequirements: COMPLETE_DELIVERY,
+                messagingPlanSha256: "a5".repeat(32),
+            })
+            application.sections.push({
                 section: "messaging-accounts",
-                members: ["tenant_platform-t1.json"],
+                members,
                 status: {
-                    state: "previewed",
+                    state: "ready",
                     preview: {
                         needsApply: true,
-                        blockers: [],
                         changes: [
                             {
-                                reference: "package:synthetic-ses",
+                                reference: "package:ses",
                                 action: "replace",
                                 channel: "EMAIL",
                                 provider: "AWS_SES",
                             },
                         ],
+                        blockers: [],
                     },
                 },
-                history: {submissions: [], inFlight: null, applied: false},
             })
         }
         let approvalPolicy: {required_approvals: number | null; generation: string} = {
@@ -189,20 +199,21 @@ export const PreviewAndConfirm: Story = {
     },
 }
 
-export const PortableReplacementPreview: Story = {
+export const PortableMessagingReplacement: Story = {
     args: {replaceMessagingAccount: true},
     parameters: {widgets: ["PortableReplacementWarning"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        await preview(canvasElement)
         const warning = i18n.t("configurationPackage.messagingReplaceWarning")
-        const messaging = within(await canvas.findByTestId("section-messaging-accounts"))
-        await expect(messaging.getByText(warning)).toBeVisible()
+        await preview(canvasElement)
+        const section = within(await canvas.findByTestId("section-messaging-accounts"))
+        await expect(section.getByText(warning)).toBeVisible()
         const apply = canvas.getByTestId("package-apply")
-        await expect(apply).toBeEnabled()
+        await waitFor(() => expect(apply).toBeEnabled())
         await userEvent.click(apply)
         const dialog = within(await within(document.body).findByRole("dialog"))
-        await expect(dialog.getByText(warning)).toBeVisible()
+        await waitFor(() => expect(dialog.getByText(warning)).toBeVisible())
+        // Reviewing the replacement never applies it.
         expect(
             graphql.calls
                 .filter(({name}) => name === "ApplyConfigurationPackage")

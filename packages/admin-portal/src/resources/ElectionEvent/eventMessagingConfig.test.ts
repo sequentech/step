@@ -394,6 +394,25 @@ describe("errors", () => {
         ).toEqual({area: EMessagingErrorArea.GENERAL})
     })
 
+    it("shows a template button without a value on its binding", () => {
+        expect(
+            errorLocation(
+                {
+                    kind: "TEMPLATE_BUTTON_WITHOUT_VALUE",
+                    channel: EMessageChannel.WHATSAPP,
+                    purpose: EMessagePurpose.OTP,
+                    language: "en",
+                },
+                emptyEventMessagingConfig()
+            )
+        ).toEqual({
+            area: EMessagingErrorArea.TEMPLATE,
+            channel: EMessageChannel.WHATSAPP,
+            purpose: EMessagePurpose.OTP,
+            language: "en",
+        })
+    })
+
     it("filters the errors of one location", () => {
         expect(
             errorsAt(errors, config, {area: EMessagingErrorArea.CHANNEL, channel: SMS}).map(

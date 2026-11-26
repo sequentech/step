@@ -78,7 +78,7 @@ replicas as needed behind the public host.
 ## Provider setup
 
 Each account's drawer in **Settings > Messaging** shows its callback URL:
-`<MESSAGING_WEBHOOKS_PUBLIC_URL>/webhooks/<meta|viber|aws>/<key>`. The key is
+`<MESSAGING_WEBHOOKS_PUBLIC_URL>/webhooks/<meta|viber|infobip|aws>/<key>`. The key is
 generated per account and identifies it; there is nothing else to
 configure on the platform side.
 
@@ -93,6 +93,33 @@ configure on the platform side.
   with the callback URL and Basic authentication, using the report username
   and password the account generated (shown once). Grant the Infobip API
   key `viber-bm:manage` so **Check connection** can list the sender's templates.
+- **WhatsApp (Infobip)**: Infobip registers the number and submits its
+  templates to Meta; Infobip's shared test number can't send WhatsApp. On
+  the account, enter the Infobip API base URL, the number in international
+  format without `+` (as Infobip lists the sender), and an API key with:
+  - `whatsapp:manage`: **Check connection** reads the number's templates
+    (`GET /whatsapp/2/senders/{number}/templates`). A key without it is
+    refused there, and the account shows *Infobip refused the account's
+    API key*;
+  - `whatsapp:message:send` (or `whatsapp:manage`, which also allows it):
+    sending (`POST /whatsapp/1/message/template`).
+
+  Codes need an approved template whose body placeholder takes the code;
+  notices need approved **utility** templates, whose placeholders are
+  filled in order from the notice's parameters. Bind them on the event per
+  purpose and language, as for WhatsApp through Meta. Infobip refuses a
+  template whose buttons don't get their values, so each binding (and a
+  message template that names its own provider template) gives its
+  template's buttons in button order: `URL` (a copy-code button, or a
+  link's variable part) or `QUICK_REPLY` (the payload), where `{{code}}`
+  becomes the code. A binding that sets none uses the default: for codes,
+  a `URL` button with `{{code}}` then a `QUICK_REPLY` with `NA`; for
+  notices, no buttons. An empty list sends none. Then create a
+  subscription for WhatsApp delivery reports with the account's callback
+  URL (`/webhooks/infobip/<key>`) and Basic authentication, using the
+  report username and password the account generated (shown once).
+  Infobip has no WhatsApp message lookup, so an attempt whose answer was
+  lost waits for its report.
 - **Email (SES)**: send the identity's delivery, bounce and complaint
   notifications to an SNS topic, subscribe the callback URL to it over
   HTTPS, and enter the topic ARN on the account.
@@ -142,6 +169,7 @@ These are outside the platform and must be settled before go-live.
 | | Prerequisite | Owner |
 |---|---|---|
 | D1 | **WhatsApp ownership and onboarding.** The organization owns the Meta business portfolio, the WhatsApp Business Account and the number, onboarded through a Solution Partner; Meta approves the account and its templates. Get written confirmation that the whole operating arrangement is permitted, and the provider's onboarding lead time and approved capacity. Meta doesn't let a voting-system vendor hold the account | Organization, Meta, Solution Partner |
+| D1b | **WhatsApp through Infobip.** Instead of D1's Solution Partner, Infobip onboards the organization's WhatsApp Business Account and number and submits its templates to Meta. The organization still owns them. Confirm Infobip's API key scopes (`whatsapp:manage`, `whatsapp:message:send`) and the report subscription with Basic authentication | Organization, Infobip |
 | D2 | **The Viber partner.** One partner means one adapter; Infobip is built in. The Viber business account belongs to the organization. Confirm the report subscription with Basic authentication on the partner's test account | Organization |
 | D3 | **Channels per Post.** Approve the channels and purposes each Post offers, using provider restrictions and test sends. Start from ready, approved channels, not all five | Organization |
 | D4 | **Consent and retention.** The consent wording, and how long message records are kept | Organization (data privacy) |

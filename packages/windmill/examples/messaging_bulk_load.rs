@@ -178,6 +178,7 @@ async fn main() -> Result<()> {
                     provider_template: Some(ProviderTemplate {
                         name: "bench_notice".to_string(),
                         language: Some("en".to_string()),
+                        buttons: None,
                     }),
                 };
                 counts.sent.fetch_add(1, Ordering::SeqCst);

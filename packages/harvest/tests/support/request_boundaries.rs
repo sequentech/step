@@ -659,6 +659,11 @@ async fn fake_provider_routes_are_mounted_only_by_their_switch() {
             "/fake-provider/infobip/viber/1/senders/<_sender>/templates",
         ),
         ("GET", "/fake-provider/infobip/viber/2/logs"),
+        ("POST", "/fake-provider/infobip/whatsapp/1/message/template"),
+        (
+            "GET",
+            "/fake-provider/infobip/whatsapp/2/senders/<_sender>/templates",
+        ),
         ("POST", "/fake-provider/aws/<path..>"),
         ("GET", "/fake-provider/aws/<path..>"),
         ("POST", "/fake-provider/messages"),
