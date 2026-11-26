@@ -15,6 +15,7 @@ import {
     DialogTitle,
     List,
     ListItem,
+    MenuItem,
     Stack,
     TextField,
     Typography,
@@ -28,7 +29,11 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {useAliasRenderer} from "@/hooks/useAliasRenderer"
 import {IPermissions} from "@/types/keycloak"
-import {GET_READINESS_EVENTS, READINESS_CHECK} from "@/queries/ReadinessCheck"
+import {
+    GET_READINESS_EVENTS,
+    READINESS_CHECK,
+    READINESS_REHEARSAL,
+} from "@/queries/ReadinessCheck"
 import type {
     GetReadinessEventsQuery,
     GetReadinessEventsQueryVariables,
@@ -42,6 +47,16 @@ import {
     type IReadinessReport,
 } from "@/services/readinessReport"
 import {findingText} from "@/services/readinessFindings"
+import {
+    comparisonRoles,
+    READINESS_COMPARISONS,
+    rehearsalFindingText,
+    rehearsalReport,
+    type IRehearsalReport,
+    type ReadinessComparison,
+    type RehearsalComparison,
+    type RehearsalVerdict,
+} from "@/services/readinessRehearsal"
 
 type Event = Pick<Sequent_Backend_Election_Event, "id" | "presentation">
 type TestedEvent = GetReadinessEventsQuery["sequent_backend_election_event"][number]
@@ -57,6 +72,19 @@ const serverMessage = (errors: unknown): string | null => {
 
 const knownKind = (kind: string): boolean => READINESS_CHECK_KINDS.some((known) => known === kind)
 
+const VERDICT_COLOR: Record<RehearsalVerdict, "success" | "error" | "warning"> = {
+    consistent: "success",
+    inconsistent: "error",
+    not_verified: "warning",
+}
+
+/** A rehearsal is never shown as a green readiness pass. */
+const VERDICT_SEVERITY: Record<RehearsalVerdict, "info" | "warning"> = {
+    consistent: "info",
+    inconsistent: "warning",
+    not_verified: "warning",
+}
+
 export function ReadinessDialog({
     event,
     tenantId,
@@ -70,7 +98,9 @@ export function ReadinessDialog({
     const alias = useAliasRenderer()
     const refresh = useRefresh()
     const [tested, setTested] = useState<TestedEvent | null>(null)
+    const [comparison, setComparison] = useState<ReadinessComparison>("production")
     const [report, setReport] = useState<IReadinessReport | null>(null)
+    const [rehearsal, setRehearsal] = useState<IRehearsalReport | null>(null)
     const [pending, setPending] = useState(false)
     const [failure, setFailure] = useState<string | null>(null)
     const [failureDetail, setFailureDetail] = useState<string | null>(null)
@@ -85,6 +115,17 @@ export function ReadinessDialog({
     const [check] = useMutation<{readiness_check: unknown}, ReadinessCheckMutationVariables>(
         READINESS_CHECK
     )
+    const [compare] = useMutation<
+        {readiness_check: unknown},
+        ReadinessCheckMutationVariables & {comparison: RehearsalComparison}
+    >(READINESS_REHEARSAL)
+    const [currentRole, selectedRole] = comparisonRoles(comparison)
+    const clearResult = () => {
+        setReport(null)
+        setRehearsal(null)
+        setFailure(null)
+        setFailureDetail(null)
+    }
     const eventLabel = (option: TestedEvent) =>
         `${alias(option)} · ${option.id}${option.is_archived ? ` · ${t("readiness.archived")}` : ""}`
     const collator = new Intl.Collator(i18n.language, {numeric: true, sensitivity: "base"})
@@ -99,10 +140,32 @@ export function ReadinessDialog({
     const run = async () => {
         if (!tested || tested.id === event.id || pending || loading || error) return
         setPending(true)
-        setReport(null)
-        setFailure(null)
-        setFailureDetail(null)
+        clearResult()
         try {
+            if (comparison !== "production") {
+                // Read-only: nothing is recorded, so nothing needs refreshing.
+                const response = await compare({
+                    variables: {
+                        official_event_id: event.id,
+                        tested_event_id: tested.id,
+                        comparison,
+                    },
+                    context: {headers: {"x-hasura-role": IPermissions.READINESS_CHECK}},
+                })
+                const result = rehearsalReport(
+                    response.data?.readiness_check,
+                    comparison,
+                    event.id,
+                    tested.id
+                )
+                if (response.errors?.length || !result) {
+                    setFailure(t("readiness.error"))
+                    setFailureDetail(serverMessage(response.errors))
+                    return
+                }
+                setRehearsal(result)
+                return
+            }
             const response = await check({
                 variables: {official_event_id: event.id, tested_event_id: tested.id},
                 context: {headers: {"x-hasura-role": IPermissions.READINESS_CHECK}},
@@ -123,11 +186,14 @@ export function ReadinessDialog({
         }
     }
     const download = async () => {
-        if (!report) return
+        const saved = report ?? rehearsal
+        if (!saved) return
         try {
             await downloadBlob(
-                new Blob([JSON.stringify(report, null, 2)], {type: "application/json"}),
-                `readiness-${event.id}.json`
+                new Blob([JSON.stringify(saved, null, 2)], {type: "application/json"}),
+                rehearsal
+                    ? `readiness-${rehearsal.comparison}-${event.id}.json`
+                    : `readiness-${event.id}.json`
             )
         } catch {
             setFailure(t("readiness.downloadError"))
@@ -153,9 +219,30 @@ export function ReadinessDialog({
             <DialogContent dividers>
                 <Stack spacing={2}>
                     <Typography>{t("readiness.description")}</Typography>
+                    <TextField
+                        select
+                        label={t("readiness.rehearsal.label")}
+                        value={comparison}
+                        disabled={pending}
+                        onChange={(change) => {
+                            setComparison(change.target.value as ReadinessComparison)
+                            clearResult()
+                        }}
+                    >
+                        {READINESS_COMPARISONS.map((mode) => (
+                            <MenuItem key={mode} value={mode}>
+                                {t(`readiness.rehearsal.modes.${mode}`)}
+                            </MenuItem>
+                        ))}
+                    </TextField>
+                    {comparison !== "production" && (
+                        <Alert severity="info">{t("readiness.rehearsal.readOnly")}</Alert>
+                    )}
                     <Box sx={{overflowWrap: "anywhere"}}>
                         <Typography variant="subtitle2" component="p">
-                            {t("logsScreen.readiness.fields.official")}
+                            {comparison === "production"
+                                ? t("logsScreen.readiness.fields.official")
+                                : t(`readiness.rehearsal.roles.${currentRole}`)}
                         </Typography>
                         <Typography>{alias(event)}</Typography>
                         <Typography variant="body2">{event.id}</Typography>
@@ -169,14 +256,19 @@ export function ReadinessDialog({
                         getOptionLabel={eventLabel}
                         onChange={(_event, value) => {
                             setTested(value)
-                            setReport(null)
-                            setFailure(null)
-                            setFailureDetail(null)
+                            clearResult()
                         }}
                         noOptionsText={t("readiness.noEvents")}
                         loadingText={t("common.label.loadingData")}
                         renderInput={(params) => (
-                            <TextField {...params} label={t("readiness.testedEvent")} />
+                            <TextField
+                                {...params}
+                                label={
+                                    comparison === "production"
+                                        ? t("readiness.testedEvent")
+                                        : t(`readiness.rehearsal.roles.${selectedRole}`)
+                                }
+                            />
                         )}
                         renderOption={(props, option) => (
                             <li {...props} key={option.id}>
@@ -288,13 +380,73 @@ export function ReadinessDialog({
                             <Typography variant="body2">{t("readiness.snapshot")}</Typography>
                         </>
                     )}
+                    {rehearsal && (
+                        <>
+                            <Alert severity={VERDICT_SEVERITY[rehearsal.verdict]}>
+                                {t(`readiness.rehearsal.verdicts.${rehearsal.verdict}`)}
+                            </Alert>
+                            <Typography>
+                                {t("logsScreen.readiness.fields.checked_at")}:{" "}
+                                {rehearsal.checked_at}
+                            </Typography>
+                            <List disablePadding aria-label={t("readiness.results")}>
+                                {rehearsal.checks.map((check) => (
+                                    <ListItem
+                                        key={check.kind}
+                                        disableGutters
+                                        sx={{gap: 1, alignItems: "flex-start"}}
+                                    >
+                                        <Chip
+                                            size="small"
+                                            sx={{flexShrink: 0}}
+                                            color={VERDICT_COLOR[check.verdict]}
+                                            label={t(`readiness.rehearsal.chips.${check.verdict}`)}
+                                        />
+                                        <Box sx={{minWidth: 0, overflowWrap: "anywhere"}}>
+                                            <Typography sx={{m: 0}}>
+                                                {t(`readiness.rehearsal.checks.${check.kind}`)}
+                                            </Typography>
+                                            <Typography
+                                                variant="body2"
+                                                color="text.secondary"
+                                                sx={{m: 0}}
+                                            >
+                                                {t("readiness.condition")}:{" "}
+                                                <span>{check.message}</span>
+                                            </Typography>
+                                            {!!check.findings?.length && (
+                                                <Box
+                                                    component="ul"
+                                                    aria-label={t("readiness.reasons")}
+                                                    sx={{m: 0, pl: 2}}
+                                                >
+                                                    {check.findings.map((finding, index) => (
+                                                        <Typography
+                                                            component="li"
+                                                            variant="body2"
+                                                            key={index}
+                                                        >
+                                                            {rehearsalFindingText(t, finding)}
+                                                        </Typography>
+                                                    ))}
+                                                </Box>
+                                            )}
+                                        </Box>
+                                    </ListItem>
+                                ))}
+                            </List>
+                            <Typography variant="body2">{t("readiness.snapshot")}</Typography>
+                        </>
+                    )}
                 </Stack>
             </DialogContent>
             <DialogActions sx={{flexWrap: "wrap", gap: 1}}>
                 <Button disabled={pending} onClick={onClose}>
                     {t("readiness.close")}
                 </Button>
-                {report && <Button onClick={download}>{t("readiness.download")}</Button>}
+                {(report || rehearsal) && (
+                    <Button onClick={download}>{t("readiness.download")}</Button>
+                )}
                 <Button
                     variant="contained"
                     disabled={!tested || pending || loading || !!error}

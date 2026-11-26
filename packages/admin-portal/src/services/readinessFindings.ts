@@ -43,7 +43,7 @@ export const READINESS_CERTIFICATION_REASONS = [
     "invalid_sha256",
 ] as const
 
-const EVENT_ROLES = ["official", "tested", "both"] as const
+const EVENT_ROLES = ["official", "tested", "both", "ert", "stl"] as const
 
 export interface IReadinessFinding {
     code: string

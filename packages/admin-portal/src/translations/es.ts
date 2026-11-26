@@ -484,10 +484,50 @@ const spanishTranslation: TranslationType = {
             noDetail: "El servidor no dio más detalle sobre esta comprobación.",
             reasons: "Por qué falló",
             noArea: "ninguna área o un área desconocida",
+            rehearsal: {
+                label: "Comparación",
+                readOnly: "Comparación de ensayo de solo lectura. No se escribe nada en ningún evento ni se registra preparación.",
+                modes: {
+                    production: "Preparación de producción (firmada)",
+                    rehearsal_ert_stl: "Ensayo: ERT y STL (solo lectura)",
+                    rehearsal_official_ert: "Ensayo: oficial y ERT (solo lectura)",
+                    rehearsal_official_stl: "Ensayo: oficial y STL (solo lectura)",
+                },
+                roles: {
+                    official: "Evento oficial",
+                    tested: "Evento de prueba",
+                    ert: "Evento ERT",
+                    stl: "Evento STL",
+                },
+                verdicts: {
+                    consistent: "Comparación de ensayo coherente. No es una verificación de preparación.",
+                    inconsistent: "Comparación de ensayo incoherente. Resuelva los hallazgos y vuelva a ejecutarla.",
+                    not_verified: "No verificado. La evidencia disponible no puede probar esta comparación.",
+                },
+                chips: {
+                    consistent: "Coherente",
+                    inconsistent: "Incoherente",
+                    not_verified: "No verificado",
+                },
+                checks: {
+                    configuration: "Misma configuración firmada aprobada, importada por separado",
+                    own_census: "Censo certificado propio de cada evento",
+                    census_subset: "El censo STL es un subconjunto del censo oficial",
+                    lifecycle: "Ciclo de vida: oficial intacto, ensayos cerrados",
+                    seal: "Publicación y sellos propios de cada ensayo",
+                },
+                findings: {
+                    revision_not_distinct: "Ambos eventos tienen la revisión de paquete {{revision}}; cada uno necesita su propia revisión importada por separado.",
+                    subset_area_exceeds: "El censo STL tiene {{stl}} votantes en {{area}}, más que los {{official}} del censo oficial certificado.",
+                    subset_not_verified: "Subconjunto no verificado: las importaciones certificadas solo registran hashes de archivo y recuentos por área. No hay identidad estable de votante, registro certificado de pertenencia ni selección aprobada de votantes STL que pruebe que cada votante STL es votante oficial.",
+                },
+            },
             eventRoles: {
                 official: "oficial",
                 tested: "de prueba",
                 both: "ambos",
+                ert: "ERT",
+                stl: "STL",
             },
             scope: {
                 event: "El evento {{event}}",

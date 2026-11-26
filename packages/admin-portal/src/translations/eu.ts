@@ -98,10 +98,50 @@ const basqueTranslation: TranslationType = {
             noDetail: "Zerbitzariak ez du egiaztapen honi buruzko xehetasun gehiagorik eman.",
             reasons: "Zergatik huts egin duen",
             noArea: "eremurik gabe edo eremu ezezagun batean",
+            rehearsal: {
+                label: "Konparazioa",
+                readOnly: "Irakurtzeko soilik den entsegu-konparazioa. Ez da ezer idazten gertaeretan eta ez da prestutasunik erregistratzen.",
+                modes: {
+                    production: "Ekoizpen-prestutasuna (sinatua)",
+                    rehearsal_ert_stl: "Entsegua: ERT eta STL (irakurtzeko soilik)",
+                    rehearsal_official_ert: "Entsegua: ofiziala eta ERT (irakurtzeko soilik)",
+                    rehearsal_official_stl: "Entsegua: ofiziala eta STL (irakurtzeko soilik)",
+                },
+                roles: {
+                    official: "Gertaera ofiziala",
+                    tested: "Probako gertaera",
+                    ert: "ERT gertaera",
+                    stl: "STL gertaera",
+                },
+                verdicts: {
+                    consistent: "Entsegu-konparazioa koherentea da. Ez da prestutasun-egiaztapena.",
+                    inconsistent: "Entsegu-konparazioa ez da koherentea. Konpondu aurkikuntzak eta exekutatu berriro.",
+                    not_verified: "Egiaztatu gabe. Eskuragarri dagoen ebidentziak ezin du konparazio hau frogatu.",
+                },
+                chips: {
+                    consistent: "Koherentea",
+                    inconsistent: "Ez koherentea",
+                    not_verified: "Egiaztatu gabe",
+                },
+                checks: {
+                    configuration: "Onartutako konfigurazio sinatu bera, bereiz inportatua",
+                    own_census: "Gertaera bakoitzaren errolda ziurtatua",
+                    census_subset: "STL errolda errolda ofizialaren azpimultzoa da",
+                    lifecycle: "Bizi-zikloa: ofiziala ukitu gabe, entseguak itxita",
+                    seal: "Entsegu bakoitzaren argitalpena eta zigiluak",
+                },
+                findings: {
+                    revision_not_distinct: "Bi gertaerek {{revision}} pakete-berrikuspena dute; bakoitzak bereiz inportatutako berrikuspena behar du.",
+                    subset_area_exceeds: "STL erroldak {{stl}} hautesle ditu {{area}} eremuan, errolda ofizial ziurtatuaren {{official}} baino gehiago.",
+                    subset_not_verified: "Azpimultzoa egiaztatu gabe: inportazio ziurtatuek fitxategi-hashak eta eremuko zenbaketak soilik erregistratzen dituzte. Ez dago hautesle-identitate egonkorrik, kidetza-erregistro ziurtaturik edo STL hautesleen hautaketa onarturik STL hautesle bakoitza hautesle ofiziala dela frogatzeko.",
+                },
+            },
             eventRoles: {
                 official: "ofiziala",
                 tested: "probakoa",
                 both: "biak",
+                ert: "ERT",
+                stl: "STL",
             },
             scope: {
                 event: "Gertaera ({{event}})",

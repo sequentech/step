@@ -103,10 +103,50 @@ const frenchTranslation: TranslationType = {
             noDetail: "Le serveur n’a donné aucun autre détail pour ce contrôle.",
             reasons: "Pourquoi il a échoué",
             noArea: "aucune zone ou une zone inconnue",
+            rehearsal: {
+                label: "Comparaison",
+                readOnly: "Comparaison de répétition en lecture seule. Rien n’est écrit dans les événements et aucune préparation n’est enregistrée.",
+                modes: {
+                    production: "Préparation de production (signée)",
+                    rehearsal_ert_stl: "Répétition : ERT et STL (lecture seule)",
+                    rehearsal_official_ert: "Répétition : officiel et ERT (lecture seule)",
+                    rehearsal_official_stl: "Répétition : officiel et STL (lecture seule)",
+                },
+                roles: {
+                    official: "Événement officiel",
+                    tested: "Événement de test",
+                    ert: "Événement ERT",
+                    stl: "Événement STL",
+                },
+                verdicts: {
+                    consistent: "Comparaison de répétition cohérente. Ce n’est pas une vérification de préparation.",
+                    inconsistent: "Comparaison de répétition incohérente. Résolvez les constats et relancez-la.",
+                    not_verified: "Non vérifié. Les preuves disponibles ne peuvent pas établir cette comparaison.",
+                },
+                chips: {
+                    consistent: "Cohérent",
+                    inconsistent: "Incohérent",
+                    not_verified: "Non vérifié",
+                },
+                checks: {
+                    configuration: "Même configuration signée approuvée, importée séparément",
+                    own_census: "Recensement certifié propre à chaque événement",
+                    census_subset: "Le recensement STL est un sous-ensemble du recensement officiel",
+                    lifecycle: "Cycle de vie : officiel intact, répétitions clôturées",
+                    seal: "Publication et scellés propres à chaque répétition",
+                },
+                findings: {
+                    revision_not_distinct: "Les deux événements portent la révision de paquet {{revision}} ; chacun a besoin de sa propre révision importée séparément.",
+                    subset_area_exceeds: "Le recensement STL compte {{stl}} électeurs dans {{area}}, plus que les {{official}} du recensement officiel certifié.",
+                    subset_not_verified: "Sous-ensemble non vérifié : les imports certifiés n’enregistrent que les empreintes de fichier et les nombres par zone. Aucune identité d’électeur stable, aucun registre d’appartenance certifié ni aucune sélection approuvée des électeurs STL ne prouve que chaque électeur STL est un électeur officiel.",
+                },
+            },
             eventRoles: {
                 official: "officiel",
                 tested: "de test",
                 both: "les deux",
+                ert: "ERT",
+                stl: "STL",
             },
             scope: {
                 event: "L’événement {{event}}",

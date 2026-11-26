@@ -99,10 +99,50 @@ const catalanTranslation: TranslationType = {
             noDetail: "El servidor no ha donat més detalls sobre aquesta comprovació.",
             reasons: "Per què ha fallat",
             noArea: "cap àrea o una àrea desconeguda",
+            rehearsal: {
+                label: "Comparació",
+                readOnly: "Comparació d’assaig només de lectura. No s’escriu res a cap esdeveniment ni es registra preparació.",
+                modes: {
+                    production: "Preparació de producció (signada)",
+                    rehearsal_ert_stl: "Assaig: ERT i STL (només lectura)",
+                    rehearsal_official_ert: "Assaig: oficial i ERT (només lectura)",
+                    rehearsal_official_stl: "Assaig: oficial i STL (només lectura)",
+                },
+                roles: {
+                    official: "Esdeveniment oficial",
+                    tested: "Esdeveniment de prova",
+                    ert: "Esdeveniment ERT",
+                    stl: "Esdeveniment STL",
+                },
+                verdicts: {
+                    consistent: "Comparació d’assaig coherent. No és una verificació de preparació.",
+                    inconsistent: "Comparació d’assaig incoherent. Resoleu les troballes i torneu-la a executar.",
+                    not_verified: "No verificat. L’evidència disponible no pot provar aquesta comparació.",
+                },
+                chips: {
+                    consistent: "Coherent",
+                    inconsistent: "Incoherent",
+                    not_verified: "No verificat",
+                },
+                checks: {
+                    configuration: "Mateixa configuració signada aprovada, importada per separat",
+                    own_census: "Cens certificat propi de cada esdeveniment",
+                    census_subset: "El cens STL és un subconjunt del cens oficial",
+                    lifecycle: "Cicle de vida: oficial intacte, assajos tancats",
+                    seal: "Publicació i segells propis de cada assaig",
+                },
+                findings: {
+                    revision_not_distinct: "Tots dos esdeveniments tenen la revisió de paquet {{revision}}; cadascun necessita la seva pròpia revisió importada per separat.",
+                    subset_area_exceeds: "El cens STL té {{stl}} votants a {{area}}, més que els {{official}} del cens oficial certificat.",
+                    subset_not_verified: "Subconjunt no verificat: les importacions certificades només registren hashes de fitxer i recomptes per àrea. No hi ha identitat estable de votant, registre certificat de pertinença ni selecció aprovada de votants STL que provi que cada votant STL és votant oficial.",
+                },
+            },
             eventRoles: {
                 official: "oficial",
                 tested: "de prova",
                 both: "tots dos",
+                ert: "ERT",
+                stl: "STL",
             },
             scope: {
                 event: "L'esdeveniment {{event}}",
