@@ -201,7 +201,10 @@ export const partnerAccount = (): IMessagingAccount => ({
  * The account's full callback URL at the webhook component, as
  * messaging_account_callback_url returns it (a 64 hex key).
  */
-export const callbackUrl = (provider: "meta" | "viber" | "aws", accountId: string): string =>
+export const callbackUrl = (
+    provider: "meta" | "viber" | "aws" | "infobip",
+    accountId: string
+): string =>
     `https://callbacks.example.org/webhooks/${provider}/${accountId.replace(/-/g, "").padEnd(64, "0")}`
 
 /** The callback URL action's handler for stories: one URL per account. */
