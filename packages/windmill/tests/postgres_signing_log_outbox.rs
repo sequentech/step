@@ -88,6 +88,7 @@ async fn step(tx: &Transaction<'_>, s: Scope, kind: SigningStatementKind, n: u32
 struct TestKeys {
     sd: SigningData,
     prepared: Vec<String>,
+    unavailable_user: Option<&'static str>,
 }
 
 impl TestKeys {
@@ -96,6 +97,7 @@ impl TestKeys {
         TestKeys {
             sd: SigningData::new(sk.clone(), "", sk),
             prepared: vec![],
+            unavailable_user: None,
         }
     }
 }
@@ -113,7 +115,10 @@ impl SigningLogKeys for TestKeys {
         Ok("board".to_string())
     }
 
-    fn signing_data(&self, _: &SigningLogOutboxRow) -> Result<&SigningData> {
+    fn signing_data(&self, row: &SigningLogOutboxRow) -> Result<&SigningData> {
+        if self.unavailable_user.is_some() && self.unavailable_user == row.user_id.as_deref() {
+            return Err(anyhow!("the actor's key could not be prepared"));
+        }
         Ok(&self.sd)
     }
 }
@@ -833,4 +838,88 @@ async fn a_pass_refused_for_the_logs_order_signs_and_fails_nothing() {
         })
     );
     assert!(outbox(&tx, s).await.iter().all(|row| row.2 && row.3 == 0));
+}
+
+/// Prepare for the whole batch, append only the valid prefix, back off the
+/// exact USER row, then continue in order without duplicating its prefix.
+#[tokio::test]
+async fn an_unavailable_actor_key_only_holds_the_ordered_suffix() {
+    let _turn = COMMITTED.lock().await;
+    let pool = schema::pool().await;
+    let mut worker = pool.get().await.unwrap();
+    let tx = worker.transaction().await.unwrap();
+    let s = scope(&tx).await;
+    let first = step(&tx, s, SigningStatementKind::SigningRequestCreated, 1).await;
+    let second = step(&tx, s, SigningStatementKind::SigningRequestSigned, 2).await;
+    let third = step(&tx, s, SigningStatementKind::SigningRequestCancelled, 3).await;
+    let failed_id: i64 = tx
+        .query_one(
+            "SELECT id FROM sequent_backend.signing_log_outbox
+             WHERE tenant_id = $1 AND election_event_id = $2 AND step_id = $3
+               AND event_type = 'USER'",
+            &[&s.tenant, &s.event, &second],
+        )
+        .await
+        .unwrap()
+        .get(0);
+    tx.commit().await.unwrap();
+
+    let mut keys = TestKeys::new();
+    keys.unavailable_user = Some("user-2");
+    let mut board = MemoryBoard::default();
+    let PassOutcome::Posted(pass) =
+        post_event_outbox(&mut worker, s.tenant, s.event, &mut keys, &mut board)
+            .await
+            .unwrap()
+    else {
+        panic!("healthy prefix was not posted");
+    };
+    assert_eq!(pass.posted, 2);
+    assert_eq!(pass.failed, Some(failed_id));
+    assert_eq!(board.posted(), vec![(first, USER), (first, SYSTEM)]);
+    let rows = committed_outbox(&pool, s).await;
+    assert_eq!(
+        rows.iter().map(|r| (r.2, r.3, r.4)).collect::<Vec<_>>(),
+        vec![
+            (true, 0, false),
+            (true, 0, false),
+            (false, 1, true),
+            (false, 0, false),
+            (false, 0, false),
+            (false, 0, false),
+        ]
+    );
+    let outcome = post_event_outbox(&mut worker, s.tenant, s.event, &mut keys, &mut board)
+        .await
+        .unwrap();
+    assert!(matches!(outcome, PassOutcome::Backoff(_)), "{outcome:?}");
+    assert_eq!(board.inserts, 2);
+
+    let tx = worker.transaction().await.unwrap();
+    end_backoff(&tx, s).await;
+    tx.commit().await.unwrap();
+    keys.unavailable_user = None;
+    let PassOutcome::Posted(pass) =
+        post_event_outbox(&mut worker, s.tenant, s.event, &mut keys, &mut board)
+            .await
+            .unwrap()
+    else {
+        panic!("retry did not recover");
+    };
+    assert_eq!(pass.posted, 4);
+    assert_eq!(pass.failed, None);
+    assert_eq!(board.inserts, 6);
+    assert_eq!(
+        board.posted(),
+        vec![
+            (first, USER),
+            (first, SYSTEM),
+            (second, USER),
+            (second, SYSTEM),
+            (third, USER),
+            (third, SYSTEM),
+        ]
+    );
+    assert!(committed_outbox(&pool, s).await.iter().all(|r| r.2 && !r.4));
+    remove(&pool, &[s]).await;
 }

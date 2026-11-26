@@ -65,6 +65,8 @@ pub(crate) mod operational_initialize;
 #[cfg(feature = "operational-signing-candidate")]
 pub(crate) mod operational_initialize_broker;
 #[cfg(feature = "operational-signing-candidate")]
+pub(crate) mod operational_initialize_setup;
+#[cfg(feature = "operational-signing-candidate")]
 pub(crate) mod operational_setup;
 pub mod permissions;
 pub mod phone_blacklist;
@@ -82,6 +84,7 @@ pub mod scheduled_event;
 pub mod set_voter_authentication;
 pub mod support_materials;
 pub mod tally_ceremony;
+pub mod tally_public_verification;
 pub mod tally_sheets;
 pub mod templates;
 pub mod trustee_boards;

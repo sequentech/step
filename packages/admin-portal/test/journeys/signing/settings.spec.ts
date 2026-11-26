@@ -76,6 +76,59 @@ test.describe("a configuration manager", () => {
         roles: [...READ, "signing-rules-read", "signing-rules-write", "role-read", "role-write"],
     })
 
+    test("lists the two Enrollment actions by name and keeps their descriptions in the drawers", async ({
+        page,
+        portal,
+    }) => {
+        mockSigningEvent(portal)
+        mockSignaturesTab(
+            portal,
+            tabState({
+                rules: [
+                    rule("approve-voter", {signatures: 2}),
+                    rule("authorize-manual-verification", {requirement: "not-required" as never}),
+                ],
+            })
+        )
+        portal.graphql.on("getRoles", () => ({
+            data: {get_roles: {items: [], total: {aggregate: {count: 0}}}},
+        }))
+        await openSignatures(page, portal)
+        const enrollment = page.locator('tr[data-action="approve-voter"]')
+        const manual = page.locator('tr[data-action="authorize-manual-verification"]')
+        const enrollmentLabel = "Approve an enrollment application"
+        const manualLabel = "Authorize manual identity verification"
+        await expect(enrollment.getByRole("cell").first()).toHaveText(enrollmentLabel)
+        await expect(enrollment.getByRole("cell").nth(3)).toHaveText("2")
+        await expect(manual.getByRole("cell").first()).toHaveText(manualLabel)
+        await expect(manual.getByRole("cell").nth(3)).toHaveText("Off")
+        await expect(enrollment.locator("xpath=preceding-sibling::tr[1]")).toHaveText("Enrollment")
+        await expect(enrollment.locator("xpath=following-sibling::tr[1]")).toHaveAttribute(
+            "data-action",
+            "authorize-manual-verification"
+        )
+        for (const [row, label, description] of [
+            [
+                enrollment,
+                enrollmentLabel,
+                "In the Approvals tab, this approves the application and issues the voter’s credentials.",
+            ],
+            [
+                manual,
+                manualLabel,
+                "In the Voters list, this allows staff to issue a document with a verification link. It does not approve an enrollment application.",
+            ],
+        ] as const) {
+            await row.getByRole("button", {name: `Edit ${label}`, exact: true}).click()
+            const drawer = page.getByRole("dialog", {name: label, exact: true})
+            await expect(drawer.getByRole("heading", {name: label, exact: true})).toBeVisible()
+            await expect(drawer.getByText(description, {exact: true})).toBeVisible()
+            await drawer.getByRole("button", {name: "Close", exact: true}).click()
+            await expect(drawer).toBeHidden()
+        }
+        expect(mutations(portal)).toHaveLength(0)
+    })
+
     test("asks for 2 of 3 signatures to close voting and adds a role who can sign", async ({
         page,
         portal,

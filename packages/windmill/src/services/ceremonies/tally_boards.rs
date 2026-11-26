@@ -12,6 +12,7 @@ use crate::postgres::area::get_event_areas;
 use crate::postgres::election_event::get_election_event_by_id;
 use crate::postgres::tally_session::merge_tally_session_annotation;
 use crate::services::ballot_box_reads::count_unresolved_votes;
+use crate::services::cast_vote_seal::SealedBallotsRefused;
 use crate::services::cast_votes::find_area_ballots;
 use crate::services::celery_app::get_worker_threads;
 use crate::services::ceremonies::batch_anonymity::{
@@ -555,6 +556,7 @@ pub async fn extract_tally_boards(
     .map(Arc::new);
 
     let mut extracted = Vec::with_capacity(tally_session_contests.len());
+    let mut refusals = Vec::new();
 
     for tally_session_contest_batch in tally_session_contests.chunks(get_worker_threads()) {
         let mut tasks = Vec::with_capacity(get_worker_threads());
@@ -947,15 +949,39 @@ pub async fn extract_tally_boards(
             });
             tasks.push(task);
         }
-        let mut extracted_batch: Vec<ExtractedContestArea> = futures::future::try_join_all(tasks)
-            .await?
-            .into_iter()
-            .collect::<Result<Vec<_>>>()?;
-
-        extracted.append(&mut extracted_batch);
+        sort_area_results(
+            futures::future::try_join_all(tasks).await?,
+            &mut extracted,
+            &mut refusals,
+        )?;
     }
 
-    Ok(extracted)
+    match SealedBallotsRefused::joined(refusals) {
+        Some(refused) => Err(refused.into()),
+        None => Ok(extracted),
+    }
+}
+
+/// Moves each area's extraction into `extracted` and each refusal of its
+/// sealed ballots into `refusals`; any other error is returned, to be
+/// retried. Refused areas don't stop the extraction: the tally session fails
+/// with them, so its one failure names every area an operator has to look
+/// at rather than one per new session.
+fn sort_area_results<T>(
+    results: Vec<Result<T>>,
+    extracted: &mut Vec<T>,
+    refusals: &mut Vec<SealedBallotsRefused>,
+) -> Result<()> {
+    for result in results {
+        match result {
+            Ok(area) => extracted.push(area),
+            Err(error) => match SealedBallotsRefused::of(&error) {
+                Some(refusal) => refusals.push(refusal.clone()),
+                None => return Err(error),
+            },
+        }
+    }
+    Ok(())
 }
 
 fn voters_replacing_their_delegation(
@@ -1026,9 +1052,10 @@ mod tests {
     use super::{
         election_areas, election_voter_authorization_aliases, electorate_counts,
         published_for_session, recorded_election_areas, recorded_election_electorates,
-        voters_replacing_their_delegation, ElectionElectorates, ElectorateCount,
+        sort_area_results, voters_replacing_their_delegation, ElectionElectorates, ElectorateCount,
         ELECTION_AREAS_ANNOTATION, ELECTION_ELECTORATES_ANNOTATION,
     };
+    use crate::services::cast_vote_seal::SealedBallotsRefused;
     use crate::services::users::VoterMultiplicityColumn;
     use chrono::{DateTime, Local};
     use sequent_core::types::hasura::core::{BallotStyle, TallySession, TallySessionContest};
@@ -1443,5 +1470,43 @@ mod tests {
             ELECTION_AREAS_ANNOTATION: serde_json::to_string(&areas).unwrap(),
         })));
         assert!(recorded_election_areas(&imported).is_err());
+    }
+    #[test]
+    fn refused_areas_are_gathered_and_any_other_error_stops_the_extraction() {
+        let refused = |area: &str| -> anyhow::Result<u32> {
+            Err(
+                anyhow::Error::new(SealedBallotsRefused(format!("{area} refused")))
+                    .context("extracting an area"),
+            )
+        };
+        let mut extracted = Vec::new();
+        let mut refusals = Vec::new();
+        sort_area_results(
+            vec![Ok(1), refused("area 2"), Ok(3), refused("area 4")],
+            &mut extracted,
+            &mut refusals,
+        )
+        .unwrap();
+        assert_eq!(extracted, vec![1, 3]);
+        assert_eq!(
+            refusals,
+            vec![
+                SealedBallotsRefused("area 2 refused".into()),
+                SealedBallotsRefused("area 4 refused".into())
+            ]
+        );
+
+        let error = sort_area_results(
+            vec![
+                refused("area 5"),
+                Err(anyhow::anyhow!("the HSM does not answer")),
+                Ok(6),
+            ],
+            &mut extracted,
+            &mut refusals,
+        )
+        .unwrap_err();
+        assert_eq!(error.to_string(), "the HSM does not answer");
+        assert_eq!(SealedBallotsRefused::of(&error), None);
     }
 }

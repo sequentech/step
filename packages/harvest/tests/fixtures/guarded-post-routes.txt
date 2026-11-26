@@ -118,6 +118,7 @@
 /list-user-roles
 /locate-ballot
 /manage-election-dates
+/manual-verification-authority
 /messages/link
 /messages/link/confirm
 /messages/link/status
@@ -187,6 +188,8 @@
 /staff-certificates
 /staff-certificates/<id>/revoke
 /submit-tally-resolution
+/tally-public-verification-boards
+/tally-public-verification-transcript
 /trustee/action-result
 /trustee/boards/report
 /trustee/request-server-custody

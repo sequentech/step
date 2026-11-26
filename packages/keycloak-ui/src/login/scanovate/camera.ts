@@ -20,25 +20,53 @@ export enum CameraFacing {
     Front = "front",
 }
 
-const STORAGE_KEY = "sequent.scanovate.documentCamera"
+/**
+ * The steps whose camera is remembered on the device, each by itself: a
+ * tablet on a stand may read documents with one camera and take the photo of
+ * the voter holding their ID with the other. The values are the storage keys.
+ */
+export enum CameraChoice {
+    Document = "sequent.scanovate.documentCamera",
+    Holding = "sequent.scanovate.holdingCamera",
+}
 
 type ChoiceStorage = Pick<Storage, "getItem" | "setItem">
 
-/** The camera last chosen on this device; the rear one until one is. */
-export function storedFacing(storage: Pick<Storage, "getItem"> | undefined): CameraFacing {
+/**
+ * The camera a realm starts the document scan with: its authenticator's
+ * document-camera setting as the page receives it. The rear one, which
+ * Scanovate's page opens by itself, unless the realm names the front one.
+ */
+export function startingFacing(configured: unknown): CameraFacing {
+    return configured === CameraFacing.Front ? CameraFacing.Front : CameraFacing.Rear
+}
+
+/**
+ * The camera last chosen on this device; until one is, the one the realm
+ * starts with. A choice made on the device wins: whoever set the tablet up
+ * saw which camera reads documents there.
+ */
+export function storedFacing(
+    storage: Pick<Storage, "getItem"> | undefined,
+    starting: CameraFacing = CameraFacing.Rear,
+    choice: CameraChoice = CameraChoice.Document
+): CameraFacing {
     try {
-        return storage?.getItem(STORAGE_KEY) === CameraFacing.Front
-            ? CameraFacing.Front
-            : CameraFacing.Rear
+        const chosen = storage?.getItem(choice)
+        return chosen === CameraFacing.Front || chosen === CameraFacing.Rear ? chosen : starting
     } catch {
-        return CameraFacing.Rear
+        return starting
     }
 }
 
 /** Keeps the choice on the device: a tablet set up once stays as it was set. */
-export function storeFacing(storage: ChoiceStorage | undefined, facing: CameraFacing): void {
+export function storeFacing(
+    storage: ChoiceStorage | undefined,
+    facing: CameraFacing,
+    choice: CameraChoice = CameraChoice.Document
+): void {
     try {
-        storage?.setItem(STORAGE_KEY, facing)
+        storage?.setItem(choice, facing)
     } catch {
         // A browser that refuses storage keeps the choice for this page only.
     }
@@ -46,6 +74,15 @@ export function storeFacing(storage: ChoiceStorage | undefined, facing: CameraFa
 
 export function otherFacing(facing: CameraFacing): CameraFacing {
     return facing === CameraFacing.Rear ? CameraFacing.Front : CameraFacing.Rear
+}
+
+/** The browser's storage for this site, where there is one. */
+export function deviceStorage(): Storage | undefined {
+    try {
+        return window.localStorage
+    } catch {
+        return undefined
+    }
 }
 
 /** How many cameras the browser lists: all of them once one has been allowed. */

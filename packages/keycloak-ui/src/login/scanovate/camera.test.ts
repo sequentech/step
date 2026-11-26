@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {describe, expect, it, vi} from "vitest"
 import {
+    CameraChoice,
     CameraFacing,
     cameraCount,
     canChooseCamera,
     chooseCamera,
     otherFacing,
+    startingFacing,
     storeFacing,
     storedFacing,
     watchFrame,
@@ -67,6 +69,49 @@ describe("the remembered choice", () => {
         expect(storedFacing(undefined)).toBe(CameraFacing.Rear)
     })
 
+    it("starts with the camera the realm names", () => {
+        expect(startingFacing("front")).toBe(CameraFacing.Front)
+        expect(startingFacing("rear")).toBe(CameraFacing.Rear)
+        // An authenticator that predates the setting sends nothing.
+        expect(startingFacing(undefined)).toBe(CameraFacing.Rear)
+        expect(startingFacing("sideways")).toBe(CameraFacing.Rear)
+
+        expect(storedFacing(memory(), CameraFacing.Front)).toBe(CameraFacing.Front)
+        expect(storedFacing(undefined, CameraFacing.Front)).toBe(CameraFacing.Front)
+        expect(
+            storedFacing(
+                memory({"sequent.scanovate.documentCamera": "sideways"}),
+                CameraFacing.Front
+            )
+        ).toBe(CameraFacing.Front)
+    })
+
+    it("lets the choice made on the device win over the realm's", () => {
+        const storage = memory()
+        storeFacing(storage, CameraFacing.Rear)
+        expect(storedFacing(storage, CameraFacing.Front)).toBe(CameraFacing.Rear)
+        storeFacing(storage, CameraFacing.Front)
+        expect(storedFacing(storage, CameraFacing.Rear)).toBe(CameraFacing.Front)
+    })
+
+    it("keeps the holding photo's camera apart from the document scan's", () => {
+        const storage = memory()
+        // A selfie: the front camera until one is chosen on the device.
+        expect(storedFacing(storage, CameraFacing.Front, CameraChoice.Holding)).toBe(
+            CameraFacing.Front
+        )
+        storeFacing(storage, CameraFacing.Rear, CameraChoice.Holding)
+        expect(storedFacing(storage, CameraFacing.Front, CameraChoice.Holding)).toBe(
+            CameraFacing.Rear
+        )
+        // The document scan's choice is its own.
+        expect(storedFacing(storage, CameraFacing.Front)).toBe(CameraFacing.Front)
+        storeFacing(storage, CameraFacing.Front)
+        expect(storedFacing(storage, CameraFacing.Front, CameraChoice.Holding)).toBe(
+            CameraFacing.Rear
+        )
+    })
+
     it("is kept on the device", () => {
         const storage = memory()
         storeFacing(storage, CameraFacing.Front)
@@ -86,6 +131,7 @@ describe("the remembered choice", () => {
             },
         }
         expect(storedFacing(refusing)).toBe(CameraFacing.Rear)
+        expect(storedFacing(refusing, CameraFacing.Front)).toBe(CameraFacing.Front)
         expect(() => storeFacing(refusing, CameraFacing.Front)).not.toThrow()
         expect(() => storeFacing(undefined, CameraFacing.Front)).not.toThrow()
     })

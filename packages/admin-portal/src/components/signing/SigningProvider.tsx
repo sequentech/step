@@ -18,8 +18,10 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {useTenantStore} from "@/providers/TenantContextProvider"
 import {createSigningApi, type ISigningApi, type ISigningPanelData} from "@/lib/signing/api"
 import {takeResume} from "@/lib/signing/request"
+import {readDisplayReturn, discardDisplayReturn} from "@/lib/signing/operationalGoldReturn"
 import type {SigningAction} from "@/lib/signing/types"
 import type {IPermissions} from "@/types/keycloak"
+import type {DirectApprovalAttempts} from "./DirectApprovalDialog"
 import {SigningRequestPanel} from "./SigningRequestPanel"
 
 export interface IOpenSigningRequestOptions {
@@ -31,6 +33,8 @@ export interface IOpenSigningRequestOptions {
     onChange?: (data: ISigningPanelData) => void
     /** Only a request of this election event is shown (a handover note names it). */
     eventId?: string
+    electionId?: string
+    restoreManagedDialog?: boolean
 }
 
 export interface ISigningRequestContext {
@@ -136,6 +140,7 @@ export const SigningProvider: React.FC<ISigningProviderProps> = ({
     )
     const [opened, setOpened] = useState<IOpened | null>(null)
     const [visible, setVisible] = useState(false)
+    const [directApprovalAttempts] = useState<DirectApprovalAttempts>(() => new Map())
 
     const open = useCallback((requestId: string, options: IOpenSigningRequestOptions = {}) => {
         setOpened((previous) => ({requestId, ...options, nonce: (previous?.nonce ?? 0) + 1}))
@@ -149,6 +154,19 @@ export const SigningProvider: React.FC<ISigningProviderProps> = ({
         try {
             target ??= window.sessionStorage
         } catch {
+            return
+        }
+        const managed = readDisplayReturn(target, window.location.pathname, {
+            tenant: tenantId,
+            official: userId,
+        })
+        if (managed) {
+            discardDisplayReturn(target)
+            open(managed.marker.request, {
+                eventId: managed.marker.event,
+                electionId: managed.marker.page.election_id,
+                restoreManagedDialog: true,
+            })
             return
         }
         const resume = takeResume(target, {tenantId})
@@ -177,10 +195,13 @@ export const SigningProvider: React.FC<ISigningProviderProps> = ({
                         open={visible}
                         onClose={close}
                         autoSign={opened.sign}
+                        directApprovalAttempts={directApprovalAttempts}
                         completionActions={actions}
                         onChange={opened.onChange}
                         storage={storage}
                         expectedEventId={opened.eventId}
+                        expectedElectionId={opened.electionId}
+                        restoreManagedDialog={opened.restoreManagedDialog}
                     />
                 </SigningErrorBoundary>
             ) : null}

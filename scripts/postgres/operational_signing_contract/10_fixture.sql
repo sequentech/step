@@ -6,6 +6,7 @@
 \set ON_ERROR_STOP 1
 
 CREATE ROLE os_t_harvest LOGIN;
+CREATE ROLE os14990_windmill LOGIN;
 CREATE ROLE os_t_setup LOGIN;
 CREATE ROLE os_t_setup_device LOGIN;
 CREATE ROLE os_t_broker LOGIN;
@@ -14,7 +15,7 @@ CREATE ROLE os_t_init_device LOGIN;
 CREATE ROLE os_t_device LOGIN;
 CREATE ROLE os_t_admin LOGIN;
 CREATE ROLE os_t_nobody LOGIN;
-GRANT sequent_os_approve TO os_t_harvest;
+GRANT sequent_os_approve TO os_t_harvest, os14990_windmill;
 GRANT sequent_os_setup_authority TO os_t_setup;
 GRANT sequent_os_setup_device TO os_t_setup_device;
 GRANT sequent_os_initialize_orchestrator TO os_t_broker;
@@ -23,7 +24,7 @@ GRANT sequent_os_initialize_device TO os_t_init_device;
 GRANT sequent_os_device TO os_t_device;
 GRANT sequent_os_ledger_data_owner TO os_t_admin;
 -- The ordinary application privilege the verbatim Windmill quorum query needs.
-GRANT SELECT ON sequent_backend.signing_document_revision TO os_t_harvest;
+GRANT SELECT ON sequent_backend.signing_document_revision TO os_t_harvest, os14990_windmill;
 GRANT USAGE ON SCHEMA sequent_backend TO os_t_nobody;
 
 -- Assertion helpers, callable by every test login.

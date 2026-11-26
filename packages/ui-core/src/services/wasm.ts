@@ -676,12 +676,24 @@ export const getVotingScreenBackPolicyValues = (): IVotingScreenBackPolicy[] => 
     }
 }
 
+export enum ECastVoteSealPolicy {
+    NOT_SEALED = "NOT_SEALED",
+    SEALED = "SEALED",
+}
+
+/** Whether the event seals its cast votes; `key_entry` is its signed key pin entry, checked by the verifier. */
+export type CastVoteSealTrust =
+    | {policy: ECastVoteSealPolicy.NOT_SEALED}
+    | {policy: ECastVoteSealPolicy.SEALED; key_entry: string}
+
 export interface BallotPrivacyTrust {
     tenant_id: string
     election_event_id: string
     election_id: string
     system_public_key: string
     ballot_box_key: IBallotBoxKey
+    /** Absent reads as not sealed: a sealed ballot is then refused. */
+    cast_vote_seal?: CastVoteSealTrust
 }
 
 export interface BallotPrivacyProof {

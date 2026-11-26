@@ -853,6 +853,7 @@ const dutchTranslation: TranslationType = {
                     adminKey: "Beheersleutel van {{name}}",
                     systemOnly: "Alleen de systeemsleutel van het log",
                     systemSignature: "Systeemhandtekening",
+                    approverKeyFingerprint: "Vingerafdruk van de sleutel van de goedkeurder",
                     publicKey: "Gepubliceerde beheersleutel",
                 },
             },
@@ -913,6 +914,99 @@ const dutchTranslation: TranslationType = {
                 statementTimestampFrom: "Tijdstempel van de verklaring van",
                 statementTimestampTo: "Tijdstempel van de verklaring tot",
                 timeZone: "Tijdzone",
+            },
+            statementKind: {
+                Unknown: "Onbekende vermelding",
+                CastVote: "Stem uitgebracht",
+                CastVoteError: "Stem uitbrengen mislukt",
+                ElectionPublish: "Verkiezing gepubliceerd",
+                ElectionVotingPeriodOpen: "Stemming geopend (verkiezing)",
+                ElectionVotingPeriodClose: "Stemming gesloten (verkiezing)",
+                ElectionVotingPeriodPause: "Stemming gepauzeerd (verkiezing)",
+                ElectionEventVotingPeriodOpen: "Stemming geopend (evenement)",
+                ElectionEventVotingPeriodClose: "Stemming gesloten (evenement)",
+                ElectionEventVotingPeriodPause: "Stemming gepauzeerd (evenement)",
+                KeyGeneration: "Sleutels gegenereerd",
+                KeyInsertionStart: "Sleutelinvoer gestart",
+                KeyInsertionCeremony: "Ceremonie voor sleutelinvoer",
+                TallyOpen: "Telling gestart",
+                TallyClose: "Telling voltooid",
+                TallyResumedWithResolution: "Telling hervat na een besluit",
+                TallyPausedPendingResolution: "Telling gepauzeerd in afwachting van een besluit",
+                TallyTieResolved: "Gelijke stand beslecht",
+                TallyTieResolutionUpdated: "Beslissing over gelijke stand bijgewerkt",
+                SendTemplate: "Sjabloon verzonden",
+                SendCommunications: "Berichten verzonden",
+                KeycloakUserEvent: "Gebeurtenis van gebruikersaccount",
+                VoterPublicKey: "Publieke sleutel van kiezer",
+                AdminPublicKey: "Publieke sleutel van beheerder",
+                CertificateAuthEvent: "Aanmelding met certificaat",
+                PhoneBlacklistUpdated: "Lijst met geblokkeerde telefoons bijgewerkt",
+                ResultsPublicationAction: "Publicatie van resultaten",
+                ExternalApiRequest: "Verzoek aan externe API",
+                ExternalReconciliation: "Externe afstemming",
+                BallotPublicationFailure: "Publicatie van stembiljet mislukt",
+                ElectoralLogCheckpoint: "Controlepunt van de log",
+                ElectoralLogContinuation: "Vervolg van de log",
+                MonitoringConfigChanged: "Monitoringinstellingen gewijzigd",
+                SigningRequestCreated: "Ondertekeningsverzoek aangemaakt",
+                SigningCertificateOpenFailed: "Ondertekeningscertificaat kon niet worden geopend",
+                SigningRequestSigned: "Goedkeuring ondertekend",
+                SigningSignatureRefused: "Handtekening geweigerd",
+                SigningCertificateRegistered: "Ondertekeningscertificaat geregistreerd",
+                SigningHandover: "Ondertekening overgedragen",
+                SigningRequestCancelled: "Ondertekeningsverzoek geannuleerd",
+                SigningRequestExpired: "Ondertekeningsverzoek verlopen",
+                SigningRequestCompleted: "Goedkeuringsdrempel bereikt",
+                SigningActionExecuted: "Goedgekeurde actie afgerond of mislukt",
+                SigningRuleChanged: "Ondertekeningsregel gewijzigd",
+                SigningPermissionChanged: "Ondertekeningsrecht gewijzigd",
+                SigningIssuerChanged: "Uitgever voor ondertekening gewijzigd",
+                SigningChecksChanged: "Ondertekeningscontroles gewijzigd",
+                SigningCertificateRevoked: "Ondertekeningscertificaat ingetrokken",
+                SigningRequestsExported: "Ondertekeningsverzoeken geëxporteerd",
+                LifecycleWindowChanged: "Venster van het stemschema gewijzigd",
+                ScheduleRecomputeApplied: "Schema herberekend",
+                ScheduleImported: "Schema geïmporteerd",
+                ScheduledOutcomeChanged: "Gepland resultaat gewijzigd",
+                ElectionInitialized: "Verkiezing geïnitialiseerd",
+                LockdownChanged: "Vergrendeling gewijzigd",
+                ConfigurationPackageImported: "Configuratiepakket geïmporteerd",
+                ReportGenerated: "Rapport gegenereerd",
+                ApprovalMatrixUpdated: "Goedkeuringsmatrix bijgewerkt",
+                BallotBoxSealed: "Stembus verzegeld",
+                BallotBoxSealFailed: "Verzegelen van stembus mislukt",
+                TallyBallotBoxVerified: "Stembus geverifieerd voor de telling",
+                TallyBallotBoxRejected: "Stembus afgewezen voor de telling",
+                TenantLogOpened: "Log van tenant geopend",
+                TenantAdminAction: "Beheeractie van tenant",
+                AdminChange: "Beheerwijziging",
+                KeycloakAdminEvent: "Gebeurtenis van identiteitsbeheer",
+                LogsExported: "Logs geëxporteerd",
+                LogWriterStarted: "Logschrijver gestart",
+                LogWriterStopped: "Logschrijver gestopt",
+                TransmissionFileDownloaded: "Verzendbestand gedownload",
+                VotersImported: "Kiezers geïmporteerd",
+                ReadinessVerified: "Gereedheid geverifieerd",
+                BallotReceived: "Stembiljet ontvangen",
+                BallotAudited: "Stembiljet gecontroleerd",
+                PseudonymResolved: "Pseudoniem herleid",
+                ForensicRead: "Forensische inzage",
+                CastVoteSealKeyPublished:
+                    "Versleutelingssleutel voor uitgebrachte stemmen gepubliceerd",
+            },
+            signingActivity: {
+                row: {
+                    created: "Handtekeningverzoek aangemaakt voor {{action}}",
+                    approved: "Goedkeuring ondertekend voor {{action}}",
+                    quorum: "Vereiste goedkeuringen verzameld voor {{action}}",
+                    completed: "Actie voltooid: {{action}}",
+                    failed: "Actie mislukt: {{action}}",
+                    cancelled: "Handtekeningverzoek geannuleerd voor {{action}}",
+                    expired: "Handtekeningverzoek verlopen voor {{action}}",
+                    rejected: "Handtekening geweigerd",
+                    progress: "({{approved}} van {{required}})",
+                },
             },
             scheduledOutcome: {
                 outcome: {
@@ -2233,11 +2327,13 @@ const dutchTranslation: TranslationType = {
                     subtitle: "Kiezer aanmaken",
                 },
                 manualVerification: {
-                    label: "Handmatig Verifiëren",
-                    verify: "Deze kiezer handmatig verifiëren",
-                    body: "Verifieer deze kiezer handmatig. U ontvangt een PDF met een QR-code link waarmee de kiezer kan inloggen zonder online KYC.",
+                    label: "Identiteit handmatig verifiëren",
+                    verify: "Verificatiedocument aanvragen",
+                    body: "Vraag een privé-pdf met een QR-code aan voor deze kiezer. Als er handtekeningen nodig zijn, wordt het document pas na goedkeuring uitgegeven. Dit keurt geen inschrijvingsaanvraag goed.",
                     noEmailOrPhone:
                         "Deze kiezer kan niet handmatig worden geverifieerd omdat er geen e-mailadres of telefoonnummer aan hen is toegewezen.",
+                    waiting: "Het document wacht op handtekeningen.",
+                    download: "Verificatiedocument downloaden",
                 },
                 emptyHeader: "Nog geen kiezers.",
                 askCreate: "Wilt u er een aanmaken?",
@@ -2284,10 +2380,11 @@ const dutchTranslation: TranslationType = {
                     deleteError: "Fout bij verwijderen kiezer",
                     deleteSuccess: "Kiezer verwijderd",
                     multipleDeleteSuccess: "Kiezers verwijderd",
-                    manualVerificationError: "Fout bij handmatig verifiëren van de kiezer",
+                    manualVerificationError:
+                        "Handmatige identiteitsverificatie aanvragen is niet gelukt",
 
                     manualVerificationSuccess:
-                        "Kiezer succesvol handmatig geverifieerd, PDF downloaden...",
+                        "Het document voor handmatige identiteitsverificatie wordt gedownload.",
                 },
             },
             roles: {
@@ -2341,7 +2438,9 @@ const dutchTranslation: TranslationType = {
                 "sign-generate-election-returns": "Ondertekenen: processen-verbaal genereren",
                 "sign-generate-reports": "Ondertekenen: andere verkiezingsrapporten genereren",
                 "sign-transmit-results": "Ondertekenen: resultaten verzenden",
-                "sign-approve-voter": "Ondertekenen: een kiezer handmatig goedkeuren",
+                "sign-approve-voter": "Ondertekenen: een inschrijvingsaanvraag goedkeuren",
+                "sign-authorize-manual-verification":
+                    "Ondertekenen: handmatige identiteitsverificatie toestaan",
                 "sign-approve-configuration": "Ondertekenen: een configuratieversie goedkeuren",
                 "sign-key-ceremony": "Ondertekenen: een sleutelfragment bevestigen",
                 "sign-tally-key": "Ondertekenen: een sleutelfragment bijdragen",
@@ -3189,6 +3288,52 @@ const dutchTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "Er was een fout bij het uploaden van de handtekening",
             downloadTransmissionPackage: "Transmissiepakket Downloaden",
+            publicVerification: {
+                sectionTitle: "Cryptografische verificatie",
+                description:
+                    "Verifieer in je browser het prikbord van deze telling: het zero-knowledge-bewijs van elk versleuteld stembiljet, het shufflebewijs van elke mix en het ontsleutelingsbewijs van elke trustee. De controles zijn verankerd in de gegevens die dit platform over de prikborden bewaart. Voer voor een onafhankelijke audit de opdracht trustee verify uit met ankers uit het ondertekende configuratiepakket.",
+                verify: "Prikbord verifiëren",
+                verifyAgain: "Opnieuw verifiëren",
+                unavailable: "Beschikbaar zodra de telling is afgerond.",
+                loading: "De prikborden van de telling worden gelezen…",
+                progress: "Batch {{current}} van {{total}} wordt geverifieerd…",
+                empty: "Deze telling heeft geen prikbordbatches om te verifiëren.",
+                failed: "De verificatie kon niet worden uitgevoerd: {{message}}",
+                verifierUnavailable: "Deze browser kon de verificatie niet starten: {{message}}",
+                summary: {
+                    verified: "Alle batches geverifieerd: {{count}} van {{total}}.",
+                    invalid:
+                        "Batches die de verificatie niet doorstonden: {{count}} van {{total}}.",
+                    error: "Batches die niet konden worden geverifieerd: {{count}} van {{total}}. Elke rij geeft de reden.",
+                    incomplete:
+                        "Onvolledige batches: {{count}} van {{total}}. Vereiste publicaties ontbreken, dus ze zijn niet geverifieerd.",
+                },
+                checks: {
+                    title: "Geverifieerd in elke batch:",
+                    ballots: "Het zero-knowledge-bewijs van elk versleuteld stembiljet",
+                    mixing: "Het shufflebewijs van elke mix, op volgorde, onderschreven door de andere trustees",
+                    decryption:
+                        "Het ontsleutelingsbewijs van elke trustee, met de uitslag opnieuw berekend en gelijk",
+                },
+                columns: {
+                    batch: "Batch",
+                    ballots: "Stembiljetten",
+                    result: "Resultaat",
+                    detail: "Details",
+                },
+                batch: "Batch {{batch}}",
+                status: {
+                    verified: "Geverifieerd",
+                    incomplete: "Onvolledig",
+                    invalid: "Ongeldig",
+                    error: "Niet geverifieerd",
+                },
+                detail: {
+                    verified: "Alle bewijzen en publicaties van de batch zijn gecontroleerd.",
+                    incomplete: "Vereiste publicaties ontbreken op het prikbord.",
+                },
+                download: "Bewijs downloaden",
+            },
             resultsPublication: {
                 sectionTitle: "Publiceren op de resultatenwebsite",
                 policyTitle: "Resultatenwebsite",
@@ -3380,6 +3525,19 @@ const dutchTranslation: TranslationType = {
                     "Beëindig het stemmen in elke geselecteerde verkiezing en stop de actieve stemkanalen voordat u de telling aanmaakt.",
                 sealBallotBoxes:
                     "Een verkiezing kan worden geteld zodra elke stembus is verzegeld en het zegelrecord ervan is gepubliceerd.",
+            },
+            failure: {
+                title: "De telling is mislukt",
+                detail: "Details",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "Een telbord komt niet overeen met de configuratie die bij de sleutelceremonie is vastgelegd.",
+                    INVALID_BOARD_CONTENT: "Een telbord bevat inhoud die niet kan worden gebruikt.",
+                    TRUSTEE_HALTED: "Een trustee heeft de telling gestopt en een fout gemeld.",
+                    SEALED_BALLOTS_REFUSED:
+                        "Sommige opgeslagen stembiljetten kunnen niet worden geteld: ze gaan niet open of komen niet overeen met hun records. Er zijn geen stembiljetten geteld. Los de oorzaak op en start daarna een nieuwe telling.",
+                    unknown: "De telling kon niet worden voltooid.",
+                },
             },
             createTallySuccess: "Telling aangemaakt",
             createTallyError: "Kon telling niet aanmaken",
@@ -5129,6 +5287,25 @@ const dutchTranslation: TranslationType = {
                 'Weet u zeker dat u het certificaat "{{name}}" (vingerafdruk: {{fingerprint}}) wilt verwijderen?',
         },
         signing: {
+            localSetup: {
+                continue: "Doorgaan met aanmelden",
+                register: "Mijn ondertekeningssleutel registreren",
+                phase: {
+                    "setup-available":
+                        "Stel uw ondertekeningssleutel voor deze post in. Verifieer eerst uw wachtwoord en eenmalige code.",
+                    "waiting-for-setup-gold":
+                        "Ga verder met aanmelden om uw identiteit voor deze instelling te verifiëren.",
+                    "setup-confirmation-required":
+                        "Identiteit geverifieerd. Kies Mijn ondertekeningssleutel registreren om de sleutel voor deze post aan te maken.",
+                    "setup-retry-available":
+                        "Het apparaat heeft dit verzoek nog niet opgehaald. U kunt hetzelfde verzoek opnieuw verzenden.",
+                    "setup-pending":
+                        "De instelling is nog niet voltooid. Voor goedkeuring zijn een ondertekeningssleutel en een geregistreerd personeelscertificaat vereist.",
+                    "setup-recovery-required":
+                        "Een beheerder moet deze instelling controleren. Er is geen goedkeuring vastgelegd.",
+                },
+            },
+            operational: englishTranslation.translations.signing.operational,
             terms: {
                 post: "Post",
                 posts: "Posts",
@@ -5136,6 +5313,8 @@ const dutchTranslation: TranslationType = {
             tab: {
                 title: "Handtekeningen",
                 intro: "Beschermde acties worden pas uitgevoerd nadat genoeg bevoegde personen ze met hun digitale certificaat hebben ondertekend. Elke handtekening wordt gecontroleerd tegen de vertrouwde uitgevers en vastgelegd in het logboek.",
+                hsmIntro:
+                    "Bevoegde personen keuren beschermde acties goed. Elke goedkeuring wordt vastgelegd in het verkiezingslogboek.",
                 protectedActions: "Beschermde acties",
                 certificates: "Certificaten",
                 requests: "Verzoeken",
@@ -5224,13 +5403,22 @@ const dutchTranslation: TranslationType = {
                         "Gestart in Telling, Verzending. Stelt het ondertekende resultatenpakket samen voor de bestemmingen; de handtekeningen vullen de handtekeningenlijst.",
                 },
                 "approve-voter": {
-                    label: "Een kiezer handmatig goedkeuren",
-                    short: "Goedkeuring kiezer",
-                    permissionName: "een kiezer handmatig goedkeuren",
-                    object: "goedkeuring van de kiezer",
+                    label: "Een inschrijvingsaanvraag goedkeuren",
+                    short: "Goedkeuring van inschrijving",
+                    permissionName: "een inschrijvingsaanvraag goedkeuren",
+                    object: "goedkeuring van inschrijving",
                     appliesTo: "De $t(signing.terms.post) van de kiezer",
                     description:
-                        "Gestart in Goedkeuringen. Keurt de kiezer goed en geeft de inloggegevens uit.",
+                        "Op het tabblad Goedkeuringen wordt de aanvraag goedgekeurd en krijgt de kiezer inloggegevens.",
+                },
+                "authorize-manual-verification": {
+                    label: "Handmatige identiteitsverificatie toestaan",
+                    short: "Handmatige identiteitsverificatie",
+                    permissionName: "handmatige identiteitsverificatie toestaan",
+                    object: "handmatige identiteitsverificatie",
+                    appliesTo: "De $t(signing.terms.post) van de kiezer",
+                    description:
+                        "In de kiezerslijst kan een medewerker hiermee een document met een verificatielink uitgeven. Dit keurt geen inschrijvingsaanvraag goed.",
                 },
                 "approve-configuration": {
                     label: "Een configuratieversie goedkeuren",
@@ -5261,6 +5449,8 @@ const dutchTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Elke handtekening wordt gezet met het digitale certificaat op het beveiligingstoken van de ondertekenaar.",
+                hsmIntro:
+                    "Bekijk wie elke actie kan goedkeuren en hoeveel goedkeuringen nodig zijn.",
                 columns: {
                     action: "Actie",
                     appliesTo: "Geldt voor",
@@ -5672,6 +5862,12 @@ const dutchTranslation: TranslationType = {
                 scheduled_events: "Nieuwe geplande gebeurtenissen",
                 ballots_and_contests: "Stembiljetten en verkiezingen",
                 application_id: "Aanvraag",
+                voter_id: "Kiezersaccount",
+                initiation_id: "Verificatieverzoek",
+                post_id: "$t(signing.terms.post)",
+                area_id: "Kiesgebied van de kiezer",
+                requester_id: "Account van de aanvrager",
+                secret_attributes: "Namen van beschermde kenmerken",
                 applicant_registry_id: "Registeraccount",
                 decision: "Besluit",
                 submitted_at: "Ingediend",
@@ -5708,6 +5904,8 @@ const dutchTranslation: TranslationType = {
                     "generate-reports": "$t(signing.actions.generate-reports.label)",
                     "transmit-results": "$t(signing.actions.transmit-results.label)",
                     "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "authorize-manual-verification":
+                        "$t(signing.actions.authorize-manual-verification.label)",
                     "approve-configuration": "$t(signing.actions.approve-configuration.label)",
                     "key-ceremony": "$t(signing.actions.key-ceremony.label)",
                     "tally-key": "$t(signing.actions.tally-key.label)",

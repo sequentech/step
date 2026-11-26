@@ -35,7 +35,10 @@ import {validatePanel, type ISigningApi, type ISigningPanelData} from "@/lib/sig
 import {SignBlock, isViewer, signBlock, signerCertificate, signerName} from "@/lib/signing/request"
 import {requestStatusKey, shownRequestStatus} from "@/lib/signing/status"
 import {SigningRequestStatus} from "@/lib/signing/types"
+import {DirectApprovalDialog, type DirectApprovalAttempts} from "./DirectApprovalDialog"
 import {SigningDialog} from "./SigningDialog"
+import {OperationalApprovalDialog} from "./OperationalApprovalDialog"
+import {signingExperience} from "@/lib/signing/operationalApprovalPolicy"
 import {SigningHandoverLauncher} from "./SigningHandoverLauncher"
 import {SigningSubject} from "./SigningSubject"
 import {actionDescription, requestTitle, useSigningFormat} from "./format"
@@ -68,6 +71,9 @@ export interface ISigningRequestPanelProps {
     storage?: Storage
     /** A request of another election event than this is closed instead of shown (handover notes). */
     expectedEventId?: string
+    expectedElectionId?: string
+    directApprovalAttempts?: DirectApprovalAttempts
+    restoreManagedDialog?: boolean
 }
 
 const CancelRequestDialog: React.FC<{
@@ -232,6 +238,9 @@ export const SigningRequestPanel: React.FC<ISigningRequestPanelProps> = ({
     onChange,
     storage,
     expectedEventId,
+    expectedElectionId,
+    directApprovalAttempts,
+    restoreManagedDialog = false,
 }) => {
     const {t} = useTranslation()
     const {userId} = useContext(AuthContext)
@@ -239,28 +248,46 @@ export const SigningRequestPanel: React.FC<ISigningRequestPanelProps> = ({
     const titleId = useId()
     const [data, setData] = useState<ISigningPanelData | null>(null)
     const [loadFailed, setLoadFailed] = useState(false)
-    const [dialogOpen, setDialogOpen] = useState(false)
+    const [dialog, setDialog] = useState<ReturnType<typeof signingExperience> | null>(null)
+    const [attempts] = useState<DirectApprovalAttempts>(() => directApprovalAttempts ?? new Map())
     const [cancelOpen, setCancelOpen] = useState(false)
     const autoSignDone = useRef(false)
+    const closeRef = useRef(onClose)
+    closeRef.current = onClose
+    const loadingEpoch = useRef(0)
 
     const load = useCallback(async () => {
+        const epoch = ++loadingEpoch.current
         setLoadFailed(false)
         try {
             const loaded = validatePanel(await api.getRequest(requestId))
+            if (epoch !== loadingEpoch.current) return null
+            if (
+                loaded.request.id !== requestId ||
+                (expectedEventId && loaded.request.election_event_id !== expectedEventId) ||
+                (expectedElectionId && loaded.request.election_id !== expectedElectionId)
+            ) {
+                setData(null)
+                closeRef.current()
+                return null
+            }
             setData(loaded)
             return loaded
         } catch {
-            setLoadFailed(true)
+            if (epoch === loadingEpoch.current) setLoadFailed(true)
             return null
         }
-    }, [api, requestId])
+    }, [api, requestId, expectedEventId, expectedElectionId])
 
     useEffect(() => {
         setData(null)
-        setDialogOpen(false)
+        setDialog(null)
         autoSignDone.current = false
         if (open) {
             load().catch(() => undefined)
+        }
+        return () => {
+            loadingEpoch.current++
         }
     }, [open, load])
 
@@ -268,15 +295,19 @@ export const SigningRequestPanel: React.FC<ISigningRequestPanelProps> = ({
         ? signBlock(data, userId, permissions.canSign(data.request.action))
         : SignBlock.Closed
 
+    const signing = data
+        ? signingExperience(data.operational_signing_mode, data.request.action)
+        : "unavailable"
+
     useEffect(() => {
         if (!data || autoSignDone.current) return
         autoSignDone.current = true
-        if (expectedEventId && data.request.election_event_id !== expectedEventId) {
-            onClose()
-            return
-        }
-        if (autoSign && block === SignBlock.None) setDialogOpen(true)
-    }, [autoSign, data, block, expectedEventId, onClose])
+        if (
+            (restoreManagedDialog && signing === "managed") ||
+            (autoSign && block === SignBlock.None && signing !== "unavailable")
+        )
+            setDialog(signing)
+    }, [autoSign, data, block, restoreManagedDialog, signing])
 
     const refresh = async () => {
         const loaded = await load()
@@ -386,12 +417,14 @@ export const SigningRequestPanel: React.FC<ISigningRequestPanelProps> = ({
                         </Stack>
                     ) : null}
                     <Typography>
-                        {data.election_name
-                            ? t("signing.panel.rulePost", {
-                                  n: data.request.required,
-                                  post: data.election_name,
-                              })
-                            : t("signing.panel.ruleEvent", {n: data.request.required})}
+                        {signing === "direct"
+                            ? t("signing.operational.rule", {count: data.request.required})
+                            : data.election_name
+                              ? t("signing.panel.rulePost", {
+                                    n: data.request.required,
+                                    post: data.election_name,
+                                })
+                              : t("signing.panel.ruleEvent", {n: data.request.required})}
                     </Typography>
                     <SigningSubject data={data} api={api} />
                     <Divider />
@@ -419,23 +452,53 @@ export const SigningRequestPanel: React.FC<ISigningRequestPanelProps> = ({
                         <Alert severity="error">{t("signing.widget.panel.failed")}</Alert>
                     ) : null}
                     {waiting ? (
-                        <Stack direction="row" spacing={1.5} sx={{flexWrap: "wrap", rowGap: 1.5}}>
-                            {block === SignBlock.None ? (
+                        <Stack direction="row" sx={{flexWrap: "wrap", gap: 1.5}}>
+                            {block === SignBlock.None && signing !== "unavailable" ? (
                                 <Button
                                     variant="contained"
                                     startIcon={<DrawIcon />}
-                                    onClick={() => setDialogOpen(true)}
+                                    onClick={() => setDialog(signing)}
                                 >
-                                    {t("signing.panel.sign")}
+                                    {t(
+                                        signing === "direct"
+                                            ? "signing.operational.approve"
+                                            : "signing.panel.sign"
+                                    )}
                                 </Button>
                             ) : null}
-                            {canHandOver ? (
-                                <SigningHandoverLauncher data={data} api={api} storage={storage} />
+                            {block === SignBlock.None && signing === "unavailable" ? (
+                                <Alert severity="info">
+                                    {t("signing.operational.phase.unavailable")}
+                                </Alert>
                             ) : null}
-                            {canCancel ? (
-                                <Button color="inherit" onClick={() => setCancelOpen(true)}>
-                                    {t("signing.panel.cancel")}
-                                </Button>
+                            {canHandOver || canCancel ? (
+                                <Box
+                                    data-testid="signing-request-footer"
+                                    sx={{
+                                        display: "flex",
+                                        flexWrap: "wrap",
+                                        alignItems: "center",
+                                        gap: 1.5,
+                                        width: "100%",
+                                    }}
+                                >
+                                    {canHandOver ? (
+                                        <SigningHandoverLauncher
+                                            data={data}
+                                            api={api}
+                                            storage={storage}
+                                        />
+                                    ) : null}
+                                    {canCancel ? (
+                                        <Button
+                                            color="inherit"
+                                            sx={{marginInlineStart: "auto"}}
+                                            onClick={() => setCancelOpen(true)}
+                                        >
+                                            {t("signing.panel.cancel")}
+                                        </Button>
+                                    ) : null}
+                                </Box>
                             ) : null}
                         </Stack>
                     ) : null}
@@ -444,18 +507,37 @@ export const SigningRequestPanel: React.FC<ISigningRequestPanelProps> = ({
                             {completionActions(data)}
                         </Stack>
                     ) : null}
-                    <SigningDialog
-                        open={dialogOpen}
-                        data={data}
-                        api={api}
-                        onClose={() => setDialogOpen(false)}
-                        onSigned={() => {
-                            refresh().catch(() => undefined)
-                        }}
-                        onRequestChanged={() => {
-                            refresh().catch(() => undefined)
-                        }}
-                    />
+                    {open && dialog === "direct" && signing === "direct" ? (
+                        <DirectApprovalDialog
+                            data={data}
+                            api={api}
+                            reload={load}
+                            attempts={attempts}
+                            onChange={onChange}
+                            onClose={() => setDialog(null)}
+                        />
+                    ) : dialog === "legacy" && signing === "legacy" ? (
+                        <SigningDialog
+                            open
+                            data={data}
+                            api={api}
+                            onClose={() => setDialog(null)}
+                            onSigned={() => {
+                                refresh().catch(() => undefined)
+                            }}
+                            onRequestChanged={() => {
+                                refresh().catch(() => undefined)
+                            }}
+                        />
+                    ) : dialog === "managed" && signing === "managed" ? (
+                        <OperationalApprovalDialog
+                            data={data}
+                            api={api}
+                            eligible={block === SignBlock.None}
+                            onClose={() => setDialog(null)}
+                            onRefresh={() => void refresh()}
+                        />
+                    ) : null}
                     <CancelRequestDialog
                         open={cancelOpen}
                         onClose={() => setCancelOpen(false)}

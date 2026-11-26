@@ -15,6 +15,7 @@ import React, {useCallback, useContext, useEffect, useMemo, useRef, useState} fr
 import {WizardStyles} from "./styles/WizardStyles"
 import {TallyStyles} from "./styles/TallyStyles"
 import {MiruServers} from "./MiruServers"
+import {directHsmApprovalBuild} from "@/lib/signing/operationalApprovalPolicy"
 import {MiruSignatures} from "./MiruSignatures"
 import {theme, DropFile, Dialog} from "@sequentech/ui-essentials"
 import {Logs} from "./Logs"
@@ -824,40 +825,44 @@ export const MiruExportWizard: React.FC<IMiruExportWizardProps> = () => {
                     {t("signing.results.transmission.ended")}
                 </WizardStyles.AccordionSubTitle>
             ) : null}
-            {!signingRequest && !recreateToSign && isTrustee && canSignMiru && (
-                <Accordion
-                    sx={{width: "100%"}}
-                    expanded={expandedExports["tally-miru-upload"]}
-                    onChange={() =>
-                        setExpandedDataExports((prev: IExpanded) => ({
-                            ...prev,
-                            "tally-miru-upload": !prev["tally-miru-upload"],
-                        }))
-                    }
-                >
-                    <AccordionSummary>
-                        <Box className="flex flex-col items-start">
-                            <WizardStyles.AccordionTitle>
-                                {t("tally.uploadTransmissionPackage")}
-                            </WizardStyles.AccordionTitle>
-                            <WizardStyles.AccordionSubTitle>
-                                {t("tally.uploadTransmissionPackageDesc")}
-                            </WizardStyles.AccordionSubTitle>
-                        </Box>
-                    </AccordionSummary>
-                    <WizardStyles.AccordionDetails style={{zIndex: 100}}>
-                        <DropFile handleFiles={handleFiles} />
-                        <WizardStyles.StatusBox>
-                            {uploading ? <WizardStyles.DownloadProgress /> : null}
-                            {errors ? (
-                                <WizardStyles.ErrorMessage variant="body2">
-                                    {errors}
-                                </WizardStyles.ErrorMessage>
-                            ) : null}
-                        </WizardStyles.StatusBox>
-                    </WizardStyles.AccordionDetails>
-                </Accordion>
-            )}
+            {!directHsmApprovalBuild() &&
+                !signingRequest &&
+                !recreateToSign &&
+                isTrustee &&
+                canSignMiru && (
+                    <Accordion
+                        sx={{width: "100%"}}
+                        expanded={expandedExports["tally-miru-upload"]}
+                        onChange={() =>
+                            setExpandedDataExports((prev: IExpanded) => ({
+                                ...prev,
+                                "tally-miru-upload": !prev["tally-miru-upload"],
+                            }))
+                        }
+                    >
+                        <AccordionSummary>
+                            <Box className="flex flex-col items-start">
+                                <WizardStyles.AccordionTitle>
+                                    {t("tally.uploadTransmissionPackage")}
+                                </WizardStyles.AccordionTitle>
+                                <WizardStyles.AccordionSubTitle>
+                                    {t("tally.uploadTransmissionPackageDesc")}
+                                </WizardStyles.AccordionSubTitle>
+                            </Box>
+                        </AccordionSummary>
+                        <WizardStyles.AccordionDetails style={{zIndex: 100}}>
+                            <DropFile handleFiles={handleFiles} />
+                            <WizardStyles.StatusBox>
+                                {uploading ? <WizardStyles.DownloadProgress /> : null}
+                                {errors ? (
+                                    <WizardStyles.ErrorMessage variant="body2">
+                                        {errors}
+                                    </WizardStyles.ErrorMessage>
+                                ) : null}
+                            </WizardStyles.StatusBox>
+                        </WizardStyles.AccordionDetails>
+                    </Accordion>
+                )}
             <Accordion
                 sx={{width: "100%"}}
                 expanded={expandedExports["tally-miru-signatures"]}

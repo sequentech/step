@@ -98,6 +98,48 @@ For DKG-only verification, omit `tallyBoard` and set `tally_id` to `null`.
 messages obtained from a trusted platform record; deriving pins from the board
 being audited defeats the independent trust anchor.
 
+## Admin portal
+
+The Results step of a finished electoral tally has a **Cryptographic
+verification** section for users with `tally-results-read`. Its button runs the
+browser verifier over every tally board of the tally session, one after another,
+and lists each batch's status, ballot count and detail.
+
+The anchors come from the Hasura action `get_tally_public_verification_boards`
+(Harvest `POST /tally-public-verification-boards`, `tally-results-read`). For each
+tally board of the session in the caller's tenant, it returns the DKG and tally
+board names, the batch with the election, contest and area that own it, and the
+platform's stored `protocol_board.manager_message` of both boards in padded
+base64: the DKG board's `Configuration` and the tally board's `Ballots`. The page
+derives `configuration_hash`, `tally_id` and `ballots_hash` from those messages
+with `configurationHash`, `tallyIdentifier` and `ballotsHash`. It checks no
+ballot inclusion.
+
+Each batch's transcript comes from the Hasura action
+`get_tally_public_verification_transcript` (Harvest
+`POST /tally-public-verification-transcript`, `tally-results-read`, a 600 second
+action timeout). Harvest checks that the board belongs to the caller's tally
+session, reads the DKG and tally boards from `WBRAID_B4_URL` and their storage
+as `BoardHandle::export_messages` does for event exports, and returns every
+message in padded base64. The page passes `{version: 1, dkg_messages,
+tally_messages}` to `verifyTranscript`. The browser never reads the board
+service or its storage, so neither `WBRAID_BOARD_URL`, cross-origin access to the
+board and its storage, nor a forwarded storage port in the devcontainer affects
+the verification.
+
+The verifier runs in a dedicated module worker that loads `/wbraid-trustee/`
+and its thread pool, so the page stays responsive while a batch is checked;
+leaving the section stops the run and the worker. Both actions also require the
+caller's permission labels to allow every election of the tally session, as the
+other tally routes do.
+
+The anchors are the platform's records, so the page is a self-check of the
+platform against its boards, not an independent audit. **Download evidence**
+saves the run as JSON: each batch's `anchors`, `report` and the `transcript`
+that `trustee verify --transcript` reads, for example after
+`jq '.batches[0].transcript' evidence.json > transcript.json`. An independent
+auditor obtains the anchors from the signed configuration package instead.
+
 ## Checks and interpretation
 
 Verification checks configuration validity and the independent pin; canonical

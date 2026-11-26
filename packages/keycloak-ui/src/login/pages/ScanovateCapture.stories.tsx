@@ -5,6 +5,7 @@ import {expect, userEvent, waitFor, within} from "storybook/test"
 import type {DeepPartial} from "keycloakify/tools/DeepPartial"
 import {createKcPageStory} from "../KcPageStory"
 import type {KcContext} from "../KcContext"
+import {CameraChoice} from "../scanovate/camera"
 import {ScanovateErrorCode} from "../scanovate/types"
 
 const {KcPageStory} = createKcPageStory({pageId: "scanovate-capture.ftl"})
@@ -418,34 +419,116 @@ const HOLDING = {
 const withHolding = {scanovate: {holding: HOLDING}}
 
 /**
- * A front camera that films a test card, still unless `moving`, and the
- * uploads the page makes.
+ * Cameras that film a test card, still unless `moving`, and the uploads the
+ * page makes. Each camera paints its own background, so a photo tells which
+ * camera took it; like a phone, a second camera won't open while one is live.
+ * `capabilities` lists each camera's side, as Chrome does; without it only
+ * the open camera tells its side, as iOS Safari does.
  */
+type FakeCamera = {
+    deviceId: string
+    facing?: "user" | "environment"
+    color: string
+    fails?: boolean
+    // How long it takes to open, as a phone's camera can.
+    delayMs?: number
+}
+const FRONT_CAMERA: FakeCamera = {deviceId: "front", facing: "user", color: "#0d796a"}
+const BACK_CAMERA: FakeCamera = {deviceId: "back", facing: "environment", color: "#1f3a93"}
 type Uploads = {url: string; init: RequestInit}[]
 const uploads: Uploads = []
-function fakeCameraAndUploads(status = 200, camera = true, moving = false) {
+// Every camera stream the page opened, to check none is left on.
+const openedStreams: MediaStream[] = []
+// Whether the voter moves: a test that switches cameras keeps moving, so that
+// no photo is taken before it holds still.
+const motion = {moving: false}
+// The cameras plugged in, which a test can change.
+const rig: {cameras: FakeCamera[]} = {cameras: []}
+function fakeCameraAndUploads(
+    status = 200,
+    camera = true,
+    moving = false,
+    cameras: FakeCamera[] = [FRONT_CAMERA],
+    capabilities = true
+) {
+    // Each story starts as a device where no camera was chosen for the holding photo.
+    localStorage.removeItem(CameraChoice.Holding)
     uploads.length = 0
+    openedStreams.length = 0
+    motion.moving = moving
+    rig.cameras = [...cameras]
     const devices = navigator.mediaDevices
     const realGetUserMedia = devices.getUserMedia
+    const realEnumerateDevices = devices.enumerateDevices
     const realFetch = window.fetch
-    const canvas = document.createElement("canvas")
-    canvas.width = 640
-    canvas.height = 480
-    const paint = canvas.getContext("2d")!
-    let tick = 0
-    // Repainted all the time, as a camera delivers frames; only `moving` changes them.
-    const timer = setInterval(() => {
-        tick++
-        const x = moving ? (tick * 97) % 460 : 380
-        paint.fillStyle = "#0d796a"
-        paint.fillRect(0, 0, canvas.width, canvas.height)
-        paint.fillStyle = "#ffffff"
-        paint.fillRect(x, 160, 180, 240)
-    }, 50)
-    devices.getUserMedia = async () => {
-        if (!camera) throw new DOMException("Permission denied", "NotAllowedError")
-        return canvas.captureStream(20)
+    const timers: ReturnType<typeof setInterval>[] = []
+    const live = () =>
+        openedStreams.filter((stream) =>
+            stream.getTracks().some((track) => track.readyState === "live")
+        )
+    const film = (filmed: FakeCamera) => {
+        const canvas = document.createElement("canvas")
+        canvas.width = 640
+        canvas.height = 480
+        const paint = canvas.getContext("2d")!
+        let tick = 0
+        // Repainted all the time, as a camera delivers frames; only `moving` changes them.
+        timers.push(
+            setInterval(() => {
+                tick++
+                const x = motion.moving ? (tick * 97) % 460 : 380
+                paint.fillStyle = filmed.color
+                paint.fillRect(0, 0, canvas.width, canvas.height)
+                paint.fillStyle = "#ffffff"
+                paint.fillRect(x, 160, 180, 240)
+            }, 50)
+        )
+        const stream = canvas.captureStream(20)
+        const [track] = stream.getVideoTracks()
+        const settings = track.getSettings()
+        track.getSettings = () => ({
+            ...settings,
+            deviceId: filmed.deviceId,
+            ...(filmed.facing === undefined ? {} : {facingMode: filmed.facing}),
+        })
+        return stream
     }
+    devices.getUserMedia = async (constraints) => {
+        if (!camera) throw new DOMException("Permission denied", "NotAllowedError")
+        if (live().length > 0) {
+            throw new DOMException("Could not start video source", "NotReadableError")
+        }
+        const video = (constraints?.video ?? {}) as MediaTrackConstraints
+        const id = (video.deviceId as ConstrainDOMStringParameters | undefined)?.exact
+        const facing = video.facingMode as ConstrainDOMStringParameters | undefined
+        const side = facing?.exact ?? facing?.ideal
+        const chosen =
+            id !== undefined
+                ? rig.cameras.find((c) => c.deviceId === id)
+                : (rig.cameras.find((c) => c.facing === side) ??
+                  (facing?.exact === undefined ? rig.cameras[0] : undefined))
+        if (chosen === undefined) throw new DOMException("No camera", "OverconstrainedError")
+        if (chosen.fails) throw new DOMException("Could not start", "NotReadableError")
+        if (chosen.delayMs !== undefined) {
+            await new Promise((resolve) => setTimeout(resolve, chosen.delayMs))
+        }
+        const stream = film(chosen)
+        openedStreams.push(stream)
+        return stream
+    }
+    devices.enumerateDevices = async () =>
+        rig.cameras.map(
+            (c) =>
+                ({
+                    kind: "videoinput",
+                    deviceId: c.deviceId,
+                    groupId: "",
+                    label: "",
+                    ...(capabilities && c.facing !== undefined
+                        ? {getCapabilities: () => ({facingMode: [c.facing]})}
+                        : {}),
+                }) as unknown as MediaDeviceInfo
+        )
     window.fetch = async (input, init) => {
         const url = typeof input === "string" ? input : input.toString()
         if (url === HOLDING.url) {
@@ -456,11 +539,40 @@ function fakeCameraAndUploads(status = 200, camera = true, moving = false) {
     }
     const cleanSubmissions = keepSubmissions()
     return () => {
-        clearInterval(timer)
+        for (const timer of timers) clearInterval(timer)
+        for (const stream of openedStreams) stream.getTracks().forEach((track) => track.stop())
         devices.getUserMedia = realGetUserMedia
+        devices.enumerateDevices = realEnumerateDevices
         window.fetch = realFetch
         cleanSubmissions()
     }
+}
+
+/** How many camera streams are still on: never more than the one shown. */
+function liveCameras() {
+    return openedStreams.filter((stream) =>
+        stream.getTracks().some((track) => track.readyState === "live")
+    ).length
+}
+
+/** The background colour of a photo, which tells the camera that took it. */
+async function photoColor(blob: Blob): Promise<string> {
+    const bitmap = await createImageBitmap(blob)
+    const canvas = document.createElement("canvas")
+    canvas.width = bitmap.width
+    canvas.height = bitmap.height
+    const context = canvas.getContext("2d")!
+    context.drawImage(bitmap, 0, 0)
+    const [r, g, b] = context.getImageData(10, 10, 1, 1).data
+    return [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")
+}
+
+/** Whether a colour read back from a JPEG is close to the one painted. */
+function near(actual: string, expected: string) {
+    const channels = (hex: string) =>
+        [0, 2, 4].map((i) => parseInt(hex.replace("#", "").slice(i, i + 2), 16))
+    const a = channels(actual)
+    return channels(expected).every((v, i) => Math.abs(v - a[i]) <= 12)
 }
 
 async function throughScanovate(canvasElement: HTMLElement) {
@@ -628,5 +740,337 @@ export const HoldingWithoutCamera: Story = {
         await press(canvasElement, FAKE_LIVENESS, "Finish")
         await expect(await heading(canvasElement, "We couldn’t use your camera")).toBeVisible()
         await expect(uploads).toHaveLength(0)
+    },
+}
+
+/** One camera: no switch that leads nowhere. */
+export const HoldingSingleCamera: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () => fakeCameraAndUploads(),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        await expect(await canvas.findByText(/^Hold still: \d$/, {}, {timeout: 5000})).toBeVisible()
+        await expect(canvas.queryByRole("button", {name: "Switch camera"})).toBeNull()
+        await expect(canvasElement.querySelector(".scanovate-window video")).toHaveClass("mirrored")
+    },
+}
+
+/**
+ * A phone or tablet: the front camera first, as a mirror; the switch turns to
+ * the rear camera, shown as it sees, and back, with one camera on at a time,
+ * and the photo comes from the camera chosen. Done twice: with the cameras'
+ * sides listed (Chrome) and only the open camera's (iOS Safari).
+ */
+function holdingSwitchesBothWays(capabilities: boolean): Story {
+    return {
+        args: {kcContext: withHolding},
+        beforeEach: () =>
+            fakeCameraAndUploads(200, true, true, [FRONT_CAMERA, BACK_CAMERA], capabilities),
+        play: async ({canvasElement}) => {
+            const canvas = within(canvasElement)
+            await throughScanovate(canvasElement)
+            const video = () => canvasElement.querySelector(".scanovate-window video")!
+            const switchButton = await canvas.findByRole("button", {name: "Switch camera"})
+            await expect(video()).toHaveClass("mirrored")
+
+            await userEvent.click(switchButton)
+            await waitFor(() => expect(video()).not.toHaveClass("mirrored"))
+            await expect(liveCameras()).toBe(1)
+            // The step is the same, with nothing lost: still the holding photo.
+            await expect(await heading(canvasElement, "Take a photo holding your ID")).toBeVisible()
+
+            await userEvent.click(canvas.getByRole("button", {name: "Switch camera"}))
+            await waitFor(() => expect(video()).toHaveClass("mirrored"))
+            await expect(liveCameras()).toBe(1)
+
+            await userEvent.click(canvas.getByRole("button", {name: "Switch camera"}))
+            await waitFor(() => expect(video()).not.toHaveClass("mirrored"))
+            // The camera chosen is kept for the next voter on this device.
+            await expect(localStorage.getItem(CameraChoice.Holding)).toBe("rear")
+            motion.moving = false
+            await expect(await autoPhoto(canvasElement)).toBeVisible()
+            // No switch while the voter checks the photo.
+            await expect(canvas.queryByRole("button", {name: "Switch camera"})).toBeNull()
+            await userEvent.click(canvas.getByRole("button", {name: "Use this photo"}))
+            await waitFor(() => expect(submissions).toHaveLength(1))
+            const color = await photoColor(uploads[0].init.body as Blob)
+            await expect(near(color, BACK_CAMERA.color)).toBe(true)
+        },
+    }
+}
+export const HoldingSwitchesCamera: Story = holdingSwitchesBothWays(true)
+
+/**
+ * A tablet whose operator turned to the rear camera for an earlier voter: the
+ * holding photo opens it at once, shown as it sees, and the switch still
+ * leads back to the front camera.
+ */
+export const HoldingStartsWithTheCameraLastChosen: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () => {
+        const restore = fakeCameraAndUploads(200, true, true, [FRONT_CAMERA, BACK_CAMERA])
+        localStorage.setItem(CameraChoice.Holding, "rear")
+        return () => {
+            localStorage.removeItem(CameraChoice.Holding)
+            restore()
+        }
+    },
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        const video = () => canvasElement.querySelector(".scanovate-window video")!
+        const switchButton = await canvas.findByRole("button", {name: "Switch camera"})
+        await expect(video()).not.toHaveClass("mirrored")
+        await expect(liveCameras()).toBe(1)
+
+        await userEvent.click(switchButton)
+        await waitFor(() => expect(video()).toHaveClass("mirrored"))
+        await expect(localStorage.getItem(CameraChoice.Holding)).toBe("front")
+    },
+}
+export const HoldingSwitchesCameraWithoutListedSides: Story = holdingSwitchesBothWays(false)
+
+/** A computer with an external webcam: the switch goes round its cameras. */
+export const HoldingSwitchesWebcam: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () =>
+        fakeCameraAndUploads(200, true, true, [
+            {deviceId: "built-in", color: "#0d796a"},
+            {deviceId: "usb", color: "#8a2be2"},
+        ]),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        await userEvent.click(await canvas.findByRole("button", {name: "Switch camera"}))
+        await waitFor(() => expect(openedStreams).toHaveLength(2))
+        motion.moving = false
+        await expect(await autoPhoto(canvasElement)).toBeVisible()
+        // A webcam tells no side: it shows as a mirror, like the built-in one.
+        await expect(canvasElement.querySelector(".scanovate-window video")).toHaveClass("mirrored")
+        await expect(liveCameras()).toBe(1)
+        await userEvent.click(canvas.getByRole("button", {name: "Use this photo"}))
+        await waitFor(() => expect(submissions).toHaveLength(1))
+        await expect(near(await photoColor(uploads[0].init.body as Blob), "#8a2be2")).toBe(true)
+    },
+}
+
+/** A camera that won't open: the voter is told, and carries on with the one they had. */
+export const HoldingSwitchFails: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () =>
+        fakeCameraAndUploads(200, true, true, [FRONT_CAMERA, {...BACK_CAMERA, fails: true}]),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        await userEvent.click(await canvas.findByRole("button", {name: "Switch camera"}))
+        await expect(await canvas.findByRole("alert", {}, {timeout: 5000})).toHaveTextContent(
+            "The other camera couldn’t be opened. You can carry on with this one."
+        )
+        await expect(canvasElement.querySelector(".scanovate-window video")).toHaveClass("mirrored")
+        await expect(liveCameras()).toBe(1)
+        motion.moving = false
+        await expect(await autoPhoto(canvasElement)).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Use this photo"}))
+        await waitFor(() => expect(submissions).toHaveLength(1))
+        await expect(near(await photoColor(uploads[0].init.body as Blob), FRONT_CAMERA.color)).toBe(
+            true
+        )
+    },
+}
+
+/** Leaving the step turns the camera off. */
+export const HoldingClosedStopsCamera: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () => fakeCameraAndUploads(200, true, true, [FRONT_CAMERA, BACK_CAMERA]),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        await userEvent.click(await canvas.findByRole("button", {name: "Switch camera"}))
+        await waitFor(() => expect(openedStreams).toHaveLength(2))
+        await userEvent.click(canvas.getByRole("button", {name: "Close"}))
+        await expect(await heading(canvasElement, "The scan was closed")).toBeVisible()
+        await waitFor(() => expect(liveCameras()).toBe(0))
+    },
+}
+
+/**
+ * A camera slow to open: the voter is told the camera is switching, the last
+ * frame of the one left isn't shown, as if the camera had frozen, and no
+ * photo is taken of it.
+ */
+export const HoldingSlowSwitch: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () =>
+        fakeCameraAndUploads(200, true, true, [FRONT_CAMERA, {...BACK_CAMERA, delayMs: 2500}]),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        await userEvent.click(await canvas.findByRole("button", {name: "Switch camera"}))
+        motion.moving = false
+        await expect(await canvas.findByText("Switching camera…")).toBeVisible()
+        await expect(canvasElement.querySelector(".scanovate-window video")).not.toBeVisible()
+        await expect(canvas.getByRole("button", {name: "Switch camera"})).toBeDisabled()
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+        await expect(canvas.queryByRole("img", {name: "Your photo holding your ID"})).toBeNull()
+        await expect(await autoPhoto(canvasElement)).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Use this photo"}))
+        await waitFor(() => expect(submissions).toHaveLength(1))
+        await expect(near(await photoColor(uploads[0].init.body as Blob), BACK_CAMERA.color)).toBe(
+            true
+        )
+    },
+}
+
+/** The box of an element on the page. */
+function box(canvasElement: HTMLElement, selector: string) {
+    const element = canvasElement.ownerDocument.querySelector(selector)
+    if (element === null) throw new Error(`No ${selector}`)
+    return element.getBoundingClientRect()
+}
+
+function overlaps(a: DOMRect, b: DOMRect) {
+    return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+}
+
+/** The story in a window of that width, as a tablet or a computer would show it. */
+function atWidth(width: number) {
+    return {
+        globals: {viewport: {value: `width-${width}`, isRotated: false}},
+        parameters: {
+            viewport: {
+                options: {
+                    [`width-${width}`]: {
+                        name: `${width}px`,
+                        styles: {width: `${width}px`, height: "800px"},
+                    },
+                },
+            },
+        },
+    }
+}
+
+/**
+ * Windows wider than 720 px (tablets, computers, phones held sideways) show
+ * the mark in the top left corner, over the camera: the switch sits under it,
+ * where it can be seen. Narrow windows show the mark at the bottom.
+ */
+function holdingSwitchClearOfMark(width: number): Story {
+    return {
+        ...atWidth(width),
+        args: {kcContext: withHolding},
+        beforeEach: () => {
+            expect(window.innerWidth, "Actual browser viewport width").toBe(width)
+            return fakeCameraAndUploads(200, true, true, [FRONT_CAMERA, BACK_CAMERA])
+        },
+        play: async ({canvasElement}) => {
+            const canvas = within(canvasElement)
+            await throughScanovate(canvasElement)
+            const switchButton = await canvas.findByRole("button", {name: "Switch camera"})
+            const mark = box(canvasElement, ".auth-fullscreen-brand")
+            await expect(overlaps(switchButton.getBoundingClientRect(), mark)).toBe(false)
+            await expect(
+                overlaps(
+                    switchButton.getBoundingClientRect(),
+                    box(canvasElement, ".scanovate-window-heading")
+                )
+            ).toBe(false)
+            await userEvent.click(switchButton)
+            await waitFor(() =>
+                expect(canvasElement.querySelector(".scanovate-window video")).not.toHaveClass(
+                    "mirrored"
+                )
+            )
+        },
+    }
+}
+export const HoldingSwitchClearOfMarkTablet: Story = holdingSwitchClearOfMark(800)
+export const HoldingSwitchClearOfMarkComputer: Story = holdingSwitchClearOfMark(1280)
+export const HoldingSwitchClearOfMarkPhone: Story = holdingSwitchClearOfMark(390)
+
+/**
+ * The front camera is taken by another app, or doesn't answer: the page opens
+ * the rear one instead of leaving the voter without a camera, and the voter
+ * can switch back once the front one is free.
+ */
+export const HoldingFrontCameraBusy: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () =>
+        fakeCameraAndUploads(200, true, true, [{...FRONT_CAMERA, fails: true}, BACK_CAMERA]),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        await expect(await canvas.findByRole("button", {name: "Switch camera"})).toBeVisible()
+        await expect(canvasElement.querySelector(".scanovate-window video")).not.toHaveClass(
+            "mirrored"
+        )
+        await expect(liveCameras()).toBe(1)
+        motion.moving = false
+        await expect(await autoPhoto(canvasElement)).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Use this photo"}))
+        await waitFor(() => expect(submissions).toHaveLength(1))
+        await expect(near(await photoColor(uploads[0].init.body as Blob), BACK_CAMERA.color)).toBe(
+            true
+        )
+    },
+}
+
+/** Plugs a camera in or out, as the browser tells the page. */
+function plug(cameras: FakeCamera[]) {
+    rig.cameras = cameras
+    navigator.mediaDevices.dispatchEvent(new Event("devicechange"))
+}
+
+/**
+ * The webcam in use is unplugged: the page goes back to the camera that is
+ * left, without leaving the step, and there is nothing to switch to any more.
+ */
+export const HoldingWebcamUnplugged: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () =>
+        fakeCameraAndUploads(200, true, true, [
+            {deviceId: "built-in", color: "#0d796a"},
+            {deviceId: "usb", color: "#8a2be2"},
+        ]),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        await userEvent.click(await canvas.findByRole("button", {name: "Switch camera"}))
+        await waitFor(() => expect(openedStreams).toHaveLength(2))
+        const [usbTrack] = openedStreams[1].getVideoTracks()
+        plug([{deviceId: "built-in", color: "#0d796a"}])
+        usbTrack.stop()
+        usbTrack.dispatchEvent(new Event("ended"))
+        await waitFor(() => expect(openedStreams).toHaveLength(3))
+        await waitFor(() =>
+            expect(canvas.queryByRole("button", {name: "Switch camera"})).toBeNull()
+        )
+        await expect(await heading(canvasElement, "Take a photo holding your ID")).toBeVisible()
+        await expect(liveCameras()).toBe(1)
+        motion.moving = false
+        await expect(await autoPhoto(canvasElement)).toBeVisible()
+        await userEvent.click(canvas.getByRole("button", {name: "Use this photo"}))
+        await waitFor(() => expect(submissions).toHaveLength(1))
+        await expect(near(await photoColor(uploads[0].init.body as Blob), "#0d796a")).toBe(true)
+    },
+}
+
+/** A webcam plugged in during the step brings the switch. */
+export const HoldingWebcamPluggedIn: Story = {
+    args: {kcContext: withHolding},
+    beforeEach: () =>
+        fakeCameraAndUploads(200, true, true, [{deviceId: "built-in", color: "#0d796a"}]),
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await throughScanovate(canvasElement)
+        await expect(await canvas.findByRole("progressbar", {name: "Holding still"})).toBeVisible()
+        await expect(canvas.queryByRole("button", {name: "Switch camera"})).toBeNull()
+        plug([
+            {deviceId: "built-in", color: "#0d796a"},
+            {deviceId: "usb", color: "#8a2be2"},
+        ])
+        await userEvent.click(await canvas.findByRole("button", {name: "Switch camera"}))
+        await waitFor(() => expect(openedStreams).toHaveLength(2))
+        await expect(liveCameras()).toBe(1)
     },
 }

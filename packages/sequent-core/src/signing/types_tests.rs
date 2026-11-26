@@ -37,7 +37,7 @@ where
 }
 
 #[test]
-fn the_catalog_has_ten_actions_with_stable_ids() {
+fn the_catalog_has_stable_ids() {
     let ids: Vec<String> = SigningAction::iter()
         .map(|action| action.to_string())
         .collect();
@@ -51,6 +51,7 @@ fn the_catalog_has_ten_actions_with_stable_ids() {
             "generate-reports",
             "transmit-results",
             "approve-voter",
+            "authorize-manual-verification",
             "approve-configuration",
             "key-ceremony",
             "tally-key",
@@ -125,6 +126,13 @@ fn actions_map_to_their_scope_mode_document_and_group() {
         ),
         (
             SigningAction::ApproveVoter,
+            S::Post,
+            M::Deferred,
+            D::NoDocument,
+            G::Enrollment,
+        ),
+        (
+            SigningAction::AuthorizeManualVerification,
             S::Post,
             M::Deferred,
             D::NoDocument,

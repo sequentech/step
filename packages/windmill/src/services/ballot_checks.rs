@@ -100,7 +100,10 @@ fn checks_available_until(period: &ChecksPeriod) -> Option<String> {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct LocatedBallot {
     pub ballot_id: String,
-    pub content: String,
+    /// The voter's encrypted ballot; `None` in an election event whose cast
+    /// votes are sealed to its HSM key, where a check shows the Ballot ID
+    /// only.
+    pub content: Option<String>,
     pub cast_at: DateTime<Utc>,
 }
 
@@ -124,7 +127,7 @@ pub fn locate_ballot_output(
         [ballot] => LocateBallotOutput {
             status: LocateBallotStatus::Found,
             ballot_id: Some(ballot.ballot_id.clone()),
-            content: Some(ballot.content.clone()),
+            content: ballot.content.clone(),
             cast_at: Some(ballot.cast_at.to_rfc3339()),
             checks_available_until,
         },
@@ -181,6 +184,12 @@ pub async fn locate_ballot(
     let Some(ballot_id_match) = ballot_id_match(ballot_id, telephone_voting) else {
         return Ok(locate_ballot_output(&period, &[]));
     };
+    // In an event whose cast votes are sealed to its HSM key, the locator
+    // gives the Ballot ID (the ballot's hash) only, never the stored ballot.
+    let sealed =
+        crate::services::cast_vote_seal::sealing(hasura_transaction, tenant_id, election_event_id)
+            .await?
+            != crate::services::cast_vote_seal::Sealing::Legacy;
     let matches = match &ballot_id_match {
         BallotIdMatch::Received(_) => {
             let event =
@@ -202,7 +211,7 @@ pub async fn locate_ballot(
                     Ok(LocatedBallot {
                         ballot_id: cast.received_ballot_id,
                         cast_at: ballot_box_time(cast.ballot.ballot.accepted_at)?,
-                        content: cast.ballot.content,
+                        content: (!sealed).then_some(cast.ballot.content),
                     })
                 })
                 .collect::<Result<Vec<_>>>()?
@@ -229,7 +238,11 @@ pub async fn locate_ballot(
             .map(|vote| {
                 Ok(LocatedBallot {
                     ballot_id: vote.ballot_id.context("A cast ballot has no Ballot ID")?,
-                    content: vote.content.context("A cast ballot has no content")?,
+                    content: if sealed {
+                        None
+                    } else {
+                        Some(vote.content.context("A cast ballot has no content")?)
+                    },
                     cast_at: vote
                         .created_at
                         .as_deref()
@@ -259,7 +272,7 @@ mod tests {
     fn cast_vote(ballot_id: &str) -> LocatedBallot {
         LocatedBallot {
             ballot_id: ballot_id.to_string(),
-            content: "encrypted".to_string(),
+            content: Some("encrypted".to_string()),
             cast_at: at("2028-05-08T10:00:00Z"),
         }
     }
@@ -329,6 +342,19 @@ mod tests {
             at(output.cast_at.as_deref().unwrap()),
             at("2028-05-08T10:00:00Z")
         );
+    }
+
+    #[test]
+    fn a_sealed_ballot_is_found_by_its_ballot_id_without_its_content() {
+        let sealed = LocatedBallot {
+            content: None,
+            ..cast_vote("0abc12")
+        };
+        let output = locate_ballot_output(&ChecksPeriod::Unlimited, &[sealed]);
+        assert_eq!(output.status, LocateBallotStatus::Found);
+        assert_eq!(output.ballot_id.as_deref(), Some("0abc12"));
+        assert_eq!(output.content, None);
+        assert!(output.cast_at.is_some());
     }
 
     #[test]

@@ -1,11 +1,22 @@
 // SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
 // SPDX-License-Identifier: AGPL-3.0-only
-import {useEffect, useRef, useState, type Dispatch} from "react"
+import {useCallback, useEffect, useRef, useState, type Dispatch} from "react"
 import Box from "@mui/material/Box"
 import Button from "@mui/material/Button"
 import type {ScanovateHolding} from "../KcContext"
-import {ArrowIcon, CloseIcon} from "../icons"
+import {ArrowIcon, SwitchCameraIcon, CloseIcon} from "../icons"
 import type {CaptureEvent} from "./capture"
+import {CameraChoice, deviceStorage, storeFacing, storedFacing} from "./camera"
+import {
+    CameraSession,
+    HOLDING_CAMERA,
+    SwitchOutcome,
+    canSwitch,
+    holdingCamera,
+    mirrorsPreview,
+    type Camera,
+    type OpenedCamera,
+} from "./cameraSession"
 import {takePhoto, uploadHoldingPhoto} from "./holding"
 import {
     SAMPLE_HEIGHT,
@@ -21,12 +32,45 @@ import {CaptureProblem} from "./types"
 
 type Photo = {blob: Blob; url: string}
 
+/**
+ * Whether the video shows a camera that is on. A camera stopped for a switch
+ * leaves its last frame, perfectly still, and can still report it loaded:
+ * no photo is ever taken of it.
+ */
+function showsLiveCamera(video: HTMLVideoElement): boolean {
+    const stream = video.srcObject
+    return (
+        stream instanceof MediaStream &&
+        stream.getVideoTracks().some((track) => track.readyState === "live")
+    )
+}
+
+/**
+ * Shows a camera, and opens the step's camera again if this one goes away
+ * (unplugged, or taken by another app); `lost` when none opens. Stopping a
+ * camera ourselves, to switch or leave, doesn't end it this way.
+ */
+function keepOpen(
+    session: CameraSession,
+    opened: OpenedCamera,
+    display: (session: CameraSession, opened: OpenedCamera) => void,
+    lost: () => void
+) {
+    display(session, opened)
+    opened.stream.getVideoTracks()[0]?.addEventListener("ended", () => {
+        if (session.camera !== opened.camera) return
+        void session.reopen().then((again) => {
+            if (again === null) {
+                lost()
+            } else {
+                keepOpen(session, again, display, lost)
+            }
+        })
+    })
+}
+
 // How often the camera image is sampled for movement.
 const SAMPLE_INTERVAL_MS = 100
-
-function stop(stream: MediaStream) {
-    for (const track of stream.getTracks()) track.stop()
-}
 
 /**
  * The page's own camera: the voter holds their document next to their face,
@@ -37,6 +81,10 @@ function stop(stream: MediaStream) {
  *
  * It looks like Scanovate's own pages, which come before it: the camera over
  * the whole capture window, a close button, and the instruction over the image.
+ * When the browser gives more than one camera, a button switches between them;
+ * switching starts the holding time again. The camera is the one last chosen
+ * here on this device, and the front one (HOLDING_CAMERA) until one is: a
+ * tablet whose operator turned to the rear camera opens it for the next voter.
  */
 export function HoldingCamera(props: {
     text: Text
@@ -50,36 +98,116 @@ export function HoldingCamera(props: {
     const [photo, setPhoto] = useState<Photo | null>(null)
     const [sending, setSending] = useState(false)
 
+    const sessionRef = useRef<CameraSession | null>(null)
+    const [camera, setCamera] = useState<Camera | null>(null)
+    const [cameras, setCameras] = useState<Camera[]>([])
+    const [switching, setSwitching] = useState(false)
+    const [switchFailed, setSwitchFailed] = useState(false)
+
+    const refreshCameras = useCallback((session: CameraSession) => {
+        void session.cameras().then((listed) => {
+            if (sessionRef.current === session) setCameras(listed)
+        })
+    }, [])
+
+    // Shows a camera that has just opened, and starts the holding time again.
+    const display = useCallback(
+        (session: CameraSession, opened: OpenedCamera) => {
+            if (sessionRef.current !== session) return
+            setReady(false)
+            setProgress(0)
+            setCamera(opened.camera)
+            const video = videoRef.current
+            if (video !== null) {
+                video.srcObject = opened.stream
+                video.play().catch(() => undefined)
+            }
+            refreshCameras(session)
+        },
+        [refreshCameras]
+    )
+
+    const show = useCallback(
+        (session: CameraSession, opened: OpenedCamera) =>
+            keepOpen(session, opened, display, () => {
+                if (sessionRef.current === session) {
+                    dispatch({type: "problem", problem: CaptureProblem.Camera})
+                }
+            }),
+        [display, dispatch]
+    )
+
     useEffect(() => {
-        let stream: MediaStream | null = null
-        let stopped = false
-        if (navigator.mediaDevices?.getUserMedia === undefined) {
+        const devices = navigator.mediaDevices
+        if (devices?.getUserMedia === undefined) {
             dispatch({type: "problem", problem: CaptureProblem.Camera})
             return
         }
-        navigator.mediaDevices
-            .getUserMedia({
-                video: {facingMode: "user", width: {ideal: 1280}, height: {ideal: 720}},
-                audio: false,
-            })
-            .then((opened) => {
-                if (stopped) {
-                    stop(opened)
-                    return
-                }
-                stream = opened
-                const video = videoRef.current
-                if (video !== null) {
-                    video.srcObject = opened
-                    video.play().catch(() => undefined)
-                }
-            })
-            .catch(() => dispatch({type: "problem", problem: CaptureProblem.Camera}))
+        const session = new CameraSession(
+            devices,
+            holdingCamera(
+                storedFacing(deviceStorage(), HOLDING_CAMERA.preferred, CameraChoice.Holding)
+            )
+        )
+        sessionRef.current = session
+        // A webcam plugged in or out changes the cameras to switch between.
+        const changed = () => refreshCameras(session)
+        devices.addEventListener?.("devicechange", changed)
+        void session.start().then((opened) => {
+            if (sessionRef.current !== session) return
+            if (opened === null) {
+                dispatch({type: "problem", problem: CaptureProblem.Camera})
+            } else {
+                show(session, opened)
+            }
+        })
         return () => {
-            stopped = true
-            if (stream !== null) stop(stream)
+            devices.removeEventListener?.("devicechange", changed)
+            sessionRef.current = null
+            session.close()
         }
-    }, [dispatch])
+    }, [dispatch, refreshCameras, show])
+
+    const switchCamera = async () => {
+        const session = sessionRef.current
+        if (session === null || switching) return
+        setSwitching(true)
+        setSwitchFailed(false)
+        // The camera being left stops at once. Its last frame is hidden, so the
+        // voter doesn't take it for a frozen camera, and no photo is taken
+        // until the next one shows.
+        setReady(false)
+        setProgress(0)
+        const result = await session.switch(cameras)
+        if (sessionRef.current !== session) return
+        setSwitching(false)
+        switch (result.outcome) {
+            case SwitchOutcome.Switched:
+                if (result.opened !== null) {
+                    // Kept for the next voter on this device. A camera that tells no
+                    // side (a computer's webcam) leaves what is remembered as it is.
+                    const chosen = result.opened.camera.facing
+                    if (chosen !== null) {
+                        storeFacing(deviceStorage(), chosen, CameraChoice.Holding)
+                    }
+                    show(session, result.opened)
+                }
+                return
+            case SwitchOutcome.Kept:
+                if (result.opened === null) {
+                    // Nothing to switch to: the same camera never stopped.
+                    setReady(true)
+                } else {
+                    // The camera the voter had, open again: they can carry on with it.
+                    show(session, result.opened)
+                    setSwitchFailed(true)
+                }
+                return
+            case SwitchOutcome.Lost:
+                dispatch({type: "problem", problem: CaptureProblem.Camera})
+                return
+        }
+    }
 
     // Samples the image while there is no photo, and takes it once still.
     useEffect(() => {
@@ -96,7 +224,13 @@ export function HoldingCamera(props: {
         let stillness: Stillness = STILL
         let taking = false
         const timer = setInterval(() => {
-            if (taking || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return
+            if (
+                taking ||
+                video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+                !showsLiveCamera(video)
+            ) {
+                return
+            }
             context.drawImage(video, 0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT)
             const sample = grayscale(context.getImageData(0, 0, SAMPLE_WIDTH, SAMPLE_HEIGHT).data)
             const step = trackStillness(
@@ -132,6 +266,7 @@ export function HoldingCamera(props: {
     }
 
     const retake = () => {
+        setSwitchFailed(false)
         setProgress(0)
         setPhoto(null)
     }
@@ -139,13 +274,17 @@ export function HoldingCamera(props: {
     const cameraLabel = text("scanovateHoldingCameraLabel")
     const photoLabel = text("scanovateHoldingPhotoLabel")
     const progressLabel = text("scanovateHoldingProgress")
-    const status =
-        progress > 0
-            ? text("scanovateHoldingCountdown", String(secondsLeft(progress, holding.seconds)))
-            : text("scanovateHoldingKeepStill")
+    const status = switching
+        ? text("scanovateHoldingSwitching")
+        : progress > 0
+          ? text("scanovateHoldingCountdown", String(secondsLeft(progress, holding.seconds)))
+          : text("scanovateHoldingKeepStill")
     const retakeLabel = text("scanovateHoldingRetake")
     const useLabel = text("scanovateHoldingUse")
     const closeLabel = text("scanovateHoldingClose")
+    const switchLabel = text("scanovateHoldingSwitchCamera")
+    const switchFailedText = text("scanovateHoldingSwitchFailed")
+    const switchShown = photo === null && canSwitch(HOLDING_CAMERA, cameras)
     return (
         <>
             <div className="scanovate-holding">
@@ -154,11 +293,14 @@ export function HoldingCamera(props: {
                     ref={videoRef}
                     aria-label={cameraLabel.text}
                     lang={cameraLabel.lang}
-                    hidden={photo !== null}
+                    hidden={photo !== null || switching}
+                    className={mirrorsPreview(camera) ? "mirrored" : undefined}
                     autoPlay
                     muted
                     playsInline
-                    onLoadedData={() => setReady(true)}
+                    onLoadedData={(event) => {
+                        if (showsLiveCamera(event.currentTarget)) setReady(true)
+                    }}
                 />
                 {photo !== null && (
                     <img src={photo.url} alt={photoLabel.text} lang={photoLabel.lang} />
@@ -174,8 +316,26 @@ export function HoldingCamera(props: {
             >
                 <CloseIcon />
             </button>
+            {switchShown && (
+                <button
+                    type="button"
+                    className="scanovate-holding-switch"
+                    aria-label={switchLabel.text}
+                    lang={switchLabel.lang}
+                    aria-busy={switching}
+                    disabled={switching || sending}
+                    onClick={() => void switchCamera()}
+                >
+                    <SwitchCameraIcon />
+                </button>
+            )}
             {photo === null ? (
                 <div className="scanovate-holding-status">
+                    {switchFailed && (
+                        <p role="alert" lang={switchFailedText.lang}>
+                            {switchFailedText.text}
+                        </p>
+                    )}
                     <p aria-live="polite" lang={status.lang}>
                         {status.text}
                     </p>

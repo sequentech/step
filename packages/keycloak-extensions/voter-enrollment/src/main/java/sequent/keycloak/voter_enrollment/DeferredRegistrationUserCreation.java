@@ -54,6 +54,7 @@ import org.keycloak.userprofile.UserProfile;
 import org.keycloak.userprofile.UserProfileContext;
 import org.keycloak.userprofile.UserProfileProvider;
 import org.keycloak.userprofile.ValidationException;
+import sequent.keycloak.authenticator.EnrollmentDocumentPolicy;
 import sequent.keycloak.authenticator.messaging.ContactDetails;
 import sequent.keycloak.authenticator.messaging.MessageChannel;
 import sequent.keycloak.authenticator.messaging.MessagingAttributes;
@@ -678,6 +679,17 @@ public class DeferredRegistrationUserCreation implements FormAction, FormActionF
     AuthenticatorConfigModel config = context.getAuthenticatorConfig();
     Map<String, String> configMap = config.getConfig();
     final String formMode = configMap.get(FORM_MODE);
+    if (!FormMode.LOGIN.getValue().equals(formMode)
+        && EnrollmentDocumentPolicy.isRegistrationRoute(context.getUriInfo())) {
+      // Keycloak renders the page after FormActions and exposes no final Response here.
+      // The stock offline ingress and Keycloak do not set Permissions-Policy. Append without
+      // replacing unrelated transport fields; rendered authenticator pages are merged separately.
+      context
+          .getSession()
+          .getContext()
+          .getHttpResponse()
+          .addHeader(EnrollmentDocumentPolicy.HEADER, EnrollmentDocumentPolicy.NO_DISPLAY_CAPTURE);
+    }
     final boolean passwordRequired =
         Boolean.parseBoolean(Optional.ofNullable(configMap.get(PASSWORD_REQUIRED)).orElse("true"));
 

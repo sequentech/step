@@ -926,6 +926,7 @@ const catalanTranslation: TranslationType = {
                     adminKey: "Clau d'administració de {{name}}",
                     systemOnly: "Només la clau de sistema de la bitàcola",
                     systemSignature: "Signatura del sistema",
+                    approverKeyFingerprint: "Empremta de la clau de qui ha aprovat",
                     publicKey: "Clau d'administració publicada",
                 },
             },
@@ -987,6 +988,98 @@ const catalanTranslation: TranslationType = {
                 statementTimestampFrom: "Marca de temps de la declaració des de",
                 statementTimestampTo: "Marca de temps de la declaració fins a",
                 timeZone: "Fus horari",
+            },
+            statementKind: {
+                Unknown: "Entrada desconeguda",
+                CastVote: "Vot emès",
+                CastVoteError: "Error en emetre el vot",
+                ElectionPublish: "Elecció publicada",
+                ElectionVotingPeriodOpen: "Votació oberta (elecció)",
+                ElectionVotingPeriodClose: "Votació tancada (elecció)",
+                ElectionVotingPeriodPause: "Votació en pausa (elecció)",
+                ElectionEventVotingPeriodOpen: "Votació oberta (esdeveniment)",
+                ElectionEventVotingPeriodClose: "Votació tancada (esdeveniment)",
+                ElectionEventVotingPeriodPause: "Votació en pausa (esdeveniment)",
+                KeyGeneration: "Claus generades",
+                KeyInsertionStart: "Inici de la inserció de claus",
+                KeyInsertionCeremony: "Cerimònia d'inserció de claus",
+                TallyOpen: "Recompte iniciat",
+                TallyClose: "Recompte finalitzat",
+                TallyResumedWithResolution: "Recompte reprès després d'una resolució",
+                TallyPausedPendingResolution: "Recompte en pausa pendent de resolució",
+                TallyTieResolved: "Empat resolt",
+                TallyTieResolutionUpdated: "Resolució d'empat actualitzada",
+                SendTemplate: "Plantilla enviada",
+                SendCommunications: "Missatges enviats",
+                KeycloakUserEvent: "Esdeveniment de compte d'usuari",
+                VoterPublicKey: "Clau pública del votant",
+                AdminPublicKey: "Clau pública de l'administrador",
+                CertificateAuthEvent: "Inici de sessió amb certificat",
+                PhoneBlacklistUpdated: "Llista de telèfons bloquejats actualitzada",
+                ResultsPublicationAction: "Publicació de resultats",
+                ExternalApiRequest: "Sol·licitud a l'API externa",
+                ExternalReconciliation: "Conciliació externa",
+                BallotPublicationFailure: "Error en publicar la papereta",
+                ElectoralLogCheckpoint: "Punt de control de la bitàcola",
+                ElectoralLogContinuation: "Continuació de la bitàcola",
+                MonitoringConfigChanged: "Configuració de monitoratge canviada",
+                SigningRequestCreated: "Sol·licitud de signatura creada",
+                SigningCertificateOpenFailed: "No s'ha pogut obrir el certificat de signatura",
+                SigningRequestSigned: "Aprovació signada",
+                SigningSignatureRefused: "Signatura rebutjada",
+                SigningCertificateRegistered: "Certificat de signatura registrat",
+                SigningHandover: "Signatura traspassada",
+                SigningRequestCancelled: "Sol·licitud de signatura cancel·lada",
+                SigningRequestExpired: "Sol·licitud de signatura caducada",
+                SigningRequestCompleted: "Llindar d'aprovacions assolit",
+                SigningActionExecuted: "Acció aprovada finalitzada o fallida",
+                SigningRuleChanged: "Regla de signatura canviada",
+                SigningPermissionChanged: "Permís de signatura canviat",
+                SigningIssuerChanged: "Emissor de signatura canviat",
+                SigningChecksChanged: "Comprovacions de signatura canviades",
+                SigningCertificateRevoked: "Certificat de signatura revocat",
+                SigningRequestsExported: "Sol·licituds de signatura exportades",
+                LifecycleWindowChanged: "Finestra del calendari de votació canviada",
+                ScheduleRecomputeApplied: "Calendari recalculat",
+                ScheduleImported: "Calendari importat",
+                ScheduledOutcomeChanged: "Resultat programat canviat",
+                ElectionInitialized: "Elecció inicialitzada",
+                LockdownChanged: "Bloqueig canviat",
+                ConfigurationPackageImported: "Paquet de configuració importat",
+                ReportGenerated: "Informe generat",
+                ApprovalMatrixUpdated: "Matriu d'aprovacions actualitzada",
+                BallotBoxSealed: "Urna segellada",
+                BallotBoxSealFailed: "Error en segellar l'urna",
+                TallyBallotBoxVerified: "Urna verificada per al recompte",
+                TallyBallotBoxRejected: "Urna rebutjada per al recompte",
+                TenantLogOpened: "Bitàcola de l'inquilí oberta",
+                TenantAdminAction: "Acció d'administració de l'inquilí",
+                AdminChange: "Canvi administratiu",
+                KeycloakAdminEvent: "Esdeveniment d'administració d'identitats",
+                LogsExported: "Bitàcoles exportades",
+                LogWriterStarted: "Escriptor de la bitàcola iniciat",
+                LogWriterStopped: "Escriptor de la bitàcola aturat",
+                TransmissionFileDownloaded: "Fitxer de transmissió descarregat",
+                VotersImported: "Votants importats",
+                ReadinessVerified: "Preparació verificada",
+                BallotReceived: "Papereta rebuda",
+                BallotAudited: "Papereta auditada",
+                PseudonymResolved: "Pseudònim resolt",
+                ForensicRead: "Lectura forense",
+                CastVoteSealKeyPublished: "Publicació de la clau de xifratge dels vots emesos",
+            },
+            signingActivity: {
+                row: {
+                    created: "S’ha creat una sol·licitud de signatura per a {{action}}",
+                    approved: "S’ha signat l’aprovació per a {{action}}",
+                    quorum: "S’han recollit les aprovacions necessàries per a {{action}}",
+                    completed: "Acció completada: {{action}}",
+                    failed: "L’acció ha fallat: {{action}}",
+                    cancelled: "S’ha cancel·lat la sol·licitud de signatura per a {{action}}",
+                    expired: "La sol·licitud de signatura per a {{action}} ha caducat",
+                    rejected: "S’ha rebutjat la signatura",
+                    progress: "({{approved}} de {{required}})",
+                },
             },
             scheduledOutcome: {
                 outcome: {
@@ -2236,11 +2329,13 @@ const catalanTranslation: TranslationType = {
                     subtitle: "Crear votant",
                 },
                 manualVerification: {
-                    label: "Verificar manualment",
-                    verify: "Verificar manualment al votant",
-                    body: "Verifiqueu manualment a aquest votant. Obtindrà un PDF amb un enllaç de codi QR que permet al votant iniciar sessió ometent el KYC en línia.",
+                    label: "Verificar la identitat manualment",
+                    verify: "Sol·licitar el document de verificació",
+                    body: "Sol·licita un PDF privat amb un codi QR per a aquest votant. Si calen signatures, el document només s’emet després de l’aprovació. Això no aprova cap sol·licitud d’inscripció.",
                     noEmailOrPhone:
                         "Aquest votant no pot ser verificat manualment perquè no té una adreça de correu electrònic o un número de telèfon assignat.",
+                    waiting: "El document està pendent de signatures.",
+                    download: "Descarregar el document de verificació",
                 },
                 errors: {
                     editError: "Error editant votant",
@@ -2285,9 +2380,10 @@ const catalanTranslation: TranslationType = {
                     deleteError: "Error esborrant votant",
                     deleteSuccess: "Votant esborrat",
                     multipleDeleteSuccess: "Votants esborrats",
-                    manualVerificationError: "Error verificant manualment al votant",
+                    manualVerificationError:
+                        "No s’ha pogut sol·licitar la verificació manual de la identitat",
                     manualVerificationSuccess:
-                        "Verificat amb èxit manualment al votant, descarregar PDF..",
+                        "S’està descarregant el document de verificació manual de la identitat.",
                 },
             },
             roles: {
@@ -2340,7 +2436,9 @@ const catalanTranslation: TranslationType = {
                 "sign-generate-election-returns": "Signar: generar actes electorals",
                 "sign-generate-reports": "Signar: generar altres informes electorals",
                 "sign-transmit-results": "Signar: transmetre resultats",
-                "sign-approve-voter": "Signar: aprovar manualment un votant",
+                "sign-approve-voter": "Signar: aprovar una sol·licitud d’inscripció",
+                "sign-authorize-manual-verification":
+                    "Signar: autoritzar la verificació manual de la identitat",
                 "sign-approve-configuration": "Signar: aprovar una versió de configuració",
                 "sign-key-ceremony": "Signar: confirmar un fragment de clau",
                 "sign-tally-key": "Signar: aportar un fragment de clau",
@@ -3197,6 +3295,52 @@ const catalanTranslation: TranslationType = {
         tally: {
             errorUploadingSignature: "S'ha produït un error en carregar la signatura",
             downloadTransmissionPackage: "Descarregar paquet",
+            publicVerification: {
+                sectionTitle: "Verificació criptogràfica",
+                description:
+                    "Verifica al navegador el tauler d'anuncis d'aquest recompte: la prova de coneixement zero de cada papereta xifrada, la prova de barreja de cada mescla i la prova de desxifratge de cada autoritat. Les comprovacions es basen en els registres dels taulers d'aquesta plataforma. Per a una auditoria independent, executa l'ordre trustee verify amb ancoratges presos del paquet de configuració signat.",
+                verify: "Verificar el tauler d'anuncis",
+                verifyAgain: "Tornar a verificar",
+                unavailable: "Disponible quan el recompte hagi acabat.",
+                loading: "Llegint els taulers del recompte…",
+                progress: "Verificant el lot {{current}} de {{total}}…",
+                empty: "Aquest recompte no té lots al tauler d'anuncis per verificar.",
+                failed: "No s'ha pogut fer la verificació: {{message}}",
+                verifierUnavailable:
+                    "Aquest navegador no ha pogut iniciar el verificador: {{message}}",
+                summary: {
+                    verified: "Tots els lots verificats: {{count}} de {{total}}.",
+                    invalid: "Lots que no han superat la verificació: {{count}} de {{total}}.",
+                    error: "Lots que no s'han pogut verificar: {{count}} de {{total}}. Cada fila n'indica el motiu.",
+                    incomplete:
+                        "Lots incomplets: {{count}} de {{total}}. Hi falten publicacions necessàries, per tant no estan verificats.",
+                },
+                checks: {
+                    title: "Verificat a cada lot:",
+                    ballots: "La prova de coneixement zero de cada papereta xifrada",
+                    mixing: "La prova de barreja de cada mescla, en ordre, avalada per les altres autoritats",
+                    decryption:
+                        "La prova de desxifratge de cada autoritat, amb els resultats recalculats i coincidents",
+                },
+                columns: {
+                    batch: "Lot",
+                    ballots: "Paperetes",
+                    result: "Resultat",
+                    detail: "Detall",
+                },
+                batch: "Lot {{batch}}",
+                status: {
+                    verified: "Verificat",
+                    incomplete: "Incomplet",
+                    invalid: "No vàlid",
+                    error: "Sense verificar",
+                },
+                detail: {
+                    verified: "S'han comprovat totes les proves i publicacions del lot.",
+                    incomplete: "Falten publicacions necessàries al tauler.",
+                },
+                download: "Descarregar les evidències",
+            },
             resultsPublication: {
                 sectionTitle: "Publicar al lloc web de resultats",
                 policyTitle: "Lloc web de resultats",
@@ -3390,6 +3534,20 @@ const catalanTranslation: TranslationType = {
                     "Finalitza la votació de cada elecció seleccionada i atura els canals actius abans de crear el recompte.",
                 sealBallotBoxes:
                     "Una elecció es pot incloure en el recompte quan totes les seves urnes estan segellades i les seves actes de segellat estan publicades.",
+            },
+            failure: {
+                title: "El recompte ha fallat",
+                detail: "Detalls",
+                reason: {
+                    BOARD_CONFIGURATION_MISMATCH:
+                        "Un tauler de recompte no coincideix amb la configuració registrada a la cerimònia de claus.",
+                    INVALID_BOARD_CONTENT:
+                        "Un tauler de recompte té contingut que no es pot fer servir.",
+                    TRUSTEE_HALTED: "Un trustee va aturar el recompte i va informar d'un error.",
+                    SEALED_BALLOTS_REFUSED:
+                        "Algunes paperetes emmagatzemades no es poden comptar: no s'obren o no coincideixen amb els seus registres. No s'ha comptat cap papereta. Resol la causa i després inicia un nou recompte.",
+                    unknown: "No s'ha pogut completar el recompte.",
+                },
             },
             createTallySuccess: "Recompte creat",
             createTallyError: "Error creant recompte",
@@ -5121,6 +5279,25 @@ const catalanTranslation: TranslationType = {
                 'Esteu segurs que voleu eliminar el certificat "{{name}}" (empremta: {{fingerprint}})?',
         },
         signing: {
+            localSetup: {
+                continue: "Continua iniciant la sessió",
+                register: "Registra la meva clau de signatura",
+                phase: {
+                    "setup-available":
+                        "Configura la clau de signatura d’aquest lloc. Primer verifica la contrasenya i el codi d’un sol ús.",
+                    "waiting-for-setup-gold":
+                        "Continua iniciant la sessió per verificar la teva identitat en aquesta configuració.",
+                    "setup-confirmation-required":
+                        "Identitat verificada. Selecciona Registra la meva clau de signatura per crear la clau d’aquest lloc.",
+                    "setup-retry-available":
+                        "El dispositiu encara no ha recollit aquesta sol·licitud. Pots tornar a enviar la mateixa sol·licitud.",
+                    "setup-pending":
+                        "La configuració està pendent. Cal una clau de signatura i un certificat de personal registrat abans de poder aprovar.",
+                    "setup-recovery-required":
+                        "Un administrador ha de revisar aquesta configuració. No s’ha registrat cap aprovació.",
+                },
+            },
+            operational: englishTranslation.translations.signing.operational,
             terms: {
                 post: "Lloc",
                 posts: "Llocs",
@@ -5128,6 +5305,8 @@ const catalanTranslation: TranslationType = {
             tab: {
                 title: "Signatures",
                 intro: "Les accions protegides només s'executen quan prou persones autoritzades les signen amb els seus certificats digitals. Cada signatura es comprova amb els emissors de confiança i queda anotada al registre.",
+                hsmIntro:
+                    "Les persones autoritzades aproven les accions protegides. Cada aprovació es registra al registre electoral.",
                 protectedActions: "Accions protegides",
                 certificates: "Certificats",
                 requests: "Sol·licituds",
@@ -5216,13 +5395,22 @@ const catalanTranslation: TranslationType = {
                         "S'inicia a Recompte, Transmissió. Genera el paquet de resultats signat per als seus destins; les signatures completen la seva llista de signatures.",
                 },
                 "approve-voter": {
-                    label: "Aprovar manualment un votant",
-                    short: "Aprovació de votant",
-                    permissionName: "aprovar manualment un votant",
-                    object: "aprovació de votant",
+                    label: "Aprovar una sol·licitud d’inscripció",
+                    short: "Aprovació d’inscripció",
+                    permissionName: "aprovar una sol·licitud d’inscripció",
+                    object: "aprovació d’inscripció",
                     appliesTo: "El $t(signing.terms.post) del votant",
                     description:
-                        "S'inicia a Aprovacions. Aprova el votant i n'emet les credencials.",
+                        "A la pestanya Aprovacions, aprova la sol·licitud i emet les credencials del votant.",
+                },
+                "authorize-manual-verification": {
+                    label: "Autoritzar la verificació manual de la identitat",
+                    short: "Verificació manual de la identitat",
+                    permissionName: "autoritzar la verificació manual de la identitat",
+                    object: "verificació manual de la identitat",
+                    appliesTo: "El $t(signing.terms.post) del votant",
+                    description:
+                        "A la llista de votants, permet emetre un document amb un enllaç de verificació. No aprova cap sol·licitud d’inscripció.",
                 },
                 "approve-configuration": {
                     label: "Aprovar una versió de configuració",
@@ -5253,6 +5441,7 @@ const catalanTranslation: TranslationType = {
             },
             protectedActions: {
                 intro: "Cada signatura es fa amb el certificat digital del testimoni de seguretat del signant.",
+                hsmIntro: "Consulta qui pot aprovar cada acció i quantes aprovacions calen.",
                 columns: {
                     action: "Acció",
                     appliesTo: "S'aplica a",
@@ -5661,6 +5850,12 @@ const catalanTranslation: TranslationType = {
                 scheduled_events: "Nous esdeveniments programats",
                 ballots_and_contests: "Paperetes i concursos",
                 application_id: "Sol·licitud d'inscripció",
+                voter_id: "Compte del votant",
+                initiation_id: "Sol·licitud de verificació",
+                post_id: "$t(signing.terms.post)",
+                area_id: "Àrea del votant",
+                requester_id: "Compte del personal sol·licitant",
+                secret_attributes: "Noms dels atributs protegits",
                 applicant_registry_id: "Compte del registre",
                 decision: "Decisió",
                 submitted_at: "Enviada",
@@ -5697,6 +5892,8 @@ const catalanTranslation: TranslationType = {
                     "generate-reports": "$t(signing.actions.generate-reports.label)",
                     "transmit-results": "$t(signing.actions.transmit-results.label)",
                     "approve-voter": "$t(signing.actions.approve-voter.label)",
+                    "authorize-manual-verification":
+                        "$t(signing.actions.authorize-manual-verification.label)",
                     "approve-configuration": "$t(signing.actions.approve-configuration.label)",
                     "key-ceremony": "$t(signing.actions.key-ceremony.label)",
                     "tally-key": "$t(signing.actions.tally-key.label)",

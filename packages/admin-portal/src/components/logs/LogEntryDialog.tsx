@@ -825,6 +825,18 @@ const EntryContent: React.FC<{entry: ILogRow; log: ILogTarget; zone: string}> = 
                                 <Shortened value={signatures.systemSignature} />
                             </Fact>
                         ) : null}
+                        {log.kind === ELogScope.EVENT && view.approverKeyFingerprint ? (
+                            <Fact
+                                label={String(
+                                    t("logsScreen.entry.signatures.approverKeyFingerprint")
+                                )}
+                                wide
+                            >
+                                <Box component="code" sx={{...MONO, userSelect: "all"}}>
+                                    {view.approverKeyFingerprint}
+                                </Box>
+                            </Fact>
+                        ) : null}
                         {view.publicKey ? (
                             <Fact label={String(t("logsScreen.entry.signatures.publicKey"))}>
                                 <Shortened value={view.publicKey} />

@@ -668,6 +668,8 @@ const basqueTranslation: TranslationType = {
             ambiguous:
                 "Zure boto bat baino gehiago dator bat {{ballotId}} identifikatzailearekin. Erabili boto-identifikatzaile osoa.",
             contentDesc: "Hau da zure Bozketa edukia: ",
+            contentSealed:
+                "Zure boto-papera zigilatuta gordeta dago; horregatik, haren edukia ez da hemen erakusten.",
             wrongFormatBallotId: "Bozketa IDaren formatu okerra",
             ballotIdNotFoundAtFilter:
                 "Ez da aurkitu. Egiaztatu zure bozketa IDa zuzena dela eta erabiltzaile honi dagokiola.",

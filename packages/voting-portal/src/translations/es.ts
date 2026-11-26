@@ -667,6 +667,8 @@ const spanishTranslation: TranslationType = {
             ambiguous:
                 "Más de una de sus papeletas coincide con {{ballotId}}. Use el ID de papeleta completo.",
             contentDesc: "Este es el contenido de su papeleta: ",
+            contentSealed:
+                "Su papeleta está almacenada de forma sellada, por lo que su contenido no se muestra aquí.",
             wrongFormatBallotId: "Formato incorrecto para el ID de la Papeleta",
             ballotIdNotFoundAtFilter:
                 "No encontrado, compruebe que el ID de la papeleta sea correcto y pertenezca a este usuario.",

@@ -334,6 +334,8 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/export-election-event", {"election_event_id": EVENT_ID, "export_configurations": {}}, [ELECTION_EVENT_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-election-event-logs", {"election_event_id": EVENT_ID, "format": "CSV"}, [LOGS_EXPORT], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-tally-results", {"election_event_id": EVENT_ID, "tally_session_id": "test-session"}, [TALLY_RESULTS_READ], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/tally-public-verification-boards", {"election_event_id": UUID_V4_EVENT_ID, "tally_session_id": UUID_V4_EVENT_ID}, [TALLY_RESULTS_READ], BACKEND, UNAUTHORIZED),
+        case!(Admin, "/tally-public-verification-transcript", {"election_event_id": UUID_V4_EVENT_ID, "tally_session_id": UUID_V4_EVENT_ID, "tally_board": "tally_d9792af071b849528aac94bc0fead5f7_0"}, [TALLY_RESULTS_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/export-tasks-execution", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [TASKS_READ], BACKEND, UNAUTHORIZED),
         // The task row is written before the permission check.
         case!(Admin, "/export-template", {"tenant_id": TENANT_ID}, [TEMPLATE_WRITE], BACKEND, BACKEND),
@@ -364,7 +366,8 @@ fn cases() -> Vec<Case> {
         case!(SuperAdmin, "/generate-report", {"report_id": "test-report", "tenant_id": TENANT_ID, "report_mode": "PREVIEW"}, [REPORT_READ, REPORT_PREVIEW], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-transmission-report", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "election_id": ELECTION_ID, "tally_session_id": ELECTION_ID}, [TRANSMISSION_REPORT_GENERATE], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-template", {"type": "BallotImages", "election_event_id": EVENT_ID, "election_id": "test-election", "tally_session_id": "test-session"}, [REPORT_READ], BACKEND, UNAUTHORIZED),
-        case!(Admin, "/get-manual-verification-pdf", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "voter_id": "test-voter"}, [VOTER_MANUALLY_VERIFY], BACKEND, UNAUTHORIZED),
+        case!(UuidTenant, "/get-manual-verification-pdf", {"tenant_id": UUID_TENANT_ID, "election_event_id": UUID_EVENT_ID, "voter_id": "test-voter"}, [VOTER_MANUALLY_VERIFY], BACKEND, UNAUTHORIZED_JSON),
+        case!(UuidTenant, "/manual-verification-authority", {"tenant_id": UUID_TENANT_ID, "election_event_id": UUID_EVENT_ID, "voter_id":"test-voter","phase":"issue"}, [SERVICE_ACCOUNT], BACKEND, UNAUTHORIZED),
         case!(Admin, "/generate-voter-information-letter", {"election_event_id": EVENT_ID, "voter_id": "test-voter"}, [VOTER_INFORMATION_LETTER, DOCUMENT_PASSWORD_READ], BACKEND, FORBIDDEN_JSON),
         case!(Voter, "/get-ballot-files-urls", {"election_event_id": EVENT_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
         case!(UuidTenant, "/get-architect-approval-policy", {"tenant_id": UUID_TENANT_ID}, [TENANT_WRITE, USER_WRITE, ROLE_WRITE, TRUSTEE_CREATE, TRUSTEE_WRITE, ELECTION_EVENT_CREATE], BACKEND, UNAUTHORIZED),
