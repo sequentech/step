@@ -31,6 +31,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.MultivaluedHashMap;
+import jakarta.ws.rs.core.PathSegment;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.net.URI;
@@ -196,6 +197,16 @@ class ScanovateAuthenticatorTest {
     when(context.getEvent()).thenReturn(event);
     KeycloakUriInfo uriInfo = mock(KeycloakUriInfo.class);
     when(uriInfo.getBaseUri()).thenReturn(URI.create("https://kc/"));
+    List<PathSegment> registrationSegments =
+        Stream.of("realms", "r", "login-actions", "registration")
+            .map(
+                path -> {
+                  PathSegment segment = mock(PathSegment.class);
+                  when(segment.getPath()).thenReturn(path);
+                  return segment;
+                })
+            .toList();
+    when(uriInfo.getPathSegments()).thenReturn(registrationSegments);
     when(context.getUriInfo()).thenReturn(uriInfo);
     RealmModel realm = mock(RealmModel.class);
     when(realm.getName()).thenReturn("r");
@@ -208,7 +219,13 @@ class ScanovateAuthenticatorTest {
     when(context.getHttpRequest()).thenReturn(httpRequest);
 
     form = mock(LoginFormsProvider.class, RETURNS_SELF);
-    when(form.createForm(anyString())).thenReturn(Response.ok().build());
+    when(form.createForm(anyString()))
+        .thenReturn(
+            Response.ok("<p>Enrollment</p>", MediaType.TEXT_HTML_TYPE)
+                .header(
+                    "Permissions-Policy", "camera=(self), microphone=(), display-capture=(self)")
+                .header("Cache-Control", "no-store")
+                .build());
     when(context.form()).thenReturn(form);
 
     execution = mock(AuthenticationExecutionModel.class);
@@ -605,6 +622,7 @@ class ScanovateAuthenticatorTest {
     ArgumentCaptor<Map<String, Object>> page = ArgumentCaptor.forClass(Map.class);
     verify(form).setAttribute(eq(ScanovateAuthenticator.FTL_SCANOVATE), page.capture());
     verify(form).createForm(ScanovateAuthenticator.CAPTURE_FORM);
+    verifyEnrollmentDocumentPolicy();
     return page.getValue();
   }
 
@@ -652,6 +670,18 @@ class ScanovateAuthenticatorTest {
     verify(form).setAttribute(ScanovateAuthenticator.FTL_ERROR, error.messageKey());
     verify(form).setAttribute(ScanovateAuthenticator.FTL_CAN_RETRY, canRetry);
     verify(form).createForm(ScanovateAuthenticator.ERROR_FORM);
+    verifyEnrollmentDocumentPolicy();
+  }
+
+  private void verifyEnrollmentDocumentPolicy() {
+    ArgumentCaptor<Response> responses = ArgumentCaptor.forClass(Response.class);
+    verify(context, org.mockito.Mockito.atLeastOnce()).challenge(responses.capture());
+    for (Response response : responses.getAllValues()) {
+      assertEquals(
+          "camera=(self), microphone=(), display-capture=()",
+          response.getHeaderString("Permissions-Policy"));
+      assertEquals("no-store", response.getHeaderString("Cache-Control"));
+    }
   }
 
   private void verifyFailedAttempt(String messageKey) throws IOException {
@@ -701,6 +731,7 @@ class ScanovateAuthenticatorTest {
     authenticator.action(context);
 
     verify(form).createForm(ScanovateAuthenticator.CONFIRMATION_FORM);
+    verifyEnrollmentDocumentPolicy();
     assertNull(authNotes.get(IDENTITY_METHOD));
 
     post(FormAction.CONFIRM);
