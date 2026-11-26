@@ -37,6 +37,9 @@ function fakeScanovatePage(service: string): string {
 ${FAKE_ERRORS.map((code) => `<button type="button" data-code="${code}">Fail ${code}</button>`).join("\n")}
 <script>
     const session = "fake-${service}-session"
+    // Like Scanovate's pages, this one lays itself out on a resize of its window.
+    window.layouts = 0
+    window.addEventListener("resize", () => { window.layouts += 1 })
     for (const message of ["js-load-success", "css-load-success", "iframe-loaded", "ui-loaded"]) {
         window.parent.postMessage(message, "*")
     }
@@ -316,6 +319,29 @@ export const DocumentStepSwitchTabletLandscape = documentSwitchHeld(1180, 820)
 export const DocumentStepSwitchTabletPortrait = documentSwitchHeld(820, 1180)
 export const DocumentStepSwitchPhoneLandscape = documentSwitchHeld(844, 390)
 export const DocumentStepSwitchPhonePortrait = documentSwitchHeld(390, 844)
+
+/**
+ * Scanovate's document page fits its camera to the window right after a
+ * resize, before a turned tablet's camera has its new shape: it is asked to
+ * lay itself out again once the turn has settled. The face check's page is
+ * left to itself.
+ */
+export const DocumentStepLaidOutAfterTurn: Story = {
+    play: async ({canvasElement}) => {
+        const layouts = (frame: HTMLIFrameElement) =>
+            (frame.contentWindow as Window & {layouts: number}).layouts
+        const scan = await scanovateFrame(canvasElement, FAKE_OCR)
+        await expect(layouts(scan)).toBe(0)
+        window.dispatchEvent(new Event("orientationchange"))
+        await waitFor(() => expect(layouts(scan)).toBe(2), {timeout: 3000})
+
+        await press(canvasElement, FAKE_OCR, "Finish")
+        const face = await scanovateFrame(canvasElement, FAKE_LIVENESS)
+        window.dispatchEvent(new Event("orientationchange"))
+        await new Promise((resolve) => setTimeout(resolve, 1300))
+        await expect(layouts(face)).toBe(0)
+    },
+}
 
 export const DocumentStepAfterRetry: Story = {
     args: {

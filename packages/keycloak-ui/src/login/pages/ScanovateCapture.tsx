@@ -38,6 +38,7 @@ import {
 import {ACTION_PARAM, CaptureAction} from "../scanovate/form"
 import type {ScanovatePageProps} from "../scanovate/pageProps"
 import {HoldingCamera} from "../scanovate/HoldingCamera"
+import {keepLaidOut} from "../scanovate/layout"
 import {AttemptsLeft, CameraSwitch} from "../scanovate/parts"
 import {EnrollmentStep, documentName, enrollmentFrame, textFor, type Text} from "../scanovate/text"
 import {CaptureProblem, CaptureStage, ScanovateMessageKind} from "../scanovate/types"
@@ -211,6 +212,9 @@ export default function ScanovateCapture(props: ScanovatePageProps<"scanovate-ca
                 title={text(frame.frame)}
                 dispatch={dispatch}
                 facing={cameraChoice ? facing : undefined}
+                // The document page's layout does not always follow a turn of
+                // the device by itself. Only a page of this origin can be asked.
+                laidOutAgain={cameraChoice}
             />
             {cameraChoice && cameras > 1 && (
                 <CameraSwitch
@@ -334,8 +338,10 @@ function ScanovateFrame(props: {
     dispatch: Dispatch<CaptureEvent>
     // The camera the page is to open, where this page can tell it.
     facing?: CameraFacing
+    // Whether to have the page lay itself out again after the device is turned.
+    laidOutAgain?: boolean
 }) {
-    const {frameRef: ref, url, title, dispatch, facing} = props
+    const {frameRef: ref, url, title, dispatch, facing, laidOutAgain = false} = props
     // The page the frame starts with; later ones are opened in it.
     const [first] = useState(url)
     const shown = useRef(url)
@@ -354,6 +360,11 @@ function ScanovateFrame(props: {
         if (facing !== CameraFacing.Front || ref.current === null) return
         return watchFrame(ref.current, facing)
     }, [facing, ref])
+
+    useEffect(() => {
+        if (!laidOutAgain || ref.current === null) return
+        return keepLaidOut(ref.current)
+    }, [laidOutAgain, ref])
 
     useEffect(() => {
         const listen = (event: MessageEvent) => {

@@ -884,6 +884,22 @@ page URL parameter for the side or the device) or a switch in their page,
 that keeps IAD's checks as they are. Until then, a tablet that opens its rear
 camera for the face check can't be corrected from our page.
 
+#### The document page after the device is turned
+
+OCR's page fits its camera, and the frame that shows where to put the
+document, to its window when the camera starts and again 50 ms after each
+resize of the window. A tablet that is turned changes the window first, and
+its camera gives the image the other way round a moment later: the page can
+be left with a layout made of the old sizes, the camera as a small column in
+the middle of a wide window or wider than a narrow one.
+
+The login page therefore asks OCR's page to lay itself out again, by sending
+its window the `resize` event the browser sends, 300 ms and 1 s after the
+login page's window changes size or orientation, and 100 ms after the
+camera's image changes shape (`scanovate/layout.ts`). Nothing of OCR's page
+is changed, and it needs the page to be served from the login page's origin.
+The face check's page is not sent anything.
+
 #### How often the browser asks for the camera
 
 Chrome remembers the voter's answer for the site: it asks once. Safari (iPhone
