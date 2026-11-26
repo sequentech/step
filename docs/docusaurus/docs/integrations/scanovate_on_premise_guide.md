@@ -723,9 +723,11 @@ into a preference). That suits a voter holding their own phone over a
 passport, and not a tablet on a stand that faces the voter.
 
 The capture step therefore offers the other camera itself. When the device
-lists more than one camera, the document step shows **Use the front camera**
-over a corner of Scanovate's page (*Use the rear camera* once the front one is
-chosen). The choice opens Scanovate's page again, since that page opens its
+lists more than one camera, the document step shows the switch button of the
+photo holding the document, in the same corner (top left) and named **Use the
+front camera** (*Use the rear camera* once the front one is chosen); it stays
+there however the device is held (see
+[Choosing the camera](#choosing-the-camera)). The choice opens Scanovate's page again, since that page opens its
 camera once, and is kept in the browser's storage for the site
 (`sequent.scanovate.documentCamera`), so a tablet set to its front camera
 stays so for every voter after that. The face check opens the camera
@@ -834,9 +836,12 @@ Each step's camera is opened by whichever page owns the step:
 | Check your face | Liveness Plus's own page (in the iframe) | Scanovate's choice | None: see below |
 | Photo holding the ID | Our capture page (`scanovate/HoldingCamera.tsx`) | The front camera first (`HOLDING_CAMERA` in `scanovate/cameraSession.ts`) | Yes, whenever the browser gives more than one camera |
 
-On the holding photo, a switch button (top left, across from the close
-button, and under the Sequent mark where that corner shows it, on windows
-wider than 720 px) appears only when the browser lists more than one camera the page can
+The document scan and the holding photo show the same switch button, in the
+same place: top left, across from the close button, and under the Sequent mark
+where that corner shows it (windows wider than 720 px). It is placed in the
+window, over the camera, and keeps its place when the device is turned.
+
+On the holding photo, the switch appears only when the browser lists more than one camera the page can
 open, whatever the device or browser, without looking at the user agent: a
 phone or tablet in Chrome or Safari, or a computer with an external webcam.
 With a single camera, or before the voter allows the camera, there's no
@@ -878,6 +883,27 @@ has to come from Scanovate, as a supported setting (a `video_config` key or a
 page URL parameter for the side or the device) or a switch in their page,
 that keeps IAD's checks as they are. Until then, a tablet that opens its rear
 camera for the face check can't be corrected from our page.
+
+#### How often the browser asks for the camera
+
+Chrome remembers the voter's answer for the site: it asks once. Safari (iPhone
+and iPad) remembers it for the frame that asked, so three steps that each
+open the camera from a place of their own make it ask three times. Two things
+are done about it, and one is a setting of the device:
+
+- The face check opens in the frame of the document scan, in place of the
+  page that finished (no step is added to the browser's Back), when both
+  pages are served from the login page's own origin, as this deployment does.
+  The photo holding the document is opened by the login page itself, which is
+  another frame: Safari asks once more there. A retry after a problem, and the
+  camera switch of the document scan, open a new frame.
+- Safari lists all the cameras only to the frame that was allowed one, so the
+  login page counts the cameras in Scanovate's frame too before it offers the
+  switch of the document scan.
+- A tablet set up for enrollment can stop Safari from asking at all: in
+  **Settings → Apps → Safari → Camera**, choose **Allow** (or, for this site
+  only, the page menu in the address bar → **Website Settings → Camera →
+  Allow**).
 
 ### Token verification and callbacks
 
