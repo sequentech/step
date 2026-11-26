@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-developers/signing/configuration_signing_trust" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.9.2">
+<title data-rh="true">Configuration Package Signing Trust | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4412/docs/developers/signing/configuration_signing_trust"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Configuration Package Signing Trust | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4412/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4412/docs/developers/signing/configuration_signing_trust"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4412/docs/developers/signing/configuration_signing_trust" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4412/docs/developers/signing/configuration_signing_trust" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Configuration package trust","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4412/docs/developers/signing/configuration_signing_trust"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4412/assets/css/styles.871bebf1.css">
+<script src="/docusaurus/pr-preview/pr-4412/assets/js/runtime~main.2397699f.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4412/assets/js/main.e29d4d7b.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",t||"light"),document.documentElement.setAttribute("data-theme-choice",t||"light")}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><link rel="preload" as="image" href="/docusaurus/pr-preview/pr-4412/img/logo_negative.svg"><div role="region" aria-label="Skip to main content"><a class="skipToContent_fXgn" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/docusaurus/pr-preview/pr-4412/docs/system_introduction"><div class="navbar__logo"><img src="/docusaurus/pr-preview/pr-4412/img/logo_negative.svg" alt="Sequent Logo" class="themedComponent_mlkZ themedComponent--light_NVdE"><img src="/docusaurus/pr-preview/pr-4412/img/logo_negative.svg" alt="Sequent Logo" class="themedComponent_mlkZ themedComponent--dark_xIcU"></div><b class="navbar__title text--truncate"></b></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/docusaurus/pr-preview/pr-4412/docs/system_introduction">Docs</a><a href="/docusaurus/pr-preview/pr-4412/graphql" class="navbar__item navbar__link" target="_blank">GraphQL API</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://github.com/sequentech" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width="13.5" height="13.5" aria-label="(opens in new tab)" class="iconExternalLink_nPIU"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_vylO colorModeToggle_DEke"><button class="clean-btn toggleButton_gllP toggleButtonDisabled_aARS" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP lightToggleIcon_pyhR"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP darkToggleIcon_wfgR"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_g3eP systemToggleIcon_QzmC"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Bca1"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_z2l0"><div class="docsWrapper_hBAB"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_sjWU" type="button"></button><div class="docRoot_UBD9"><aside class="theme-doc-sidebar-container docSidebarContainer_YfHR"><div class="sidebarViewport_aRkj"><div class="sidebar_njMd"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_SIkG"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist" href="/docusaurus/pr-preview/pr-4412/docs/system_introduction"><span title="System Introduction" class="categoryLinkLabel_W154">System Introduction</span></a><button aria-label="Expand sidebar category &#x27;System Introduction&#x27;" aria-expanded="false" type="button" class="clean-btn menu__caret"></button></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-4412/docs/election_managers/election_management"><span title="Election Managers" class="categoryLinkLabel_W154">Election Managers</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-4412/docs/voters/tutorials/cast_your_vote"><span title="Voters" class="categoryLinkLabel_W154">Voters</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-4412/docs/election_auditors/introduction/auditor_introduction"><span title="Election Auditors" class="categoryLinkLabel_W154">Election Auditors</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-4412/docs/reference/reference"><span title="Reference" class="categoryLinkLabel_W154">Reference</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-4412/docs/technology/threat-model"><span title="Technology" class="categoryLinkLabel_W154">Technology</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" href="/docusaurus/pr-preview/pr-4412/docs/developers/contributing"><span title="Developers" class="categoryLinkLabel_W154">Developers</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/contributing"><span title="Contributing Guide" class="linkLabel_WmDU">Contributing Guide</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/graphql_api"><span title="GraphQL API" class="linkLabel_WmDU">GraphQL API</span></a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/cli/cli"><span title="CLI" class="categoryLinkLabel_W154">CLI</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/development-environment/testing/admin-portal"><span title="Development Environment" class="categoryLinkLabel_W154">Development Environment</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/admin-portal/developers_admin_portal"><span title="Admin Portal" class="categoryLinkLabel_W154">Admin Portal</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/voting-portal/voter-status-performance"><span title="Voting Portal" class="categoryLinkLabel_W154">Voting Portal</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/keycloak/developers_keycloak"><span title="Keycloak" class="categoryLinkLabel_W154">Keycloak</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/velvet/velvet_introduction"><span title="Velvet" class="categoryLinkLabel_W154">Velvet</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/windmill/windmill_tests"><span title="Windmill" class="categoryLinkLabel_W154">Windmill</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/wbraid/public-verification"><span title="Wbraid" class="categoryLinkLabel_W154">Wbraid</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/tutorials/add_new_language"><span title="Tutorials" class="categoryLinkLabel_W154">Tutorials</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/updates/event-time-zones-migration"><span title="Updates" class="categoryLinkLabel_W154">Updates</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/ivr/dob-pin-direct-grant-authenticator"><span title="IVR Telephone Voting" class="categoryLinkLabel_W154">IVR Telephone Voting</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/continuous-integration/release-credentials"><span title="Continuous Integration" class="categoryLinkLabel_W154">Continuous Integration</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/electoral-log/electoral-log-design"><span title="Electoral Log" class="categoryLinkLabel_W154">Electoral Log</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/messaging/messaging_architecture"><span title="Messaging" class="categoryLinkLabel_W154">Messaging</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/signing/signing_architecture"><span title="Signing" class="categoryLinkLabel_W154">Signing</span></a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/signing/signing_architecture"><span title="Architecture" class="linkLabel_WmDU">Architecture</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/signing/signing_api"><span title="API contract" class="linkLabel_WmDU">API contract</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/signing/signing_new_action"><span title="Adding a protected action" class="linkLabel_WmDU">Adding a protected action</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/signing/signing_testing"><span title="Testing and known gaps" class="linkLabel_WmDU">Testing and known gaps</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/signing/configuration_signing_trust"><span title="Configuration package trust" class="linkLabel_WmDU">Configuration package trust</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/signing/platform-guards"><span title="platform-guards" class="linkLabel_WmDU">platform-guards</span></a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-3 menu__list-item"><a class="menu__link" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/signing/signed_schedule_architecture"><span title="Signed scheduled transitions" class="linkLabel_WmDU">Signed scheduled transitions</span></a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-2 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" tabindex="0" href="/docusaurus/pr-preview/pr-4412/docs/developers/monitoring/monitoring_architecture"><span title="Monitoring" class="categoryLinkLabel_W154">Monitoring</span></a></div></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-4412/docs/integrations/idp_initiated_sso_integration_guide"><span title="Integrations" class="categoryLinkLabel_W154">Integrations</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-4412/docs/releases/release-10.0/release-10.0.0"><span title="Releases" class="categoryLinkLabel_W154">Releases</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-4412/docs/support/support"><span title="Support" class="categoryLinkLabel_W154">Support</span></a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="categoryLink_byQd menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/docusaurus/pr-preview/pr-4412/docs/try_it_out/full-standalone-deployment"><span title="Try it out" class="categoryLinkLabel_W154">Try it out</span></a></div></li></ul></nav></div></div></aside><main class="docMainContainer_TBSr"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_VOVn"><div class="docItemContainer_Djhp"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_Z_bl" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/docusaurus/pr-preview/pr-4412/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_YNFT"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">Developers</span></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">Signing</span></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">Configuration package trust</span></li></ul></nav><div class="tocCollapsible_ETCw theme-doc-toc-mobile tocMobile_ITEo"><button type="button" class="clean-btn tocCollapsibleButton_TO0P">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Configuration Package Signing Trust</h1></header><p>A tenant&#x27;s <code>settings.configuration_signing</code> decides which configuration
+packages it imports. Election Architect signs them; this page covers the
+platform&#x27;s side.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="the-setting">The setting<a href="#the-setting" class="hash-link" aria-label="Direct link to The setting" title="Direct link to The setting" translate="no">​</a></h2>
+<div class="language-json codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-json codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token punctuation" style="color:rgb(199, 146, 234)">{</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;policy&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;required&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;package_roots&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;-----BEGIN CERTIFICATE-----\n…&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;staff_roots&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token string" style="color:rgb(195, 232, 141)">&quot;-----BEGIN CERTIFICATE-----\n…&quot;</span><span class="token punctuation" style="color:rgb(199, 146, 234)">,</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain">  </span><span class="token property">&quot;required_approvals&quot;</span><span class="token operator" style="color:rgb(137, 221, 255)">:</span><span class="token plain"> </span><span class="token number" style="color:rgb(247, 140, 108)">2</span><span class="token plain"></span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token punctuation" style="color:rgb(199, 146, 234)">}</span><br></span></code></pre></div></div>
+<table><thead><tr><th>Field</th><th>Default</th><th>Meaning</th></tr></thead><tbody><tr><td><code>policy</code></td><td><code>optional</code></td><td><code>ConfigurationSigningPolicy</code>. <code>required</code>: only a signed package that passes every check imports. <code>optional</code>: a signed package is checked, an unsigned file imports as before.</td></tr><tr><td><code>package_roots</code></td><td>empty</td><td>PEM certificates the package signing key must chain to.</td></tr><tr><td><code>staff_roots</code></td><td>empty</td><td>PEM certificates approvers&#x27; certificates must chain to.</td></tr><tr><td><code>required_approvals</code></td><td>0</td><td>Valid approvals from distinct people. Format 1: distinct by certificate subject or fingerprint. Format 2: distinct by <strong>enrolled signer ID</strong> (below).</td></tr><tr><td><code>minimum_package_format</code></td><td>absent</td><td><code>v1</code> or <code>v2</code>. Absent only on a legacy record, read as <code>v1</code>. With <code>v2</code>, only format-2 packages import, and a format-1 package is refused as a downgrade.</td></tr><tr><td><code>final_signer_separation</code></td><td><code>separate</code></td><td>Format 2. <code>separate</code>: the final signer must not be one of the package&#x27;s approvers. <code>allowed</code>: they may be.</td></tr><tr><td><code>signers</code></td><td>empty</td><td>Format 2. Enrolled signers: <code>{id, name, roles: [&quot;approver&quot; | &quot;final-signer&quot;], keys: [{spki_sha256, label}]}</code>.</td></tr></tbody></table>
+<p>A tenant without the setting behaves as <code>optional</code> with no roots: unsigned
+files import, signed packages are refused as untrusted. An explicit <code>null</code>
+field is unreadable, and every import fails until the setting is saved again.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="format-2-enrolled-signers">Format 2: enrolled signers<a href="#format-2-enrolled-signers" class="hash-link" aria-label="Direct link to Format 2: enrolled signers" title="Direct link to Format 2: enrolled signers" translate="no">​</a></h2>
+<p>In format 1, a person is identified by a certificate&#x27;s subject or fingerprint.
+Format 2 identifies them by an <strong>enrolled signer ID</strong> that the tenant&#x27;s policy
+lists, with the roles it may sign in and the keys it uses.</p>
+<ul>
+<li class="">
+<p><strong>Stable identity.</strong> A key is enrolled by its SPKI pin, the SHA-256 of its
+SubjectPublicKeyInfo DER. A reissued certificate for the same key keeps the
+pin, and one person may enroll several keys. Approvals count <strong>distinct
+signer IDs</strong>. Two approvals by one ID with two keys are refused as a
+duplicate person. Issuer and serial alone never identify anyone, and a key
+belongs to exactly one ID.</p>
+</li>
+<li class="">
+<p><strong>Binding.</strong> The approval payload is
+<code>sequent.configuration-approval/2</code> canonical JSON. It names the tenant,
+<code>external_id</code>, revision, <code>content_sha256</code>, <code>policy_sha256</code>, the signer ID
+and the role <code>approver</code>. The format-2 manifest&#x27;s <code>signing</code> object binds the
+final signature to the same tenant and policy digest, and to the final
+signer&#x27;s ID.</p>
+</li>
+<li class="">
+<p><strong><code>policy_sha256</code></strong> (<code>signing_policy::policy_sha256</code>) is the SHA-256 of a
+canonical JSON of:</p>
+<ul>
+<li class="">the policy, the approval count, the effective minimum format and the
+separation;</li>
+<li class="">both root sets, as sorted SHA-256 digests of each certificate&#x27;s DER, so
+PEM order and whitespace don&#x27;t matter;</li>
+<li class="">the signers, sorted by ID, with roles and keys as sets. Key labels are
+excluded.</li>
+</ul>
+<p>Any other change to the policy changes the digest.</p>
+</li>
+<li class="">
+<p><strong>Algorithms.</strong> ECDSA P-256 with SHA-256, or RSA-PSS exactly (SHA-256,
+MGF1-SHA-256, 32-byte salt, 2048–4096-bit modulus). PKCS#1 v1.5 is refused in
+format 2, and accepted in format 1 only.</p>
+</li>
+</ul>
+<p><code>check_policy</code> refuses a policy that can&#x27;t be met:
+<code>minimum-format-required</code> (signers or separation without a minimum format),
+<code>optional-with-v2</code>, <code>no-signers</code>, <code>no-final-signer</code>, <code>too-few-approvers</code>,
+<code>separation-unsatisfiable</code>, <code>signer-id</code>, <code>duplicate-signer</code>, <code>signer-name</code>,
+<code>signer-roles</code>, <code>signer-keys</code>, <code>key-pin</code>, <code>duplicate-key</code> and <code>shared-key</code>,
+all under <code>configuration-signing.</code>.</p>
+<p><code>check_stored</code> runs on every <strong>stored</strong> record that has any format-2 field,
+before admission. A malformed record is never read with legacy defaults. Every
+file, signed or not, is refused with
+<code>configuration-signing.invalid-stored-policy</code> until an administrator saves a
+valid policy. A record with no format-2 field is legacy, and is read exactly as
+before.</p>
+<p>The installer&#x27;s file <code>signing-policy.json</code> is exactly <code>{tenant_id, signing}</code>.
+The Admin Portal loads it only for that tenant and refuses unknown fields.
+The standalone Election Architect serves the same file as
+<code>trust/signing-policy.json</code>. A package never carries or changes trust.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="setting-it">Setting it<a href="#setting-it" class="hash-link" aria-label="Direct link to Setting it" title="Direct link to Setting it" translate="no">​</a></h2>
+<p>The only writer is <code>set_configuration_signing</code> (Hasura action, Harvest
+<code>POST /set-configuration-signing</code>), used by <strong>Settings → Configuration package
+→ Package signing trust</strong>. It needs all six permissions a package application
+needs, on that tenant. The setter:</p>
+<ol>
+<li class="">
+<p>Reads the input strictly: an unknown field or policy is refused, not dropped.</p>
+</li>
+<li class="">
+<p>Runs <code>ConfigurationSigning::check</code> (sequent-core <code>package_verify</code>). Errors are
+returned and nothing is written:</p>
+<ul>
+<li class=""><code>configuration-signing.no-package-roots</code>: required with no package roots;</li>
+<li class=""><code>configuration-signing.no-staff-roots</code>: approvals with no staff roots;</li>
+<li class=""><code>configuration-signing.too-many-approvals</code>: more than 16;</li>
+<li class=""><code>configuration-signing.not-a-ca</code>, <code>root-expired</code>, <code>root-not-yet-valid</code>:
+the root itself is unusable now;</li>
+<li class=""><code>configuration-signing.not-only-certificates</code>: any PEM block other than
+<code>CERTIFICATE</code>, or text outside the blocks. A pasted private key is refused,
+never stored or audited.</li>
+</ul>
+<p><code>configuration-signing.no-approvals</code> (required, zero approvals) is a warning.</p>
+</li>
+<li class="">
+<p>Stores the canonical certificates only (<code>ConfigurationSigning::canonical</code>).</p>
+</li>
+<li class="">
+<p>Try-locks the tenant&#x27;s package-application claim and its import lock. If a
+package application or an election event import (signed or not) is running,
+it answers <code>saved: false</code> with the error <code>configuration-signing.busy</code> and writes nothing; it does not wait. The administrator saves again once that run has finished. While the setter&#x27;s
+transaction is open, neither can start, so trust never changes under one.</p>
+</li>
+<li class="">
+<p>Writes the key with <code>postgres::tenant::write_configuration_signing</code> and stages
+an audit entry with the old and new values and the trusted fingerprints.</p>
+</li>
+</ol>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="what-keeps-it">What keeps it<a href="#what-keeps-it" class="hash-link" aria-label="Direct link to What keeps it" title="Direct link to What keeps it" translate="no">​</a></h2>
+<ul>
+<li class=""><strong>Database guard</strong> (migration <code>configuration_signing_guard</code>): a trigger on
+<code>sequent_backend.tenant</code> refuses any INSERT, UPDATE or DELETE that would add,
+change, null or remove <code>settings.configuration_signing</code>. This includes
+GraphQL <code>_append</code>/<code>_delete_key</code>, rewriting the whole settings object,
+changing the row&#x27;s id, and deleting and recreating the tenant. Writes that leave
+the key as it is pass. The exception is a transaction-local GUC,
+<code>sequent.configuration_signing_tenant</code>, naming the one tenant. It is set by
+<code>allow_configuration_signing_change</code>, which only the setter and super-admin
+tenant deletion (<code>TENANT_DELETE</code>) call. It ends with the transaction and does
+not stay on pooled connections.</li>
+<li class=""><strong>Packages</strong>: <code>configuration_signing</code> is a reserved setting
+(<code>RESERVED_SETTINGS</code>). A package that would change it is blocked in the
+preview, and the merge keeps the installed value.</li>
+<li class=""><strong>Backups</strong>: a tenant restore keeps the installed value, and also keeps its
+absence (<code>keep_reserved_settings</code>), so old backups still restore.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="admission">Admission<a href="#admission" class="hash-link" aria-label="Direct link to Admission" title="Direct link to Admission" translate="no">​</a></h2>
+<p>Every package preview and application, and every election event import, admits
+the file with <code>admit_for_tenant_at</code> against the tenant&#x27;s setting at that
+moment, before anything is read or changed. For format 2, admission also
+checks the following against that tenant&#x27;s <strong>current</strong> policy and the
+platform&#x27;s <strong>own trusted clock</strong> (never a time the package claims):</p>
+<ul>
+<li class="">the package&#x27;s tenant;</li>
+<li class="">the policy digest, so a policy changed after approval, including between
+preview and apply, is refused;</li>
+<li class="">enrollment and roles, and separation;</li>
+<li class="">the format: a downgrade, a mixed-format package or an unsigned file is
+refused.</li>
+</ul>
+<p>The locked revision check is unchanged: a revision that isn&#x27;t newer than the
+last imported one is refused as a rollback (<code>package.rollback</code>).</p>
+<p><strong>Replay of the same package.</strong> A package application
+(<code>configuration_package_sections::admission_problem</code>, on every section
+preview) refuses a <strong>format-2</strong> package that is already imported. The refusal
+reads &quot;… is already imported (into event …); a format-2 package is imported
+exactly once&quot;, and is given at the initial preview of every run, before any
+write or reuse of a prior record. There is one admission:
+<code>PlatformTarget::event_imported_by_this_run</code>. It is set only when <strong>this
+invocation&#x27;s</strong> election-event submission succeeded (its import returned Ok
+and its task row is SUCCESS), and it lets that same run&#x27;s convergence
+re-preview pass. A matching derived event ID or a prior record never admits
+it.</p>
+<p>A run that stopped after the event import committed has nothing left to
+apply, because the event is the last section. Its retry is therefore refused
+and writes nothing, and the operator inspects the imported state and the task
+instead. <strong>Format 1</strong> keeps its same-event resume. The direct election-event
+importer (<code>admit_document</code>) refuses any already-imported package under the
+tenant import lock.</p>
+<p><strong>Revocation:</strong></p>
+<ul>
+<li class="">Removing a key from the policy withdraws it at once.</li>
+<li class="">Configured CRLs are honoured.</li>
+<li class="">A missing or stale CRL is <strong>not</strong> treated as revoked, and no revocation
+freshness is claimed. A refused package changes nothing. Election event
+imports hold the tenant&#x27;s import lock from before the policy is read until the
+import is recorded, signed or not.</li>
+</ul>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="tests">Tests<a href="#tests" class="hash-link" aria-label="Direct link to Tests" title="Direct link to Tests" translate="no">​</a></h2>
+<p>From <code>packages/</code>, with a disposable PostgreSQL named by <code>HASURA_DB__*</code>:</p>
+<div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">cargo</span><span class="token plain"> </span><span class="token builtin class-name" style="color:rgb(255, 203, 107)">test</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-p</span><span class="token plain"> sequent-core </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--features</span><span class="token plain"> default_features,election_config_signing,election_config_xlsx </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--lib</span><span class="token plain"> election_config</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">cargo</span><span class="token plain"> </span><span class="token builtin class-name" style="color:rgb(255, 203, 107)">test</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-p</span><span class="token plain"> windmill </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--lib</span><span class="token plain"> -- configuration import_tenant</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">cargo</span><span class="token plain"> </span><span class="token builtin class-name" style="color:rgb(255, 203, 107)">test</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-p</span><span class="token plain"> windmill </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--test</span><span class="token plain"> postgres_configuration_signing </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--test</span><span class="token plain"> postgres_configuration_packages</span><br></span><span class="token-line" style="color:#bfc7d5"><span class="token plain"></span><span class="token function" style="color:rgb(130, 170, 255)">yarn</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--cwd</span><span class="token plain"> admin-portal jest src/resources/Settings/configurationSigning.test.ts src/resources/Settings/ConfigurationSigningSettings.test.tsx</span><br></span></code></pre></div></div>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="isolated-browser-security-key-preview">Isolated browser-security-key preview<a href="#isolated-browser-security-key-preview" class="hash-link" aria-label="Direct link to Isolated browser-security-key preview" title="Direct link to Isolated browser-security-key preview" translate="no">​</a></h2>
+<p>This is default-off, non-production work. It does not replace certificate
+format 1/2 or enable signing in an enrollment-only or pending-only installation.
+No hardware-key, production-deployment or end-to-end election application claim
+follows from software-key tests.</p>
+<p>Architect&#x27;s preview freezes the complete manifest before issuing the final
+WebAuthn challenge. Its final seal covers the exact manifest bytes, tenant,
+relying party, revision, previous manifest link and frozen ordered approval
+digests. The separate final signer cannot have approved. A successful finish
+assembles the stored delivery, verifies it with Step&#x27;s core and atomically
+records the package and signed revision. The ZIP carries
+<code>manifest.webauthn.json</code>, not a certificate signature. A prior certificate
+package is not silently made the predecessor of a browser chain.</p>
+<p>Windmill must be provisioned <strong>separately</strong>, never from the ZIP or an imported
+tenant setting:</p>
+<ul>
+<li class=""><code>WINDMILL_WEBAUTHN_PACKAGES_PREVIEW=nonproduction-isolated-test</code></li>
+<li class=""><code>WINDMILL_WEBAUTHN_PACKAGES_TENANT_ID</code>: destination tenant v4 UUID</li>
+<li class=""><code>WINDMILL_WEBAUTHN_PACKAGES_ROSTER_FILE</code>: operator-provisioned public roster</li>
+<li class=""><code>WINDMILL_WEBAUTHN_PACKAGES_ROSTER_SHA256</code>: independently checked lowercase SHA-256</li>
+<li class=""><code>WINDMILL_WEBAUTHN_PACKAGES_REQUIRED_APPROVALS</code>: positive threshold</li>
+</ul>
+<p>The roster names the canonical tenant v4 UUID. UUID aliases cannot select another
+policy. An invalid preview switch fails closed. For the configured tenant,
+unsigned and certificate packages are refused, including during later
+application rechecks. ZIP directory ambiguity and duplicate/aliased signature
+metadata are rejected before unsigned fallback. Planning uses verified members.</p>
+<p>Under the tenant import lock, the next package must name the last persisted
+revision and manifest digest exactly; identical replay and older packages are
+refused. The first visible signed revision may exceed 1 after withdrawn drafts,
+but it must have no previous link when this tenant has no import history.
+Whole-package application requires an applicable election-event section so the
+event importer records the chain anchor. Sections remain separately committed:
+an interruption can leave earlier sections applied, not an atomic whole-package
+rollback. Re-preview and the persisted chain govern retries.</p>
+<p>Public roster export is not automatic receiving trust. Operators independently
+verify, provision and rotate both roster and pin. Changed model/FIDO trust,
+pending-only mode and revoked keys prevent new producer use. Stored browser
+artifacts require their immutable tenant/relying-party owner and a preview build;
+old detached preview seals cannot acquire ownership through a GET request.</p>
+<p>The paired integration fixture is emitted only by the synthetic Architect test
+when <code>ARCHITECT_SYNTHETIC_PACKAGE_FIXTURE_DIR</code> is set. With that directory,
+independent Windmill policy and a disposable migrated PostgreSQL:</p>
+<div class="language-sh codeBlockContainer_Ckt0 theme-code-block" style="--prism-color:#bfc7d5;--prism-background-color:#292d3e"><div class="codeBlockContent_QJqH"><pre tabindex="0" class="prism-code language-sh codeBlock_bY9V thin-scrollbar" style="color:#bfc7d5;background-color:#292d3e"><code class="codeBlockLines_e6Vv"><span class="token-line" style="color:#bfc7d5"><span class="token function" style="color:rgb(130, 170, 255)">cargo</span><span class="token plain"> </span><span class="token builtin class-name" style="color:rgb(255, 203, 107)">test</span><span class="token plain"> </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">-p</span><span class="token plain"> windmill </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--test</span><span class="token plain"> postgres_configuration_packages   browser_producer_package_uses_real_admission_and_persisted_chain -- </span><span class="token parameter variable" style="color:rgb(191, 199, 213)">--ignored</span><br></span></code></pre></div></div>
+<p>That test exercises real <code>admit_document</code>, <code>record</code>, committed history, replay
+refusal and the next exact previous link. It does not apply an election through
+live Hasura or Keycloak.</p>
+<h2 class="anchor anchorTargetStickyNavbar_Vzrq" id="optional-receiver-managed-signer-roster">Optional receiver-managed signer roster<a href="#optional-receiver-managed-signer-roster" class="hash-link" aria-label="Direct link to Optional receiver-managed signer roster" title="Direct link to Optional receiver-managed signer roster" translate="no">​</a></h2>
+<p>An already provisioned receiver using <code>WINDMILL_WEBAUTHN_PACKAGES=site-pinned</code>
+keeps the exact file, independently provisioned digest and approval minimum
+it already trusts. Tenant Settings can show that pin read-only. A portal
+upload cannot change it. Do not remove or replace the existing pin as part
+of a software upgrade.</p>
+<p>A new receiving installation can instead explicitly opt into
+<code>WINDMILL_WEBAUTHN_PACKAGES=portal-managed</code>. Provision the <strong>same</strong> settings
+on Harvest, Windmill workers and any job runner that admits packages,
+against the same local receiver database:</p>
+<table><thead><tr><th>Setting</th><th>Purpose</th></tr></thead><tbody><tr><td><code>WINDMILL_WEBAUTHN_PACKAGES_TENANT_ID</code></td><td>Canonical lower-case v4 UUID of the protected <strong>destination</strong> tenant.</td></tr><tr><td><code>WINDMILL_WEBAUTHN_PACKAGES_EXPECTED_RP_ID</code></td><td>Exact lower-case producer relying-party hostname.</td></tr><tr><td><code>WINDMILL_WEBAUTHN_PACKAGES_EXPECTED_ORIGIN</code></td><td>Exact producer HTTPS origin, with a port only when the browser origin includes it.</td></tr><tr><td><code>WINDMILL_WEBAUTHN_PACKAGES_ROSTER_ADMIN_SUBJECTS</code></td><td>Comma-separated, exact verified receiver Keycloak account subjects authorized to provision trust. Not usernames or a role that a ZIP can assign.</td></tr><tr><td><code>WINDMILL_WEBAUTHN_PACKAGES_REQUIRED_APPROVALS</code></td><td>The <strong>receiver</strong> floor, an integer 1–16; unset defaults to 2, plus a separate final signer. This is independent of the Architect&#x27;s producer threshold.</td></tr></tbody></table>
+<p>Do not set the preview switch, a roster file or the file&#x27;s digest in portal
+mode. Apply the additive receiver roster migration before starting these
+updated Harvest and Windmill binaries in any mode, and apply Hasura metadata
+before opening the portal. The browser-signature-only tenant cannot import any
+package before its first valid roster is activated, during an unavailable
+trust store, or with invalid authority. Other tenants keep their existing
+legacy policy. Once a tenant activates a roster, updated workers refuse it
+if the environment is later removed, misconfigured, or points to a
+different tenant. All writer processes must have matching configuration, and
+older binaries must be fenced before enabling portal mode; never roll them
+back over an activated managed tenant. Do not set portal-managed mode on an
+existing receiver as
+part of an unrelated release; switching trust sources is a separate operator
+decision. Never roll back a partially applied package, the roster generation,
+or the persisted import chain to work around a trust change.</p>
+<ol>
+<li class="">Get the exact, public signer-roster JSON exported by Architect.</li>
+<li class="">Independently confirm the lowercase SHA-256 through a trusted channel
+with the producer or authorized custodian, <strong>not</strong> from the ZIP, its
+surrounding message alone, or by copying a digest computed from the
+unverified file. The server compares exact UTF-8 bytes to the supplied
+fingerprint; it cannot authenticate the operator&#x27;s out-of-band channel.</li>
+<li class="">In the receiving Admin Portal, open the matching tenant&#x27;s Settings and
+preview the JSON with the independently confirmed digest. Review the
+destination, RP/origin, digest and signer counts.</li>
+<li class="">Explicitly activate that exact preview. The authenticated operator needs
+the tenant&#x27;s package-administration permissions, an allowlisted account,
+and a real Keycloak authentication within five minutes. Refreshing a
+token does not count. Activation compares the preview&#x27;s generation, holds
+both tenant package-work locks and records the old/new digest and actor
+in the same transaction. It stores the public roster only in local receiver
+authority, not in exported tenant settings. It does not require a restart.</li>
+</ol>
+<p>The public file must be UTF-8, no more than 256 KiB, without reformatting or
+line-ending changes. It is not a private credential and never comes from the
+ZIP. The receiver rechecks the current generation, digest and floor under
+the existing locks. A managed package Apply requires the exact successful
+Preview task from the same verified tenant-portal operator, with matching
+package bytes, normalized profile requirements and coverage; a rotation invalidates older previews even when the package
+would still verify. Pause and reconcile a previously started package before
+rotating; a partial application is not made resumable under different
+trust by simply refreshing the preview.</p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col noPrint_WFHX"><a href="https://github.com/sequentech/step/edit/main/docs/docusaurus/docs/07-developers/14-signing/05-configuration-signing-trust.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_Z9Sw" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_JAkA"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/docusaurus/pr-preview/pr-4412/docs/developers/signing/signing_testing"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Testing and known gaps</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/docusaurus/pr-preview/pr-4412/docs/developers/signing/platform-guards"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">platform-guards</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_bqdL thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#the-setting" class="table-of-contents__link toc-highlight">The setting</a></li><li><a href="#format-2-enrolled-signers" class="table-of-contents__link toc-highlight">Format 2: enrolled signers</a></li><li><a href="#setting-it" class="table-of-contents__link toc-highlight">Setting it</a></li><li><a href="#what-keeps-it" class="table-of-contents__link toc-highlight">What keeps it</a></li><li><a href="#admission" class="table-of-contents__link toc-highlight">Admission</a></li><li><a href="#tests" class="table-of-contents__link toc-highlight">Tests</a></li><li><a href="#isolated-browser-security-key-preview" class="table-of-contents__link toc-highlight">Isolated browser-security-key preview</a></li><li><a href="#optional-receiver-managed-signer-roster" class="table-of-contents__link toc-highlight">Optional receiver-managed signer roster</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2026 Sequent</div></div></div></footer></div>
+</body>
+</html>
