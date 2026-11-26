@@ -132,36 +132,51 @@ pub async fn readiness_check(
     })?;
     validate(&input)?;
     let tenant = &claims.hasura_claims.tenant_id;
-    let mut client = services
-        .databases
-        .hasura()
-        .await
-        .get()
-        .await
-        .map_err(internal)?;
+    let pool = services.databases.hasura().await;
+    let mut client = pool.get().await.map_err(internal)?;
     if let Some(comparison) = input.comparison.unwrap_or_default().rehearsal() {
-        // Read committed observes work that finished while the advisory lock
-        // was waiting. A snapshot fixed during authorization would predate
-        // that work while the separate evidence stores return current data.
-        // The transaction stays read-only and never has a recorder.
-        let tx = client
+        // Hold the existing signing/voter advisory locks on a read-only
+        // barrier transaction. Do not fix the evidence snapshot until locks
+        // acquired after these initial permission checks have finished waiting.
+        let barrier = client
             .build_transaction()
             .isolation_level(tokio_postgres::IsolationLevel::ReadCommitted)
             .read_only(true)
             .start()
             .await
             .map_err(internal)?;
-        authorize_events(&tx, &claims, &input).await?;
+        authorize_events(&barrier, &claims, &input).await?;
         windmill::services::readiness::lock_events_read_only(
-            &tx,
+            &barrier,
             tenant,
             &input.official_event_id,
             &input.tested_event_id,
         )
         .await
         .map_err(incomplete)?;
+
+        // Publication and file finalization use row locks, which read-only
+        // transactions cannot take. One later MVCC snapshot reads their
+        // publication IDs, styles, design data and seals together. Separate
+        // evidence stores are still observations, not one distributed snapshot.
+        // With a busy/single-connection pool, fail closed rather than waiting
+        // indefinitely while holding a pool connection and the event locks.
+        let mut evidence_client =
+            tokio::time::timeout(std::time::Duration::from_secs(2), pool.get())
+                .await
+                .map_err(internal)?
+                .map_err(internal)?;
+        let evidence = evidence_client
+            .build_transaction()
+            .isolation_level(tokio_postgres::IsolationLevel::RepeatableRead)
+            .read_only(true)
+            .start()
+            .await
+            .map_err(internal)?;
+        // Re-authorize against the same snapshot used for the evidence.
+        authorize_events(&evidence, &claims, &input).await?;
         let report = windmill::services::readiness::compare_rehearsal(
-            &tx,
+            &evidence,
             tenant,
             comparison,
             &input.official_event_id,
@@ -169,7 +184,8 @@ pub async fn readiness_check(
         )
         .await
         .map_err(incomplete)?;
-        tx.rollback().await.map_err(internal)?;
+        evidence.rollback().await.map_err(internal)?;
+        barrier.rollback().await.map_err(internal)?;
         return Ok(Json(ReadinessResponse::Rehearsal(report)));
     }
     let tx = client.transaction().await.map_err(internal)?;

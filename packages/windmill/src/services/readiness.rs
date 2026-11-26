@@ -549,13 +549,17 @@ pub async fn compare_rehearsal(
     reference: &str,
     compared: &str,
 ) -> Result<RehearsalReport> {
-    let read_only: String = tx
-        .query_one("SHOW transaction_read_only", &[])
-        .await?
-        .try_get(0)?;
+    let transaction = tx
+        .query_one(
+            "SELECT current_setting('transaction_read_only'), current_setting('transaction_isolation')",
+            &[],
+        )
+        .await?;
+    let read_only: String = transaction.try_get(0)?;
+    let isolation: String = transaction.try_get(1)?;
     ensure!(
-        read_only == "on",
-        "A rehearsal comparison runs only in a read-only transaction"
+        read_only == "on" && isolation == "repeatable read",
+        "A rehearsal comparison requires one read-only repeatable-read evidence snapshot"
     );
     let (left, right) = comparison.roles();
     let reference_evidence = snapshot_for(tx, tenant, reference, rehearsal_scope(left), true)
