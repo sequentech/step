@@ -10,8 +10,14 @@ umask 077
 root=$(cd "$(dirname "$0")/../.." && pwd)
 fixtures="$root/hasura/tests"
 migrations="$root/hasura/migrations/backend-db"
+# Debian's psql on PATH may be a client wrapper in /usr/bin; initdb
+# locates the actual server tool directory used by the fixture.
+pg_bin=${PG_BIN:-}
+if [[ -z "$pg_bin" ]]; then
+    initdb_bin=$(command -v initdb) || { echo 'initdb is not on PATH; set PG_BIN' >&2; exit 1; }
+    pg_bin=$(dirname "$initdb_bin")
+fi
 work=$(mktemp -d "/tmp/verified-cast-key-test.XXXXXXXX")
-pg_bin="${PG_BIN:-$(dirname "$(command -v psql)")}"
 finish() {
     "$pg_bin/pg_ctl" -D "$work/db" -m immediate stop >/dev/null 2>&1 || true
     rm -rf -- "$work"
