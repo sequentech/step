@@ -29,20 +29,9 @@ pub struct DeviceCaProbe {
     pub fence: Uuid,
 }
 
-#[derive(Clone, Copy)]
-pub enum RequiredCaDevice {
-    YubiHsm,
-    DisposableSoftHsm,
-}
-
-impl RequiredCaDevice {
-    fn value(self) -> &'static str {
-        match self {
-            Self::YubiHsm => "yubihsm",
-            Self::DisposableSoftHsm => "softhsm-test",
-        }
-    }
-}
+/// The CA uses the same installed-device domain as approval and release. An
+/// ordinary build cannot even select the disposable software provider.
+pub use super::operational_device::InstalledDevice as RequiredCaDevice;
 
 #[derive(Deserialize)]
 struct Binding {
@@ -114,7 +103,7 @@ pub async fn assess_reserved_ca(
     }
 
     let actor = probe.official.to_string();
-    let profile = profile.value();
+    let profile = profile.as_str();
     let Some(row) = tx
         .query_opt(
             "SELECT binding,certificate_id,chain_pem,grant_until,ca_version,anchors_pem,revocation_lists,locally_revoked

@@ -183,6 +183,7 @@ impl ReturnPage {
 #[serde(deny_unknown_fields)]
 pub struct StartGold {
     request_id: Uuid,
+    payload_sha256: String,
     page: ReturnPage,
 }
 #[derive(Serialize)]
@@ -311,6 +312,42 @@ pub(crate) trait OperationalInitializeBroker: Send + Sync {
 
 pub(crate) struct InitializeBroker(pub Box<dyn OperationalInitializeBroker>);
 
+/// Checked against the same protected install marker as startup, independently
+/// of browser data and the broker response. Other scopes never reach the broker.
+pub(crate) struct DemoSigningScope {
+    pub tenant: Uuid,
+    pub event: Uuid,
+    pub run: Uuid,
+    pub profile: &'static str,
+}
+
+impl DemoSigningScope {
+    async fn verify(
+        &self,
+        tx: &deadpool_postgres::Transaction<'_>,
+        request: &InitializeSigningScope,
+    ) -> Result<(), SigningError> {
+        let refused = || {
+            SigningError::forbidden("Signing is unavailable for this request.")
+        };
+        if (request.tenant(), request.event()) != (self.tenant, self.event)
+            || !request.election().is_some_and(|post| !post.is_nil())
+        {
+            return Err(refused());
+        }
+        let run: Option<Uuid> = tx
+            .query_one("SELECT sequent_backend.operational_signing_demo_fixture_id($1,$2,$3,$4)",
+                       &[&self.tenant, &self.event, &"initialize-voting", &self.profile])
+            .await.map_err(SigningError::internal)?
+            .try_get(0).map_err(SigningError::internal)?;
+        if !self.run.is_nil() && run == Some(self.run) {
+            Ok(())
+        } else {
+            Err(refused())
+        }
+    }
+}
+
 fn caller(claims: &JwtClaims) -> Result<(Uuid, SigningCaller), SigningError> {
     authorize_403(
         claims,
@@ -389,6 +426,7 @@ fn permitted_redirect(
 pub(crate) async fn status(
     claims: OperationalPortalClaims,
     services: &State<HarvestServices>,
+    installed: &State<DemoSigningScope>,
     broker: Option<&State<InitializeBroker>>,
     input: Json<Start>,
 ) -> SigningReply<PendingState> {
@@ -405,6 +443,7 @@ pub(crate) async fn status(
         initialize_signing_scope(&tx, &caller, tenant, input.request_id)
             .await
             .map_err(signing_failure)?;
+    installed.verify(&tx, &scoped).await?;
     let scope = PortalScope {
         tenant,
         event: scoped.event(),
@@ -416,8 +455,7 @@ pub(crate) async fn status(
             scope,
             phase,
             cancellable_attempt,
-            // Every tenant shows the normal hardware profile.
-            device_profile: "normal",
+            device_profile: installed.profile,
         }))
     };
     if initialize_signing_applied(&tx, &caller, tenant, input.request_id)
@@ -484,6 +522,7 @@ async fn current_attempt(
 pub(crate) async fn cancel_unused(
     claims: OperationalPortalClaims,
     services: &State<HarvestServices>,
+    installed: &State<DemoSigningScope>,
     input: Json<CancelAttempt>,
 ) -> SigningReply<Outcome> {
     let (tenant, caller) = caller(&claims.0)?;
@@ -499,6 +538,7 @@ pub(crate) async fn cancel_unused(
         initialize_signing_scope(&tx, &caller, tenant, input.request_id)
             .await
             .map_err(signing_failure)?;
+    installed.verify(&tx, &scoped).await?;
     let discarded: bool = tx
         .query_one(
             "SELECT sequent_backend.operational_initialize_discard_unredeemed($1,$2,$3,$4,$5,$6)",
@@ -543,6 +583,7 @@ pub(crate) async fn cancel_unused(
 pub(crate) async fn reconcile(
     claims: OperationalPortalClaims,
     services: &State<HarvestServices>,
+    installed: &State<DemoSigningScope>,
     input: Json<Start>,
 ) -> SigningReply<Outcome> {
     let (tenant, caller) = caller(&claims.0)?;
@@ -558,6 +599,7 @@ pub(crate) async fn reconcile(
         initialize_signing_scope(&tx, &caller, tenant, input.request_id)
             .await
             .map_err(signing_failure)?;
+    installed.verify(&tx, &scoped).await?;
     if initialize_signing_applied(&tx, &caller, tenant, input.request_id)
         .await
         .map_err(signing_failure)?
@@ -621,6 +663,7 @@ pub(crate) async fn reconcile(
 pub(crate) async fn start(
     claims: OperationalPortalClaims,
     services: &State<HarvestServices>,
+    installed: &State<DemoSigningScope>,
     broker: &State<InitializeBroker>,
     input: Json<StartGold>,
 ) -> SigningReply<Begin> {
@@ -637,6 +680,12 @@ pub(crate) async fn start(
         prepare_initialize_signing(&tx, &caller, tenant, input.request_id)
             .await
             .map_err(signing_failure)?;
+    installed.verify(&tx, &prepared).await?;
+    if input.payload_sha256 != prepared.payload_sha256() {
+        return Err(SigningError::conflict(
+            "The reviewed signing request no longer matches. Review it again before approving.",
+        ));
+    }
     let page = input.page;
     if !page.matches_request(prepared.election()) {
         return Err(SigningError::forbidden(
@@ -703,6 +752,7 @@ pub(crate) async fn start(
 pub(crate) async fn finish(
     claims: OperationalPortalClaims,
     services: &State<HarvestServices>,
+    installed: &State<DemoSigningScope>,
     broker: &State<InitializeBroker>,
     input: Json<Return>,
 ) -> SigningReply<GoldReturnView> {
@@ -719,6 +769,7 @@ pub(crate) async fn finish(
         initialize_signing_scope(&tx, &caller, tenant, input.request_id)
             .await
             .map_err(signing_failure)?;
+    installed.verify(&tx, &authorized).await?;
     let page =
         read_browser_return(&tx, &authorized, &caller, input.attempt).await?;
     let response = |phase| {
@@ -902,5 +953,45 @@ mod return_page_tests {
             "path":"https://not-local.invalid", "panel":"publish"
         }))
         .is_err());
+    }
+
+    #[test]
+    fn only_exact_authorization_endpoint_and_par_parameters_can_redirect_the_browser(
+    ) {
+        let root = "https://issuer.invalid/realms/tenant-example/protocol/openid-connect/auth";
+        let expected = reqwest::Url::parse(root).unwrap();
+        let client = "private-oidc-client";
+        let valid_pair = "client_id=private-oidc-client&request_uri=urn:ietf:params:oauth:request_uri:safe_opaque.id";
+        let admit = |url: String| {
+            permitted_redirect(
+                &reqwest::Url::parse(&url).unwrap(),
+                &expected,
+                client,
+            )
+        };
+        assert!(admit(format!("{root}?{valid_pair}")));
+        for target in [
+            root.replace("https", "http"),
+            root.replace("issuer.invalid", "other.invalid"),
+            root.replace("issuer.invalid", "name:pass@issuer.invalid"),
+            root.replace("/auth", "/token"),
+        ] {
+            assert!(!admit(format!("{target}?{valid_pair}")));
+        }
+        for params in [
+            String::new(),
+            "client_id=private-oidc-client".into(),
+            "request_uri=urn:ietf:params:oauth:request_uri:safe".into(),
+            "client_id=wrong&request_uri=urn:ietf:params:oauth:request_uri:safe".into(),
+            "client_id=private-oidc-client&request_uri=https://wrong.invalid".into(),
+            "client_id=private-oidc-client&request_uri=urn:ietf:params:oauth:request_uri:".into(),
+            "client_id=private-oidc-client&request_uri=urn:ietf:params:oauth:request_uri:not%2Fopaque".into(),
+            format!("{valid_pair}#fragment"),
+            format!("{valid_pair}&client_id={client}"),
+            format!("{valid_pair}&redirect_uri=https://wrong.invalid"),
+            format!("client_id={client}&request_uri=urn:ietf:params:oauth:request_uri:{}", "s".repeat(257)),
+        ] {
+            assert!(!admit(format!("{root}?{params}")));
+        }
     }
 }

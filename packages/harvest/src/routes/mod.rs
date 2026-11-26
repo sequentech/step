@@ -65,6 +65,8 @@ pub(crate) mod operational_initialize;
 #[cfg(feature = "operational-signing-candidate")]
 pub(crate) mod operational_initialize_broker;
 #[cfg(feature = "operational-signing-candidate")]
+pub(crate) mod operational_initialize_setup;
+#[cfg(feature = "operational-signing-candidate")]
 pub(crate) mod operational_setup;
 pub mod permissions;
 pub mod phone_blacklist;

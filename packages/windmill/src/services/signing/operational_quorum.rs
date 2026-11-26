@@ -5,6 +5,7 @@
 //! Consumption-side check for an already persisted operational quorum.
 //! The original approval transaction verified the receipts cryptographically.
 
+use super::operational_device::{installed_profile, matches_canonical_request, InstalledDevice};
 use crate::postgres::signing::{SigningApprovalRow, SigningRequestRow};
 use anyhow::{Context, Result};
 use deadpool_postgres::Transaction;
@@ -37,6 +38,59 @@ pub(super) async fn check_operational_approvals(
     request: &SigningRequestRow,
     approvals: &[SigningApprovalRow],
 ) -> Result<bool> {
+    let Some(device) = installed_profile(
+        tx,
+        request.tenant_id,
+        request.election_event_id,
+        request.action,
+    )
+    .await?
+    else {
+        return Ok(false);
+    };
+    check_with_installed_device(tx, request, approvals, device).await
+}
+
+pub(super) async fn check_with_installed_device(
+    tx: &Transaction<'_>,
+    request: &SigningRequestRow,
+    approvals: &[SigningApprovalRow],
+    device: InstalledDevice,
+) -> Result<bool> {
+    let distinct: std::collections::HashSet<&str> = approvals
+        .iter()
+        .map(|approval| approval.user_id.as_str())
+        .collect();
+    if distinct.len() != approvals.len() || !matches_canonical_request(request) {
+        return Ok(false);
+    }
+    if !approvals.is_empty() {
+        // The consuming worker may already own the request row (rather than the
+        // event lock). Never wait for a revoker holding the event/official lock
+        // while it waits on that same request. Refuse a concurrent change;
+        // otherwise retain shared locks through this transaction and use the
+        // existing authoritative current-chain read without reversing lock order.
+        let scopes: Vec<String> = std::iter::once(format!(
+            "signing-event:{}:{}",
+            request.tenant_id, request.election_event_id
+        ))
+        .chain(approvals.iter().map(|a| {
+            format!(
+                "operational-signing-official:{}:{}",
+                request.tenant_id, a.user_id
+            )
+        }))
+        .collect();
+        let held: bool = tx.query_one(
+            "SELECT coalesce(bool_and(pg_try_advisory_xact_lock_shared(hashtextextended(k,0))),false)
+             FROM unnest($1::text[]) AS locks(k)",
+            &[&scopes],
+        ).await?.try_get(0)?;
+        anyhow::ensure!(
+            held,
+            "Operational signing key or event is changing; retry the check"
+        );
+    }
     let document_part = match request.action.document() {
         DocumentKind::NoDocument => None,
         DocumentKind::Pdf => Some("pdf-cms"),
@@ -47,44 +101,7 @@ pub(super) async fn check_operational_approvals(
     for approval in approvals {
         let matching: bool = tx
             .query_one(
-                "SELECT EXISTS (
-                SELECT FROM sequent_backend.operational_signing_intent p
-                WHERE (p.tenant_id,p.event_id,p.request_id,p.actor) = ($1,$2,$3,$4)
-                  AND p.phase='applied' AND p.purpose='approval-payload'
-                  AND sequent_backend.operational_signing_recorded_device_profile(
-                    p.tenant_id,p.event_id,p.request_id,p.actor,p.reservation_id
-                  )='yubihsm'
-                  AND (p.binding).action=$5 AND (p.binding).payload_hash=$6
-                  AND (p.binding).cert_fingerprint=$7 AND (p.binding).cert_spki=$8
-                  AND (p.binding).message_hash=$6 AND p.receipt=$9
-                  AND p.applied_signature_sha256=encode(sha256($9::bytea),'hex')
-                  AND ($10::text IS NULL OR EXISTS (
-                    SELECT FROM sequent_backend.operational_signing_intent d
-                    WHERE (d.tenant_id,d.event_id,d.request_id,d.actor) = ($1,$2,$3,$4)
-                      AND d.phase='applied' AND d.purpose=$10
-                      AND sequent_backend.operational_signing_recorded_device_profile(
-                        d.tenant_id,d.event_id,d.request_id,d.actor,d.reservation_id
-                      )='yubihsm'
-                      AND (d.binding).action=$5 AND (d.binding).payload_hash=$6
-                      AND (d.binding).cert_fingerprint=$7 AND (d.binding).cert_spki=$8
-                      AND (d.binding).key_id=(p.binding).key_id
-                      AND (d.binding).key_version=(p.binding).key_version
-                      AND (
-                        ($10='eml' AND (d.binding).message_hash=$11 AND d.receipt=$12
-                            AND d.applied_signature_sha256=encode(sha256($12::bytea),'hex'))
-                        OR ($10='pdf-cms' AND d.applied_signature_sha256=encode(sha256($13::bytea),'hex')
-                            AND EXISTS (
-                                SELECT FROM sequent_backend.signing_document_revision AS signed
-                                WHERE (signed.tenant_id,signed.election_event_id,signed.request_id,signed.id)
-                                    = (d.tenant_id,d.event_id,d.request_id,d.applied_pdf_revision_id)
-                                  AND signed.state='signed' AND signed.document_id=d.applied_pdf_document_id
-                                  AND signed.sha256=d.applied_pdf_sha256 AND signed.prepared_for_user=d.actor
-                                  AND signed.parent_sha256=(d.binding).pdf_parent_hash
-                                  AND signed.digest_sha256=(d.binding).pdf_digest
-                            ))
-                      )
-                  ))
-            )",
+                include_str!("sql/operational_quorum.sql"),
                 &[
                     &request.tenant_id,
                     &request.election_event_id,
@@ -99,6 +116,8 @@ pub(super) async fn check_operational_approvals(
                     &request.document_sha256,
                     &approval.document_signature,
                     &approval.pdf_cms,
+                    &device.as_str(),
+                    &approval.certificate_id,
                 ],
             )
             .await

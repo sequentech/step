@@ -155,7 +155,7 @@ async fn a_policy_that_cant_be_read_is_unavailable() {
 fn a_blocked_legacy_signature_says_why() {
     assert_eq!(
         LegacySigningBlocked::HsmRequired.to_string(),
-        "This tenant requires hardware-backed official signing."
+        "This tenant requires a server-managed signing device."
     );
     assert_eq!(
         LegacySigningBlocked::Unavailable.to_string(),

@@ -20,6 +20,7 @@ pub mod operational_approval;
 #[cfg(feature = "operational-signing-candidate")]
 pub mod operational_ca;
 pub mod operational_cms;
+pub mod operational_device;
 #[cfg(feature = "operational-signing-candidate")]
 pub mod operational_initialize;
 pub mod operational_policy;

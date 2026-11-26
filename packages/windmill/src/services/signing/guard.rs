@@ -171,9 +171,11 @@ pub async fn effective_rule(
     if mode == OperationalSigningMode::HsmRequired {
         let rule = effective
             .filter(SigningRule::is_required)
-            .with_context(|| format!("Hardware signing needs a required rule for {action}."))?;
+            .with_context(|| {
+                format!("Server-managed signing needs a required rule for {action}.")
+            })?;
         rule.validate()
-            .context("Invalid required hardware signing rule")?;
+            .context("Invalid required server-managed signing rule")?;
         return Ok(rule);
     }
     Ok(effective.unwrap_or_else(|| SigningRule::default_for(action)))
@@ -516,7 +518,7 @@ pub async fn consume_gate(
         .await?
         {
             return Err(SigningError::Forbidden(
-                "This trustee request lacks an applied hardware signing quorum.".into(),
+                "This trustee request lacks an applied server-managed signing quorum.".into(),
             ));
         }
     }

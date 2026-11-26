@@ -90,7 +90,7 @@ export interface AuthContextValues {
 
     isGoldUser: () => boolean
 
-    reauthWithGold: (redirectUri: string) => Promise<void>
+    reauthWithGold: (redirectUri: string, forceFresh?: boolean) => Promise<void>
 
     /** Require a new authentication in the existing tenant realm. */
     reauthenticate?: () => Promise<void>
@@ -342,7 +342,21 @@ const AuthContextProvider = (props: AuthContextProviderProps) => {
         return isGold && isFresh
     }
 
-    const reauthWithGold = async (redirectUri: string): Promise<void> => {
+    const reauthWithGold = async (redirectUri: string, forceFresh = false): Promise<void> => {
+        if (forceFresh) {
+            if (
+                !keycloak?.authenticated ||
+                new URL(redirectUri).origin !== window.location.origin
+            ) {
+                throw new Error("No authenticated same-origin return")
+            }
+            await keycloak.login({
+                acr: {essential: true, values: [IPermissions.GOLD_PERMISSION]},
+                prompt: "login",
+                redirectUri,
+            })
+            return
+        }
         try {
             await keycloak?.login({
                 acr: {essential: true, values: [IPermissions.GOLD_PERMISSION]},

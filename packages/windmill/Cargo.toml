@@ -15,9 +15,17 @@ license = "AGPL-3.0-only"
 name = "generate-logs"
 path = "external-bin/generate_logs.rs"
 
+# A distinct artifact: an isolated build never overwrites a normal worker.
+[[bin]]
+name = "windmill-operational-demo"
+path = "src/bin/windmill-operational-demo.rs"
+required-features = ["operational-signing-demo-fixture"]
+
 [features]
 # Compile-only, opt-in; no routes, provisioning or policy activation.
 operational-signing-candidate = []
+# A demo-capable binary must also have an immutable mount and matching private DB fixture.
+operational-signing-demo-fixture = ["operational-signing-candidate"]
 default = ["fips_full"]
 fips_core = ["dep:postgres-openssl", "dep:ecies"]
 fips_full = ["dep:postgres-openssl", "dep:ecies"]

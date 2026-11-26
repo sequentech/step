@@ -45,6 +45,7 @@ import {
     type ISigningApi,
     type ISigningPanelData,
 } from "@/lib/signing/api"
+import {signingExperience} from "@/lib/signing/operationalApprovalPolicy"
 import type {OpenedCertificate} from "@/lib/signing/certificate"
 import {colonHex} from "@/lib/signing/der"
 import {
@@ -832,7 +833,10 @@ export const SigningDialog: React.FC<ISigningDialogProps> = ({
     /** The request as it is now; a closed or changed one ends the attempt. */
     const refetch = async (): Promise<ISigningPanelData | IClosed> => {
         const fresh = validatePanel(await api.getRequest(requestId))
-        const closed = closedOf(fresh, data)
+        const closed =
+            signingExperience(fresh.operational_signing_mode, fresh.request.action) !== "legacy"
+                ? {message: "signing.operational.phase.unavailable"}
+                : closedOf(fresh, data)
         if (closed) onRequestChanged?.()
         return closed ?? fresh
     }

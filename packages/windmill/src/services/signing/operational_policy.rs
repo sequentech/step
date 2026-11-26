@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Authoritative deployment policy shared by Harvest and Windmill.
-//! HSM-required currently denies legacy ingress only. Do not promote until
-//! the replacement signing path is installed, wired, and verified.
+//! HSM-required denies legacy ingress. The isolated replacement path admits
+//! only the mounted, operator-selected Initialize installation.
 
 use deadpool_postgres::{GenericClient, Transaction};
 use uuid::Uuid;
@@ -24,7 +24,7 @@ pub enum LegacySigningBlocked {
 impl std::fmt::Display for LegacySigningBlocked {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            Self::HsmRequired => "This tenant requires hardware-backed official signing.",
+            Self::HsmRequired => "This tenant requires a server-managed signing device.",
             Self::Unavailable => "The official signing mode is unavailable.",
         })
     }

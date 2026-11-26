@@ -5192,6 +5192,44 @@ const tagalogTranslation: TranslationType = {
                 'Sigurado ka bang nais mong burahin ang sertipikong "{{name}}" (fingerprint: {{fingerprint}})?',
         },
         signing: {
+            operational: {
+                title: "Suriin ang pag-apruba",
+                setup: "I-set up ang pagpirma",
+                approve: "Aprubahan",
+                cancelUnused: "Kanselahin ang hindi nagamit na verification",
+                confirmCancelUnused:
+                    "Itapon ang hindi nagamit na verification? Walang ipapasang pag-apruba.",
+                keepChallenge: "Panatilihin ang verification",
+                confirmDiscard: "Itapon ang verification",
+                checkStatus: "Tingnan ang katayuan",
+                quorum: "{{count}} sa {{required}} na pag-apruba ang naitala",
+                error: "Hindi makumpirma ang operasyon. Tingnan muna ang katayuan bago subukang muli.",
+                isolatedDemo: "Pagpirma sa hiwalay na demo lamang. Huwag gamitin sa production.",
+                retrySetup: "Subukang muli ang pag-set up ng pagpirma",
+                softwareDemo:
+                    "Para sa demo lamang: software test token ang ginagamit sa pagpirma, hindi pisikal na device.",
+                phase: {
+                    "loading": "Tinitingnan ang katayuan ng pagpirma…",
+                    "setup-required":
+                        "I-set up muna ang pagpirma para sa account na ito bago mag-apruba.",
+                    "setup-retry-available":
+                        "Maaaring ituloy ang hindi nagamit na setup matapos patunayan ang pagkakakilanlan. Walang ipapasang pag-apruba.",
+                    "setup-recovery-required":
+                        "Kailangan ng tulong ng demo operator sa pag-set up. Nakabinbin pa rin ang kahilingan at hindi ito maaaring pirmahan dito.",
+                    "setup-pending":
+                        "Nakabinbin ang pag-set up ng pagpirma. Hindi pa naitala ang iyong pag-apruba.",
+                    "challenge-available":
+                        "Suriin ang aksyon, aprubahan ito, at patunayan ang iyong pagkakakilanlan.",
+                    "waiting-for-identity":
+                        "Hinihintay ang pagpapatunay ng pagkakakilanlan. Hindi pa naitala ang iyong pag-apruba.",
+                    "pending": "Nakabinbin pa ang pag-apruba.",
+                    "approval-recorded": "Naitala ang iyong pag-apruba.",
+                    "reconcile":
+                        "Hindi pa kumpirmado ang resulta. Tingnan ang katayuan sa halip na mag-aprubang muli.",
+                    "unavailable":
+                        "Hindi available ang pagpirma para sa kahilingang ito. Walang pag-aprubang ipinadala mula rito.",
+                },
+            },
             terms: {
                 post: "Post",
                 posts: "Mga Post",

@@ -684,7 +684,7 @@ async fn a_hardware_tenant_starts_nothing_without_a_required_rule() {
         .await;
     match outcome {
         Err(SigningError::Internal(error)) => assert!(
-            format!("{error:#}").contains("Hardware signing needs a required rule"),
+            format!("{error:#}").contains("Server-managed signing needs a required rule"),
             "{error:#}"
         ),
         other => panic!("expected the missing rule to stop the action, got {other:?}"),
