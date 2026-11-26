@@ -17,6 +17,7 @@ interface Scenario {
     blocked: boolean
     unavailable: boolean
     managedRoster: boolean
+    replaceMessagingAccount: boolean
 }
 const DOCUMENT_ID = storyId(41, 1)
 const TASK_ID = storyId(41, 2)
@@ -25,7 +26,13 @@ let data: ReturnType<typeof resourceBoundary>
 const meta = {
     title: "Admin/Settings/SettingsConfigurationPackage",
     component: SettingsConfigurationPackage,
-    args: {allowed: true, blocked: false, unavailable: false, managedRoster: false},
+    args: {
+        allowed: true,
+        blocked: false,
+        unavailable: false,
+        managedRoster: false,
+        replaceMessagingAccount: false,
+    },
     beforeEach: async ({args}) => {
         sessionStorage.clear()
         // The page also shows the tenant's signing card, which reads the
@@ -42,6 +49,28 @@ const meta = {
             status: {preview: {changes: unknown[]}}
         }
         tenantSection.status.preview.changes = [{action: "update", keys: ["language_conf"]}]
+        if (args.replaceMessagingAccount) {
+            annotations.application.sections.push({
+                section: "messaging-accounts",
+                members: ["tenant_platform-t1.json"],
+                status: {
+                    state: "previewed",
+                    preview: {
+                        needsApply: true,
+                        blockers: [],
+                        changes: [
+                            {
+                                reference: "package:synthetic-ses",
+                                action: "replace",
+                                channel: "EMAIL",
+                                provider: "AWS_SES",
+                            },
+                        ],
+                    },
+                },
+                history: {submissions: [], inFlight: null, applied: false},
+            })
+        }
         let approvalPolicy: {required_approvals: number | null; generation: string} = {
             required_approvals: null,
             generation: "0",
@@ -151,6 +180,29 @@ export const PreviewAndConfirm: Story = {
             "language_conf"
         )
         // Opening confirmation never applies; the only mutation so far is preview.
+        expect(
+            graphql.calls
+                .filter(({name}) => name === "ApplyConfigurationPackage")
+                .map(({variables}) => variables.mode)
+        ).toEqual(["preview"])
+        expect(graphql.unexpected).toEqual([])
+    },
+}
+
+export const PortableReplacementPreview: Story = {
+    args: {replaceMessagingAccount: true},
+    parameters: {widgets: ["PortableReplacementWarning"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await preview(canvasElement)
+        const warning = i18n.t("configurationPackage.messagingReplaceWarning")
+        const messaging = within(await canvas.findByTestId("section-messaging-accounts"))
+        await expect(messaging.getByText(warning)).toBeVisible()
+        const apply = canvas.getByTestId("package-apply")
+        await expect(apply).toBeEnabled()
+        await userEvent.click(apply)
+        const dialog = within(await within(document.body).findByRole("dialog"))
+        await expect(dialog.getByText(warning)).toBeVisible()
         expect(
             graphql.calls
                 .filter(({name}) => name === "ApplyConfigurationPackage")
