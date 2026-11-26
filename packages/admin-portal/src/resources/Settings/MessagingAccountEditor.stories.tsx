@@ -298,7 +298,7 @@ export const ViberFreeText: Story = {
 
 export const InfobipWhatsApp: Story = {
     args: {account: EStoryAccount.INFOBIP_WHATSAPP},
-    parameters: {widgets: ["CallbackSection", "AccountStatusDetails", "CredentialInput"]},
+    parameters: {widgets: ["CallbackSection", "CredentialInput"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await expect(canvas.getByRole("textbox", {name: /Sender number/})).toHaveValue(

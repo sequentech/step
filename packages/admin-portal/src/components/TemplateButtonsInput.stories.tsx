@@ -2,8 +2,9 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React, {useState} from "react"
-import type {Meta, StoryObj} from "@storybook/react-vite"
+import type {StoryObj} from "@storybook/react-vite"
 import {expect, userEvent, waitFor, within} from "storybook/test"
+import type {WidgetMeta} from "@/__stories__/widgetStory"
 import {ETemplateButtonType, ITemplateButton} from "@/types/messaging"
 import {TemplateButtonsInput} from "./TemplateButtonsInput"
 
@@ -12,11 +13,13 @@ const DEFAULTS: ITemplateButton[] = [
     {type: ETemplateButtonType.QUICK_REPLY, parameter: "NA"},
 ]
 
+interface Scenario {
+    initial: ITemplateButton[] | null
+    disabled: boolean
+}
+
 /** Keeps the buttons the control reports, as a binding editor does. */
-const Stateful: React.FC<{initial: ITemplateButton[] | null; disabled: boolean}> = ({
-    initial,
-    disabled,
-}) => {
+const Stateful: React.FC<Scenario> = ({initial, disabled}) => {
     const [buttons, setButtons] = useState<ITemplateButton[] | null>(initial)
     return (
         <TemplateButtonsInput
@@ -30,12 +33,12 @@ const Stateful: React.FC<{initial: ITemplateButton[] | null; disabled: boolean}>
 
 const meta = {
     title: "Admin/Components/TemplateButtonsInput",
-    component: Stateful,
+    component: TemplateButtonsInput,
     args: {initial: null, disabled: false},
-    parameters: {widgets: ["TemplateButtonsInput"]},
-} satisfies Meta<typeof Stateful>
+    render: (args) => <Stateful {...args} />,
+} satisfies WidgetMeta<Scenario>
 export default meta
-type Story = StoryObj<typeof meta>
+type Story = StoryObj<Scenario>
 
 const values = (canvasElement: HTMLElement) =>
     within(canvasElement)

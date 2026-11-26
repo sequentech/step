@@ -115,7 +115,7 @@ export const TemplateButtonsInput: React.FC<ITemplateButtonsInputProps> = ({
                             "gridTemplateColumns": "minmax(0, 1fr) auto",
                             "gridTemplateAreas": '"type ." "value remove" "helper ."',
                             "columnGap": 1,
-                            "alignItems": "start",
+                            "alignItems": "center",
                             "@container (min-width: 440px)": {
                                 gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.4fr) auto",
                                 gridTemplateAreas: '"type value remove" ". helper ."',
@@ -160,7 +160,7 @@ export const TemplateButtonsInput: React.FC<ITemplateButtonsInputProps> = ({
                         {!disabled && (
                             <IconButton
                                 aria-label={t("messaging.templateButtons.remove")}
-                                sx={{gridArea: "remove", alignSelf: "center"}}
+                                sx={{gridArea: "remove"}}
                                 onClick={() =>
                                     onChange((buttons ?? []).filter((_, i) => i !== index))
                                 }
