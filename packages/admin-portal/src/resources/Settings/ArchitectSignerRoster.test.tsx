@@ -142,7 +142,12 @@ beforeEach(() => {
 
 it("shows a locked site-pinned roster even if a caller erroneously claims can_manage", () => {
     render(mode({...active, mode: "site_pinned"}))
-    expect(screen.getByText(name("active"))).toBeTruthy()
+    expect(screen.getByText(name("activeSummary"))).toBeTruthy()
+    // The active fingerprint stays on the page, behind a keyboard-reachable disclosure.
+    const fingerprint = screen.getByTestId("signer-roster-fingerprint")
+    expect(fingerprint.tagName).toBe("DETAILS")
+    expect(fingerprint.querySelector("summary")?.textContent).toBe(name("fingerprint"))
+    expect(fingerprint.textContent).toContain(sha)
     expect(screen.getByText(name("sitePinned"))).toBeTruthy()
     expect(screen.queryByRole("button", {name: name("manage")})).toBeNull()
 })
@@ -150,19 +155,32 @@ it("shows a locked site-pinned roster even if a caller erroneously claims can_ma
 it("never claims absent, unavailable, or pending trust is active", () => {
     const view = render(mode(null))
     expect(screen.getByText(name("unavailable"))).toBeTruthy()
+    expect(screen.queryByText(name("activeSummary"))).toBeNull()
+    expect(screen.queryByTestId("signer-roster-fingerprint")).toBeNull()
     view.rerender(mode({...pending, can_manage: false}))
     expect(screen.getByText(name("noRoster"))).toBeTruthy()
     expect(screen.getByText(name("locked"))).toBeTruthy()
-    expect(screen.queryByText(name("active"))).toBeNull()
+    expect(screen.queryByText(name("activeSummary"))).toBeNull()
+    expect(screen.queryByTestId("signer-roster-fingerprint")).toBeNull()
     expect(screen.queryByRole("button", {name: name("manage")})).toBeNull()
 })
 
 it("sends exact bytes and activates only on an explicit fresh confirmation, once", async () => {
     render(mode(pending))
     fireEvent.click(button("manage"))
+    const current = () =>
+        screen.getByTestId("signer-roster-steps").querySelector('[aria-current="step"]')
+            ?.textContent
+    expect(current()).toContain("configurationPackage.roster.steps.choose")
     await select()
     fireEvent.click(button("review"))
     await screen.findByText(name("candidate"))
+    // Verification done: Activate is the current step and Verify is marked done.
+    expect(current()).toContain("configurationPackage.roster.steps.activate")
+    const verify = Array.from(
+        screen.getByTestId("signer-roster-steps").querySelectorAll("li")
+    ).find((step) => step.textContent?.includes("configurationPackage.roster.steps.verify"))
+    expect(verify?.textContent?.startsWith("✓")).toBe(true)
     expect(mockQuery).toHaveBeenCalledWith(
         expect.objectContaining({
             variables: {tenantId: "tenant", roster: source, sha},

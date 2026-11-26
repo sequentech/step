@@ -106,6 +106,7 @@ type Mutation {
     readiness_check(
         official_event_id: String!
         tested_event_id: String!
+        comparison: ReadinessComparison
     ): jsonb!
 }
 
@@ -1120,6 +1121,17 @@ enum EarlyVotingPolicy {
 enum ReportEncryptionPolicy {
     unencrypted
     configured_password
+}
+
+"""
+Absent or production is the strict check that alone can sign ReadinessVerified.
+The rehearsal modes are read-only comparisons and never write.
+"""
+enum ReadinessComparison {
+    production
+    rehearsal_ert_stl
+    rehearsal_official_ert
+    rehearsal_official_stl
 }
 
 enum OrderDirection {

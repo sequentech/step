@@ -9,6 +9,22 @@ export const READINESS_CHECK = gql`
     }
 `
 
+// A read-only rehearsal comparison. The production mutation above stays
+// unchanged and sends no mode, so the strict signed check is never relabelled.
+export const READINESS_REHEARSAL = gql`
+    mutation ReadinessRehearsal(
+        $official_event_id: String!
+        $tested_event_id: String!
+        $comparison: ReadinessComparison!
+    ) {
+        readiness_check(
+            official_event_id: $official_event_id
+            tested_event_id: $tested_event_id
+            comparison: $comparison
+        )
+    }
+`
+
 // Archived rehearsal events remain eligible evidence. Hasura applies permission labels.
 export const GET_READINESS_EVENTS = gql`
     query GetReadinessEvents($tenantId: uuid!, $officialEventId: uuid!) {

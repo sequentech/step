@@ -105,3 +105,45 @@ fn roster_admin_requires_a_verified_tenant_realm_portal_access_token() {
     claims.azp = "voting-portal".into();
     assert!(!is_tenant_portal_token(&claims, CALLER_TENANT_ID));
 }
+
+#[test]
+fn human_directory_search_is_a_bounded_quoted_term() {
+    assert_eq!(
+        human_directory_search("id:admin_100%@example.test").as_deref(),
+        Some("\"id:admin_100%@example.test\"")
+    );
+    for bad in ["", "a b", "a\nb", "a\"b", "a\u{2003}b", &"a".repeat(256)] {
+        assert_eq!(human_directory_search(bad), None);
+    }
+}
+
+#[test]
+fn roster_manager_uses_verified_current_subject_not_username() {
+    let role_names =
+        PACKAGE_PERMISSIONS.map(|permission| permission.to_string());
+    let roles: Vec<&str> = role_names.iter().map(String::as_str).collect();
+    let mut claims = admin_claims(CALLER_TENANT_ID, &roles);
+    claims.iss =
+        format!("https://keycloak.example/realms/tenant-{CALLER_TENANT_ID}");
+    for opaque_subject in [
+        "0490df33-69ca-42cd-927d-178341a0ad92",
+        "opaque-federated-provider-subject",
+    ] {
+        claims.sub = opaque_subject.into();
+        claims.hasura_claims.user_id = opaque_subject.into();
+        claims.preferred_username = None;
+        assert!(manager_claims(&claims, CALLER_TENANT_ID));
+    }
+    assert!(!manager_claims(&claims, OTHER_TENANT_ID));
+    let actual_user = claims.hasura_claims.user_id.clone();
+    claims.hasura_claims.user_id = "different-user".into();
+    claims.preferred_username = Some("admin".into());
+    assert!(!manager_claims(&claims, CALLER_TENANT_ID));
+    claims.sub = "wrong%2fsubject".into();
+    claims.hasura_claims.user_id = claims.sub.clone();
+    assert!(!manager_claims(&claims, CALLER_TENANT_ID));
+    claims.sub = actual_user.clone();
+    claims.hasura_claims.user_id = actual_user;
+    claims.hasura_claims.allowed_roles.pop();
+    assert!(!manager_claims(&claims, CALLER_TENANT_ID));
+}

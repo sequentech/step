@@ -20,6 +20,7 @@ use serde_json::Value;
 use tracing::instrument;
 use uuid::Uuid;
 use windmill::postgres::messaging::record_bulk_send_with_participation;
+use windmill::postgres::scheduled_event::is_lockdown_processor;
 use windmill::services::database::get_hasura_pool;
 use windmill::services::electoral_log::{
     post_voter_secret_attribute_audit, ElectoralLogAdminContext,
@@ -138,6 +139,12 @@ pub async fn create_scheduled_event(
     claims: JwtClaims,
 ) -> Result<Json<CreateEventOutput>, (Status, String)> {
     let mut input = body.into_inner();
+    if is_lockdown_processor(&input.event_processor) {
+        return Err((
+            Status::BadRequest,
+            "Use manage-election-dates to schedule an event-wide start or end of lockdown.".into(),
+        ));
+    }
     match input.event_processor.clone() {
         EventProcessors::SEND_TEMPLATE => {
             authorize(

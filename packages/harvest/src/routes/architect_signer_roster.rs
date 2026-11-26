@@ -9,7 +9,13 @@ use crate::routes::apply_configuration_package::PACKAGE_PERMISSIONS;
 use crate::services::{audit, authorization::authorize};
 use crate::types::error_response::{ErrorCode, ErrorResponse, JsonError};
 use rocket::{http::Status, serde::json::Json};
-use sequent_core::services::{jwt::JwtClaims, uuid_validation::parse_uuid_v4};
+use sequent_core::services::{
+    jwt::JwtClaims,
+    keycloak::{
+        get_tenant_realm, validate_keycloak_path_segment, KeycloakAdminClient,
+    },
+    uuid_validation::parse_uuid_v4,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use windmill::{
@@ -28,6 +34,9 @@ type RouteError = JsonError;
 
 const DEFAULT_FLOOR: i32 = 2;
 const FRESH_AUTH_SECONDS: i64 = 300;
+const DIRECTORY_SEARCH_LIMIT: i32 = 20;
+const DIRECTORY_TIMEOUT: std::time::Duration =
+    std::time::Duration::from_secs(5);
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -167,25 +176,145 @@ pub(super) fn is_tenant_portal_token(claims: &JwtClaims, tenant: &str) -> bool {
         && claims.iss.ends_with(&format!("/realms/tenant-{tenant}"))
 }
 
-fn manager(config: &Config, claims: &JwtClaims, tenant: &str) -> bool {
-    is_tenant_portal_token(claims, tenant)
-        && config.authorize_subject(&claims.sub)
+fn manager_claims(claims: &JwtClaims, tenant: &str) -> bool {
+    authorize_tenant(claims, tenant).is_ok()
+        && is_tenant_portal_token(claims, tenant)
+        && claims.sub == claims.hasura_claims.user_id
+        && claims.sub.len() <= 255
+        && claims.sub.bytes().all(|byte| byte.is_ascii_graphic())
+        && validate_keycloak_path_segment(&claims.sub).is_ok()
 }
 
-fn managed_for_write(
+/// Query the currently enabled account and its exact top-level /admin
+/// membership in the same tenant realm. No labels, name heuristics, or
+/// group assignments from another realm can establish this authority.
+async fn manager(claims: &JwtClaims, tenant: &str) -> bool {
+    if !manager_claims(claims, tenant) {
+        return false;
+    }
+
+    tokio::time::timeout(DIRECTORY_TIMEOUT, current_admin(&claims.sub, tenant))
+        .await
+        .unwrap_or(false)
+}
+
+fn human_directory_search(username: &str) -> Option<String> {
+    // Keycloak tokenizes search on whitespace before applying quoted exact
+    // matching. Keep the directory-returned username one ordinary search term.
+    if username.is_empty()
+        || username.len() > 255
+        || username
+            .chars()
+            .any(|c| c.is_whitespace() || c.is_control() || c == '"')
+    {
+        return None;
+    }
+    Some(format!("\"{username}\""))
+}
+
+async fn current_admin(subject: &str, tenant: &str) -> bool {
+    // The standard Keycloak client's startup settings are mandatory for
+    // directory access. Missing settings must fail closed on this route.
+    if [
+        "KEYCLOAK_URL",
+        "KEYCLOAK_ADMIN_CLIENT_ID",
+        "KEYCLOAK_ADMIN_CLIENT_SECRET",
+        "SUPER_ADMIN_TENANT_ID",
+    ]
+    .into_iter()
+    .any(|key| !std::env::var(key).is_ok_and(|value| !value.is_empty()))
+    {
+        return false;
+    }
+    let realm = get_tenant_realm(tenant);
+    let Ok(directory) = KeycloakAdminClient::new().await else {
+        return false;
+    };
+    let Ok(user) = directory
+        .client
+        .realm_users_with_user_id_get(&realm, subject, None)
+        .await
+    else {
+        return false;
+    };
+    if user.id.as_deref() != Some(subject)
+        || user.enabled != Some(true)
+        || user.service_account_client_id.is_some()
+    {
+        return false;
+    }
+
+    let Ok(groups) = directory
+        .client
+        .realm_users_with_user_id_groups_get(
+            &realm, subject, None, None, None, None,
+        )
+        .await
+    else {
+        return false;
+    };
+    if !groups
+        .iter()
+        .any(|group| group.path.as_deref() == Some("/admin"))
+    {
+        return false;
+    }
+
+    // GET /users/{id} need not include serviceAccountClientId. The stock
+    // Keycloak directory's general search excludes service accounts at the
+    // storage layer; its separate username/id filters do not. Use search
+    // only to narrow the result. The exact matching subject is authoritative.
+    let Some(search) =
+        user.username.as_deref().and_then(human_directory_search)
+    else {
+        return false;
+    };
+    directory
+        .client
+        .realm_users_get(
+            &realm,
+            Some(true), // brief representation; only id is required
+            None,
+            None,
+            Some(true), // enabled
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(DIRECTORY_SEARCH_LIMIT),
+            None,
+            Some(search),
+            None,
+        )
+        .await
+        .is_ok_and(|people| {
+            people.iter().any(|person| {
+                person.id.as_deref() == Some(subject)
+                    && person.service_account_client_id.is_none()
+            })
+        })
+}
+
+fn forbidden_manager() -> RouteError {
+    ErrorResponse::new(
+        Status::Forbidden,
+        "Portal signer roster management is not authorized",
+        ErrorCode::ArchitectRosterManagementForbidden,
+    )
+}
+
+async fn managed_for_write(
     claims: &JwtClaims,
     tenant: &str,
 ) -> Result<Config, RouteError> {
     authorize_tenant(claims, tenant)?;
     match BrowserPolicy::load(tenant) {
-        BrowserPolicy::Managed(config) if manager(&config, claims, tenant) => {
+        BrowserPolicy::Managed(config) if manager(claims, tenant).await => {
             Ok(config)
         }
-        _ => Err(ErrorResponse::new(
-            Status::Forbidden,
-            "Portal signer roster management is not authorized",
-            ErrorCode::ArchitectRosterManagementForbidden,
-        )),
+        _ => Err(forbidden_manager()),
     }
 }
 
@@ -274,6 +403,8 @@ pub async fn get_architect_signer_roster_status(
     ) {
         return Ok(Json(RosterStatus::inactive(Mode::Unavailable)));
     }
+    let can_manage = matches!(&deployment, BrowserPolicy::Managed(_))
+        && manager(&claims, tenant).await;
     let mut client = get_hasura_pool().await.get().await.map_err(internal)?;
     let tx = client.transaction().await.map_err(internal)?;
     let installed = managed::read(&tx, tenant).await.map_err(internal)?;
@@ -282,11 +413,7 @@ pub async fn get_architect_signer_roster_status(
             if installed.is_some_and(|row| !valid_installed(&config, row)) {
                 RosterStatus::inactive(Mode::Unavailable)
             } else {
-                ready_status(
-                    &config,
-                    installed,
-                    manager(&config, &claims, tenant),
-                )
+                ready_status(&config, installed, can_manage)
             }
         }
         (_, Some(_)) => RosterStatus::inactive(Mode::Unavailable),
@@ -309,7 +436,7 @@ pub async fn preview_architect_signer_roster(
     body: Json<PreviewInput>,
 ) -> Result<Json<RosterPreview>, RouteError> {
     let tenant = &body.tenant_id;
-    let config = managed_for_write(&claims, tenant)?;
+    let config = managed_for_write(&claims, tenant).await?;
     let candidate =
         validated_candidate(&config, &body.roster_json, &body.expected_sha256)?;
     let mut client = get_hasura_pool().await.get().await.map_err(internal)?;
@@ -337,7 +464,7 @@ pub async fn activate_architect_signer_roster(
     body: Json<ActivateInput>,
 ) -> Result<Json<RosterStatus>, RouteError> {
     let tenant = &body.tenant_id;
-    let config = managed_for_write(&claims, tenant)?;
+    let config = managed_for_write(&claims, tenant).await?;
     if !is_fresh_login(&claims, chrono::Utc::now().timestamp()) {
         return Err(fresh_auth_required());
     }
@@ -367,8 +494,11 @@ pub async fn activate_architect_signer_roster(
     {
         return Ok(Json(ready_status(&config, old.as_ref(), true)));
     }
-    // Freshness is checked again just before the consequential write, after
-    // acquiring the pool/locks and re-reading state.
+    // Recheck current administrator membership and authentication freshness
+    // after acquiring the application lock and immediately before writing.
+    if !manager(&claims, tenant).await {
+        return Err(forbidden_manager());
+    }
     if !is_fresh_login(&claims, chrono::Utc::now().timestamp()) {
         return Err(fresh_auth_required());
     }

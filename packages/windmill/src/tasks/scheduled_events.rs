@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::postgres::{
     election::{get_election_by_id, update_election_presentation},
-    scheduled_event::find_all_active_events,
+    scheduled_event::{find_all_active_events, pending_lockdown_time},
 };
 use crate::services::{
     celery_app::get_celery_app,
@@ -283,7 +283,7 @@ pub async fn handle_election_lockdown(
     celery_app: Arc<Celery>,
     scheduled_event: &ScheduledEvent,
 ) -> Result<()> {
-    let Some(datetime) = get_datetime(scheduled_event) else {
+    let Some(datetime) = pending_lockdown_time(scheduled_event) else {
         return Ok(());
     };
     let Some(tenant_id) = scheduled_event.tenant_id.clone() else {

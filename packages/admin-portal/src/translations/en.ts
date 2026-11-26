@@ -80,7 +80,195 @@ const englishTranslation = {
             },
         },
         configurationPackage: {
+            sectionResults: "Section results",
+            hub: {
+                recovery: {
+                    title: "This import stopped partway and can be continued",
+                    remaining: "Left to apply: {{sections}}.",
+                    explain:
+                        "Fix the cause, then Preview remaining changes: the same signed package is previewed again with its original requirements. Preview rechecks sections already applied; sections that still match are skipped.",
+                    previewRemaining: "Preview remaining changes",
+                    continue: "Continue this import",
+                    chooseSame: "Choose the same file again. It must be the package this run used:",
+                    locked: "Requirements locked to the original run",
+                    wrongFile:
+                        "This is not the package this run used, so nothing was submitted. Choose the same file again.",
+                    confirmKeep:
+                        "Apply skips sections that still match. Review any drift the new Preview found before continuing.",
+                    partial: "Partly updated since by an unfinished run (task {{taskId}}).",
+                    blocked: {
+                        unsettled:
+                            "An earlier submission of this run is not settled yet. Wait for it before continuing.",
+                        rosterChanged:
+                            "Signing trust changed since this run began, so it cannot be continued.",
+                        requirementsUnknown:
+                            "This run's original requirements are not recorded here. Continue it from the browser that started it.",
+                    },
+                },
+                trustLabel: "Signing",
+                trustChecking: "Checking signer trust…",
+                trustBlocked: "Imports blocked",
+                trustManaged: "Roster active · generation {{generation}}",
+                trustPinned: "Site-pinned roster",
+                trustLegacy: "Certificate trust",
+                stagesLabel: "Run stages",
+                currentRun: "Current run",
+                lastRun: "Last run",
+                noRun: "No run is being followed in this browser.",
+                sectionsHeading: "Sections · in apply order",
+                sectionOf: "Section {{n}} of {{total}}",
+                sectionNotInRun: "The run being shown has no record for this section.",
+                requirementsHelp:
+                    "What this package must carry. A required section that is missing blocks the preview; an optional one is applied if present. Changing these clears the current preview.",
+                signerRoster: "Signer roster",
+                rosterBinding: "Generation {{generation}} · {{approvals}} approvals",
+                confirmOrder: "These sections change, one at a time, in this order:",
+                confirmPartial:
+                    "If a section fails, the ones before it stay applied and the rest do not start.",
+                historyOutcome: "Outcome",
+                historicalBlockers:
+                    "From the earlier preview, which used other requirements. Preview again to see what blocks the requirements selected now.",
+                historicalSections: "As found by the earlier preview, with other requirements.",
+                appliedNotConfirmed: "Recorded as applied, but the task did not succeed",
+                staleReason:
+                    "This preview is out of date: the requirements, document or signing trust changed. Preview again before applying.",
+                historyStarted: "Started",
+                noAccess: {
+                    title: "You can't import configuration packages on this tenant.",
+                    missing: "Missing grants: {{permissions}}. Ask a tenant administrator.",
+                },
+                rail: {
+                    label: "Configuration package",
+                    overview: "Overview",
+                    sections: "Sections · in apply order",
+                    trust: "Signing trust",
+                    history: "History",
+                },
+                badge: {
+                    applied: "Applied",
+                    unchanged: "No change",
+                    willChange: "Will change",
+                    blocked: "Blocked",
+                    missing: "Missing",
+                    notInPackage: "Not in package",
+                    failed: "Failed",
+                    notConfirmed: "Not confirmed",
+                    applying: "Applying",
+                    waiting: "Waiting",
+                    notStarted: "Not started",
+                    notRun: "Not run",
+                },
+                stages: {package: "Package", preview: "Preview", review: "Review", apply: "Apply"},
+                stageState: {
+                    done: "Done",
+                    current: "Now",
+                    running: "Running",
+                    blocked: "Blocked",
+                    stale: "Out of date",
+                    attention: "Needs attention",
+                    pending: "—",
+                },
+                receipt: {
+                    title: "On this tenant",
+                    sha: "Package SHA-256",
+                    applied: "Applied",
+                    by: "By",
+                    task: "Task",
+                    loading: "Loading…",
+                    none: "No applied package among the last 10 runs.",
+                },
+                actions: {
+                    importPackage: "Import package",
+                    importAnother: "Import another",
+                    reviewAndApply: "Review and apply",
+                    importFixed: "Import fixed package",
+                    changeRequirements: "Change requirements",
+                    previewAgain: "Preview again",
+                    previewAgainSame: "Preview again with these requirements",
+                    openTrust: "Set up signing trust",
+                    checkAgain: "Check again",
+                    doneRequirements: "Done",
+                    more: "More actions",
+                    documentId: "Preview an uploaded document by ID",
+                    stopFollowing: "Stop following this run",
+                    history: "History and receipts",
+                },
+            },
+            workflow: {
+                missingSection: "Required section missing: {{section}}.",
+                missingCensus: "The package is missing the required census.",
+                previewRefusalWithoutDetails:
+                    "The platform refused the preview without recording a specific reason. Check the result before trying again.",
+                censusRequired: "Census required",
+                censusOptional: "Census optional",
+                steps: {
+                    upload: "Upload",
+                    preview: "Preview",
+                    review: "Review",
+                    apply: "Apply",
+                },
+                phases: {
+                    waitingForTrust: {
+                        title: "Checking signer trust",
+                        help: "Import becomes available once this tenant's signer roster has loaded.",
+                    },
+                    trustBlocked: {
+                        title: "Import is unavailable",
+                        help: "The signer roster does not currently allow imports for this tenant. The signer roster shows what is missing.",
+                    },
+                    choose: {
+                        title: "Upload a package to preview",
+                        help: "Choose a ZIP or password-encrypted EZIP exported by Election Architect.",
+                    },
+                    starting: {
+                        title: "Starting…",
+                        help: "Asking the platform to create the task.",
+                    },
+                    previewing: {
+                        title: "Previewing the package",
+                        help: "The platform is comparing the package with this tenant. A preview changes nothing.",
+                    },
+                    previewBlocked: {
+                        title: "The preview found blockers",
+                        help: "Read any recorded blockers below before previewing again.",
+                    },
+                    previewAgain: {
+                        title: "Preview again before applying",
+                        help: "You need a current preview matching the requirements, signer trust and any entered SHA-256. Upload the package again, or open Advanced options to preview an existing ZIP by its document ID.",
+                    },
+                    review: {
+                        title: "Review the proposed changes",
+                        help: "Check each section the preview would change. Nothing changes until you select Apply and confirm.",
+                    },
+                    applying: {
+                        title: "Applying the package",
+                        help: "The platform previews the package again first and stops at any blocker. Section states update in the result as tasks settle.",
+                    },
+                    complete: {
+                        title: "Package applied",
+                        help: "This run recorded the package as applied. The result and the earlier applications keep the record.",
+                    },
+                    attention: {
+                        title: "Check the result before doing anything else",
+                        help: "Read the message and any recorded result before continuing. If the outcome is uncertain, check earlier applications; some sections may already have been applied.",
+                    },
+                },
+                optionsSummary: "{{selected}} of {{available}} sections required",
+                evidence: "Recorded package members ({{count}})",
+                noHistory: "No earlier applications are recorded for this tenant.",
+                trust: "Signer trust for this tenant",
+                result: "Result of this run",
+            },
             roster: {
+                steps: {
+                    label: "Roster import steps",
+                    choose: "Choose file",
+                    verify: "Verify",
+                    activate: "Activate",
+                },
+                activeSummary:
+                    "Active. Each package needs at least {{approvals}} distinct approvals, plus a separate final signer.",
+                fingerprint: "Show roster fingerprint (SHA-256)",
                 title: "Architect signer roster",
                 loading: "Checking receiver trust…",
                 active: "Active roster: {{hash}}. The receiver requires at least {{approvals}} distinct approvals and a separate final signer.",
@@ -191,8 +379,7 @@ const englishTranslation = {
             documentId: "Or an uploaded document id",
             preview: "Preview",
             apply: "Apply",
-            blocked:
-                "The preview found blockers: fix the package or the tenant, then preview again.",
+            blocked: "Apply is blocked. Fix the package or the tenant, then preview again:",
             noTask: "The platform returned no task.",
             mode: {preview: "Preview", apply: "Application"},
             task: "Task {{taskId}}",
@@ -437,10 +624,57 @@ const englishTranslation = {
             noDetail: "The server reported no further detail for this check.",
             reasons: "Why it failed",
             noArea: "no or an unknown area",
+            rehearsal: {
+                label: "Comparison",
+                readOnly:
+                    "Read-only rehearsal comparison. Nothing is written to either event and no readiness is recorded.",
+                modes: {
+                    production: "Production readiness (signed)",
+                    rehearsal_ert_stl: "Rehearsal: ERT and STL (read-only)",
+                    rehearsal_official_ert: "Rehearsal: official and ERT (read-only)",
+                    rehearsal_official_stl: "Rehearsal: official and STL (read-only)",
+                },
+                roles: {
+                    official: "Official event",
+                    tested: "Tested event",
+                    ert: "ERT event",
+                    stl: "STL event",
+                },
+                verdicts: {
+                    consistent:
+                        "Rehearsal comparison consistent. This is not a readiness verification.",
+                    inconsistent:
+                        "Rehearsal comparison inconsistent. Resolve the findings and run it again.",
+                    not_verified:
+                        "Not verified. The available evidence cannot prove this comparison.",
+                },
+                chips: {
+                    consistent: "Consistent",
+                    inconsistent: "Inconsistent",
+                    not_verified: "Not verified",
+                },
+                checks: {
+                    configuration: "Same approved signed configuration, separately imported",
+                    own_census: "Each event’s own certified census",
+                    census_subset: "STL census is a subset of the official census",
+                    lifecycle: "Lifecycle: official untouched, rehearsals closed",
+                    seal: "Each rehearsal’s own publication and seals",
+                },
+                findings: {
+                    revision_not_distinct:
+                        "Both events carry package revision {{revision}}; each needs its own separately imported revision.",
+                    subset_area_exceeds:
+                        "The STL census has {{stl}} voters in {{area}}, more than the {{official}} of the official certified census.",
+                    subset_not_verified:
+                        "Subset not verified: certified voter imports record only file hashes and counts by area. There is no stable voter identity, certified membership record or approved selection of STL voters to prove each STL voter is an official voter.",
+                },
+            },
             eventRoles: {
                 official: "official",
                 tested: "tested",
                 both: "both",
+                ert: "ERT",
+                stl: "STL",
             },
             scope: {
                 event: "The {{event}} event",
@@ -1915,6 +2149,11 @@ const englishTranslation = {
                     scheduledEnd: "End of lockdown scheduled for {{date}}.",
                     endScheduled: "An end of lockdown is scheduled.",
                     noScheduledEnd: "No end of lockdown is scheduled.",
+                    scheduleEnd: "Schedule end of lockdown",
+                    replaceEnd: "Replace scheduled end",
+                    cancelEnd: "Cancel scheduled end",
+                    ambiguousEnd: "The pending end of lockdown is invalid or ambiguous.",
+                    cancelInvalidEnds: "Cancel all pending lockdown ends",
                     banner: "This election event is in lockdown.",
                     policyLabel: "Lockdown Status",
                     helperText:

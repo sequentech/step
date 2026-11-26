@@ -170,10 +170,15 @@ async fn an_import_writes_the_schedule_and_a_second_one_updates_it() {
         let rows = 2 * config.posts + 2;
 
         let first = schedule_csv(&config, "00:00");
-        let (outcome, entries) =
-            import_schedule(&tx, &scope.tenant(), &scope.event(), first.as_bytes())
-                .await
-                .unwrap();
+        let (outcome, entries) = import_schedule(
+            &tx,
+            &scope.tenant(),
+            &scope.event(),
+            &Default::default(),
+            first.as_bytes(),
+        )
+        .await
+        .unwrap();
         assert_eq!(
             outcome,
             ImportOutcome {
@@ -208,10 +213,15 @@ async fn an_import_writes_the_schedule_and_a_second_one_updates_it() {
 
         // A corrected file updates the same events.
         let second = schedule_csv(&config, "01:00");
-        let (outcome, entries) =
-            import_schedule(&tx, &scope.tenant(), &scope.event(), second.as_bytes())
-                .await
-                .unwrap();
+        let (outcome, entries) = import_schedule(
+            &tx,
+            &scope.tenant(),
+            &scope.event(),
+            &Default::default(),
+            second.as_bytes(),
+        )
+        .await
+        .unwrap();
         assert_eq!(
             outcome,
             ImportOutcome {
@@ -247,9 +257,15 @@ async fn a_file_with_an_error_writes_nothing() {
         let tx = client.transaction().await.unwrap();
         let scope = setup(&tx, &config).await;
         let first = schedule_csv(&config, "00:00");
-        import_schedule(&tx, &scope.tenant(), &scope.event(), first.as_bytes())
-            .await
-            .unwrap();
+        import_schedule(
+            &tx,
+            &scope.tenant(),
+            &scope.event(),
+            &Default::default(),
+            first.as_bytes(),
+        )
+        .await
+        .unwrap();
         let before = stored(&tx, &scope).await;
 
         // Every row is fine but the last: the same type twice.
@@ -257,9 +273,15 @@ async fn a_file_with_an_error_writes_nothing() {
             "{}\npost-000,START_VOTING_PERIOD,2028-04-10T00:00,,",
             schedule_csv(&config, "01:00")
         );
-        let error = import_schedule(&tx, &scope.tenant(), &scope.event(), broken.as_bytes())
-            .await
-            .unwrap_err();
+        let error = import_schedule(
+            &tx,
+            &scope.tenant(),
+            &scope.event(),
+            &Default::default(),
+            broken.as_bytes(),
+        )
+        .await
+        .unwrap_err();
         let refusal = error.downcast_ref::<RowsWithErrors>().unwrap();
         assert_eq!(refusal.0.errors, 1);
         assert_eq!(stored(&tx, &scope).await, before);
@@ -279,9 +301,15 @@ async fn a_corrected_import_re_arms_an_event_that_already_ran() {
     let tx = client.transaction().await.unwrap();
     let scope = setup(&tx, &config).await;
     let first = schedule_csv(&config, "00:00");
-    let (_, entries) = import_schedule(&tx, &scope.tenant(), &scope.event(), first.as_bytes())
-        .await
-        .unwrap();
+    let (_, entries) = import_schedule(
+        &tx,
+        &scope.tenant(),
+        &scope.event(),
+        &Default::default(),
+        first.as_bytes(),
+    )
+    .await
+    .unwrap();
     // The opening of post-000 (file line 3) has run.
     let fired = entries[1].task_id(&scope.tenant(), &scope.event());
     tx.execute(
@@ -292,9 +320,15 @@ async fn a_corrected_import_re_arms_an_event_that_already_ran() {
     .unwrap();
 
     let second = schedule_csv(&config, "01:00");
-    let (outcome, _) = import_schedule(&tx, &scope.tenant(), &scope.event(), second.as_bytes())
-        .await
-        .unwrap();
+    let (outcome, _) = import_schedule(
+        &tx,
+        &scope.tenant(),
+        &scope.event(),
+        &Default::default(),
+        second.as_bytes(),
+    )
+    .await
+    .unwrap();
     assert_eq!(outcome.created, 0);
     assert_eq!(outcome.updated, entries.len() as u64);
     let stopped: Option<chrono::DateTime<chrono::Utc>> = tx
@@ -320,16 +354,22 @@ async fn a_file_without_channels_keeps_each_event_s_channels() {
         &tx,
         &scope.tenant(),
         &scope.event(),
+        &Default::default(),
         schedule_csv(&config, "00:00").as_bytes(),
     )
     .await
     .unwrap();
     let without = "election_alias,event_type,local_date_time\n\
                    post-000,START_VOTING_PERIOD,2028-04-09T02:00\n";
-    let (outcome, entries) =
-        import_schedule(&tx, &scope.tenant(), &scope.event(), without.as_bytes())
-            .await
-            .unwrap();
+    let (outcome, entries) = import_schedule(
+        &tx,
+        &scope.tenant(),
+        &scope.event(),
+        &Default::default(),
+        without.as_bytes(),
+    )
+    .await
+    .unwrap();
     assert_eq!(outcome.updated, 1);
     let task = entries[0].task_id(&scope.tenant(), &scope.event());
     let events = stored(&tx, &scope).await;
@@ -347,9 +387,15 @@ async fn the_import_entry_is_staged_in_the_import_transaction() {
     let tx = client.transaction().await.unwrap();
     let scope = setup(&tx, &config).await;
     let csv = schedule_csv(&config, "00:00");
-    let (outcome, _) = import_schedule(&tx, &scope.tenant(), &scope.event(), csv.as_bytes())
-        .await
-        .unwrap();
+    let (outcome, _) = import_schedule(
+        &tx,
+        &scope.tenant(),
+        &scope.event(),
+        &Default::default(),
+        csv.as_bytes(),
+    )
+    .await
+    .unwrap();
     let author = ScheduleAuthor {
         user_id: "admin-1".to_string(),
         username: Some("ada".to_string()),

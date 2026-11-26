@@ -13,7 +13,7 @@ use chrono::{DateTime, Utc};
 use deadpool_postgres::Transaction;
 use electoral_log::adapters::ballot_box::BallotStatus;
 use electoral_log::adapters::ballot_box_reads::{BallotIdMatch, StoredBallot};
-use electoral_log::adapters::postgres::PostgresStore;
+use electoral_log::adapters::postgres::{PostgresConnection, PostgresStore};
 use sequent_core::ballot::ReceiptsPolicy;
 use serde::Serialize;
 use serde_json::Value;
@@ -33,6 +33,56 @@ pub async fn get_event_ballot_box(
     tenant_id: &str,
     election_event_id: &str,
 ) -> Result<EventBallotBox> {
+    let board = event_ballot_box_board(hasura_transaction, tenant_id, election_event_id).await?;
+    Ok(EventBallotBox {
+        store: get_event_store(election_event_id).await?,
+        board,
+    })
+}
+
+/// A read-only store of a board already provisioned for this election event.
+pub async fn get_event_ballot_box_read_only(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<EventBallotBox> {
+    let board = event_ballot_box_board(hasura_transaction, tenant_id, election_event_id).await?;
+    let store = existing_event_store_read_only(election_event_id, tenant_id).await?;
+    Ok(EventBallotBox { store, board })
+}
+
+// Open only existing catalog and event databases. Keep this readiness-specific
+// observation in Windmill so the shared electoral-log implementation stays
+// byte-identical. Neither connection may initialize schemas or write.
+async fn existing_event_store_read_only(
+    election_event_id: &str,
+    tenant_id: &str,
+) -> Result<PostgresStore> {
+    let event = Uuid::parse_str(election_event_id)?;
+    let tenant = Uuid::parse_str(tenant_id)?;
+    let connection = PostgresConnection::from_env()?;
+    let catalog = connection.read_only_store_of(connection.database(), 1)?;
+    let entry = catalog
+        .client()
+        .await?
+        .query_opt(
+            "SELECT database_name FROM electoral_log_events
+             WHERE election_event_id = $1 AND tenant_id = $2",
+            &[&event, &tenant],
+        )
+        .await?
+        .with_context(|| {
+            format!("Election event {event} has no electoral-log database in this tenant")
+        })?;
+    let database: String = entry.try_get(0)?;
+    connection.read_only_store_of(&database, 1)
+}
+
+async fn event_ballot_box_board(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+) -> Result<String> {
     let row = hasura_transaction
         .query_opt(
             "SELECT bulletin_board_reference FROM sequent_backend.election_event \
@@ -43,12 +93,7 @@ pub async fn get_event_ballot_box(
         .context("Error reading the election event's board")?
         .ok_or_else(|| anyhow!("Election event {election_event_id} not found"))?;
     let reference: Option<Value> = row.try_get(0)?;
-    let board =
-        get_election_event_board(reference).context("Election event has no electoral-log board")?;
-    Ok(EventBallotBox {
-        store: get_event_store(election_event_id).await?,
-        board,
-    })
+    get_election_event_board(reference).context("Election event has no electoral-log board")
 }
 
 /// Ballots of an election's area whose outcome is pending, which the tally refuses

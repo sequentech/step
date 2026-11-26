@@ -340,3 +340,125 @@ fn legacy_import_omits_the_optional_declared_hash() {
     assert_eq!(requests[2].1["variables"]["sha256"], Value::Null);
     assert_eq!(output.status.code(), Some(1));
 }
+
+fn rehearsal(mode: &str, flags: [&str; 2], body: Value) -> (Output, Vec<(String, Value)>) {
+    command(
+        &[
+            "step",
+            "readiness-check",
+            "--comparison",
+            mode,
+            flags[0],
+            OFFICIAL,
+            flags[1],
+            TESTED,
+        ],
+        200,
+        body,
+        1,
+    )
+}
+
+#[test]
+fn rehearsal_modes_send_their_discriminant_and_only_consistent_succeeds() {
+    for (mode, wire, flags) in [
+        ("rehearsal-ert-stl", "rehearsal_ert_stl", ["--ert", "--stl"]),
+        (
+            "rehearsal-official-ert",
+            "rehearsal_official_ert",
+            ["--official", "--ert"],
+        ),
+        (
+            "rehearsal-official-stl",
+            "rehearsal_official_stl",
+            ["--official", "--stl"],
+        ),
+    ] {
+        let consistent = json!({"comparison": wire, "verdict": "consistent", "checks": []});
+        let (output, requests) = rehearsal(mode, flags, consistent.clone());
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            serde_json::from_slice::<Value>(&output.stdout).unwrap(),
+            consistent
+        );
+        assert_eq!(
+            requests[0].1["variables"],
+            json!({"official_event_id": OFFICIAL, "tested_event_id": TESTED, "comparison": wire})
+        );
+        for refused in [
+            json!({"comparison": wire, "verdict": "not_verified", "checks": []}),
+            json!({"comparison": wire, "verdict": "inconsistent", "checks": []}),
+            // A rehearsal never carries readiness or signed evidence.
+            json!({"comparison": wire, "verdict": "consistent", "passed": true, "log_entry_id": "x"}),
+            // A different or absent discriminant is never accepted.
+            json!({"comparison": "rehearsal_other", "verdict": "consistent"}),
+            json!({"passed": true, "checks": {}, "evidence": {}, "log_entry_id": "signed-entry"}),
+        ] {
+            let (output, requests) = rehearsal(mode, flags, refused);
+            assert_eq!(output.status.code(), Some(1), "{mode}");
+            assert_eq!(requests.len(), 1);
+        }
+    }
+}
+
+#[test]
+fn production_never_accepts_a_rehearsal_report() {
+    let (output, _) = readiness(
+        200,
+        json!({"comparison": "rehearsal_ert_stl", "passed": true, "log_entry_id": "x"}),
+    );
+    assert_eq!(output.status.code(), Some(1));
+}
+
+#[test]
+fn role_flags_must_match_the_comparison_before_any_request() {
+    for args in [
+        vec!["step", "readiness-check", "--official", OFFICIAL],
+        vec![
+            "step",
+            "readiness-check",
+            "--official",
+            OFFICIAL,
+            "--ert",
+            TESTED,
+        ],
+        vec![
+            "step",
+            "readiness-check",
+            "--comparison",
+            "rehearsal-ert-stl",
+            "--official",
+            OFFICIAL,
+            "--stl",
+            TESTED,
+        ],
+        vec![
+            "step",
+            "readiness-check",
+            "--comparison",
+            "rehearsal-official-stl",
+            "--official",
+            OFFICIAL,
+            "--tested",
+            TESTED,
+        ],
+        vec![
+            "step",
+            "readiness-check",
+            "--comparison",
+            "rehearsal",
+            "--ert",
+            OFFICIAL,
+            "--stl",
+            TESTED,
+        ],
+    ] {
+        let (output, requests) = command(&args, 200, json!({}), 0);
+        assert!(!output.status.success(), "{args:?}");
+        assert!(requests.is_empty(), "{args:?}");
+    }
+}
