@@ -1,6 +1,7 @@
 ---
 id: basic_navigation
 title: Basic Navigation
+description: "The system's user interface (UI) is divided into four main areas, each serving a specific function:"
 ---
 
 <!--

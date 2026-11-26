@@ -1,6 +1,7 @@
 ---
 id: election_management_election_event_voters
 title: Voters
+description: "This section displays the currently configured voters for this Election Event."
 ---
 
 <!--
@@ -104,7 +105,7 @@ You can add additional fields like the voter's birthday or sex. [Check out the t
 
 **Important:** Additional attributes for voters must be added before the enrollment process. For instance, if the sex attribute is not added, this trait will not be reflected in the reports and statistics.
 
-### External system (i.e. Datafix) API client credentials
+### External system API client credentials
 
 The external-system voter API authenticates with the `datafix-account` Keycloak
 client of the tenant realm, using the client credentials grant. The client
@@ -123,7 +124,7 @@ secret is a credential, so follow these rules:
   with the old secret. It must fail with `unauthorized_client` where the client
   exists and with `invalid_client` where it does not.
 
-### External system (i.e. Datafix) voter-list reconciliation
+### External system voter-list reconciliation
 
 Users with the `election-event-voter-list-reconciliation` permission can open
 the reconciliation wizard from the Voters tab. Run reconciliation only during
