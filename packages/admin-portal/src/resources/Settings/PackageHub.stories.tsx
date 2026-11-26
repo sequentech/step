@@ -141,7 +141,7 @@ const Hub: React.FC<Scenario> = ({phase, run, mode, trustLabel}) => {
 }
 
 const meta = {
-    title: "Admin/Settings/PackageHub",
+    title: "Admin/Settings/PackageStatusHeader",
     component: PackageStatusHeader,
     args: {phase: "review", run: "previewed", mode: "preview", trustLabel: "Roster active"},
     // The page story proves sibling widgets in their real production parent.

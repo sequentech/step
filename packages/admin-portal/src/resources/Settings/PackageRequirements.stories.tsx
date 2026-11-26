@@ -15,7 +15,7 @@ import {RequirementsPicker, RequirementsSummary, WizardSteps} from "./PackageHub
 let boundary: ReturnType<typeof graphqlBoundary>
 
 const meta = {
-    title: "Admin/Settings/PackageRequirements",
+    title: "Admin/Settings/RequirementsPicker",
     component: RequirementsPicker,
     beforeEach: () => {
         boundary = graphqlBoundary({})

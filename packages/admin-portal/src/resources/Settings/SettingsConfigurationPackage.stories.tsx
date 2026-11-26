@@ -243,17 +243,7 @@ export const PreviewAndConfirm: Story = {
 
 export const BlockedPreview: Story = {
     args: {blocked: true},
-    parameters: {
-        widgets: [
-            "ApplicationTable",
-            "PackageStatusHeader",
-            "PackageRail",
-            "BadgeDot",
-            "RunStages",
-            "SectionBadgeChip",
-            "TenantReceipt",
-        ],
-    },
+    parameters: {widgets: ["ApplicationTable"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await preview(canvasElement)
