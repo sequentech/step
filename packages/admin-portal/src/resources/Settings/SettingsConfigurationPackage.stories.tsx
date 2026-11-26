@@ -14,6 +14,10 @@ import {record, refusedPreview} from "./configurationPackage.fixture"
 
 interface Scenario {
     allowed: boolean
+    /** Package permissions the operator lacks, for the Missing permissions state. */
+    missing: string[]
+    /** Whether the tenant's history holds an applied run. */
+    applied: boolean
     blocked: boolean
     unavailable: boolean
     managedRoster: boolean
@@ -25,7 +29,14 @@ let data: ReturnType<typeof resourceBoundary>
 const meta = {
     title: "Admin/Settings/SettingsConfigurationPackage",
     component: SettingsConfigurationPackage,
-    args: {allowed: true, blocked: false, unavailable: false, managedRoster: false},
+    args: {
+        allowed: true,
+        missing: [],
+        applied: false,
+        blocked: false,
+        unavailable: false,
+        managedRoster: false,
+    },
     beforeEach: async ({args}) => {
         sessionStorage.clear()
         // The page also shows the tenant's signing card, which reads the
@@ -102,7 +113,21 @@ const meta = {
                     },
                 },
             }),
-            ListPackageApplications: () => ({data: {sequent_backend_tasks_execution: []}}),
+            ListPackageApplications: () => ({
+                data: {
+                    sequent_backend_tasks_execution: args.applied
+                        ? [
+                              {
+                                  id: storyId(41, 3),
+                                  created_at: "2026-11-24T14:02:00Z",
+                                  execution_status: "SUCCESS",
+                                  executed_by_user: "story-operator",
+                                  annotations: record("applied"),
+                              },
+                          ]
+                        : [],
+                },
+            }),
             ApplyConfigurationPackage: () => ({
                 data: {
                     apply_configuration_package: {
@@ -132,11 +157,15 @@ const meta = {
         await graphql.ready
         return () => sessionStorage.clear()
     },
-    render: ({allowed}) => (
+    render: ({allowed, missing}) => (
         <AdminStoryProvider
             boundary={graphql}
             dataProvider={data.provider}
-            roles={allowed ? PACKAGE_PERMISSIONS : []}
+            roles={
+                allowed
+                    ? PACKAGE_PERMISSIONS.filter((permission) => !missing.includes(permission))
+                    : []
+            }
             auth={{userId: "story-operator"}}
         >
             <SettingsConfigurationPackage />
@@ -162,7 +191,7 @@ async function preview(canvasElement: HTMLElement) {
     const canvas = within(canvasElement)
     await waitFor(() =>
         expect(
-            canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
+            canvas.getByTestId("package-upload")
         ).toBeEnabled()
     )
     await showAdvanced(canvasElement)
@@ -231,6 +260,11 @@ export const BlockedPreview: Story = {
         ).toBeVisible()
         await expect(canvas.getByTestId("section-trustees")).toHaveTextContent("missing")
         await expect(canvas.getByTestId("package-apply")).toBeDisabled()
+        await expect(canvas.getByTestId("package-apply")).not.toBeVisible()
+        await expect(canvas.getByTestId("package-upload")).toHaveTextContent(
+            i18n.t("configurationPackage.hub.actions.importFixed")
+        )
+        await expect(canvas.getByTestId("package-change-requirements")).toBeVisible()
         expect(graphql.calls.filter(({name}) => name === "ApplyConfigurationPackage")).toHaveLength(
             1
         )
@@ -270,12 +304,11 @@ export const PermissionRequired: Story = {
 }
 
 export const UploadFirst: Story = {
-    parameters: {widgets: ["ApplicationHistory"]},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
         await waitFor(() =>
             expect(
-                canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
+                canvas.getByTestId("package-upload")
             ).toBeEnabled()
         )
         await expect(
@@ -288,7 +321,7 @@ export const UploadFirst: Story = {
             canvas.getByRole("button", {name: i18n.t("configurationPackage.legacySetup")})
         ).toHaveAttribute("aria-expanded", "false")
         await userEvent.click(
-            canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
+            canvas.getByTestId("package-upload")
         )
         await expect(within(document.body).getByTestId("package-upload-drawer")).toBeVisible()
     },
@@ -298,14 +331,10 @@ export const RosterNotInstalled: Story = {
     args: {managedRoster: true},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
-        const manage = await canvas.findByRole("button", {
-            name: i18n.t("configurationPackage.roster.manage"),
-        })
         await expect(
-            canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
+            canvas.getByTestId("package-upload")
         ).toBeDisabled()
-        await expect(canvas.getByText(i18n.t("configurationPackage.roster.noRoster"))).toBeVisible()
-        const upload = canvas.getByRole("button", {name: i18n.t("configurationPackage.upload")})
+        const upload = canvas.getByTestId("package-upload")
         const disabled = window.getComputedStyle(upload)
         const reference = window.getComputedStyle(canvas.getByTestId("package-apply"))
         await expect([disabled.backgroundColor, disabled.color, disabled.border]).toEqual([
@@ -321,6 +350,11 @@ export const RosterNotInstalled: Story = {
         await expect(
             canvas.queryByRole("button", {name: i18n.t("configurationPackage.legacySetup")})
         ).not.toBeInTheDocument()
+        await userEvent.click(canvas.getByTestId("package-rail-trust"))
+        const manage = await canvas.findByRole("button", {
+            name: i18n.t("configurationPackage.roster.manage"),
+        })
+        await expect(canvas.getByText(i18n.t("configurationPackage.roster.noRoster"))).toBeVisible()
         await userEvent.click(manage)
         const dialog = within(
             await within(document.body).findByRole("dialog", {
@@ -340,5 +374,33 @@ export const RosterNotInstalled: Story = {
             graphql.calls.filter(({name}) => /^(Activate|Preview)ArchitectSignerRoster$/.test(name))
         ).toHaveLength(0)
         expect(graphql.unexpected).toEqual([])
+    },
+}
+
+export const MissingPermissions: Story = {
+    args: {missing: ["role-write", "trustee-create"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const missing = await canvas.findByTestId("package-missing-permissions")
+        await expect(missing).toHaveTextContent("role-write, trustee-create")
+        await expect(missing).not.toHaveTextContent("tenant-write")
+        await expect(canvas.queryByTestId("package-upload")).not.toBeInTheDocument()
+        expect(graphql.calls).toEqual([])
+    },
+}
+
+export const AppliedReceipt: Story = {
+    args: {applied: true},
+    parameters: {widgets: ["ApplicationHistory"]},
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        await waitFor(() =>
+            expect(canvas.getByTestId("package-receipt")).toHaveTextContent(storyId(41, 3))
+        )
+        await expect(canvas.getByTestId("package-run-card")).not.toHaveTextContent(
+            storyId(41, 3)
+        )
+        await userEvent.click(canvas.getByTestId("package-rail-history"))
+        await expect(canvas.getByTestId("package-history")).toHaveTextContent(storyId(41, 3))
     },
 }

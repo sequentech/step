@@ -59,7 +59,8 @@ const mockMenuPoll = jest.fn(async (_options: unknown) => ({
 }))
 const mockApollo = {query: mockMenuPoll}
 let mockTask: any = null
-let mockAllowed = true
+let mockAllowed: boolean | ((permission: string) => boolean) = true
+let mockHistory: unknown[] = []
 let mockActor = "operator-a"
 let mockTenant = "t1"
 let mockTaskError: unknown = undefined
@@ -107,7 +108,7 @@ jest.mock("@apollo/client", () => ({
         }
         mockHistoryOptions(options)
         return {
-            data: {sequent_backend_tasks_execution: []},
+            data: {sequent_backend_tasks_execution: mockHistory},
             refetch: mockRefetch,
         }
     },
@@ -125,7 +126,8 @@ jest.mock("@/providers/AuthContextProvider", () => {
     const React = require("react")
     return {
         AuthContext: React.createContext({
-            isAuthorized: () => mockAllowed,
+            isAuthorized: (_superAdmin: boolean, _tenant: string | null, permission: string) =>
+                typeof mockAllowed === "function" ? mockAllowed(permission) : mockAllowed,
             get userId() {
                 return mockActor
             },
@@ -171,6 +173,7 @@ beforeEach(() => {
     sessionStorage.clear()
     mockTask = null
     mockAllowed = true
+    mockHistory = []
     mockActor = "operator-a"
     mockTenant = "t1"
     mockTaskError = undefined
@@ -189,7 +192,7 @@ const apply = async () => {
 }
 
 const upload = async () => {
-    fireEvent.click(screen.getByText("configurationPackage.upload"))
+    fireEvent.click(screen.getByTestId("package-upload"))
     await act(async () => {
         fireEvent.click(screen.getByTestId("drawer-upload"))
     })
@@ -209,7 +212,7 @@ it("is not offered without every permission", () => {
     mockAllowed = false
     render(<SettingsConfigurationPackage />)
     expect(screen.getByTestId("package-not-permitted")).toBeTruthy()
-    expect(screen.queryByText("configurationPackage.upload")).toBeNull()
+    expect(screen.queryByTestId("package-upload")).toBeNull()
     expect(screen.queryByTestId("package-advanced")).toBeNull()
     expect(screen.queryByTestId("configuration-signing")).toBeNull()
 })
@@ -222,9 +225,9 @@ it("offers one initial next action and summarizes the closed advanced options wi
             name: "configurationPackage.workflow.phases.choose.title",
         })
     ).toBeTruthy()
-    expect(workflow.querySelector('[aria-current="step"]')?.textContent).toContain(
-        "configurationPackage.workflow.steps.upload"
-    )
+    expect(
+        screen.getByTestId("package-run-stages").querySelector('[aria-current="step"]')?.textContent
+    ).toContain("configurationPackage.hub.stages.package")
     expect(screen.queryByRole("button", {name: "configurationPackage.apply"})).toBeNull()
     expect(
         screen.getByTestId("package-advanced-details").querySelector("summary")?.textContent
@@ -254,9 +257,7 @@ it("never signals Review after changing an already-previewed requirement", async
 
 it("discloses advanced controls on demand without changing requirements, including legacy setup", () => {
     render(<SettingsConfigurationPackage />)
-    const upload = screen.getByRole("button", {
-        name: "configurationPackage.upload",
-    })
+    const upload = screen.getByTestId("package-upload")
     const advanced = screen.getByRole("region", {
         name: "configurationPackage.advanced",
     })
@@ -729,7 +730,7 @@ it("treats a CANCELLED task as finished, not running", async () => {
         "configurationPackage.stoppedWithoutRecord"
     )
     expect(mockStopPolling).toHaveBeenCalled()
-    expect((screen.getByText("configurationPackage.upload") as HTMLButtonElement).disabled).toBe(
+    expect((screen.getByTestId("package-upload") as HTMLButtonElement).disabled).toBe(
         false
     )
 })
@@ -749,7 +750,7 @@ describe("a task that cannot be read", () => {
         )
         // Not locked: the operator can upload again or stop following.
         expect(
-            (screen.getByText("configurationPackage.upload") as HTMLButtonElement).disabled
+            (screen.getByTestId("package-upload") as HTMLButtonElement).disabled
         ).toBe(false)
         fireEvent.click(screen.getByTestId("package-stop-following"))
         expect(screen.queryByTestId("package-run")).toBeNull()
@@ -798,7 +799,7 @@ it("drops a reply that arrives after the tenant changed", async () => {
     let finish: (value: unknown) => void = () => undefined
     mockApply.mockImplementationOnce(() => new Promise((resolve) => (finish = resolve)))
     const {rerender} = render(<SettingsConfigurationPackage />)
-    fireEvent.click(screen.getByText("configurationPackage.upload"))
+    fireEvent.click(screen.getByTestId("package-upload"))
     fireEvent.click(screen.getByTestId("drawer-upload"))
     mockTenant = "t2"
     rerender(<SettingsConfigurationPackage />)
@@ -1113,7 +1114,7 @@ it.each([null, {...managedRoster, generation: "0", active_sha256: null}])(
         mockRoster = status
         render(<SettingsConfigurationPackage />)
         expect(
-            (screen.getByText("configurationPackage.upload") as HTMLButtonElement).disabled
+            (screen.getByTestId("package-upload") as HTMLButtonElement).disabled
         ).toBe(true)
         expect(mockApply).not.toHaveBeenCalled()
     }
@@ -1169,9 +1170,7 @@ it("keeps managed trust roster-only and unlocks ZIP/document selection only afte
         </ThemeProvider>
     )
     const view = render(page())
-    const upload = screen.getByRole("button", {
-        name: "configurationPackage.upload",
-    }) as HTMLButtonElement
+    const upload = screen.getByTestId("package-upload") as HTMLButtonElement
     expect(upload.disabled).toBe(true)
     expectDisabledLikeApply(upload)
     expect(upload.getAttribute("aria-describedby")).toBeTruthy()
@@ -1372,4 +1371,131 @@ it("drops an in-flight successful Apply reply after the operator changes routes 
         ui.rerender(<PersistentNavigation settings={false} />)
     })
     expect(mockElectionRefresh).toHaveBeenCalledTimes(1)
+})
+
+describe("configuration package hub layout", () => {
+    it("names exactly the grants the operator lacks, without page controls", () => {
+        mockAllowed = (permission) => permission !== "trustee-create" && permission !== "role-write"
+        render(<SettingsConfigurationPackage />)
+        const missing = screen.getByTestId("package-missing-permissions").textContent ?? ""
+        expect(missing).toContain("role-write, trustee-create")
+        expect(missing).not.toContain("tenant-write")
+        expect(screen.queryByTestId("package-upload")).toBeNull()
+        expect(screen.queryByTestId("package-rail")).toBeNull()
+    })
+
+    it("rails Overview, the seven sections in apply order, Signing trust and History", () => {
+        render(<SettingsConfigurationPackage />)
+        const rail = screen.getByTestId("package-rail")
+        const ids = Array.from(rail.querySelectorAll("[data-testid^='package-rail-']")).map(
+            (item) => item.getAttribute("data-testid")
+        )
+        expect(ids).toEqual([
+            "package-rail-overview",
+            "package-rail-tenant-configuration",
+            "package-rail-tenant-settings",
+            "package-rail-role-permissions",
+            "package-rail-admin-accounts",
+            "package-rail-trustees",
+            "package-rail-messaging-accounts",
+            "package-rail-election-event",
+            "package-rail-trust",
+            "package-rail-history",
+        ])
+        expect(screen.getByTestId("package-rail-overview").getAttribute("aria-current")).toBe(
+            "page"
+        )
+        fireEvent.click(screen.getByTestId("package-rail-trustees"))
+        expect(screen.getByTestId("package-section-panel-trustees")).toBeTruthy()
+        expect(screen.getByTestId("package-rail-trustees").getAttribute("aria-current")).toBe(
+            "page"
+        )
+        fireEvent.click(screen.getByTestId("package-rail-trust"))
+        expect(screen.getByTestId("package-trust-panel")).toBeTruthy()
+        fireEvent.click(screen.getByTestId("package-rail-history"))
+        expect(screen.getByTestId("package-history")).toBeTruthy()
+    })
+
+    it("offers Review and apply for a ready preview, behind the confirmation", async () => {
+        await previewed()
+        expect(applyButton().textContent).toBe("configurationPackage.hub.actions.reviewAndApply")
+        expect(applyButton().disabled).toBe(false)
+        expect(applyButton().hidden).toBe(false)
+        fireEvent.click(applyButton())
+        expect(screen.getByTestId("package-apply-confirm")).toBeTruthy()
+        expect(mockApply.mock.calls.map(([options]) => options.variables.mode)).toEqual([
+            "preview",
+        ])
+    })
+
+    it("offers only Import fixed package and Change requirements for a blocked preview", async () => {
+        mockApply.mockResolvedValue(accepted("task-p"))
+        const {rerender} = render(<SettingsConfigurationPackage />)
+        await upload()
+        mockTask = task(
+            "task-p",
+            "FAILED",
+            refusedPreview(["unknown role x"], {missingTrustees: true})
+        )
+        rerender(<SettingsConfigurationPackage />)
+        expect(screen.getByTestId("package-upload").textContent).toBe(
+            "configurationPackage.hub.actions.importFixed"
+        )
+        expect(screen.getByTestId("package-change-requirements")).toBeTruthy()
+        expect(applyButton().hidden).toBe(true)
+        expect(applyButton().disabled).toBe(true)
+        const badge = (section: string) =>
+            screen
+                .getByTestId(`package-section-row-${section}`)
+                .querySelector("[data-badge]")
+                ?.getAttribute("data-badge")
+        // Blocked and missing rows are folded into the ordered section rows.
+        expect(badge("tenant-configuration")).toBe("blocked")
+        expect(
+            screen.getByTestId("package-section-row-tenant-configuration").textContent
+        ).toContain("unknown role x")
+        expect(badge("trustees")).toBe("missing")
+        expect(
+            Array.from(
+                screen.getByTestId("package-run-stages").querySelectorAll("[data-state]")
+            ).map((stage) => stage.getAttribute("data-state"))
+        ).toEqual(["done", "blocked", "pending", "pending"])
+        fireEvent.click(screen.getByTestId("package-change-requirements"))
+        expect((screen.getByTestId("package-advanced-details") as HTMLDetailsElement).open).toBe(
+            true
+        )
+        expect(mockApply).toHaveBeenCalledTimes(1)
+    })
+
+    it("keeps the tenant's applied receipt separate from the current run", async () => {
+        mockHistory = [
+            {
+                id: "task-later-preview",
+                created_at: "2026-11-26T09:41:00Z",
+                execution_status: "SUCCESS",
+                executed_by_user: "ops.lead",
+                annotations: record("previewed"),
+            },
+            {
+                id: "task-applied",
+                created_at: "2026-11-24T14:02:00Z",
+                execution_status: "SUCCESS",
+                executed_by_user: "ops.lead",
+                annotations: record("applied"),
+            },
+        ]
+        await previewed()
+        const receipt = screen.getByTestId("package-receipt")
+        expect(receipt.textContent).toContain("task-applied")
+        expect(receipt.textContent).toContain("2026-11-24T14:02:00Z")
+        expect(receipt.textContent).not.toContain("task-p")
+        expect(screen.getByTestId("package-run-card").textContent).toContain("task-p")
+    })
+
+    it("says no package is applied when the recent history holds none", () => {
+        render(<SettingsConfigurationPackage />)
+        expect(screen.getByTestId("package-receipt").textContent).toContain(
+            "configurationPackage.hub.receipt.none"
+        )
+    })
 })

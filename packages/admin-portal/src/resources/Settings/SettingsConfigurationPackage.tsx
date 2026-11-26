@@ -29,6 +29,7 @@ import {
     FormControlLabel,
     List,
     ListItem,
+    ListItemButton,
     Table,
     TableBody,
     TableCell,
@@ -62,7 +63,24 @@ import {
     useArchitectSignerRoster,
 } from "./ArchitectSignerRoster"
 import {ConfigurationSigningSettings} from "./ConfigurationSigningSettings"
-import {PackageImportWorkflow, packageImportPhase} from "./PackageImportWorkflow"
+import {packageImportPhase} from "./PackageImportWorkflow"
+import {
+    type HubTab,
+    PackageRail,
+    PackageStatusHeader,
+    RunStages,
+    SectionBadgeChip,
+    TenantReceipt,
+    isSectionTab,
+} from "./PackageHub"
+import {
+    type HeaderAction,
+    headerActions,
+    lastAppliedReceipt,
+    missingPackagePermissions,
+    orderedSectionBadges,
+    runStages,
+} from "./packageOverview"
 import {
     ActiveSubmission,
     ApplicationView,
@@ -94,6 +112,12 @@ import {
 const POLL_INTERVAL_MS = 3000
 
 const SHA256 = /^[a-fA-F0-9]{64}$/
+
+/** First and last eight hex digits of a digest, for a summary line. */
+const shortDigest = (digest: string | null | undefined): string | undefined =>
+    typeof digest === "string" && digest.length > 20
+        ? `${digest.slice(0, 8)} … ${digest.slice(-8)}`
+        : undefined
 
 export const SettingsConfigurationPackage: React.FC = () => {
     const [tenantId] = useTenantStore()
@@ -151,6 +175,22 @@ const SettingsConfigurationPackageForScope: React.FC<{
     const [previewed, setPreviewed] = useState<PreviewedPackage | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [submitting, setSubmitting] = useState(false)
+    const [tab, setTab] = useState<HubTab>("overview")
+    // "Change requirements" and the document-ID menu item open the options in place.
+    const [openAdvanced, setOpenAdvanced] = useState(false)
+    const advancedRef = useRef<HTMLDetailsElement | null>(null)
+    const runCardHeadingId = useId()
+    const sectionsHeadingId = useId()
+    const sectionPanelHeadingId = useId()
+    useEffect(() => {
+        if (!openAdvanced) return
+        const details = advancedRef.current
+        if (details) {
+            details.open = true
+            details.querySelector("summary")?.focus()
+        }
+        setOpenAdvanced(false)
+    }, [openAdvanced, tab])
 
     // Check referential scope after awaits, including a switch away and back.
     const scope = useRef({tenantId, actor: authContext.userId})
@@ -321,9 +361,23 @@ const SettingsConfigurationPackageForScope: React.FC<{
     confirmedInputs.current = {documentId, requirements, expectedSha, allowed}
 
     if (!allowed || !tenantId) {
+        const missing = authContext.userId
+            ? missingPackagePermissions(tenantId, authContext.isAuthorized)
+            : []
         return (
             <Alert severity="info" data-testid="package-not-permitted">
-                {t("configurationPackage.notPermitted")}
+                <Typography variant="body2" sx={{fontWeight: 500}}>
+                    {t("configurationPackage.hub.noAccess.title")}
+                </Typography>
+                {missing.length > 0 ? (
+                    <Typography variant="body2" data-testid="package-missing-permissions">
+                        {t("configurationPackage.hub.noAccess.missing", {
+                            permissions: missing.join(", "),
+                        })}
+                    </Typography>
+                ) : (
+                    <Typography variant="body2">{t("configurationPackage.notPermitted")}</Typography>
+                )}
             </Alert>
         )
     }
@@ -546,7 +600,8 @@ const SettingsConfigurationPackageForScope: React.FC<{
         hasError: !!error,
         hasScopeMismatch: !!previewed && !canApply,
     })
-    const showApply = canApply || phase === "previewBlocked" || phase === "previewAgain"
+    // A blocked preview offers Import fixed package and Change requirements, never Apply.
+    const showApply = canApply || phase === "previewAgain"
     const previewTrustChanged =
         !!previewed &&
         mayApply(previewed, tenantId, documentId, requirements, expectedSha) &&
@@ -560,72 +615,112 @@ const SettingsConfigurationPackageForScope: React.FC<{
                 ? `${applyReasonId}-trust`
                 : undefined
 
-    return (
-        <Box sx={{p: {xs: 0, sm: 1}, maxWidth: 1440, mx: "auto", minWidth: 0}}>
-            <Stack spacing={1} sx={{mb: 2}}>
-                <Typography variant="h4" component="h2" sx={{textAlign: "start", m: 0}}>
-                    {t("configurationPackage.title")}
-                </Typography>
-                <Typography variant="body1" color="text.secondary" sx={{maxWidth: "75ch"}}>
-                    {t("configurationPackage.description")}
-                </Typography>
-                <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    data-testid="package-tenant"
-                    sx={{overflowWrap: "anywhere"}}
-                >
-                    {t("configurationPackage.tenant", {tenantId})}
-                </Typography>
-            </Stack>
-
-            <Box
-                sx={{
-                    display: "grid",
-                    gridTemplateColumns: {
-                        xs: "minmax(0, 1fr)",
-                        lg: "minmax(0, 1fr) minmax(280px, 32%)",
-                    },
-                    alignItems: "start",
-                    gap: 2,
-                }}
-            >
-                <Stack spacing={2} sx={{minWidth: 0}}>
-                    <PackageImportWorkflow
-                        phase={phase}
-                        uploadAction={
-                            <Button
-                                variant={phase === "review" ? "secondary" : "contained"}
-                                disabled={running || !permitsImport}
-                                aria-describedby={!permitsImport ? rosterStatusId : undefined}
-                                sx={{"&&.Mui-disabled": disabledButtonStyle}}
-                                onClick={() => {
-                                    if (!running && permitsImport) setOpenUpload(true)
-                                }}
-                            >
-                                {t("configurationPackage.upload")}
-                            </Button>
-                        }
-                        applyAction={
-                            <Button
-                                variant="contained"
-                                color="warning"
-                                disabled={!canApply}
-                                aria-describedby={
-                                    showApply && !canApply ? applyDisabledReason : undefined
-                                }
-                                hidden={!showApply}
-                                sx={{
-                                    "display": showApply ? undefined : "none",
-                                    "&&.Mui-disabled": disabledButtonStyle,
-                                }}
-                                data-testid="package-apply"
-                                onClick={() => setConfirming(true)}
-                            >
-                                {t("configurationPackage.apply")}
-                            </Button>
-                        }
+    const openRequirements = () => {
+        setTab("overview")
+        setOpenAdvanced(true)
+    }
+    const actionFor = (action: HeaderAction, primary: boolean) => {
+        const variant = primary ? "contained" : "outlined"
+        switch (action) {
+            case "reviewAndApply":
+                return null // The Apply button below is the one Review and apply control.
+            case "changeRequirements":
+                return (
+                    <Button
+                        key="requirements"
+                        variant={variant}
+                        data-testid="package-change-requirements"
+                        onClick={openRequirements}
                     >
+                        {t("configurationPackage.hub.actions.changeRequirements")}
+                    </Button>
+                )
+            default:
+                return (
+                    <Button
+                        key="upload"
+                        variant={variant}
+                        disabled={running || !permitsImport}
+                        aria-describedby={!permitsImport ? rosterStatusId : undefined}
+                        data-testid="package-upload"
+                        sx={{"&&.Mui-disabled": disabledButtonStyle}}
+                        onClick={() => {
+                            if (!running && permitsImport) setOpenUpload(true)
+                        }}
+                    >
+                        {t(
+                            action === "importFixed"
+                                ? "configurationPackage.hub.actions.importFixed"
+                                : phase === "review"
+                                  ? "configurationPackage.hub.actions.importAnother"
+                                  : "configurationPackage.hub.actions.importPackage"
+                        )}
+                    </Button>
+                )
+        }
+    }
+    const actions = headerActions(phase)
+    const trustSummary =
+        phase === "waitingForTrust"
+            ? {label: String(t("configurationPackage.hub.trustChecking"))}
+            : !permitsImport
+              ? {label: String(t("configurationPackage.hub.trustBlocked"))}
+              : roster.status?.mode === "portal_managed"
+                ? {
+                      label: String(
+                          t("configurationPackage.hub.trustManaged", {
+                              generation: roster.status.generation,
+                          })
+                      ),
+                      detail: shortDigest(roster.status.active_sha256),
+                  }
+                : roster.status?.mode === "site_pinned"
+                  ? {
+                        label: String(t("configurationPackage.hub.trustPinned")),
+                        detail: shortDigest(roster.status.active_sha256),
+                    }
+                  : {label: String(t("configurationPackage.hub.trustLegacy"))}
+    const shownView = submitted && !unreadable ? view : null
+    const sectionRows = orderedSectionBadges(shownView, running)
+    const stages = runStages(phase, submitted?.mode)
+    const receipt = lastAppliedReceipt(historyData?.sequent_backend_tasks_execution)
+    const runCard = (
+        <Paper
+            component="section"
+            variant="outlined"
+            aria-labelledby={runCardHeadingId}
+            data-testid="package-run-card"
+            sx={{p: 2, minWidth: 0}}
+        >
+            <Stack spacing={1.5}>
+                <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{alignItems: "center", justifyContent: "space-between"}}
+                >
+                    <Typography id={runCardHeadingId} variant="subtitle2" component="h3">
+                        {t(
+                            submitted
+                                ? "configurationPackage.hub.currentRun"
+                                : "configurationPackage.hub.lastRun"
+                        )}
+                    </Typography>
+                    {submitted && (
+                        <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{fontFamily: "monospace", overflowWrap: "anywhere"}}
+                        >
+                            {submitted.taskId}
+                        </Typography>
+                    )}
+                </Stack>
+                <RunStages stages={stages} />
+                {!submitted && (
+                    <Typography variant="body2" color="text.secondary">
+                        {t("configurationPackage.hub.noRun")}
+                    </Typography>
+                )}
                         {!canApply && (refusal || blockers.length > 0) ? (
                             <Alert
                                 severity="warning"
@@ -699,7 +794,92 @@ const SettingsConfigurationPackageForScope: React.FC<{
                                 {safeText(error)}
                             </Alert>
                         )}
-                    </PackageImportWorkflow>
+            </Stack>
+        </Paper>
+    )
+
+    const overview = (
+        <Box
+            sx={{
+                display: "grid",
+                gridTemplateColumns: {
+                    xs: "minmax(0, 1fr)",
+                    lg: "minmax(0, 1.3fr) minmax(300px, 1fr)",
+                },
+                alignItems: "start",
+                gap: 1.5,
+            }}
+        >
+            <Stack spacing={1.5} sx={{minWidth: 0}}>
+                <Paper
+                    component="section"
+                    variant="outlined"
+                    aria-labelledby={sectionsHeadingId}
+                    sx={{p: 2, pb: 1, minWidth: 0}}
+                    data-testid="package-section-rows"
+                >
+                    <Typography id={sectionsHeadingId} variant="subtitle2" component="h3">
+                        {t("configurationPackage.hub.sectionsHeading")}
+                    </Typography>
+                    <List dense disablePadding>
+                        {sectionRows.map(({section, badge, view: row}, index) => {
+                            const summary = row
+                                ? [
+                                      ...(row.preview?.blockers ?? []),
+                                      ...(row.error ? [row.error] : []),
+                                  ]
+                                      .map(safeText)
+                                      .join(" · ")
+                                : ""
+                            return (
+                                <ListItemButton
+                                    key={section}
+                                    divider={index < sectionRows.length - 1}
+                                    data-testid={`package-section-row-${section}`}
+                                    onClick={() => setTab(section)}
+                                    sx={{px: 0.5, gap: 1.5, alignItems: "center"}}
+                                >
+                                    <Typography
+                                        component="span"
+                                        variant="caption"
+                                        color="text.secondary"
+                                        aria-hidden="true"
+                                        sx={{
+                                            width: 22,
+                                            height: 22,
+                                            flex: "0 0 22px",
+                                            border: 1,
+                                            borderColor: "divider",
+                                            borderRadius: "50%",
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                        }}
+                                    >
+                                        {index + 1}
+                                    </Typography>
+                                    <Box sx={{flex: "1 1 auto", minWidth: 0}}>
+                                        <Typography variant="body2" sx={{fontWeight: 500}} noWrap>
+                                            {t(`configurationPackage.sections.${section}`)}
+                                        </Typography>
+                                        {summary && (
+                                            <Typography
+                                                variant="caption"
+                                                color="text.secondary"
+                                                component="div"
+                                                noWrap
+                                                title={summary}
+                                            >
+                                                {summary}
+                                            </Typography>
+                                        )}
+                                    </Box>
+                                    <SectionBadgeChip badge={badge} />
+                                </ListItemButton>
+                            )
+                        })}
+                    </List>
+                </Paper>
                     {submitted && (
                         <Paper
                             component="section"
@@ -809,41 +989,12 @@ const SettingsConfigurationPackageForScope: React.FC<{
                     <Paper
                         component="section"
                         variant="outlined"
-                        aria-labelledby={historyHeadingId}
-                        sx={{p: 2, minWidth: 0}}
-                    >
-                        <Typography id={historyHeadingId} variant="h6" component="h3">
-                            {t("configurationPackage.history")}
-                        </Typography>
-                        <ApplicationHistory rows={historyData?.sequent_backend_tasks_execution} />
-                    </Paper>
-                </Stack>
-                <Stack spacing={2} sx={{minWidth: 0}}>
-                    {roster.status?.mode !== "not_enabled" && (
-                        <Paper
-                            component="section"
-                            variant="outlined"
-                            aria-label={String(t("configurationPackage.workflow.trust"))}
-                            sx={{px: 2, pb: 2, minWidth: 0}}
-                        >
-                            <ArchitectSignerRoster
-                                tenantId={tenantId}
-                                status={roster.status}
-                                loading={roster.loading}
-                                statusTextId={rosterStatusId}
-                                refresh={roster.read}
-                            />
-                        </Paper>
-                    )}
-                    <Paper
-                        component="section"
-                        variant="outlined"
                         aria-labelledby={advancedHeadingId}
                         sx={{p: 2, minWidth: 0}}
                         data-testid="package-advanced"
                     >
-                        {/* Uncontrolled: closed by default, never opened, closed or reset from state. */}
-                        <Box component="details" data-testid="package-advanced-details">
+                        {/* Uncontrolled: closed by default; only Change requirements opens it, never state. */}
+                        <Box component="details" ref={advancedRef} data-testid="package-advanced-details">
                             <Box
                                 component="summary"
                                 sx={{
@@ -992,10 +1143,180 @@ const SettingsConfigurationPackageForScope: React.FC<{
                             )}
                         </Box>
                     </Paper>
+            </Stack>
+            <Stack spacing={1.5} sx={{minWidth: 0}}>
+                {runCard}
+                <TenantReceipt receipt={receipt} onHistory={() => setTab("history")} />
+            </Stack>
+        </Box>
+    )
+
+    const sectionPanel = isSectionTab(tab) ? (
+        <Paper
+            component="section"
+            variant="outlined"
+            aria-labelledby={sectionPanelHeadingId}
+            data-testid={`package-section-panel-${tab}`}
+            sx={{p: 2, minWidth: 0}}
+        >
+            <Stack
+                direction="row"
+                spacing={2}
+                sx={{alignItems: "flex-start", justifyContent: "space-between", mb: 1.5}}
+            >
+                <Box>
+                    <Typography variant="caption" color="text.secondary">
+                        {t("configurationPackage.hub.sectionOf", {
+                            n: PACKAGE_SECTIONS.indexOf(tab) + 1,
+                            total: PACKAGE_SECTIONS.length,
+                        })}
+                    </Typography>
+                    <Typography id={sectionPanelHeadingId} variant="h6" component="h3">
+                        {t(`configurationPackage.sections.${tab}`)}
+                    </Typography>
+                </Box>
+                <SectionBadgeChip
+                    badge={sectionRows.find((row) => row.section === tab)?.badge ?? "notRun"}
+                />
+            </Stack>
+            {shownView && shownView.sections.some((s) => s.section === tab) ? (
+                <ApplicationTable
+                    view={{
+                        ...shownView,
+                        sections: shownView.sections.filter((s) => s.section === tab),
+                        members: shownView.members.filter((m) => m.section === tab),
+                    }}
+                />
+            ) : (
+                <Typography variant="body2" color="text.secondary">
+                    {t("configurationPackage.hub.sectionNotInRun")}
+                </Typography>
+            )}
+        </Paper>
+    ) : null
+
+    const trustPanel = (
+        <Stack spacing={1.5} sx={{minWidth: 0}} data-testid="package-trust-panel">
+                    {roster.status?.mode !== "not_enabled" && (
+                        <Paper
+                            component="section"
+                            variant="outlined"
+                            aria-label={String(t("configurationPackage.workflow.trust"))}
+                            sx={{px: 2, pb: 2, minWidth: 0}}
+                        >
+                            <ArchitectSignerRoster
+                                tenantId={tenantId}
+                                status={roster.status}
+                                loading={roster.loading}
+                                statusTextId={rosterStatusId}
+                                refresh={roster.read}
+                            />
+                        </Paper>
+                    )}
                     <Paper variant="outlined" sx={{px: 2, minWidth: 0}}>
                         <ArchitectApprovalPolicy key={tenantId} tenantId={tenantId} />
                     </Paper>
-                </Stack>
+        </Stack>
+    )
+
+    const historyPanel = (
+        <Paper
+                        component="section"
+                        variant="outlined"
+                        aria-labelledby={historyHeadingId}
+                        sx={{p: 2, minWidth: 0}}
+                    >
+                        <Typography id={historyHeadingId} variant="h6" component="h3">
+                            {t("configurationPackage.history")}
+                        </Typography>
+                        <ApplicationHistory rows={historyData?.sequent_backend_tasks_execution} />
+                    </Paper>
+    )
+
+    return (
+        <Box sx={{p: {xs: 0, sm: 1}, maxWidth: 1440, mx: "auto", minWidth: 0}}>
+            <Stack spacing={0.5} sx={{mb: 1.5}}>
+                <Typography variant="h5" component="h2" sx={{textAlign: "start", m: 0}}>
+                    {t("configurationPackage.title")}
+                </Typography>
+                <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    data-testid="package-tenant"
+                    sx={{overflowWrap: "anywhere"}}
+                >
+                    {t("configurationPackage.tenant", {tenantId})}
+                </Typography>
+            </Stack>
+
+            <PackageStatusHeader
+                phase={phase}
+                trust={trustSummary}
+                // The roster panel carries this id while Signing trust is open.
+                trustTextId={tab === "trust" && roster.status?.mode !== "not_enabled" ? undefined : rosterStatusId}
+                onTrust={() => setTab("trust")}
+                actions={
+                    <>
+                        {actions.secondary && actionFor(actions.secondary, false)}
+                        {actionFor(actions.primary, true)}
+                        <Button
+                            variant="contained"
+                            disabled={!canApply}
+                            aria-describedby={
+                                showApply && !canApply ? applyDisabledReason : undefined
+                            }
+                            hidden={!showApply}
+                            sx={{
+                                "display": showApply ? undefined : "none",
+                                "&&.Mui-disabled": disabledButtonStyle,
+                            }}
+                            data-testid="package-apply"
+                            onClick={() => setConfirming(true)}
+                        >
+                            {t("configurationPackage.hub.actions.reviewAndApply")}
+                        </Button>
+                    </>
+                }
+                menu={[
+                    {
+                        label: String(t("configurationPackage.hub.actions.documentId")),
+                        onClick: openRequirements,
+                        disabled: running || !permitsImport || !showManualEntry,
+                    },
+                    {
+                        label: String(t("configurationPackage.hub.actions.stopFollowing")),
+                        onClick: stopFollowing,
+                        disabled: !submitted,
+                    },
+                    {
+                        label: String(t("configurationPackage.hub.actions.history")),
+                        onClick: () => setTab("history"),
+                    },
+                ]}
+            />
+
+            <Box
+                sx={{
+                    display: "flex",
+                    flexDirection: {xs: "column", md: "row"},
+                    alignItems: {md: "flex-start"},
+                    gap: 1.5,
+                    mt: 1.5,
+                    minWidth: 0,
+                }}
+            >
+                <PackageRail
+                    tab={tab}
+                    onTab={setTab}
+                    sections={sectionRows}
+                    trustBlocked={!permitsImport && !roster.loading}
+                />
+                <Box sx={{flex: "1 1 auto", minWidth: 0}}>
+                    {tab === "overview" && overview}
+                    {sectionPanel}
+                    {tab === "trust" && trustPanel}
+                    {tab === "history" && historyPanel}
+                </Box>
             </Box>
 
             {/* The page's own upload: no election-event dry run, no shared import state. */}
