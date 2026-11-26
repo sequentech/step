@@ -4,7 +4,7 @@ import {useCallback, useEffect, useRef, useState, type Dispatch} from "react"
 import Box from "@mui/material/Box"
 import Button from "@mui/material/Button"
 import type {ScanovateHolding} from "../KcContext"
-import {ArrowIcon, SwitchCameraIcon, CloseIcon} from "../icons"
+import {ArrowIcon, CloseIcon} from "../icons"
 import type {CaptureEvent} from "./capture"
 import {CameraChoice, deviceStorage, storeFacing, storedFacing} from "./camera"
 import {
@@ -27,6 +27,7 @@ import {
     trackStillness,
     type Stillness,
 } from "./stillness"
+import {CameraSwitch} from "./parts"
 import type {Text} from "./text"
 import {CaptureProblem} from "./types"
 
@@ -317,17 +318,12 @@ export function HoldingCamera(props: {
                 <CloseIcon />
             </button>
             {switchShown && (
-                <button
-                    type="button"
-                    className="scanovate-holding-switch"
-                    aria-label={switchLabel.text}
-                    lang={switchLabel.lang}
-                    aria-busy={switching}
+                <CameraSwitch
+                    label={switchLabel}
+                    busy={switching}
                     disabled={switching || sending}
                     onClick={() => void switchCamera()}
-                >
-                    <SwitchCameraIcon />
-                </button>
+                />
             )}
             {photo === null ? (
                 <div className="scanovate-holding-status">
