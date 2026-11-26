@@ -404,6 +404,10 @@ const englishTranslation = {
             applyRechecks:
                 "Applying previews the package again on the platform before anything changes, and stops at any blocker.",
             earlierApplied: "Applied by an earlier run",
+            previouslyApplied:
+                "Task {{taskId}} already applied this package to election event {{electionEventId}}. This request made no changes.",
+            previouslyAppliedReplay:
+                "Task {{taskId}} already applied this package to election event {{electionEventId}}. This signed revision can be imported only once.",
             earlierTasks: "Tasks begun for this section: {{tasks}}",
             inFlight: "A submission is not settled yet (task {{taskId}})",
             retryRequirements: {
