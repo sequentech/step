@@ -26,6 +26,7 @@
 //!   [`MAX_REPORTED_FAILURES`]).
 
 pub mod format;
+pub(crate) mod verified_publication;
 
 use crate::services::ballot_box_seal::seal::computed_hashes;
 use crate::services::electoral_log_board::{get_board_identity, BoardIdentity};
@@ -245,6 +246,25 @@ impl SealKey {
             public_key,
             fingerprint,
         }
+    }
+
+    /// Validate a publisher's public point before pinning it or
+    /// committing it. A shape-compatible byte string is not enough.
+    pub fn validate_public_point(&self) -> Result<()> {
+        use openssl::{
+            bn::BigNumContext,
+            ec::{EcGroup, EcKey, EcPoint},
+            nid::Nid,
+        };
+        ensure!(
+            self.public_key.len() == 65 && self.public_key[0] == 4,
+            "The cast vote key is not an uncompressed P-256 point"
+        );
+        let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1)?;
+        let mut context = BigNumContext::new()?;
+        let point = EcPoint::from_bytes(&group, &self.public_key, &mut context)?;
+        EcKey::from_public_key(&group, &point)?.check_key()?;
+        Ok(())
     }
 
     /// The pin of this key for an event's electoral log.
@@ -924,6 +944,17 @@ pub async fn publish_key(
         published,
         "The cast vote key was refused: the event has another key, or opened voting without requiring sealing"
     );
+    pin_key(hasura_transaction, tenant_id, election_event_id, key).await
+}
+
+/// The same signed, immutable board pin for both manual and verified
+/// publication. Only the trusted Step actor calls this for a staged key.
+async fn pin_key(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: &str,
+    election_event_id: &str,
+    key: &SealKey,
+) -> Result<()> {
     let event = crate::postgres::election_event::get_election_event_by_id(
         hasura_transaction,
         tenant_id,
