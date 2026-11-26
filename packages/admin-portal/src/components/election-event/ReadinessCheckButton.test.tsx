@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import React from "react"
-import {act, fireEvent, render, screen, waitFor} from "@testing-library/react"
+import {act, cleanup, fireEvent, render, screen, waitFor} from "@testing-library/react"
 import "@testing-library/jest-dom"
 import {ReadinessCheckButton} from "./ReadinessCheckButton"
 import {IPermissions} from "@/types/keycloak"
@@ -79,8 +79,10 @@ function open() {
     render(<ReadinessCheckButton event={event(official, "Official")} />)
     fireEvent.click(screen.getByRole("button", {name: "readiness.action"}))
 }
-function select(name = "Rehearsal") {
-    fireEvent.change(screen.getByRole("combobox", {name: "readiness.testedEvent"}), {
+const comparisonControl = () =>
+    screen.getByRole("combobox", {name: /^readiness\.rehearsal\.label/})
+function select(name = "Rehearsal", label = "readiness.testedEvent") {
+    fireEvent.change(screen.getByRole("combobox", {name: label}), {
         target: {value: name},
     })
     fireEvent.click(screen.getByRole("option", {name: new RegExp(name)}))
@@ -256,7 +258,8 @@ it("disables duplicate submissions and changing the comparison while pending", a
     open()
     select()
     fireEvent.click(screen.getByRole("button", {name: "readiness.run"}))
-    expect(screen.getByRole("combobox")).toBeDisabled()
+    expect(screen.getByRole("combobox", {name: "readiness.testedEvent"})).toBeDisabled()
+    expect(comparisonControl()).toHaveAttribute("aria-disabled", "true")
     expect(screen.getByRole("button", {name: "readiness.running"})).toBeDisabled()
     fireEvent.click(screen.getByRole("button", {name: "readiness.running"}))
     expect(mockRun).toHaveBeenCalledTimes(1)
@@ -295,10 +298,110 @@ it.each([
         ]
         mockQuery.mockReturnValue({data: {sequent_backend_election_event: events}, loading: false})
         open()
-        fireEvent.mouseDown(screen.getByRole("combobox"))
+        fireEvent.mouseDown(screen.getByRole("combobox", {name: "readiness.testedEvent"}))
         expect(
             screen.getAllByRole("option").map((option) => option.textContent?.split(" · ")[0])
         ).toEqual(names)
         expect(events.map((event) => event.id)).toEqual([other, tested, "fifth", "sixth"])
     }
 )
+
+const rehearsalRoles = {
+    rehearsal_ert_stl: ["ert", "stl"],
+    rehearsal_official_ert: ["official", "ert"],
+    rehearsal_official_stl: ["official", "stl"],
+} as const
+const rehearsal = (comparison: keyof typeof rehearsalRoles) => {
+    const subset = comparison === "rehearsal_official_stl"
+    return {
+        comparison,
+        verdict: subset ? "not_verified" : "consistent",
+        checked_at: "2026-10-16T09:00:00Z",
+        checks: [
+            "configuration",
+            "own_census",
+            ...(subset ? ["census_subset"] : []),
+            "lifecycle",
+            "seal",
+        ].map((kind) =>
+            kind === "census_subset"
+                ? {
+                      kind,
+                      verdict: "not_verified",
+                      message: "Server condition",
+                      findings: [
+                          {
+                              code: "subset_not_verified",
+                              event: "both",
+                              values: {missing: "stable_voter_identity"},
+                              message: "Subset not verified",
+                          },
+                      ],
+                  }
+                : {kind, verdict: "consistent", message: "Server condition"}
+        ),
+        reference: {role: rehearsalRoles[comparison][0], evidence: {event_id: official}},
+        compared: {role: rehearsalRoles[comparison][1], evidence: {event_id: tested}},
+    }
+}
+function chooseComparison(mode: string) {
+    fireEvent.mouseDown(comparisonControl())
+    fireEvent.click(screen.getByRole("option", {name: `readiness.rehearsal.modes.${mode}`}))
+}
+
+it.each(Object.keys(rehearsalRoles) as Array<keyof typeof rehearsalRoles>)(
+    "runs %s read-only with its discriminant and never shows a signed pass",
+    async (mode) => {
+        mockRun.mockResolvedValue({data: {readiness_check: rehearsal(mode)}})
+        open()
+        chooseComparison(mode)
+        expect(screen.getByText("readiness.rehearsal.readOnly")).toBeVisible()
+        const [current, selected] = rehearsalRoles[mode]
+        expect(screen.getByText(`readiness.rehearsal.roles.${current}`)).toBeVisible()
+        select("Rehearsal", `readiness.rehearsal.roles.${selected}`)
+        fireEvent.click(screen.getByRole("button", {name: "readiness.run"}))
+        const verdict = mode === "rehearsal_official_stl" ? "not_verified" : "consistent"
+        expect(await screen.findByText(`readiness.rehearsal.verdicts.${verdict}`)).toBeVisible()
+        expect(mockRun).toHaveBeenCalledWith({
+            variables: {official_event_id: official, tested_event_id: tested, comparison: mode},
+            context: {headers: {"x-hasura-role": IPermissions.READINESS_CHECK}},
+        })
+        expect(screen.queryByText("readiness.success")).not.toBeInTheDocument()
+        expect(
+            screen.queryByText("logsScreen.readiness.fields.log_entry_id")
+        ).not.toBeInTheDocument()
+        expect(mockRefresh).not.toHaveBeenCalled()
+        if (mode === "rehearsal_official_stl") {
+            expect(screen.getByText("readiness.rehearsal.checks.census_subset")).toBeVisible()
+            expect(screen.getByText("readiness.rehearsal.chips.not_verified")).toBeVisible()
+        }
+        fireEvent.click(screen.getByRole("button", {name: "readiness.download"}))
+        await waitFor(() => expect(mockDownload).toHaveBeenCalledTimes(1))
+        expect(mockDownload.mock.calls[0][1]).toBe(`readiness-${mode}-${official}.json`)
+    }
+)
+it("refuses a rehearsal answer that claims signed readiness or another mode", async () => {
+    for (const forged of [
+        {...rehearsal("rehearsal_ert_stl"), passed: true, log_entry_id: "signed-entry-1"},
+        rehearsal("rehearsal_official_ert"),
+        report(),
+    ]) {
+        mockRun.mockResolvedValueOnce({data: {readiness_check: forged}})
+        open()
+        chooseComparison("rehearsal_ert_stl")
+        select("Rehearsal", "readiness.rehearsal.roles.stl")
+        fireEvent.click(screen.getByRole("button", {name: "readiness.run"}))
+        expect(await screen.findByText("readiness.error")).toBeVisible()
+        expect(screen.queryByText("readiness.success")).not.toBeInTheDocument()
+        expect(screen.queryByText(/readiness\.rehearsal\.verdicts/)).not.toBeInTheDocument()
+        cleanup()
+    }
+})
+it("changing the comparison clears a previous signed report", async () => {
+    open()
+    select()
+    await run()
+    chooseComparison("rehearsal_official_ert")
+    expect(screen.queryByText("readiness.success")).not.toBeInTheDocument()
+    expect(screen.queryByText("signed-entry-1")).not.toBeInTheDocument()
+})
