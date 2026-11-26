@@ -151,7 +151,9 @@ jest.mock("@/components/election-event/import-data/ImportScreen", () => ({
             >
                 upload
             </button>
-            <button onClick={doCancel} data-testid="drawer-cancel">Cancel</button>
+            <button onClick={doCancel} data-testid="drawer-cancel">
+                Cancel
+            </button>
         </>
     ),
 }))
