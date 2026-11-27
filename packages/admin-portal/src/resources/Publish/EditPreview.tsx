@@ -143,7 +143,9 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
         let active = true
         if (!isUploading || taskId || documentId) return
         const widget = addWidget(ETasksExecution.PREPARE_PUBLICATION_PREVIEW, undefined)
-        preparePreview({variables: {electionEventId, ballotPublicationId: publicationId}})
+        preparePreview({
+            variables: {electionEventId, ballotPublicationId: publicationId, areaId},
+        })
             .then(({data}) => {
                 const output = data?.prepare_ballot_publication_preview
                 if (output?.error_msg || !output?.document_id || !output.task_execution?.id) {
@@ -168,6 +170,13 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
             active = false
         }
     }, [isUploading])
+
+    // A prepared document only holds the ballot styles of the area it was prepared for.
+    const onAreaChange = (selectedAreaId: string | null) => {
+        setAreaId(selectedAreaId)
+        setDocumentId(null)
+        setAction(null)
+    }
 
     const onPreviewClick = async (res: any) => {
         if (!documentId) {
@@ -239,7 +248,8 @@ export const EditPreview: React.FC<EditPreviewProps> = (props) => {
                 label={String(t("publish.preview.publicationAreas"))}
                 fullWidth={true}
                 debounce={100}
-                onChange={(res) => setAreaId(res)}
+                disabled={isUploading}
+                onChange={onAreaChange}
             ></AutocompleteInput>
             <Toolbar
                 sx={{display: "flex", background: "white", padding: "0 !important", gap: "1rem"}}

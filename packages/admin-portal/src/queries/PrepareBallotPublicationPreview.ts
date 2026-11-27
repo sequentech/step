@@ -7,10 +7,12 @@ export const PREPARE_BALLOT_PUBLICATION_PREVIEW = gql`
     mutation PrepareBallotPublicationPreview(
         $electionEventId: uuid!
         $ballotPublicationId: String!
+        $areaId: String
     ) {
         prepare_ballot_publication_preview(
             election_event_id: $electionEventId
             ballot_publication_id: $ballotPublicationId
+            area_id: $areaId
         ) {
             error_msg
             document_id

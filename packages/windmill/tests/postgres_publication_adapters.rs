@@ -20,7 +20,10 @@ use tokio_postgres::types::{FromSql, ToSql};
 use uuid::Uuid;
 use windmill::domain::publication_files::{PublishedBallotStyle, FILES_ANNOTATION};
 use windmill::postgres::{ballot_publication, ballot_style, publication_files};
-use windmill::services::ballot_styles::ballot_publication::prepare_ballot_publication;
+use windmill::services::ballot_styles::ballot_publication::{
+    get_publication_json, prepare_ballot_publication,
+};
+use windmill::tasks::prepare_publication_preview::prepare_publication_preview_task;
 
 const BAD_UUID: &str = "not-a-uuid";
 
@@ -2382,7 +2385,10 @@ async fn export_event_ballot_styles_returns_the_live_styles_of_the_event() {
         .await
         .unwrap();
 
-    assert_eq!(style_ids(&styles), strings(&[first_style, second_style]));
+    assert_eq!(
+        style_ids(&styles),
+        sorted(strings(&[first_style, second_style]))
+    );
     assert!(styles
         .iter()
         .all(|style| style.ballot_publication_id == publication.to_string()));
@@ -2500,6 +2506,7 @@ async fn get_publication_ballot_styles_orders_by_election_and_area_and_honours_t
                 &a.tenant_id(),
                 &a.event_id(),
                 &publication.to_string(),
+                None,
                 limit,
             )
             .await
@@ -2516,6 +2523,114 @@ async fn get_publication_ballot_styles_orders_by_election_and_area_and_honours_t
         strings(&[first_low, first_high, second_low])
     );
     assert_eq!(styles(Some(2)).await, strings(&[first_low, first_high]));
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn get_publication_ballot_styles_keeps_only_the_requested_area() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let (first, second) = (f.election(a).await, f.election(a).await);
+    let (area, other_area) = (f.area(a).await, f.area(a).await);
+    let publication = f.publication(a, published(1)).await;
+    let other_publication = f.publication(a, published(2)).await;
+    let second_style = f.style(a, publication, second, area).await;
+    let first_style = f.style(a, publication, first, area).await;
+    f.style(a, publication, first, other_area).await;
+    f.style(a, other_publication, first, area).await;
+
+    let styles = ballot_style::get_publication_ballot_styles(
+        &tx,
+        &a.tenant_id(),
+        &a.event_id(),
+        &publication.to_string(),
+        Some(&area.to_string()),
+        None,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(
+        style_ids(&styles),
+        sorted(strings(&[first_style, second_style]))
+    );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn get_publication_json_holds_only_the_ballots_of_the_requested_area() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let election = f.election(a).await;
+    let (area, other_area) = (f.area(a).await, f.area(a).await);
+    let publication = f.publication(a, published(1)).await;
+    for (style_area, ballot) in [(area, "wanted"), (other_area, "other")] {
+        let style = f.style(a, publication, election, style_area).await;
+        f.trusted_seed(
+            "UPDATE sequent_backend.ballot_style SET ballot_eml = $2 WHERE id = $1",
+            &[&style, &json!({ "ballot": ballot }).to_string()],
+        )
+        .await;
+    }
+
+    let publication_json = |area_id: Option<String>| {
+        get_publication_json(
+            &tx,
+            a.tenant_id(),
+            a.event_id(),
+            publication.to_string(),
+            None,
+            area_id,
+            None,
+        )
+    };
+
+    assert_eq!(
+        publication_json(Some(area.to_string())).await.unwrap(),
+        json!([{"ballot": "wanted"}])
+    );
+    assert_eq!(
+        publication_json(None)
+            .await
+            .unwrap()
+            .as_array()
+            .map(Vec::len),
+        Some(2)
+    );
+    tx.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_publication_preview_is_refused_for_a_missing_or_ungenerated_publication() {
+    let mut client = connect().await;
+    let tx = client.transaction().await.unwrap();
+    let f = Fixture::new(&tx, line!());
+    let a = f.scope().await;
+    let area = f.area(a).await;
+    let draft = f.publication(a, published(1)).await;
+    let missing = f.id();
+
+    for (publication, expected) in [
+        (missing, "Publication not found"),
+        (draft, "Publication is not generated"),
+    ] {
+        let error = prepare_publication_preview_task(
+            &tx,
+            a.tenant_id(),
+            a.event_id(),
+            publication.to_string(),
+            f.id().to_string(),
+            Some(area.to_string()),
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(error.to_string(), expected);
+    }
     tx.rollback().await.unwrap();
 }
 

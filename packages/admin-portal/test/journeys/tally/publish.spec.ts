@@ -157,7 +157,7 @@ test("previews a generated publication for one of its areas and copies the previ
     expect(await opened()).toEqual([previewUrl])
     expect(
         portal.graphql.callsTo("PrepareBallotPublicationPreview").map(({variables}) => variables)
-    ).toEqual([{electionEventId: EVENT_ID, ballotPublicationId: PUBLICATION_ID}])
+    ).toEqual([{electionEventId: EVENT_ID, ballotPublicationId: PUBLICATION_ID, areaId: AREA_ID}])
     expect(portal.graphql.callsTo("GetTaskById")[0].variables).toEqual({task_id: TASK_ID})
 
     // The finished task's widget covers the toolbar until it is closed; its close button

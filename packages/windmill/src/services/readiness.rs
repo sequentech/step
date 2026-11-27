@@ -294,7 +294,7 @@ async fn tested_publication_evidence(
     for row in publication_rows {
         let id: String = row.try_get(0)?;
         let rows: Vec<_> =
-            ballot_style::get_publication_ballot_styles(tx, tenant, event_id, &id, None)
+            ballot_style::get_publication_ballot_styles(tx, tenant, event_id, &id, None, None)
                 .await?
                 .into_iter()
                 .filter(|row| row.deleted_at.is_none())

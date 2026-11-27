@@ -141,6 +141,7 @@ async fn check_designs(
         election_event_id,
         ballot_publication_id,
         None,
+        None,
     )
     .await?
     .into_iter()
