@@ -6,7 +6,7 @@ use super::publication_files;
 use crate::postgres::area::get_event_areas;
 use crate::postgres::area_contest::export_area_contests;
 use crate::postgres::ballot_publication::{get_ballot_publication_by_id, lock_publication_event};
-use crate::postgres::ballot_style::insert_ballot_style;
+use crate::postgres::ballot_style::{insert_ballot_styles, NewBallotStyle};
 use crate::postgres::candidate::export_candidates;
 use crate::postgres::contest::export_contests;
 use crate::postgres::election::export_elections;
@@ -26,8 +26,11 @@ use chrono::Duration;
 use deadpool_postgres::{Client as DbClient, Transaction};
 use futures::try_join;
 use rocket::http::Status;
-use sequent_core::ballot::{BallotBoxKey, ContestEncryptionPolicy, ElectionEventPresentation};
+use sequent_core::ballot::{
+    BallotBoxKey, ContestEncryptionPolicy, ElectionEventPresentation, StringifiedPeriodDates,
+};
 use sequent_core::ballot_codec::multi_ballot::BallotChoices;
+use sequent_core::ballot_style::AreaContestIndex;
 use sequent_core::types::hasura::core::{
     self as hasura_type, Area, AreaContest, BallotPublication, BallotStyle, Candidate, Contest,
     Election, ElectionEvent, KeysCeremony,
@@ -55,174 +58,182 @@ pub struct ElectionEventConfig {
     pub election_event_presentation: ElectionEventPresentation,
 }
 
-/**
- * Returns a HashMap<election_id, set<contest_id>> with all
- * the election ids and contest ids related to an area,
- * taking into consideration the parent areas as well.
- *
- * The resolution itself lives in `sequent_core::ballot_style` beside
- * `create_ballot_style`, so that the Election Architect's ballot preview
- * composes ballots exactly the way a publication does. This is the part that
- * knows about a `ballot_publication` row, which sequent-core does not.
- */
-pub fn get_elections_contests_map_for_area(
-    area: &Area,
-    areas_tree: &TreeNode,
-    ballot_publication: &BallotPublication,
-    contests_map: &HashMap<String, Contest>,
-    area_contests_map: &HashMap<String, AreaContest>,
-) -> AnyhowResult<HashMap<String, HashSet<String>>> {
-    sequent_core::ballot_style::elections_contests_for_area(
-        area,
-        areas_tree,
-        &ballot_publication.election_ids.clone().unwrap_or_default(),
-        contests_map,
-        area_contests_map,
-    )
+/// Ballot styles inserted per statement.
+const INSERT_BATCH_SIZE: usize = 64;
+
+/// What the voters of one election see: its dates and its public key.
+struct ElectionInputs {
+    dates: StringifiedPeriodDates,
+    public_key: Option<String>,
 }
 
-pub async fn create_ballot_style_postgres(
-    transaction: &Transaction<'_>,
-    area: &Area,
-    areas_tree: &TreeNode,
-    tenant_id: &str,
-    election_event: &ElectionEvent,
-    ballot_publication: &BallotPublication,
-    elections_map: &HashMap<String, Election>,
-    contests_map: &HashMap<String, Contest>,
-    candidates_map: &HashMap<String, Candidate>,
-    area_contests_map: &HashMap<String, AreaContest>,
-    scheduled_events: &Vec<ScheduledEvent>,
-    keys_ceremonies_map: &HashMap<String, KeysCeremony>,
-    ballot_box_key: Option<&BallotBoxKey>,
-) -> Result<()> {
-    let election_contest_map = get_elections_contests_map_for_area(
-        area,
-        areas_tree,
-        ballot_publication,
-        contests_map,
-        area_contests_map,
-    )?;
-
-    // For create_ballot_style's election-wide encoding-mode resolution.
-    let all_election_event_contests: Vec<Contest> = contests_map.values().cloned().collect();
-
-    for (election_id, contest_ids) in election_contest_map.into_iter() {
-        let election = elections_map
-            .get(&election_id)
-            .ok_or(anyhow!("election id not found {}", election_id))?;
-        let contests: Vec<Contest> = contest_ids
-            .iter()
-            .map(|contest_id| {
-                contests_map
-                    .get(contest_id)
-                    .map(|val| val.clone())
-                    .ok_or(Error::String(format!("Can't find contest {}", contest_id)))
-            })
-            .collect::<Result<Vec<Contest>>>()?;
-        let candidates: Vec<Candidate> = candidates_map
-            .values()
-            .filter(|candidate| {
-                let Some(contest_id) = candidate.contest_id.clone() else {
-                    return false;
-                };
-                contest_ids.contains(&contest_id)
-            })
-            .map(|candidate| candidate.clone())
-            .collect();
-        let public_key = if let Some(keys_ceremony_id) = election.keys_ceremony_id.clone() {
-            if let Some(keys_ceremony) = keys_ceremonies_map.get(&keys_ceremony_id) {
-                if let Some(status) = keys_ceremony.status().ok() {
-                    status.public_key
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-
-        let election_dates =
-            get_election_dates(election, scheduled_events.clone()).unwrap_or_default();
-
-        let mut voter_election_event = election_event.clone();
-        remove_datafix_annotations(voter_election_event.annotations.as_mut());
-
-        let ballot_style_id = Uuid::new_v4();
-        let mut election_dto = sequent_core::ballot_style::create_ballot_style(
-            ballot_style_id.clone().to_string(),
-            area.clone(),
-            voter_election_event,
-            election.clone(),
-            contests.clone(),
-            &all_election_event_contests,
-            candidates.clone(),
-            election_dates.clone(),
-            public_key.clone(),
-            // windmill has an environment; let it read DEMO_PUBLIC_KEY from
-            // there. A browser does not, which is why the parameter exists.
-            None,
-        )?;
-        if let Some(published) = election_dto.public_key.as_mut().filter(|key| !key.is_demo) {
-            let ceremony_id = election
+fn election_inputs(
+    elections: &HashMap<String, Election>,
+    scheduled_events: &[ScheduledEvent],
+    keys_ceremonies: &HashMap<String, KeysCeremony>,
+) -> HashMap<String, ElectionInputs> {
+    elections
+        .values()
+        .map(|election| {
+            let public_key = election
                 .keys_ceremony_id
-                .as_deref()
-                .context("Election has a public key without a keys ceremony")?;
-            let dkg = crate::services::protocol_board::load_dkg_board(
-                transaction,
-                tenant_id,
-                &election_event.id,
-                ceremony_id,
-            )
-            .await?;
-            published.configuration_id = Some(dkg.configuration.configuration_id()?.to_string());
+                .as_ref()
+                .and_then(|id| keys_ceremonies.get(id))
+                .and_then(|keys_ceremony| keys_ceremony.status().ok())
+                .and_then(|status| status.public_key);
+            let inputs = ElectionInputs {
+                dates: get_election_dates(election, scheduled_events.to_vec()).unwrap_or_default(),
+                public_key,
+            };
+            (election.id.clone(), inputs)
+        })
+        .collect()
+}
+
+fn candidates_by_contest(candidates: &[Candidate]) -> HashMap<&str, Vec<&Candidate>> {
+    let mut by_contest: HashMap<&str, Vec<&Candidate>> = HashMap::new();
+    for candidate in candidates {
+        if let Some(contest_id) = candidate.contest_id.as_deref() {
+            by_contest.entry(contest_id).or_default().push(candidate);
         }
-        election_dto.ballot_box_key = ballot_box_key.cloned();
-
-        let is_multi_contest = election_dto
-            .election_event_presentation
-            .as_ref()
-            .and_then(|presentation| presentation.contest_encryption_policy.clone())
-            == Some(ContestEncryptionPolicy::MULTIPLE_CONTESTS);
-
-        if is_multi_contest {
-            let max_bytes = BallotChoices::maximum_size_bytes(
-                &election_dto.contests,
-                election_dto.decline_to_vote_enabled(),
-                election_dto.blank_ballots_enabled(),
-                election_dto.multi_contest_encoding_mode.unwrap_or_default(),
-            )?;
-
-            if max_bytes > BallotChoices::MAX_SIZE_BYTES {
-                return Err(Error::String(format!(
-                    "Ballot style for election {} in area {} needs {} bytes, exceeding the {}-byte ballot size limit. Reduce the number of candidates or contests, or adjust over-vote policies.",
-                    election.id,
-                    area.id,
-                    max_bytes,
-                    BallotChoices::MAX_SIZE_BYTES
-                )));
-            }
-        }
-
-        let election_dto_json_string = publication_files::ordered_json_string(&election_dto)
-            .map_err(|error| Error::String(error.to_string()))?;
-        let _created_ballot_style = insert_ballot_style(
-            transaction,
-            &ballot_style_id.to_string(),
-            tenant_id,
-            &election_event.id,
-            &election.id,
-            &area.id,
-            Some(election_dto_json_string),
-            None,
-            &ballot_publication.id,
-        )
-        .await?;
     }
+    by_contest
+}
 
-    Ok(())
+fn contest_candidates(
+    candidates_by_contest: &HashMap<&str, Vec<&Candidate>>,
+    contest_ids: &HashSet<String>,
+) -> Vec<Candidate> {
+    contest_ids
+        .iter()
+        .filter_map(|contest_id| candidates_by_contest.get(contest_id.as_str()))
+        .flatten()
+        .map(|candidate| (*candidate).clone())
+        .collect()
+}
+
+/// The event's rows for one generation, read and indexed once.
+struct Generation<'a> {
+    tenant_id: &'a str,
+    election_event_id: &'a str,
+    election_ids: &'a [String],
+    area_contests: AreaContestIndex<'a>,
+    elections: &'a HashMap<String, Election>,
+    contests: &'a HashMap<String, Contest>,
+    all_contests: &'a [Contest],
+    candidates_by_contest: HashMap<&'a str, Vec<&'a Candidate>>,
+    election_inputs: HashMap<String, ElectionInputs>,
+    voter_election_event: ElectionEvent,
+    ballot_box_key: Option<&'a BallotBoxKey>,
+}
+
+impl Generation<'_> {
+    /// Builds the ballot style of each of the publication's elections that
+    /// has contests in the area. `configuration_ids` keeps each keys
+    /// ceremony's DKG configuration id, read from its board once.
+    async fn area_ballot_styles(
+        &self,
+        transaction: &Transaction<'_>,
+        area: &Area,
+        configuration_ids: &mut HashMap<String, String>,
+    ) -> Result<Vec<NewBallotStyle>> {
+        let mut styles = Vec::new();
+        for (election_id, contest_ids) in self
+            .area_contests
+            .elections_contests(&area.id, self.election_ids)?
+        {
+            let election = self
+                .elections
+                .get(&election_id)
+                .ok_or(anyhow!("election id not found {}", election_id))?;
+            let inputs = self
+                .election_inputs
+                .get(&election_id)
+                .ok_or(anyhow!("election id not found {}", election_id))?;
+            let contests: Vec<Contest> = contest_ids
+                .iter()
+                .map(|contest_id| {
+                    self.contests
+                        .get(contest_id)
+                        .map(|val| val.clone())
+                        .ok_or(Error::String(format!("Can't find contest {}", contest_id)))
+                })
+                .collect::<Result<Vec<Contest>>>()?;
+
+            let ballot_style_id = Uuid::new_v4();
+            let mut election_dto = sequent_core::ballot_style::create_ballot_style(
+                ballot_style_id.to_string(),
+                area.clone(),
+                self.voter_election_event.clone(),
+                election.clone(),
+                contests,
+                self.all_contests,
+                contest_candidates(&self.candidates_by_contest, &contest_ids),
+                inputs.dates.clone(),
+                inputs.public_key.clone(),
+                // windmill has an environment; let it read DEMO_PUBLIC_KEY from
+                // there. A browser does not, which is why the parameter exists.
+                None,
+            )?;
+            if let Some(published) = election_dto.public_key.as_mut().filter(|key| !key.is_demo) {
+                let ceremony_id = election
+                    .keys_ceremony_id
+                    .as_deref()
+                    .context("Election has a public key without a keys ceremony")?;
+                let configuration_id = match configuration_ids.get(ceremony_id) {
+                    Some(configuration_id) => configuration_id.clone(),
+                    None => {
+                        let dkg = crate::services::protocol_board::load_dkg_board(
+                            transaction,
+                            self.tenant_id,
+                            self.election_event_id,
+                            ceremony_id,
+                        )
+                        .await?;
+                        let configuration_id = dkg.configuration.configuration_id()?.to_string();
+                        configuration_ids.insert(ceremony_id.to_owned(), configuration_id.clone());
+                        configuration_id
+                    }
+                };
+                published.configuration_id = Some(configuration_id);
+            }
+            election_dto.ballot_box_key = self.ballot_box_key.cloned();
+
+            let is_multi_contest = election_dto
+                .election_event_presentation
+                .as_ref()
+                .and_then(|presentation| presentation.contest_encryption_policy.clone())
+                == Some(ContestEncryptionPolicy::MULTIPLE_CONTESTS);
+
+            if is_multi_contest {
+                let max_bytes = BallotChoices::maximum_size_bytes(
+                    &election_dto.contests,
+                    election_dto.decline_to_vote_enabled(),
+                    election_dto.blank_ballots_enabled(),
+                    election_dto.multi_contest_encoding_mode.unwrap_or_default(),
+                )?;
+
+                if max_bytes > BallotChoices::MAX_SIZE_BYTES {
+                    return Err(Error::String(format!(
+                        "Ballot style for election {} in area {} needs {} bytes, exceeding the {}-byte ballot size limit. Reduce the number of candidates or contests, or adjust over-vote policies.",
+                        election.id,
+                        area.id,
+                        max_bytes,
+                        BallotChoices::MAX_SIZE_BYTES
+                    )));
+                }
+            }
+
+            styles.push(NewBallotStyle {
+                id: ballot_style_id,
+                election_id: Uuid::parse_str(&election.id).context("Invalid election id")?,
+                area_id: Uuid::parse_str(&area.id).context("Invalid area id")?,
+                ballot_eml: publication_files::ordered_json_string(&election_dto)
+                    .map_err(|error| Error::String(error.to_string()))?,
+            });
+        }
+        Ok(styles)
+    }
 }
 
 #[instrument(err)]
@@ -419,23 +430,42 @@ async fn generate_election_event_ballot_styles(
         .await?;
     }
 
+    let election_ids = ballot_publication.election_ids.clone().unwrap_or_default();
+    let all_contests: Vec<Contest> = contests_map.values().cloned().collect();
+    let all_candidates: Vec<Candidate> = candidates_map.values().cloned().collect();
+    let mut voter_election_event = election_event.clone();
+    remove_datafix_annotations(voter_election_event.annotations.as_mut());
+    let generation = Generation {
+        tenant_id,
+        election_event_id,
+        election_ids: &election_ids,
+        area_contests: AreaContestIndex::new(&areas_tree, &contests_map, &area_contests_map),
+        elections: &elections_map,
+        contests: &contests_map,
+        all_contests: &all_contests,
+        candidates_by_contest: candidates_by_contest(&all_candidates),
+        election_inputs: election_inputs(&elections_map, &scheduled_events, &keys_ceremonies_map),
+        voter_election_event,
+        ballot_box_key: ballot_box_key.as_ref(),
+    };
+    let tenant = Uuid::parse_str(tenant_id)?;
+    let event = Uuid::parse_str(election_event_id)?;
+    let publication = Uuid::parse_str(&ballot_publication.id)?;
+    let mut configuration_ids = HashMap::new();
+    let mut batch = Vec::with_capacity(INSERT_BATCH_SIZE);
     for area in &areas {
-        create_ballot_style_postgres(
-            &transaction,
-            area,
-            &areas_tree,
-            &tenant_id,
-            &election_event,
-            &ballot_publication,
-            &elections_map,
-            &contests_map,
-            &candidates_map,
-            &area_contests_map,
-            &scheduled_events,
-            &keys_ceremonies_map,
-            ballot_box_key.as_ref(),
-        )
-        .await?;
+        batch.extend(
+            generation
+                .area_ballot_styles(&transaction, area, &mut configuration_ids)
+                .await?,
+        );
+        if batch.len() >= INSERT_BATCH_SIZE {
+            insert_ballot_styles(&transaction, tenant, event, publication, &batch).await?;
+            batch.clear();
+        }
+    }
+    if !batch.is_empty() {
+        insert_ballot_styles(&transaction, tenant, event, publication, &batch).await?;
     }
     let data = publication_files::publication_data(
         &transaction,

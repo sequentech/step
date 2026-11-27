@@ -37,8 +37,11 @@ use std::{
 use uuid::Uuid;
 
 pub const GENERATION_LEASE_SECONDS: i64 = 300;
-const STYLE_PAGE_SIZE: i64 = 8;
-const UPLOAD_CONCURRENCY: usize = 4;
+/// Ballot styles read per database page; each one becomes two objects.
+const STYLE_PAGE_SIZE: i64 = 64;
+/// Objects uploaded at once. Each upload is a network round trip, so a large
+/// publication (thousands of areas) is bound by this, not by bandwidth.
+const UPLOAD_CONCURRENCY: usize = 32;
 const VOTER_URL_LIFETIME: Duration = Duration::from_secs(300);
 
 pub struct PublicationData {

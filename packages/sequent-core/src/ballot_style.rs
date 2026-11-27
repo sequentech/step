@@ -383,41 +383,242 @@ pub fn elections_contests_for_area(
     contests_map: &HashMap<String, hasura_types::Contest>,
     area_contests_map: &HashMap<String, hasura_types::AreaContest>,
 ) -> Result<HashMap<String, HashSet<String>>> {
-    if election_ids.is_empty() {
-        return Err(anyhow!("No election ids"));
-    }
+    AreaContestIndex::new(areas_tree, contests_map, area_contests_map)
+        .elections_contests(&area.id, election_ids)
+}
 
-    let area_ids: Vec<String> = areas_tree
-        .find_path_to_area(&area.id)
-        .ok_or(anyhow!("area not found in tree"))?
-        .into_iter()
-        .map(|ancestor| ancestor.id)
-        .collect();
+/// An event's areas and area-contest links, indexed once so that resolving
+/// an area's contests reads only the rows of that area and its ancestors.
+/// Use it when resolving many areas of the same event.
+#[cfg(feature = "areas")]
+pub struct AreaContestIndex<'a> {
+    contests: &'a HashMap<String, hasura_types::Contest>,
+    contests_by_area: HashMap<&'a str, Vec<&'a str>>,
+    /// Each area with its ancestors, from the root down.
+    area_paths: HashMap<&'a str, Vec<&'a str>>,
+}
 
-    let mut election_contest_map: HashMap<String, HashSet<String>> =
-        HashMap::new();
-
-    for area_contest in area_contests_map
-        .values()
-        .filter(|area_contest| area_ids.contains(&area_contest.area_id))
-    {
-        // A dangling area_contest is skipped rather than fatal. windmill logs it
-        // and carries on, because one bad row should not stop a whole
-        // publication; the shared validation reports it as a problem where
-        // somebody can act on it.
-        let Some(contest) = contests_map.get(&area_contest.contest_id) else {
-            continue;
-        };
-        if !election_ids.contains(&contest.election_id) {
-            continue;
+#[cfg(feature = "areas")]
+impl<'a> AreaContestIndex<'a> {
+    pub fn new(
+        areas_tree: &'a TreeNode,
+        contests_map: &'a HashMap<String, hasura_types::Contest>,
+        area_contests_map: &'a HashMap<String, hasura_types::AreaContest>,
+    ) -> Self {
+        let mut contests_by_area: HashMap<&str, Vec<&str>> = HashMap::new();
+        for area_contest in area_contests_map.values() {
+            contests_by_area
+                .entry(area_contest.area_id.as_str())
+                .or_default()
+                .push(area_contest.contest_id.as_str());
         }
-        election_contest_map
-            .entry(contest.election_id.clone())
-            .or_default()
-            .insert(contest.id.clone());
+        let mut area_paths = HashMap::new();
+        let mut pending: Vec<(&TreeNode, Vec<&str>)> =
+            vec![(areas_tree, Vec::new())];
+        while let Some((node, mut path)) = pending.pop() {
+            if let Some(area) = &node.area {
+                path.push(area.id.as_str());
+                area_paths.insert(area.id.as_str(), path.clone());
+            }
+            for child in &node.children {
+                pending.push((child, path.clone()));
+            }
+        }
+        AreaContestIndex {
+            contests: contests_map,
+            contests_by_area,
+            area_paths,
+        }
     }
 
-    Ok(election_contest_map)
+    /// The contests of `election_ids` that apply to the area, including
+    /// those of its ancestors, grouped by election.
+    pub fn elections_contests(
+        &self,
+        area_id: &str,
+        election_ids: &[String],
+    ) -> Result<HashMap<String, HashSet<String>>> {
+        if election_ids.is_empty() {
+            return Err(anyhow!("No election ids"));
+        }
+        let path = self
+            .area_paths
+            .get(area_id)
+            .ok_or(anyhow!("area not found in tree"))?;
+
+        let mut election_contest_map: HashMap<String, HashSet<String>> =
+            HashMap::new();
+
+        for contest_id in path
+            .iter()
+            .filter_map(|area| self.contests_by_area.get(area))
+            .flatten()
+        {
+            // A dangling area_contest is skipped rather than fatal. windmill
+            // logs it and carries on, because one bad row should not stop a
+            // whole publication; the shared validation reports it as a
+            // problem where somebody can act on it.
+            let Some(contest) = self.contests.get(*contest_id) else {
+                continue;
+            };
+            if !election_ids.contains(&contest.election_id) {
+                continue;
+            }
+            election_contest_map
+                .entry(contest.election_id.clone())
+                .or_default()
+                .insert(contest.id.clone());
+        }
+
+        Ok(election_contest_map)
+    }
+}
+
+#[cfg(all(test, feature = "areas"))]
+mod area_contest_index_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn row<T: serde::de::DeserializeOwned>(fields: serde_json::Value) -> T {
+        let mut row =
+            json!({"tenant_id": "tenant", "election_event_id": "event"});
+        row.as_object_mut()
+            .unwrap()
+            .extend(fields.as_object().unwrap().clone());
+        serde_json::from_value(row).unwrap()
+    }
+
+    /// Areas `root` > `child` > `leaf` and `other`, with contests of
+    /// elections `e1`, `e2` and `e3`, and a link to a removed contest.
+    struct Event {
+        tree: TreeNode,
+        contests: HashMap<String, hasura_types::Contest>,
+        area_contests: HashMap<String, hasura_types::AreaContest>,
+    }
+
+    fn event() -> Event {
+        let areas: Vec<hasura_types::Area> = [
+            ("root", None),
+            ("child", Some("root")),
+            ("leaf", Some("child")),
+            ("other", None),
+        ]
+        .into_iter()
+        .map(|(id, parent)| row(json!({"id": id, "parent_id": parent})))
+        .collect();
+        let contests = [
+            ("root-e1", "e1"),
+            ("leaf-e1", "e1"),
+            ("child-e2", "e2"),
+            ("leaf-e3", "e3"),
+        ]
+        .into_iter()
+        .map(|(id, election)| {
+            (
+                id.to_owned(),
+                row(json!({"id": id, "election_id": election})),
+            )
+        })
+        .collect();
+        let area_contests = [
+            ("root", "root-e1"),
+            ("leaf", "leaf-e1"),
+            ("child", "child-e2"),
+            ("leaf", "leaf-e3"),
+            ("leaf", "removed"),
+        ]
+        .into_iter()
+        .map(|(area, contest)| {
+            let id = format!("{area}-{contest}");
+            let link = hasura_types::AreaContest {
+                id: id.clone(),
+                area_id: area.into(),
+                contest_id: contest.into(),
+            };
+            (id, link)
+        })
+        .collect();
+        Event {
+            tree: TreeNode::from_areas(
+                areas.iter().map(|area| area.into()).collect(),
+            )
+            .unwrap(),
+            contests,
+            area_contests,
+        }
+    }
+
+    fn sorted<'a>(ids: impl IntoIterator<Item = &'a String>) -> Vec<&'a str> {
+        let mut ids: Vec<&str> = ids.into_iter().map(String::as_str).collect();
+        ids.sort();
+        ids
+    }
+
+    fn elections(ids: &[&str]) -> Vec<String> {
+        ids.iter().map(|id| id.to_string()).collect()
+    }
+
+    #[test]
+    fn an_area_gets_its_own_and_its_ancestors_contests_of_the_elections() {
+        let event = event();
+        let index = AreaContestIndex::new(
+            &event.tree,
+            &event.contests,
+            &event.area_contests,
+        );
+        let wanted = elections(&["e1", "e2"]);
+
+        let contests = index.elections_contests("leaf", &wanted).unwrap();
+        assert_eq!(sorted(contests.keys()), ["e1", "e2"]);
+        assert_eq!(sorted(&contests["e1"]), ["leaf-e1", "root-e1"]);
+        assert_eq!(sorted(&contests["e2"]), ["child-e2"]);
+
+        let contests = index.elections_contests("child", &wanted).unwrap();
+        assert_eq!(sorted(&contests["e1"]), ["root-e1"]);
+        assert!(index
+            .elections_contests("other", &wanted)
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
+    fn an_area_outside_the_tree_or_no_elections_is_an_error() {
+        let event = event();
+        let index = AreaContestIndex::new(
+            &event.tree,
+            &event.contests,
+            &event.area_contests,
+        );
+        let error = index
+            .elections_contests("unknown", &elections(&["e1"]))
+            .unwrap_err();
+        assert_eq!(error.to_string(), "area not found in tree");
+        let error = index.elections_contests("leaf", &[]).unwrap_err();
+        assert_eq!(error.to_string(), "No election ids");
+    }
+
+    #[test]
+    fn resolving_one_area_matches_the_index() {
+        let event = event();
+        let index = AreaContestIndex::new(
+            &event.tree,
+            &event.contests,
+            &event.area_contests,
+        );
+        let wanted = elections(&["e1", "e2", "e3"]);
+        let area: hasura_types::Area = row(json!({"id": "leaf"}));
+        assert_eq!(
+            elections_contests_for_area(
+                &area,
+                &event.tree,
+                &wanted,
+                &event.contests,
+                &event.area_contests,
+            )
+            .unwrap(),
+            index.elections_contests("leaf", &wanted).unwrap()
+        );
+    }
 }
 
 #[cfg(test)]
