@@ -194,6 +194,7 @@ input CreateElectionEventInput {
   dates: jsonb
   description: String
   encryption_protocol: String
+  external_id: String
   id: String
   is_archived: Boolean
   is_audit: Boolean
