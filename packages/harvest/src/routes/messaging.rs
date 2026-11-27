@@ -53,9 +53,9 @@ use windmill::services::messaging::accounts::{
     candidate_check_needed, candidate_refusal, check_account, check_candidate,
     delete_account, entered_credentials, generate_report_credentials,
     messenger_page_change_impact, replace_checked_credentials,
-    replace_credentials, store_candidate_check, CredentialsOutcome,
-    DeleteOutcome, StoredCheck, ACCOUNT_IN_USE_REASON,
-    CANDIDATE_REFUSED_REASON, CHECK_DROPPED_REASON,
+    replace_credentials, store_candidate_check, CheckOutcome,
+    CredentialsOutcome, DeleteOutcome, StoredCheck, ACCOUNT_IN_USE_REASON,
+    CANDIDATE_REFUSED_REASON, CHECK_DROPPED_REASON, PACKAGE_CHECK_KEPT_REASON,
 };
 use windmill::services::messaging::audit::post_attempt_outcomes_or_warn;
 use windmill::services::messaging::config::{
@@ -1150,9 +1150,9 @@ async fn recheck_after_identity_change(
     }
     .await;
     match result {
-        Ok(Some(StoredCheck { check, stored })) => info!(
+        Ok(Some(StoredCheck { check, outcome })) => info!(
             account = %account_id,
-            stored,
+            ?outcome,
             connected = check.connected,
             reason = check.reason.as_deref().unwrap_or("-"),
             "account checked after its identity changed"
@@ -1495,8 +1495,21 @@ pub async fn check_messaging_account(
             .ok_or_else(unknown_account)?;
     // Saved meanwhile with another identity or credentials: the result
     // describes what the account no longer is, and wasn't stored.
-    if !checked.stored {
-        return Err((Status::Conflict, CHECK_DROPPED_REASON.to_string()).into());
+    match checked.outcome {
+        CheckOutcome::STORED => {}
+        CheckOutcome::ACCOUNT_CHANGED => {
+            return Err(
+                (Status::Conflict, CHECK_DROPPED_REASON.to_string()).into()
+            );
+        }
+        // Offline: the account is left ready, as its package declared it.
+        CheckOutcome::PROVIDER_UNREACHABLE => {
+            return Err((
+                Status::ServiceUnavailable,
+                PACKAGE_CHECK_KEPT_REASON.to_string(),
+            )
+                .into());
+        }
     }
     let status = checked.check;
     let readiness = get_messaging_account(&tx, &tenant_id, &id)

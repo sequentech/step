@@ -27,7 +27,8 @@ use windmill::postgres::messaging::{
 };
 use windmill::services::messaging::accounts::{
     check_account, delete_account, flag_number_change, replace_checked_credentials,
-    replace_credentials, runtime_account, send_readiness, CredentialsOutcome, DeleteOutcome,
+    replace_credentials, runtime_account, send_readiness, CheckOutcome, CredentialsOutcome,
+    DeleteOutcome,
 };
 use windmill::services::messaging::keys::{tenant_key, TenantKey};
 
@@ -300,7 +301,7 @@ async fn an_identity_change_makes_the_account_unchecked_until_the_check_runs() {
         .await
         .unwrap()
         .unwrap();
-    assert!(checked.stored && checked.check.connected);
+    assert!(checked.outcome == CheckOutcome::STORED && checked.check.connected);
     assert_eq!(
         server.requests()[0].path.split('?').next(),
         Some("/v23.0/pn-2")

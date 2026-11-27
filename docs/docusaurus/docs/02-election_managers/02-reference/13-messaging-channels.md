@@ -144,6 +144,15 @@ provider whenever you choose, and from then on it is checked like any
 other account. Changing its number, Page or sender, or entering new
 credentials, checks it too.
 
+A system that is offline until its sending window can import and keep a
+package's accounts ready throughout: when a check can't reach the provider,
+the account stays as its package declared it, and **Check connection** says
+*The provider couldn't be reached: the account stays as its configuration
+package declared it*. An answer from the provider, such as a refused key,
+is stored as usual. Entering a missing credential needs no connection;
+replacing one that is already stored is checked with the provider first, so
+offline, apply a package carrying the new key instead.
+
 An account that arrives without its credentials is created all the same:
 enter them on the account. Until then its messages are not sent, and the
 reason shows in the event's Logs.

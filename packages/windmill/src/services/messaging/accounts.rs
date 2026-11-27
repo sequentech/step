@@ -17,15 +17,15 @@ use chrono::Utc;
 use deadpool_postgres::Transaction;
 use messaging::destination::Destination;
 use messaging::providers::{
-    self, meta_send_scope, Account, Endpoints, APP_SECRET_REFUSED, TOKEN_CANNOT_SEND,
-    TOKEN_INVALID, TOKEN_NOT_CHECKED,
+    self, meta_send_scope, Account, Endpoints, APP_SECRET_REFUSED, PROVIDER_UNREACHABLE,
+    TOKEN_CANNOT_SEND, TOKEN_INVALID, TOKEN_NOT_CHECKED,
 };
 use messaging::relay::{CallbackProvider, WEBHOOKS_PUBLIC_URL_ENV};
 use messaging::webhooks::NumberChange as NumberChangeSignal;
 use sequent_core::services::keycloak::get_event_realm;
 use sequent_core::types::keycloak::MESSENGER_PAGE_ATTR_NAME;
 use sequent_core::types::messaging::{
-    purpose_readiness, AccountCheck, AccountSender, CallbackStatus, CredentialName,
+    purpose_readiness, AccountCheck, AccountSender, CallbackStatus, CheckSource, CredentialName,
     CredentialRecord, MessageChannel, MessagePurpose, MessagingProvider, NumberChange,
     ProviderSupport, ReadinessBlocker, NUMBER_CHANGES_KEPT,
 };
@@ -641,19 +641,49 @@ async fn store(
 /// identity or other credentials while it was checked (R5-03).
 pub const CHECK_DROPPED_REASON: &str = "The account changed while it was checked: check it again";
 
-/// A check's result, and whether it was stored as the account's status.
+/// Why a manual check stored nothing for an account its configuration
+/// package declared checked: the provider couldn't be reached.
+pub const PACKAGE_CHECK_KEPT_REASON: &str =
+    "The provider couldn't be reached: the account stays as its configuration package declared it";
+
+/// What became of a check's result.
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CheckOutcome {
+    /// Stored as the account's status.
+    STORED,
+    /// Not stored: the account's identity or credentials changed while it
+    /// was checked, so the result describes what it no longer is (R5-03).
+    ACCOUNT_CHANGED,
+    /// Not stored: the provider couldn't be reached, and the account keeps
+    /// the check its configuration package declared. A deployment offline
+    /// until its sending window keeps its accounts ready meanwhile.
+    PROVIDER_UNREACHABLE,
+}
+
+/// A check's result, and what became of it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct StoredCheck {
     pub check: AccountCheck,
-    /// `false`: the account's identity or credentials changed while it was
-    /// checked, so the result describes what it no longer is (R5-03).
-    pub stored: bool,
+    pub outcome: CheckOutcome,
+}
+
+/// Whether `check` leaves `account` as it is: the account is taken as
+/// checked from its configuration package, for the sender it has now, and
+/// the check couldn't reach the provider, so it says nothing about the
+/// account. Any answer from the provider is stored as usual.
+pub fn keeps_declared_check(account: &MessagingAccount, check: &AccountCheck) -> bool {
+    account.status.details.source == CheckSource::CONFIGURATION_PACKAGE
+        && account.status.is_for(&account.sender.identity())
+        && !check.connected
+        && check.reason.as_deref() == Some(PROVIDER_UNREACHABLE)
 }
 
 /// Checks the account with its provider and stores the result, unless the
-/// account changed while it was checked. The provider is called without a
-/// lock held: a save during the check isn't kept waiting, and the result
-/// is compared with the row when it is stored.
+/// account changed while it was checked, or the provider couldn't be
+/// reached for an account its configuration package declared checked. The
+/// provider is called without a lock held: a save during the check isn't
+/// kept waiting, and the result is compared with the row when it is stored.
 pub async fn check_account(
     tx: &Transaction<'_>,
     tenant_id: &Uuid,
@@ -665,15 +695,22 @@ pub async fn check_account(
     };
     let runtime = runtime_account(tx, &account).await?;
     let check = run_check(&runtime, endpoints).await;
+    if keeps_declared_check(&account, &check) {
+        info!(account = %account.id, "provider unreachable: the account keeps its package's check");
+        return Ok(Some(StoredCheck {
+            check,
+            outcome: CheckOutcome::PROVIDER_UNREACHABLE,
+        }));
+    }
     Ok(Some(
         match store_check(tx, &account, check.clone()).await? {
             Some(check) => StoredCheck {
                 check,
-                stored: true,
+                outcome: CheckOutcome::STORED,
             },
             None => StoredCheck {
                 check,
-                stored: false,
+                outcome: CheckOutcome::ACCOUNT_CHANGED,
             },
         },
     ))

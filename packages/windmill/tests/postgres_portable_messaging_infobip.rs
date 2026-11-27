@@ -30,6 +30,7 @@ use windmill::services::documents::publish_unwrapped_pointer;
 use windmill::services::import::configuration_package_credentials::{
     discard, load, stage_unwrapped, unwrap_delivery,
 };
+use windmill::services::messaging::accounts::{check_account, CheckOutcome};
 use windmill::services::messaging::keys::credential_secret_key;
 use windmill::services::messaging::portable_registry;
 use windmill::services::vault::read_secret;
@@ -239,5 +240,45 @@ async fn delivered_infobip_keys_are_installed_and_their_accounts_arrive_checked(
             .await
             .unwrap();
     assert_eq!(observed, installed);
+    tx.rollback().await.unwrap();
+
+    // Offline until the sending window: a check that can't reach Infobip
+    // (here, a closed local port in its place) says nothing about the
+    // account. It stays as its package declared it, ready to send, and the
+    // check says it couldn't run.
+    let offline = messaging::providers::Endpoints {
+        meta_graph: None,
+        infobip: Some("http://127.0.0.1:9".to_string()),
+        aws: None,
+    };
+    let tx = client.transaction().await.unwrap();
+    // The account delivered without its key can't send anyway: a check
+    // says so, as it would online.
+    let before: Vec<_> = list_messaging_accounts(&tx, &tenant)
+        .await
+        .unwrap()
+        .into_iter()
+        .filter(|account| account.credentials.contains_key(&CredentialName::API_KEY))
+        .collect();
+    assert_eq!(before.len(), 2);
+    for account in &before {
+        let checked = check_account(&tx, &tenant, &account.id, &offline)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            checked.outcome,
+            CheckOutcome::PROVIDER_UNREACHABLE,
+            "{}",
+            account.name
+        );
+    }
+    let after: Vec<_> = list_messaging_accounts(&tx, &tenant)
+        .await
+        .unwrap()
+        .into_iter()
+        .filter(|account| account.credentials.contains_key(&CredentialName::API_KEY))
+        .collect();
+    assert_eq!(after, before);
     tx.rollback().await.unwrap();
 }

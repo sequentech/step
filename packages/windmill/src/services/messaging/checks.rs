@@ -14,7 +14,7 @@
 //! whose check can't run backs off: its attempt is recorded, and it isn't
 //! tried again for [`CHECK_RETRY_AFTER_HOURS`].
 
-use super::accounts::{check_account, StoredCheck};
+use super::accounts::{check_account, CheckOutcome, StoredCheck};
 use super::dispatch::Dispatcher;
 use crate::postgres::messaging::{parse_account_status, record_messaging_account_check_attempt};
 use crate::services::database::get_hasura_pool;
@@ -225,7 +225,7 @@ pub async fn check_due_accounts(
         {
             Ok(Some(StoredCheck {
                 check,
-                stored: true,
+                outcome: CheckOutcome::STORED,
             })) => {
                 tx.commit().await?;
                 checked += 1;
@@ -241,9 +241,21 @@ pub async fn check_due_accounts(
             }
             // The account changed while it was checked: the next pass
             // checks it as it is now, without backing off.
-            Ok(Some(StoredCheck { stored: false, .. })) => {
+            Ok(Some(StoredCheck {
+                outcome: CheckOutcome::ACCOUNT_CHANGED,
+                ..
+            })) => {
                 tx.commit().await?;
                 true
+            }
+            // Its package's check stands; the attempt is recorded so the
+            // account backs off like any check that couldn't run.
+            Ok(Some(StoredCheck {
+                outcome: CheckOutcome::PROVIDER_UNREACHABLE,
+                ..
+            })) => {
+                tx.commit().await?;
+                false
             }
             Ok(None) => {
                 tx.rollback().await?;
