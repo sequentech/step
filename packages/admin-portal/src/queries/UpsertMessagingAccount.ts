@@ -17,6 +17,7 @@ export const UPSERT_MESSAGING_ACCOUNT = gql`
         $providerApproval: String
         $isDefault: Boolean
         $credentials: jsonb
+        $credentialsCheck: String
     ) {
         upsert_messaging_account(
             id: $id
@@ -27,6 +28,7 @@ export const UPSERT_MESSAGING_ACCOUNT = gql`
             provider_approval: $providerApproval
             is_default: $isDefault
             credentials: $credentials
+            credentials_check: $credentialsCheck
         ) {
             id
             callback_url

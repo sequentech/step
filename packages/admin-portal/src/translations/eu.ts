@@ -6967,6 +6967,9 @@ const basqueTranslation: TranslationType = {
                 cancel: "Utzi",
                 close: "Itxi",
                 channelHelp: "Ezin da aldatu kontua sortu ondoren.",
+                saveAnyway: "Gorde hala ere",
+                saveAnywayHelp:
+                    "Gorde hala ere aukerak kredentzial berriak gordetzen ditu hornitzailearekin egiaztatu gabe. Kontua dagoen bezala geratzen da berriro egiaztatu arte: egiaztatu hornitzailearekin konektatu ahal denean.",
             },
             field: {
                 name: "Kontuaren izena",

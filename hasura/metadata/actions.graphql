@@ -3132,6 +3132,7 @@ type Mutation {
         provider_approval: String
         is_default: Boolean
         credentials: jsonb
+        credentials_check: String
     ): MessagingAccountOutput
 }
 

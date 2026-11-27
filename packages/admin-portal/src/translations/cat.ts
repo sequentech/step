@@ -6992,6 +6992,9 @@ const catalanTranslation: TranslationType = {
                 cancel: "Cancel·la",
                 close: "Tanca",
                 channelHelp: "No es pot canviar després de crear el compte.",
+                saveAnyway: "Desa igualment",
+                saveAnywayHelp:
+                    "Desa igualment desa les noves credencials sense comprovar-les amb el proveïdor. El compte queda com està fins que es torni a comprovar: comproveu-lo quan es pugui contactar amb el proveïdor.",
             },
             field: {
                 name: "Nom del compte",

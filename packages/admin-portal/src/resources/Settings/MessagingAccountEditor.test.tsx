@@ -358,6 +358,7 @@ it("saves the account with only the credentials that were typed, in one call", a
             providerApproval: null,
             isDefault: false,
             credentials: {APP_SECRET: "s3cret"},
+            credentialsCheck: "REQUIRED",
         },
     })
     expect(mockReplace).not.toHaveBeenCalled()
@@ -655,6 +656,39 @@ describe("an address change (R4-01)", () => {
             )
         )
         expect(onClose).not.toHaveBeenCalled()
+    })
+
+    it("offers to save a key the provider refused anyway, without its check", async () => {
+        mockUpsert.mockRejectedValueOnce({
+            graphQLErrors: [
+                {
+                    message:
+                        "The provider couldn't be reached; The new credentials didn't connect: the previous ones are kept",
+                },
+            ],
+        })
+        renderEditor(messenger())
+        fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.editor.save"}))
+        const anyway = await screen.findByRole("button", {
+            name: "messagingAccounts.editor.saveAnyway",
+        })
+        expect(mockUpsert.mock.calls[0][0].variables.credentialsCheck).toBe("REQUIRED")
+        mockUpsert.mockResolvedValueOnce({data: {upsert_messaging_account: {id: "acc-1"}}})
+        fireEvent.click(anyway)
+        await waitFor(() => expect(mockUpsert).toHaveBeenCalledTimes(2))
+        expect(mockUpsert.mock.calls[1][0].variables.credentialsCheck).toBe("SKIPPED")
+    })
+
+    it("never offers to save anyway for other refusals", async () => {
+        mockUpsert.mockRejectedValue({
+            graphQLErrors: [{message: "Enter the credentials again for the new address"}],
+        })
+        renderEditor(messenger())
+        fireEvent.click(screen.getByRole("button", {name: "messagingAccounts.editor.save"}))
+        await screen.findByRole("alert")
+        expect(
+            screen.queryByRole("button", {name: "messagingAccounts.editor.saveAnyway"})
+        ).toBeNull()
     })
 
     it("shows a reason harvest answered as plain text", async () => {

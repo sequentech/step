@@ -641,6 +641,22 @@ async fn store(
 /// identity or other credentials while it was checked (R5-03).
 pub const CHECK_DROPPED_REASON: &str = "The account changed while it was checked: check it again";
 
+/// Whether typed credentials that replace stored ones are checked with the
+/// provider before they are saved.
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum CredentialsCheck {
+    /// Saved only if the provider accepts them: otherwise the stored ones
+    /// stay in use ([`CANDIDATE_REFUSED_REASON`]).
+    #[default]
+    REQUIRED,
+    /// Saved without asking the provider: an administrator who saw the
+    /// check refuse them, or couldn't reach the provider (offline), saves
+    /// them anyway. The account's status stays as it was until it is
+    /// checked again.
+    SKIPPED,
+}
+
 /// Why a manual check stored nothing for an account its configuration
 /// package declared checked: the provider couldn't be reached.
 pub const PACKAGE_CHECK_KEPT_REASON: &str =

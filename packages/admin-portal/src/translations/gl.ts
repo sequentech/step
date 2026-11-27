@@ -6947,6 +6947,9 @@ const galegoTranslation: TranslationType = {
                 cancel: "Cancelar",
                 close: "Pechar",
                 channelHelp: "Non se pode cambiar despois de crear a conta.",
+                saveAnyway: "Gardar igualmente",
+                saveAnywayHelp:
+                    "Gardar igualmente garda as novas credenciais sen comprobalas co provedor. A conta queda como está ata que se volva comprobar: compróbea cando se poida contactar co provedor.",
             },
             field: {
                 name: "Nome da conta",

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
     ECredentialName,
+    ECredentialsCheck,
     EMessageChannel,
     EMessagePurpose,
     EMessagingProvider,
@@ -166,6 +167,7 @@ describe("upsertAccountVariables", () => {
             providerApproval: null,
             isDefault: false,
             credentials: null,
+            credentialsCheck: ECredentialsCheck.REQUIRED,
         })
         expect(
             upsertAccountVariables(null, {...viber, credentials: {API_KEY: "key"}}).credentials

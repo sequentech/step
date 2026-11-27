@@ -7032,6 +7032,9 @@ const frenchTranslation: TranslationType = {
                 cancel: "Annuler",
                 close: "Fermer",
                 channelHelp: "Ne peut pas être modifié après la création du compte.",
+                saveAnyway: "Enregistrer quand même",
+                saveAnywayHelp:
+                    "Enregistrer quand même enregistre les nouveaux identifiants sans les vérifier auprès du fournisseur. Le compte reste tel quel jusqu'à sa prochaine vérification : vérifiez-le dès que le fournisseur est joignable.",
             },
             field: {
                 name: "Nom du compte",

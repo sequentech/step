@@ -7412,6 +7412,9 @@ const spanishTranslation: TranslationType = {
                 cancel: "Cancelar",
                 close: "Cerrar",
                 channelHelp: "No se puede cambiar después de crear la cuenta.",
+                saveAnyway: "Guardar de todos modos",
+                saveAnywayHelp:
+                    "Guardar de todos modos almacena las nuevas credenciales sin comprobarlas con el proveedor. La cuenta queda como está hasta que se vuelva a comprobar: compruébela cuando se pueda contactar con el proveedor.",
             },
             field: {
                 name: "Nombre de la cuenta",

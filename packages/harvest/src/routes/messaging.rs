@@ -53,7 +53,7 @@ use windmill::services::messaging::accounts::{
     candidate_check_needed, candidate_refusal, check_account, check_candidate,
     delete_account, entered_credentials, generate_report_credentials,
     messenger_page_change_impact, replace_checked_credentials,
-    replace_credentials, store_candidate_check, CheckOutcome,
+    replace_credentials, store_candidate_check, CheckOutcome, CredentialsCheck,
     CredentialsOutcome, DeleteOutcome, StoredCheck, ACCOUNT_IN_USE_REASON,
     CANDIDATE_REFUSED_REASON, CHECK_DROPPED_REASON, PACKAGE_CHECK_KEPT_REASON,
 };
@@ -879,6 +879,9 @@ pub struct UpsertMessagingAccountInput {
     /// Credentials entered with the change. Needed when the address the
     /// credentials are sent to changes (`ENDPOINT_CREDENTIALS_REASON`).
     credentials: Option<HashMap<String, String>>,
+    /// Whether typed credentials replacing stored ones are checked with the
+    /// provider first. Absent: they are.
+    credentials_check: Option<CredentialsCheck>,
 }
 
 #[derive(Serialize, Debug)]
@@ -980,7 +983,18 @@ pub async fn upsert_messaging_account(
         // connect": what an address answered isn't shown (R5-04).
         let new_address = account_endpoint(&current.sender)
             != account_endpoint(&settings.sender);
-        if candidate_check_needed(&current, &values) {
+        let credentials_check = input.credentials_check.unwrap_or_default();
+        if candidate_check_needed(&current, &values)
+            && credentials_check == CredentialsCheck::SKIPPED
+        {
+            warn!(
+                account = %id,
+                "credentials replaced without a check, as the administrator chose"
+            );
+        }
+        if candidate_check_needed(&current, &values)
+            && credentials_check == CredentialsCheck::REQUIRED
+        {
             let check = check_candidate(
                 &tx,
                 &current,

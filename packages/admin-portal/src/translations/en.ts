@@ -7490,6 +7490,9 @@ const englishTranslation = {
                 cancel: "Cancel",
                 close: "Close",
                 channelHelp: "Cannot be changed after the account is created.",
+                saveAnyway: "Save anyway",
+                saveAnywayHelp:
+                    "Save anyway stores the new credentials without checking them with the provider. The account stays as it is until it is checked again: check it once the provider can be reached.",
             },
             field: {
                 name: "Account name",

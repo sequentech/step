@@ -7078,6 +7078,9 @@ const tagalogTranslation: TranslationType = {
                 cancel: "Kanselahin",
                 close: "Isara",
                 channelHelp: "Hindi na mababago pagkatapos malikha ang account.",
+                saveAnyway: "I-save pa rin",
+                saveAnywayHelp:
+                    "Sine-save ng I-save pa rin ang mga bagong kredensyal nang hindi sinusuri sa provider. Mananatili ang account sa kasalukuyang estado hanggang muling masuri: suriin ito kapag maaabot na ang provider.",
             },
             field: {
                 name: "Pangalan ng account",

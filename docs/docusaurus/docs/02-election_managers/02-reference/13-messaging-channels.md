@@ -150,8 +150,9 @@ the account stays as its package declared it, and **Check connection** says
 *The provider couldn't be reached: the account stays as its configuration
 package declared it*. An answer from the provider, such as a refused key,
 is stored as usual. Entering a missing credential needs no connection;
-replacing one that is already stored is checked with the provider first, so
-offline, apply a package carrying the new key instead.
+replacing one that is already stored is checked with the provider first,
+and offline that check can't connect: choose **Save anyway** (see below), or
+apply a package carrying the new key.
 
 An account that arrives without its credentials is created all the same:
 enter them on the account. Until then its messages are not sent, and the
@@ -170,7 +171,11 @@ the provider **before** saving it. If it doesn't connect, nothing is saved,
 the previous credential keeps sending, and the drawer says why, followed by
 *The new credentials didn't connect: the previous ones are kept*. For
 WhatsApp and Messenger, the new token must also be valid, not expired and
-allowed to send, and Meta must accept the app secret. A credential entered
+allowed to send, and Meta must accept the app secret. Having read why,
+you can choose **Save anyway**: the new credentials replace the stored ones
+without being checked, and the account's status stays as it was until it
+is checked again. Use it when the provider can't be reached (a system
+offline until its sending window), and check the account once it can. A credential entered
 for the first time has nothing to keep: it is saved and then checked. A
 replaced credential takes effect at once, with no restart.
 

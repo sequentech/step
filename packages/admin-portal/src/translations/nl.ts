@@ -7018,6 +7018,9 @@ const dutchTranslation: TranslationType = {
                 cancel: "Annuleren",
                 close: "Sluiten",
                 channelHelp: "Kan niet worden gewijzigd nadat het account is aangemaakt.",
+                saveAnyway: "Toch opslaan",
+                saveAnywayHelp:
+                    "Toch opslaan bewaart de nieuwe gegevens zonder ze bij de provider te controleren. Het account blijft zoals het is tot het opnieuw wordt gecontroleerd: controleer het zodra de provider bereikbaar is.",
             },
             field: {
                 name: "Accountnaam",
