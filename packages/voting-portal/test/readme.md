@@ -42,3 +42,17 @@ Run `yarn test:login-hints:e2e`. Scenarios without a configured URL are reported
 as skipped. Set `PREFILL_BROWSER_MATRIX_REQUIRED=true` to make a missing scenario
 URL fail visibly instead of reducing the matrix silently, which is what an
 evidence run wants.
+
+### Login started at an external identity provider
+
+Checks that a voter who signs in at an external SAML identity provider lands on the
+election list of the Voting Portal without ever opening the portal's own login URL.
+The event realm must have that identity provider configured for IdP-initiated SSO.
+
+- `IDP_INITIATED_SSO_URL`: the identity provider URL that starts the login for the event realm
+- `IDP_INITIATED_USERNAME` and `IDP_INITIATED_PASSWORD`: a test voter at the identity provider
+- `IDP_INITIATED_USERNAME_SELECTOR` and `IDP_INITIATED_PASSWORD_SELECTOR`: the identity
+  provider's form fields, when they are not `input[name="username"]` and `input[name="password"]`
+
+Run `yarn test:idp-initiated-login:e2e`. Without the three required variables the test is
+reported as skipped; set `IDP_INITIATED_LOGIN_REQUIRED=true` to make that a failure.

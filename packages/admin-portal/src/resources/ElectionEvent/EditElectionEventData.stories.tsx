@@ -340,6 +340,7 @@ export const PseudonymousEventKeepsItsSettings: Story = {
             weighted_voting_policy: "disabled-weighted-voting",
             batch_anonymity_policy: "warn",
             voter_certificate_policy: "disabled",
+            platform_branding_policy: "show",
         })
         await waitFor(() =>
             expect(boundaries.data.records[RESOURCE][0].presentation).toMatchObject({
