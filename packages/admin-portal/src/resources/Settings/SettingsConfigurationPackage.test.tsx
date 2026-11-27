@@ -428,8 +428,16 @@ it("shows a matching historical receipt without offering another Apply", async (
     expect(screen.getByTestId("package-run").textContent).toContain(
         previouslyApplied.electionEventId
     )
-    expect(screen.queryByTestId("package-apply")).toBeNull()
-    expect(mockApply).toHaveBeenCalledTimes(1)
+    // The compatibility button stays mounted, but it cannot be used from a receipt.
+    const hiddenApply = applyButton()
+    expect(hiddenApply.hidden).toBe(true)
+    expect(hiddenApply.disabled).toBe(true)
+    expect(
+        screen.queryByRole("button", {name: "configurationPackage.hub.actions.reviewAndApply"})
+    ).toBeNull()
+    fireEvent.click(hiddenApply)
+    expect(screen.queryByTestId("package-apply-confirm")).toBeNull()
+    expect(mockApply.mock.calls.map(([options]) => options.variables.mode)).toEqual(["preview"])
     mockTask = task("task-repeat", "SUCCESS", {packageSha256: "cd".repeat(32), previouslyApplied})
     ui.rerender(<SettingsConfigurationPackage />)
     expect(screen.getByTestId("package-sha-mismatch")).toBeTruthy()
