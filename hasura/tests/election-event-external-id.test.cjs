@@ -7,8 +7,39 @@ const {resolve} = require("node:path")
 const yaml = require("js-yaml")
 
 const EXTERNAL_ID_COLUMN = "external_id"
-// The column the event's Data tab edits beside the external ID.
-const PRESENTATION_COLUMN = "presentation"
+
+// The roles release/9.0 granted the column under its former name, alias,
+// before the rename to external_id dropped it from every permission.
+const EXPECTED_ROLES = {
+    select: [
+        "admin-user",
+        "election-event-archive",
+        "election-event-create",
+        "election-event-delete",
+        "election-event-read",
+        "election-event-write",
+        "localization-create",
+        "localization-delete",
+        "localization-read",
+        "localization-write",
+        "publish-read",
+        "service-account",
+        "trustee-ceremony",
+        "user",
+    ],
+    insert: [
+        "admin-user",
+        "election-event-create",
+        "localization-create",
+        "service-account",
+    ],
+    update: [
+        "admin-user",
+        "election-event-write",
+        "localization-write",
+        "service-account",
+    ],
+}
 
 const metadata = yaml.load(
     readFileSync(
@@ -20,25 +51,20 @@ const metadata = yaml.load(
     )
 )
 
-const rolesWithout = (permissions, column) =>
-    permissions
-        .filter(({permission}) => !permission.columns.includes(column))
-        .map(({role}) => role)
-
-test("every role that reads election events reads their external ID", () => {
-    assert.ok(metadata.select_permissions.length > 0)
-    assert.deepEqual(
-        rolesWithout(metadata.select_permissions, EXTERNAL_ID_COLUMN),
-        []
-    )
-})
-
-for (const operation of ["insert", "update"]) {
-    test(`every role that can ${operation} an event's presentation can ${operation} its external ID`, () => {
-        const writers = metadata[`${operation}_permissions`].filter(
-            ({permission}) => permission.columns.includes(PRESENTATION_COLUMN)
+const rolesWith = (operation) =>
+    metadata[`${operation}_permissions`]
+        .filter(({permission}) =>
+            permission.columns.includes(EXTERNAL_ID_COLUMN)
         )
-        assert.ok(writers.length > 0)
-        assert.deepEqual(rolesWithout(writers, EXTERNAL_ID_COLUMN), [])
+        .map(({role}) => role)
+        .sort()
+
+for (const [operation, roles] of Object.entries(EXPECTED_ROLES)) {
+    test(`exactly release/9.0's roles can ${operation} an event's external ID`, () => {
+        assert.deepEqual(rolesWith(operation), roles)
     })
 }
+
+test("archiving an event cannot change its external ID", () => {
+    assert.ok(!rolesWith("update").includes("election-event-archive"))
+})

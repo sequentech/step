@@ -398,6 +398,20 @@ export const SetTheExternalIdWhileEmpty: Story = {
     },
 }
 
+export const SaveKeepsTheStoredExternalId: Story = {
+    args: {externalId: " legacy-seat-v1:11 "},
+    parameters: {widgets: ["EventSaveButton", "ResultsWebsitePolicyFields"]},
+    play: async ({canvasElement, args}) => {
+        await editDescription(canvasElement)
+        await userEvent.click(saveButton(canvasElement))
+        await waitFor(() => expect(args.saved).toHaveBeenCalledTimes(1))
+        // It is read-only once set: an unrelated save keeps it exactly as stored.
+        expect(args.transform.mock.calls[0][0]).toMatchObject({
+            external_id: " legacy-seat-v1:11 ",
+        })
+    },
+}
+
 export const SaveWithoutAnExternalId: Story = {
     parameters: {widgets: ["EventSaveButton", "ResultsWebsitePolicyFields"]},
     play: async ({canvasElement, args}) => {

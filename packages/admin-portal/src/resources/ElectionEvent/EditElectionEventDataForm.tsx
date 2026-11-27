@@ -164,6 +164,7 @@ import {
     ConfigureResultsWebsitePolicyData,
     ConfigureResultsWebsitePolicyVariables,
 } from "@/queries/ResultsWebsitePublication"
+import {externalIdToSave} from "@/services/ExternalId"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -1437,8 +1438,7 @@ export const EditElectionEventDataForm: React.FC<{
 
         return {
             ...values,
-            // A blank ID stays empty, so it can still be set later.
-            ...("external_id" in values ? {external_id: values.external_id?.trim() || null} : {}),
+            external_id: externalIdToSave(record?.external_id, values.external_id),
             presentation: {
                 ...values.presentation,
                 lifecycle_policies: savedPolicies(),

@@ -46,13 +46,26 @@ const AUDITED_FIELDS: [&str; 8] = [
     "presentation",
 ];
 
-/// The tenant log's entry of a created election event.
+/// An external ID as an election event stores it: without surrounding
+/// blanks, or none when blank, so it can still be set later.
+pub fn normalized_external_id(external_id: Option<&str>) -> Option<String> {
+    external_id
+        .map(str::trim)
+        .filter(|external_id| !external_id.is_empty())
+        .map(str::to_string)
+}
+
+/// The tenant log's entry of a created election event. It lists the external
+/// ID as the event stores it.
 fn created_entry(
     actor: Option<AuditActor>,
     event: &CreateElectionEventInput,
     id: &str,
 ) -> AnyhowResult<AdminChange> {
-    let mut fields = serde_json::to_value(event)?;
+    let mut fields = serde_json::to_value(CreateElectionEventInput {
+        external_id: normalized_external_id(event.external_id.as_deref()),
+        ..event.clone()
+    })?;
     if let Some(fields) = fields.as_object_mut() {
         fields.retain(|name, _| AUDITED_FIELDS.contains(&name.as_str()));
     }
@@ -322,6 +335,40 @@ mod tests {
         assert_eq!(params.audit_actor, None);
         let entry = created_entry(params.audit_actor, &event(), EVENT_ID).unwrap();
         assert_eq!(entry.actor, AuditActor::default());
+    }
+
+    fn logged_changes(external_id: &str) -> Value {
+        let mut event = event();
+        event.external_id = Some(external_id.into());
+        serde_json::to_value(&created_entry(None, &event, EVENT_ID).unwrap().changes).unwrap()
+    }
+
+    #[test]
+    fn a_created_event_logs_its_external_id_as_stored() {
+        // The event stores the ID without surrounding blanks; so does its entry.
+        let changes = logged_changes("  brgy-2026 \n");
+        assert!(
+            changes
+                .as_array()
+                .unwrap()
+                .contains(&json!({"path": "external_id", "new": "brgy-2026"})),
+            "{changes}"
+        );
+    }
+
+    #[test]
+    fn a_created_event_with_a_blank_external_id_logs_none() {
+        for blank in ["", "   "] {
+            let changes = logged_changes(blank);
+            assert!(
+                changes
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .all(|change| change["path"] != "external_id"),
+                "{blank:?}: {changes}"
+            );
+        }
     }
 
     #[test]

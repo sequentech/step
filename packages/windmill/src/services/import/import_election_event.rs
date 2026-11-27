@@ -26,7 +26,7 @@ use crate::services::keycloak::{read_realm_config_from_s3, require_enrollment_wi
 use crate::services::reports::template_renderer::EReportEncryption;
 use crate::services::reports_vault::get_report_key_pair;
 use crate::services::tasks_execution::update_fail;
-use crate::tasks::insert_election_event::CreateElectionEventInput;
+use crate::tasks::insert_election_event::{normalized_external_id, CreateElectionEventInput};
 use crate::types::documents::ETallyDocuments;
 use ::keycloak::types::{
     ComponentExportRepresentation, Composites, GroupRepresentation,
@@ -1182,12 +1182,7 @@ fn new_election_event(object: &CreateElectionEventInput, election_event_id: &str
             "num_emails_sent": 0,
             "num_sms_sent": 0
         })),
-        external_id: object
-            .external_id
-            .as_deref()
-            .map(str::trim)
-            .filter(|external_id| !external_id.is_empty())
-            .map(str::to_string),
+        external_id: normalized_external_id(object.external_id.as_deref()),
     }
 }
 

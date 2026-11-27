@@ -101,6 +101,7 @@ fn create_election_event(
             is_audit: None,
             audit_election_event_id: None,
             public_key: None,
+            external_id: None,
         },
     };
 
