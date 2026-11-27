@@ -192,30 +192,39 @@ can no longer be read: its tallies stop at their first step with
 `failed to download S3 body: HTTP 404 Not Found`. Run a new key ceremony for
 such an election event.
 
-To switch an existing workspace, recreate the storage services and `b4v6`. From
-the checkout root:
+To switch an existing workspace, stop `b4v6`, replace the storage, then start
+`b4v6` again with the new credentials. Each command runs only when the previous
+one succeeded. From the checkout root:
 
 ```sh
-docker compose --project-directory .devcontainer \
+compose() { docker compose --project-directory .devcontainer \
   --env-file .devcontainer/.env.development --env-file .devcontainer/.env \
-  -f .devcontainer/docker-compose.yml --profile full up -d --no-deps \
-  localstack configure-localstack b4v6
+  -f .devcontainer/docker-compose.yml --profile full "$@"; }
+compose stop b4v6 &&
+  compose up -d --no-deps --wait localstack &&
+  compose up --no-deps configure-localstack &&
+  compose up -d --no-deps b4v6
 ```
 
-To keep the bodies LocalStack still holds, first copy them into a volume, then
-after the switch copy them back with the new credentials:
+Replacing the storage drops the bodies LocalStack still holds. To keep them,
+copy them into a volume while `b4v6` is stopped, and copy them back before it
+starts again, so that no message is written in between. The copy is removed
+only after it has been restored; if a step fails, `b4v6` stays stopped and the
+copy stays, so the remaining steps can be run again:
 
 ```sh
 network=$(docker inspect localstack --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}')
 s3() { docker run --rm --network "$network" -v wbraid_localstack_copy:/copy \
   -e AWS_DEFAULT_REGION=us-east-1 -e AWS_ENDPOINT_URL=http://localstack:4566 "$@"; }
-# Before the switch:
-s3 -e AWS_ACCESS_KEY_ID=test -e AWS_SECRET_ACCESS_KEY=test \
-  amazon/aws-cli s3 sync s3://wbraid-messages /copy
-# After it:
-s3 -e AWS_ACCESS_KEY_ID=wbraid-dev -e AWS_SECRET_ACCESS_KEY=wbraid-dev-storage \
-  amazon/aws-cli s3 sync /copy s3://wbraid-messages
-docker volume rm wbraid_localstack_copy
+compose stop b4v6 &&
+  s3 -e AWS_ACCESS_KEY_ID=test -e AWS_SECRET_ACCESS_KEY=test \
+    amazon/aws-cli s3 sync s3://wbraid-messages /copy &&
+  compose up -d --no-deps --wait localstack &&
+  compose up --no-deps configure-localstack &&
+  s3 -e AWS_ACCESS_KEY_ID=wbraid-dev -e AWS_SECRET_ACCESS_KEY=wbraid-dev-storage \
+    amazon/aws-cli s3 sync /copy s3://wbraid-messages &&
+  docker volume rm wbraid_localstack_copy &&
+  compose up -d --no-deps b4v6
 ```
 
 ### Browser trustee accounts

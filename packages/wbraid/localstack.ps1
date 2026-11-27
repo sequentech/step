@@ -24,21 +24,34 @@ foreach ($old in "localstack/localstack", "localstack/localstack:4") {
     docker ps -aq --filter "ancestor=$old" | ForEach-Object { docker rm -f $_ | Out-Null }
 }
 
+# A failed step stops the script with a non-zero status, so that b4 is not
+# started against storage that is not there.
+function Fail($message) {
+    Write-Host $message -ForegroundColor Red
+    exit 1
+}
+
 docker run -d --name wbraid-storage --restart unless-stopped -p 4566:4566 `
   -e "MINIO_ROOT_USER=$env:AWS_ACCESS_KEY_ID" `
   -e "MINIO_ROOT_PASSWORD=$env:AWS_SECRET_ACCESS_KEY" `
   -v wbraid_storage:/data `
   $image server --address :4566 /data
+if ($LASTEXITCODE -ne 0) { Fail "Could not start the storage container." }
 
 # Ready in a few seconds warm; a cold start (first pull) outlives a fixed sleep
 Write-Host "Waiting for the storage on localhost:4566..."
+$ready = $false
 for ($i = 0; $i -lt 45; $i++) {
     try {
         Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 http://localhost:4566/minio/health/live | Out-Null
+        $ready = $true
         break
     } catch {
         Start-Sleep -Seconds 2
     }
+}
+if (-not $ready) {
+    Fail "The storage did not become ready on localhost:4566; see 'docker logs wbraid-storage'."
 }
 
 # Create the bucket when it is missing. MinIO allows browsers' CORS requests
@@ -46,6 +59,7 @@ for ($i = 0; $i -lt 45; $i++) {
 aws --endpoint-url=http://localhost:4566 s3api head-bucket --bucket wbraid-messages 2>$null
 if ($LASTEXITCODE -ne 0) {
     aws --endpoint-url=http://localhost:4566 s3api create-bucket --bucket wbraid-messages | Out-Null
+    if ($LASTEXITCODE -ne 0) { Fail "Could not create the wbraid-messages bucket." }
 }
 
 Write-Host "wbraid storage ready: s3://wbraid-messages on localhost:4566."

@@ -80,12 +80,18 @@ docker run -d --name wbraid-storage --restart unless-stopped -p 4566:4566 \
 
 # Ready in a few seconds warm; a cold start (first pull) outlives a fixed sleep
 echo "Waiting for the storage on localhost:4566..."
+ready=0
 for _ in $(seq 1 45); do
     if curl -sf --max-time 2 http://localhost:4566/minio/health/live >/dev/null 2>&1; then
+        ready=1
         break
     fi
     sleep 2
 done
+if [ "$ready" -ne 1 ]; then
+    echo "The storage did not become ready on localhost:4566; see 'docker logs wbraid-storage'." >&2
+    exit 1
+fi
 
 # Create the bucket when it is missing. MinIO allows browsers' CORS requests
 # from any origin by default and has no per-bucket CORS rules to apply.

@@ -4,6 +4,7 @@
 
 import json
 import shlex
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -177,6 +178,60 @@ class WbraidStorageTest(unittest.TestCase):
                     self.assertTrue(fragment in text, f"{name} lacks {fragment}")
                 for fragment in ('"test"', "put-bucket-cors"):
                     self.assertFalse(fragment in text, f"{name} has {fragment}")
+
+
+STUB = """#!/bin/sh
+echo "$(basename "$0") $*" >> "$STUB_LOG"
+case "$(basename "$0") $*" in
+    "docker run "*) exit "${STUB_DOCKER_RUN:-0}" ;;
+    "curl "*) exit "${STUB_CURL:-0}" ;;
+    "aws "*head-bucket*) exit 254 ;;
+    "aws "*create-bucket*) exit "${STUB_CREATE_BUCKET:-0}" ;;
+esac
+"""
+
+
+class StandaloneStorageScriptTest(unittest.TestCase):
+    """localstack.sh outside Compose reports ready only once storage is usable."""
+
+    def run_script(self, **failures):
+        with tempfile.TemporaryDirectory() as directory:
+            bin_dir = Path(directory)
+            for tool in ("docker", "aws", "curl", "sleep", "hostname"):
+                stub = bin_dir / tool
+                stub.write_text(STUB)
+                stub.chmod(0o755)
+            log = bin_dir / "calls.log"
+            log.touch()
+            environment = {
+                "PATH": f"{bin_dir}:/usr/bin:/bin",
+                "STUB_LOG": str(log),
+                **{f"STUB_{name.upper()}": "1" for name in failures},
+            }
+            completed = subprocess.run(
+                ["bash", str(WBRAID / "localstack.sh")],
+                env=environment,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            return completed, log.read_text()
+
+    def test_ready_storage_gets_its_bucket(self):
+        completed, calls = self.run_script()
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("create-bucket --bucket wbraid-messages", calls)
+        self.assertIn("wbraid storage ready", completed.stdout)
+
+    def test_each_failed_step_fails_the_script(self):
+        for failure in ("docker_run", "curl", "create_bucket"):
+            with self.subTest(failure=failure):
+                completed, calls = self.run_script(**{failure: True})
+                self.assertNotEqual(completed.returncode, 0)
+                self.assertNotIn("wbraid storage ready", completed.stdout)
+                if failure == "curl":
+                    self.assertIn("localhost:4566", completed.stderr)
+                    self.assertNotIn("aws ", calls)
 
 
 class WorkspaceEnvironmentTest(unittest.TestCase):
