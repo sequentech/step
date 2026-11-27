@@ -1559,6 +1559,7 @@ const basqueTranslation: TranslationType = {
                 },
                 name: "Izena",
                 alias: "Ezizena",
+                externalId: "Kanpoko IDa",
                 description: "Deskribapena",
                 startDateTime: "Hasiera Data eta Ordua",
                 endDateTime: "Amaiera Data eta Ordua",

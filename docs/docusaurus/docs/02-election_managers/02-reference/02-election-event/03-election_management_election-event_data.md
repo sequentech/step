@@ -41,6 +41,7 @@ Detailed descriptions of each section are provided below.
 
 Set up basic details and configure multilingual names for your Election Event.
 
+- **External ID (optional)**: The event's identifier in an external system, shown above the language tabs. An imported event shows the ID it was imported with. Once set it is read-only; while it is empty you can enter one, and a blank value is saved as empty.
 - **Languages Tabs**: Configure how your Election Event appears in different languages in the Voting Portal.
 - **Name**: Enter the official name of your Election Event.
 - **Alias (optional)**: Internal alias used only in the system's side menu.

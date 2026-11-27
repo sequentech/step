@@ -32,8 +32,9 @@ After initiating the process, the system will prompt you for the basic configura
 ![Name the Election Event](./assets/elections_name_desc.png)
 
 1.  Enter the **Name** of the election event.
-2.  Provide a **Description**.
-3.  Select `Save`.
+2.  Optionally, enter an **External ID**: the event's identifier in an external system. You can also set it later in the event's **Data** tab, until it has a value.
+3.  Provide a **Description**.
+4.  Select `Save`.
 
 :::info
 **Post-Creation Options**: Once the event is created, you will see different menu options at the election event level, including **Dashboard**, **Monitoring**, **Data**, **Localization**, and **Voters**.

@@ -164,6 +164,7 @@ import {
     ConfigureResultsWebsitePolicyData,
     ConfigureResultsWebsitePolicyVariables,
 } from "@/queries/ResultsWebsitePublication"
+import {externalIdToSave} from "@/services/ExternalId"
 
 export type Sequent_Backend_Election_Event_Extended = RaRecord<Identifier> & {
     enabled_languages?: {[key: string]: boolean}
@@ -1437,6 +1438,7 @@ export const EditElectionEventDataForm: React.FC<{
 
         return {
             ...values,
+            external_id: externalIdToSave(record?.external_id, values.external_id),
             presentation: {
                 ...values.presentation,
                 lifecycle_policies: savedPolicies(),
@@ -1519,6 +1521,12 @@ export const EditElectionEventDataForm: React.FC<{
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
+                        <TextInput
+                            disabled={!canEdit}
+                            source="external_id"
+                            label={String(t("electionEventScreen.field.externalId"))}
+                            readOnly={!!record?.external_id}
+                        />
                         <Tabs value={value} onChange={handleChange}>
                             {renderTabs(parsedValue)}
                         </Tabs>

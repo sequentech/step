@@ -45,6 +45,8 @@ export interface EventDataScenario {
     presentation?: Record<string, unknown>
     /** Updating a record rejects with this message, as the database would. */
     writeError?: string
+    /** The event's stored external ID; an event created by hand has none. */
+    externalId?: string
 }
 
 export const eventDataArgs: EventDataScenario = {
@@ -57,11 +59,13 @@ export const eventDataEvent = (
     customOrder = false,
     neverOpened = false,
     sealAtClose = false,
-    presentation: Record<string, unknown> = {}
+    presentation: Record<string, unknown> = {},
+    externalId: string | null = null
 ) => {
     const workflow = neverOpened ? EStoryWorkflow.KEYS : undefined
     const event = eventRecord(workflow)
     return eventRecord(workflow, {
+        external_id: externalId,
         presentation: {
             ...event.presentation,
             ...(customOrder ? {elections_order: ElectionsOrder.CUSTOM} : {}),
@@ -79,12 +83,13 @@ export function eventDataBoundaries({
     sealAtClose = false,
     presentation,
     writeError,
+    externalId,
 }: EventDataScenario) {
     const workflow = neverOpened ? EStoryWorkflow.KEYS : undefined
     const data = resourceBoundary(
         {
             sequent_backend_election_event: [
-                eventDataEvent(customOrder, neverOpened, sealAtClose, presentation),
+                eventDataEvent(customOrder, neverOpened, sealAtClose, presentation, externalId),
             ],
             sequent_backend_tenant: [tenantRecord],
             sequent_backend_election: [
