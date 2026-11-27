@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Messaging Channels | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4421/docs/election_managers/reference/messaging_channels"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Messaging Channels | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4421/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4421/docs/election_managers/reference/messaging_channels"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4421/docs/election_managers/reference/messaging_channels" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4421/docs/election_managers/reference/messaging_channels" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Messaging Channels","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4421/docs/election_managers/reference/messaging_channels"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4421/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4421/assets/js/runtime~main.a84074b0.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4421/assets/js/runtime~main.2adb13bb.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4421/assets/js/main.4fd93c15.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -125,6 +125,14 @@ The daily check leaves it alone; <strong>Check connection</strong> checks it wit
 provider whenever you choose, and from then on it is checked like any
 other account. Changing its number, Page or sender, or entering new
 credentials, checks it too.</p>
+<p>A system that is offline until its sending window can import and keep a
+package&#x27;s accounts ready throughout: when a check can&#x27;t reach the provider,
+the account stays as its package declared it, and <strong>Check connection</strong> says
+<em>The provider couldn&#x27;t be reached: the account stays as its configuration
+package declared it</em>. An answer from the provider, such as a refused key,
+is stored as usual. Entering a missing credential needs no connection;
+replacing one that is already stored is checked with the provider first, so
+offline, apply a package carrying the new key instead.</p>
 <p>An account that arrives without its credentials is created all the same:
 enter them on the account. Until then its messages are not sent, and the
 reason shows in the event&#x27;s Logs.</p>
