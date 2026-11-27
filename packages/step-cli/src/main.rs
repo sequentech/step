@@ -53,6 +53,7 @@ enum StepCommands {
     CreateVoter(commands::create_voter::CreateVoter),
     DeleteElectionEvent(commands::delete_election_event::DeleteElectionEventCLI),
     DeleteTenant(commands::delete_tenant::DeleteTenantCLI),
+    EmbedImage(commands::embed_image::EmbedImage),
     ExportCastVotes(commands::export_cast_votes::ExportCastVotes),
     ExportElectionEvent(commands::export_election_event::ExportElectionEventCommand),
     UpdateVoter(commands::update_voter::UpdateVoter),
@@ -117,6 +118,7 @@ fn main() {
         }
         MainCommand::Step(step_cmd) => match step_cmd {
             StepCommands::BuildElectionEvent(cmd) => cmd.run(),
+            StepCommands::EmbedImage(cmd) => cmd.run(),
             StepCommands::CompilePlan(cmd) => cmd.run(),
             StepCommands::Config(cmd) => cmd.run(),
             StepCommands::AuditElectoralLog(audit) => exit_on_error(audit.run()),
