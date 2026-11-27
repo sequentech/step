@@ -4,5 +4,11 @@ mutation PublishBallot($electionEventId: uuid!, $ballotPublicationId: uuid!) {
             ballot_publication_id: $ballotPublicationId
         ) {
             ballot_publication_id
+            signing_request {
+                id
+                code
+                required
+                expires_at
+            }
         }
 }

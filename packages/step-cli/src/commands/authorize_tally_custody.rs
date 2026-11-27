@@ -6,6 +6,7 @@ use crate::{
     types::hasura_types::*,
     utils::{
         read_config::read_config,
+        signing::{exit_pending_step, CustodyProofSubmission, StepOutcome},
         trustees::{store_custody_request::get_custody_request_content, trustee_graphql_request},
     },
 };
@@ -27,6 +28,10 @@ pub struct AuthorizeTallyCustodyCommand {
     /// Native trustee keys file.
     #[arg(long)]
     trustee_config: std::path::PathBuf,
+
+    /// The signing request this step answered, once you have signed it.
+    #[arg(long)]
+    signing_request_id: Option<String>,
 }
 
 #[derive(GraphQLQuery)]
@@ -43,14 +48,13 @@ impl AuthorizeTallyCustodyCommand {
             &self.election_event_id,
             &self.tally_id,
             &self.trustee_config,
+            self.signing_request_id.as_deref(),
         ) {
-            Ok(is_valid) => {
-                if is_valid {
-                    println!("{}", "Success! Successfully confirmed key".green());
-                } else {
-                    eprintln!("{}", "Error! Failed to confirm key".red())
-                }
+            Ok(StepOutcome::Recorded) => {
+                println!("{}", "Success! Successfully confirmed key".green());
             }
+            Ok(StepOutcome::Invalid) => eprintln!("{}", "Error! Failed to confirm key".red()),
+            Ok(StepOutcome::Pending(pending)) => exit_pending_step("Your tally key step", &pending),
             Err(err) => {
                 eprintln!("Failed to confirm key: {}", err)
             }
@@ -64,18 +68,24 @@ pub fn confirm_key(
 ) -> Result<bool, Box<dyn std::error::Error>> {
     let keys_file = std::env::var_os("TRUSTEE_CONFIG_PATH")
         .ok_or("TRUSTEE_CONFIG_PATH must name your native trustee keys file")?;
-    confirm_key_with_keys(
+    match confirm_key_with_keys(
         election_event_id,
         tally_id,
         std::path::Path::new(&keys_file),
-    )
+        None,
+    )? {
+        StepOutcome::Recorded => Ok(true),
+        StepOutcome::Invalid => Ok(false),
+        StepOutcome::Pending(pending) => Err(format!("the tally key step is {pending}").into()),
+    }
 }
 
 fn confirm_key_with_keys(
     election_event_id: &str,
     tally_id: &str,
     keys_file: &std::path::Path,
-) -> Result<bool, Box<dyn std::error::Error>> {
+    signing_request_id: Option<&str>,
+) -> Result<StepOutcome, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
@@ -92,10 +102,13 @@ fn confirm_key_with_keys(
     let secrets = protocol_board::TrusteeSecrets::parse(&std::fs::read_to_string(keys_file)?)?;
     let key = custody.attest(&secrets)?;
 
+    let submission = CustodyProofSubmission::new(&key, signing_request_id);
     let variables = authorize_tally_custody::Variables {
         election_event_id: election_event_id.to_string(),
         tally_session_id: tally_id.to_string(),
         custody_proof_json: key,
+        custody_proof_sha256: submission.custody_proof_sha256,
+        signing_request_id: submission.signing_request_id,
     };
 
     let request_body = AuthorizeTallyCustody::build_query(variables);
@@ -108,7 +121,10 @@ fn confirm_key_with_keys(
         let response_body: Response<authorize_tally_custody::ResponseData> = response.json()?;
         if let Some(data) = response_body.data {
             if let Some(e) = data.authorize_tally_custody {
-                Ok(e.is_valid)
+                Ok(StepOutcome::of(
+                    e.is_valid,
+                    crate::pending_signatures!(e.signing_request),
+                ))
             } else {
                 Err(Box::from("failed updating status"))
             }

@@ -4,7 +4,11 @@
 
 use crate::{
     types::hasura_types::*,
-    utils::{elections::get::GetElections, read_config::read_config},
+    utils::{
+        elections::get::GetElections,
+        read_config::read_config,
+        signing::{exit_pending, Signed},
+    },
 };
 use clap::Args;
 use colored::Colorize;
@@ -35,12 +39,13 @@ pub struct CreateTallyCeremony;
 
 impl StartTallyCeremony {
     pub fn run(&self) {
-        match start_ceremony(
+        match start_ceremony_signed(
             &self.election_event_id,
             self.election_ids.clone(),
             &self.tally_type,
         ) {
-            Ok(id) => {
+            Ok(Signed::Pending(pending)) => exit_pending("The tally", &pending),
+            Ok(Signed::Done(id)) => {
                 println!(
                     "{} {}",
                     "Success! Successfully started Tally ceremony. ID:".green(),
@@ -54,11 +59,37 @@ impl StartTallyCeremony {
     }
 }
 
+/// The session started, or the signing request that initializing voting
+/// needs first (no session exists until it is signed).
+fn tally_outcome(
+    output: create_tally_ceremony::CreateTallyCeremonyCreateTallyCeremony,
+) -> Result<Signed<String>, Box<dyn std::error::Error>> {
+    if let Some(pending) = crate::pending_signatures!(output.signing_request) {
+        return Ok(Signed::Pending(pending));
+    }
+    output
+        .tally_session_id
+        .map(Signed::Done)
+        .ok_or_else(|| Box::from("Tally ceremony returned no session ID"))
+}
+
+/// Starts the tally, failing when it waits for signatures.
 pub fn start_ceremony(
     election_event_id: &str,
     election_ids: Option<Vec<String>>,
     tally_type: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
+    match start_ceremony_signed(election_event_id, election_ids, tally_type)? {
+        Signed::Done(id) => Ok(id),
+        Signed::Pending(pending) => Err(format!("the tally is {pending}").into()),
+    }
+}
+
+pub fn start_ceremony_signed(
+    election_event_id: &str,
+    election_ids: Option<Vec<String>>,
+    tally_type: &str,
+) -> Result<Signed<String>, Box<dyn std::error::Error>> {
     let config = read_config()?;
     let client = reqwest::blocking::Client::new();
 
@@ -86,8 +117,7 @@ pub fn start_ceremony(
         let response_body: Response<create_tally_ceremony::ResponseData> = response.json()?;
         if let Some(data) = response_body.data {
             if let Some(e) = data.create_tally_ceremony {
-                e.tally_session_id
-                    .ok_or_else(|| Box::from("Tally ceremony returned no session ID"))
+                tally_outcome(e)
             } else {
                 Err(Box::from("failed updating status"))
             }
@@ -102,5 +132,43 @@ pub fn start_ceremony(
         let error_message = response.text()?;
         let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
         Err(Box::from(error))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn outcome(value: serde_json::Value) -> Result<Signed<String>, String> {
+        tally_outcome(serde_json::from_value(value).unwrap()).map_err(|error| error.to_string())
+    }
+
+    #[test]
+    fn a_started_tally_answers_its_session() {
+        assert_eq!(
+            outcome(json!({"tally_session_id": "t1", "signing_request": null})),
+            Ok(Signed::Done("t1".into()))
+        );
+    }
+
+    #[test]
+    fn a_tally_waiting_for_signatures_has_no_session_yet() {
+        let answer = outcome(json!({
+            "tally_session_id": null,
+            "signing_request": {"id": "r1", "code": "AB-12", "required": 3,
+                                "expires_at": "2026-11-22T00:00:00Z"}
+        }));
+        match answer {
+            Ok(Signed::Pending(pending)) => {
+                assert_eq!((pending.id.as_str(), pending.required), ("r1", 3));
+            }
+            other => panic!("expected a pending tally, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_tally_without_session_or_request_is_an_error() {
+        assert!(outcome(json!({"tally_session_id": null, "signing_request": null})).is_err());
     }
 }

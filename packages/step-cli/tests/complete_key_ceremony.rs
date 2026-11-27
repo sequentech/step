@@ -33,6 +33,7 @@ struct Request {
 
 struct Run {
     output: String,
+    status: Option<i32>,
     requests: Vec<Request>,
 }
 
@@ -221,6 +222,7 @@ impl Cli {
         let requests = std::mem::take(&mut *requests.lock().unwrap());
 
         Run {
+            status: output.status.code(),
             output: format!(
                 "{}{}",
                 String::from_utf8_lossy(&output.stdout),
@@ -237,6 +239,110 @@ fn downloaded(custody_request: &str) -> String {
 
 fn checked(is_valid: bool) -> String {
     json!({"data": {"confirm_key_custody": {"is_valid": is_valid}}}).to_string()
+}
+
+/// The exit status of a step that waits for signatures.
+const SIGNATURES_PENDING: i32 = 3;
+
+fn signing_request() -> Value {
+    json!({"id": "4e0c0d6e-8f35-4c3b-9a43-0b8f1d1c2a11", "code": "K7Q-2M",
+           "required": 1, "expires_at": null})
+}
+
+fn pending() -> String {
+    json!({"data": {"confirm_key_custody": {"is_valid": true, "signing_request": signing_request()}}})
+        .to_string()
+}
+
+#[test]
+fn a_step_that_needs_the_trustees_signature_is_not_reported_as_done() {
+    let cli = Cli::new();
+    let encoded = serde_json::to_string(&cli.request(KEY_CEREMONY_ID)).unwrap();
+    let run = cli.complete(KEY_CEREMONY_ID, vec![downloaded(&encoded), pending()]);
+    assert_eq!(run.status, Some(SIGNATURES_PENDING), "{}", run.output);
+    assert!(!run.output.contains("Success"), "{}", run.output);
+    assert!(
+        run.output.contains(
+            "waiting for 1 signature (request 4e0c0d6e-8f35-4c3b-9a43-0b8f1d1c2a11, code K7Q-2M)"
+        ),
+        "{}",
+        run.output
+    );
+    assert_eq!(cli.stored(None), None);
+}
+
+fn sha256_hex(text: &str) -> String {
+    use sha2::{Digest, Sha256};
+    hex::encode(Sha256::digest(text.as_bytes()))
+}
+
+#[test]
+fn a_step_names_its_proofs_hash_and_then_the_signed_request() {
+    let cli = Cli::new();
+    let encoded = serde_json::to_string(&cli.request(KEY_CEREMONY_ID)).unwrap();
+    let first = cli.complete(KEY_CEREMONY_ID, vec![downloaded(&encoded), pending()]);
+    assert_eq!(first.status, Some(SIGNATURES_PENDING), "{}", first.output);
+    assert!(
+        first.output.contains("--signing-request-id"),
+        "{}",
+        first.output
+    );
+    let started = &first.requests[1].variables;
+    let proof = started["custodyProofJson"].as_str().unwrap();
+    assert_eq!(started["custodyProofSha256"], sha256_hex(proof));
+    assert!(started["signingRequestId"].is_null());
+
+    let request_id = signing_request()["id"].as_str().unwrap().to_owned();
+    let second = cli.execute(
+        &[
+            "step",
+            "complete-key-ceremony",
+            "--election-event-id",
+            ELECTION_EVENT_ID,
+            "--key-ceremony-id",
+            KEY_CEREMONY_ID,
+            "--signing-request-id",
+            &request_id,
+        ],
+        KEY_CEREMONY_ID,
+        vec![downloaded(&encoded), checked(true)],
+    );
+    assert_eq!(second.status, Some(0), "{}", second.output);
+    assert!(second.output.contains("Success!"), "{}", second.output);
+    let signed = &second.requests[1].variables;
+    assert_eq!(signed["custodyProofJson"].as_str(), Some(proof));
+    assert_eq!(signed["signingRequestId"], request_id.as_str());
+    assert!(signed["custodyProofSha256"].is_null());
+    assert_eq!(cli.stored(None).as_deref(), Some(encoded.as_str()));
+}
+
+#[test]
+fn a_tally_step_that_needs_the_trustees_signature_is_not_reported_as_done() {
+    let cli = Cli::new();
+    cli.store(
+        None,
+        &serde_json::to_string(&cli.request(KEY_CEREMONY_ID)).unwrap(),
+    );
+    let run = cli.execute(
+        &[
+            "step",
+            "confirm-key-tally",
+            "--election-event-id",
+            ELECTION_EVENT_ID,
+            "--tally-id",
+            "synthetic-tally",
+        ],
+        KEY_CEREMONY_ID,
+        vec![json!({"data": {"authorize_tally_custody":
+            {"is_valid": true, "signing_request": signing_request()}}})
+        .to_string()],
+    );
+    assert_eq!(run.status, Some(SIGNATURES_PENDING), "{}", run.output);
+    assert!(!run.output.contains("Success"), "{}", run.output);
+    assert!(run.output.contains("code K7Q-2M"), "{}", run.output);
+    let started = &run.requests[0].variables;
+    let proof = started["custodyProofJson"].as_str().unwrap();
+    assert_eq!(started["custodyProofSha256"], sha256_hex(proof));
 }
 
 #[test]

@@ -248,6 +248,30 @@ cli step confirm-key-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <T
 - Election event id - the election event to be associated with - required*
 - Tally id - the tally ceremony id to confirm the key for - required*
 
+## Actions That Need Signatures
+When the election event's signing rules protect an action, `publish`, `start-tally`,
+`complete-key-ceremony` and `confirm-key-tally` start a signing request instead of running it.
+They then print `waiting for N signatures (request <ID>, code <CODE>)` and exit with status 3.
+The action runs once the request has its signatures; a trustee's key step is taken again with
+the signed request:
+```bash
+cli step complete-key-ceremony --election-event-id <ELECTION_EVENT_ID> --key-ceremony-id <KEY_CEREMONY_ID> --trustee-config <KEYS_FILE> --signing-request-id <ID>
+cli step confirm-key-tally --election-event-id <ELECTION_EVENT_ID> --tally-id <TALLY_ID> --trustee-config <KEYS_FILE> --signing-request-id <ID>
+```
+
+## Sign a Signing Request
+```bash
+STEP_SIGNING_P12_PASSWORD=... cli step sign-request --id <ID> --p12 <CERTIFICATE.p12>
+```
+- Id - the signing request - required*
+- P12 - your certificate and private key (RSA or ECDSA P-256). The password is read from
+  `STEP_SIGNING_P12_PASSWORD`, or asked for on the terminal - required*
+- Verify only - fetch and check the request without signing it - optional*
+
+The command checks that the request's canonical payload hashes to its `payload_sha256` and is
+about the request before signing it. Requests that also sign a PDF or EML document (election
+returns, reports, transmissions) are not supported yet; sign them in the admin portal.
+
 ## Update Tally Ceremony Status
 > This can be used to complete the tally ceremony after the trustee keys have been confirmed
 ```bash

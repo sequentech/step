@@ -12,6 +12,7 @@ use crate::{
     utils::{
         publication::{generate::GenerateBallotPublication, get::GetBallotPublicationStatus},
         read_config::read_config,
+        signing::{exit_pending, Signed},
         trustees::held_role_request,
     },
 };
@@ -40,11 +41,12 @@ pub struct PublishBallot;
 
 impl PublishChanges {
     pub fn run(&self) {
-        match publish_changes(
+        match publish_changes_signed(
             &self.election_event_id,
             self.election_id.as_ref().map(String::as_str),
         ) {
-            Ok(id) => {
+            Ok(Signed::Pending(pending)) => exit_pending("The publication", &pending),
+            Ok(Signed::Done(id)) => {
                 println!(
                     "{} {}",
                     "Success! Published successfully! ID:".green(),
@@ -58,10 +60,28 @@ impl PublishChanges {
     }
 }
 
+/// Publishes, failing when the publication waits for signatures.
 pub fn publish_changes(
     election_event_id: &str,
     election_id: Option<&str>,
 ) -> Result<String, Box<dyn std::error::Error>> {
+    match publish_changes_signed(election_event_id, election_id)? {
+        Signed::Done(id) => Ok(id),
+        Signed::Pending(pending) => Err(format!("the publication is {pending}").into()),
+    }
+}
+
+fn publication_outcome(output: publish_ballot::PublishBallotPublishBallot) -> Signed<String> {
+    match crate::pending_signatures!(output.signing_request) {
+        Some(pending) => Signed::Pending(pending),
+        None => Signed::Done(output.ballot_publication_id),
+    }
+}
+
+pub fn publish_changes_signed(
+    election_event_id: &str,
+    election_id: Option<&str>,
+) -> Result<Signed<String>, Box<dyn std::error::Error>> {
     let config = read_config()?;
 
     let client = reqwest::blocking::Client::new();
@@ -117,7 +137,7 @@ pub fn publish_changes(
         let response_body: Response<publish_ballot::ResponseData> = response.json()?;
         if let Some(data) = response_body.data {
             if let Some(e) = data.publish_ballot {
-                Ok(e.ballot_publication_id)
+                Ok(publication_outcome(e))
             } else {
                 Err(Box::from("failed generating id"))
             }
@@ -132,5 +152,39 @@ pub fn publish_changes(
         let error_message = response.text()?;
         let error = format!("HTTP Status: {}\nError Message: {}", status, error_message);
         Err(Box::from(error))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::signing::PendingSignatures;
+    use serde_json::json;
+
+    fn output(value: serde_json::Value) -> publish_ballot::PublishBallotPublishBallot {
+        serde_json::from_value(value).unwrap()
+    }
+
+    #[test]
+    fn a_publication_without_a_request_is_published() {
+        let answer = output(json!({"ballot_publication_id": "p1", "signing_request": null}));
+        assert_eq!(publication_outcome(answer), Signed::Done("p1".into()));
+    }
+
+    #[test]
+    fn a_publication_with_a_request_waits_for_signatures() {
+        let answer = output(json!({
+            "ballot_publication_id": "p1",
+            "signing_request": {"id": "r1", "code": "AB-12", "required": 2, "expires_at": null}
+        }));
+        assert_eq!(
+            publication_outcome(answer),
+            Signed::Pending(PendingSignatures {
+                id: "r1".into(),
+                code: "AB-12".into(),
+                required: 2,
+                expires_at: None,
+            })
+        );
     }
 }

@@ -1,0 +1,5 @@
+query SigningGetRequest($request_id: uuid!) {
+    signingGetRequest(request_id: $request_id) {
+        panel
+    }
+}
