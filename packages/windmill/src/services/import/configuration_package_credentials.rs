@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! The receiver half of AWS key pairs that travel beside a signed delivery.
+//! The receiver half of messaging credentials (AWS key pairs, Infobip API
+//! keys) that travel beside a signed delivery.
 //!
 //! Stage (direct Harvest intake only, never a Hasura action): the browser
 //! puts the still-encrypted V2 `.ezip` in protected staging and sends only
@@ -32,7 +33,7 @@ use sequent_core::election_config::encrypted_delivery::{
     decrypt_signed_delivery_parts, is_encrypted_signed_delivery, EncryptedDeliveryError,
 };
 use sequent_core::election_config::messaging_credentials::{
-    verify_sidecar, AwsStaticKeyPair, CredentialSidecar, Zeroizing,
+    verify_sidecar, CredentialSidecar, DeliveredCredential, Zeroizing,
 };
 use sequent_core::election_config::portable_messaging::PortableMessagingAccounts;
 use sequent_core::signing::sha256_hex;
@@ -44,10 +45,10 @@ use uuid::Uuid;
 
 /// Public: allowlisted operator messages (they start like the other
 /// portable-messaging blockers). None names a value or a vault key.
-pub const NOT_ACCEPTED: &str = "portable messaging requires the AWS credentials delivered with this encrypted package; upload the original .ezip again";
+pub const NOT_ACCEPTED: &str = "portable messaging requires the messaging credentials delivered with this encrypted package; upload the original .ezip again";
 pub const MISMATCH: &str =
-    "portable messaging requires AWS credentials that match the signed package";
-pub const EXPIRED: &str = "portable messaging requires AWS credentials staged in the last 12 hours; upload the original .ezip again";
+    "portable messaging requires messaging credentials that match the signed package";
+pub const EXPIRED: &str = "portable messaging requires messaging credentials staged in the last 12 hours; upload the original .ezip again";
 /// Public intake refusals (fixed strings, no values).
 pub const NOT_V2: &str =
     "This upload is not an encrypted configuration package with messaging credentials.";
@@ -256,8 +257,8 @@ pub fn staged_secret_key(document_id: &Uuid) -> String {
     format!("configuration-package-staging-{document_id}-messaging-credentials")
 }
 
-/// Verified pairs by package reference key (`package:<reference>`).
-pub struct StagedCredentials(BTreeMap<String, AwsStaticKeyPair>);
+/// Verified credentials by package reference key (`package:<reference>`).
+pub struct StagedCredentials(BTreeMap<String, DeliveredCredential>);
 
 impl fmt::Debug for StagedCredentials {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -268,7 +269,7 @@ impl fmt::Debug for StagedCredentials {
 }
 
 impl StagedCredentials {
-    pub fn get(&self, reference_key: &str) -> Option<&AwsStaticKeyPair> {
+    pub fn get(&self, reference_key: &str) -> Option<&DeliveredCredential> {
         self.0.get(reference_key)
     }
 }
@@ -407,41 +408,45 @@ pub async fn load(
     )
 }
 
-/// The two vault credentials of the reviewed AWS account, plus their
-/// replacement metadata (names and time only), in the caller's transaction.
+/// The vault credentials a delivered credential becomes: an AWS pair's two,
+/// or an Infobip account's API key. Never printed.
+fn vault_credentials(credential: &DeliveredCredential) -> Vec<(CredentialName, &str)> {
+    match credential {
+        DeliveredCredential::AwsKeyPair(pair) => vec![
+            (
+                CredentialName::AWS_ACCESS_KEY_ID,
+                pair.aws_access_key_id.as_str(),
+            ),
+            (
+                CredentialName::AWS_SECRET_ACCESS_KEY,
+                pair.aws_secret_access_key.as_str(),
+            ),
+        ],
+        DeliveredCredential::ApiKey(key) => vec![(CredentialName::API_KEY, key.as_str())],
+    }
+}
+
+/// The reviewed account's vault credentials, plus their replacement
+/// metadata (names and time only), in the caller's transaction.
 pub async fn install(
     tx: &Transaction<'_>,
     tenant: &Uuid,
     account_id: &Uuid,
-    pair: &AwsStaticKeyPair,
+    credential: &DeliveredCredential,
 ) -> Result<()> {
     let tenant_text = tenant.to_string();
-    for (name, value) in [
-        (CredentialName::AWS_ACCESS_KEY_ID, &pair.aws_access_key_id),
-        (
-            CredentialName::AWS_SECRET_ACCESS_KEY,
-            &pair.aws_secret_access_key,
-        ),
-    ] {
+    let credentials = vault_credentials(credential);
+    for (name, value) in &credentials {
         replace_secret(
             tx,
             &tenant_text,
-            &credential_secret_key(account_id, name),
+            &credential_secret_key(account_id, *name),
             value,
         )
         .await?;
     }
-    record_credentials_replaced(
-        tx,
-        tenant,
-        account_id,
-        &[
-            CredentialName::AWS_ACCESS_KEY_ID,
-            CredentialName::AWS_SECRET_ACCESS_KEY,
-        ],
-        Utc::now(),
-    )
-    .await
+    let names: Vec<CredentialName> = credentials.iter().map(|(name, _)| *name).collect();
+    record_credentials_replaced(tx, tenant, account_id, &names, Utc::now()).await
 }
 
 /// Remove the staged sidecar, in the transaction that installed its keys.
@@ -463,7 +468,7 @@ pub async fn discard(tx: &Transaction<'_>, tenant: &Uuid, document_id: &Uuid) ->
 mod tests {
     use super::*;
     use sequent_core::election_config::messaging_credentials::{
-        commitment, SidecarEntry, SidecarFormat,
+        commitment, AwsStaticKeyPair, SidecarEntry, SidecarFormat,
     };
     use sequent_core::election_config::portable_messaging::parse as parse_accounts;
 
@@ -477,7 +482,63 @@ mod tests {
             nonce: "07".repeat(32),
             aws_access_key_id: KEY_ID.into(),
             aws_secret_access_key: SECRET.into(),
+            infobip_api_key: None,
         }
+    }
+
+    const API_KEY: &str = "synthetic-infobip-api-key-0123456789abcdef";
+
+    #[test]
+    fn a_staged_api_key_is_verified_and_becomes_the_accounts_api_key() {
+        let tenant = Uuid::parse_str(TENANT).unwrap();
+        let key = SidecarEntry {
+            reference: "viber".into(),
+            nonce: "07".repeat(32),
+            aws_access_key_id: String::new(),
+            aws_secret_access_key: String::new(),
+            infobip_api_key: Some(API_KEY.into()),
+        };
+        let account = serde_json::json!({"reference":"viber","name":"Demo Viber",
+            "sender":{"provider":"VIBER_INFOBIP","base_url":"https://abc-1.api.infobip.com","sender":"Demo"},
+            "credential_commitment": commitment(&tenant, &key).unwrap()});
+        let committed = parse_accounts(
+            &serde_json::to_vec(&serde_json::json!({
+                "format":"sequent.tenant-messaging-accounts/1","accounts":[account]}))
+            .unwrap(),
+        )
+        .unwrap();
+        let stored = serde_json::json!({
+            "package_sha256": PACKAGE.repeat(32),
+            "expires_at": now() + stage_ttl(),
+            "sidecar": CredentialSidecar {
+                format: SidecarFormat::V1,
+                tenant_id: TENANT.into(),
+                accounts: vec![key],
+            },
+        })
+        .to_string();
+        let staged = decide(
+            &committed,
+            &tenant,
+            &PACKAGE.repeat(32),
+            Some(&Uuid::from_u128(7)),
+            Some(&stored),
+            true,
+            UPLOADER,
+            now(),
+        )
+        .unwrap()
+        .unwrap();
+        let credential = staged.get("package:viber").unwrap();
+        let names: Vec<_> = vault_credentials(credential)
+            .into_iter()
+            .map(|(name, value)| {
+                assert_eq!(value, API_KEY);
+                name
+            })
+            .collect();
+        assert_eq!(names, [CredentialName::API_KEY]);
+        assert!(!format!("{staged:?} {credential:?}").contains(API_KEY));
     }
 
     fn sidecar(tenant: &str) -> String {
@@ -628,14 +689,10 @@ mod tests {
         )
         .unwrap()
         .is_none());
-        assert_eq!(
-            staged
-                .get("package:email")
-                .unwrap()
-                .aws_access_key_id
-                .as_str(),
-            KEY_ID
-        );
+        let Some(DeliveredCredential::AwsKeyPair(pair)) = staged.get("package:email") else {
+            panic!("the staged AWS pair");
+        };
+        assert_eq!(pair.aws_access_key_id.as_str(), KEY_ID);
         // Only the uploader's own Preview/Apply: another authorized account
         // of the tenant, an actor-less task, or a row without an uploader.
         for who in [
@@ -817,10 +874,10 @@ mod tests {
         assert_ne!(staged_secret_key(&a), staged_secret_key(&b));
         let staged = StagedCredentials(BTreeMap::from([(
             "package:email".to_string(),
-            AwsStaticKeyPair {
+            DeliveredCredential::AwsKeyPair(AwsStaticKeyPair {
                 aws_access_key_id: Zeroizing::new(KEY_ID.into()),
                 aws_secret_access_key: Zeroizing::new(SECRET.into()),
-            },
+            }),
         )]));
         let printed = format!("{staged:?}");
         assert!(printed.contains("package:email"));

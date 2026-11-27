@@ -15,10 +15,11 @@ fn normalised(name: &str) -> String {
         .collect()
 }
 
-/// AWS static key material under any common spelling: case, separators and
-/// prefixes are ignored (`AWS_SECRET_ACCESS_KEY`, `awsAccessKeyId`,
-/// `secret-access-key`, `access_key`...). Deliberately broad: a false match
-/// only routes a workbook to protected intake.
+/// Messaging key material under any common spelling: case, separators and
+/// prefixes are ignored. AWS static keys (`AWS_SECRET_ACCESS_KEY`,
+/// `awsAccessKeyId`, `secret-access-key`, `access_key`...) and Infobip API
+/// keys (`api_key`, `apiKey`, `infobip_api_key`...). Deliberately broad: a
+/// false match only routes a workbook to protected intake.
 #[cfg(feature = "election_config_xlsx")]
 fn aws_key_field(name: &str) -> bool {
     let name = normalised(name);
@@ -27,6 +28,7 @@ fn aws_key_field(name: &str) -> bool {
         || name.contains("sessiontoken")
         || name.ends_with("accesskey")
         || name.ends_with("secretkey")
+        || name.ends_with("apikey")
 }
 
 #[cfg(feature = "election_config_xlsx")]
@@ -62,10 +64,10 @@ fn carries_aws_key(value: &Value, depth: usize) -> bool {
     }
 }
 
-/// Whether the Parameters sheet carries AWS key material: in the
+/// Whether the Parameters sheet carries messaging key material: in the
 /// `tenant_package` value (typed object or JSON text, as
 /// `portable_messaging::validate_workbook_sheets` reads it), or in any row or
-/// column named like an AWS key. An unreadable `tenant_package` text fails
+/// column named like an AWS or API key. An unreadable `tenant_package` text fails
 /// closed. Value-free: the answer is a boolean only.
 #[cfg(feature = "election_config_xlsx")]
 fn parameters_carry_aws_keys(sheets: &[Sheet]) -> bool {
@@ -181,7 +183,8 @@ pub fn reject_ordinary_credentials(sheets: &[Sheet]) -> Result<(), Report> {
 
 /// A local, value-free probe before choosing between ordinary conversion and
 /// protected intake. Unknown, oversized or unparseable inputs are not ordinary;
-/// nor are admin/trustee passwords, or AWS key material in Parameters.
+/// nor are admin/trustee passwords, or messaging key material (AWS key
+/// pairs, Infobip API keys) in Parameters.
 #[cfg(feature = "election_config_xlsx")]
 pub fn is_ordinary_workbook(bytes: &[u8]) -> bool {
     use std::io::Cursor;
@@ -331,6 +334,54 @@ fn workbook_probe_routes_aws_key_material_in_parameters_to_protected_intake() {
         assert!(!ordinary(&protected));
     }
     // Admin/trustee password behaviour is unchanged (see the test above).
+}
+
+#[cfg(all(test, feature = "election_config_xlsx"))]
+#[test]
+fn workbook_probe_routes_infobip_api_keys_to_protected_intake() {
+    use super::{paths::Cell, sheet::Workbook, xlsx_write::write_xlsx};
+    use serde_json::json;
+    // Synthetic, format-valid, not an Infobip key.
+    const API_KEY: &str = "synthetic-infobip-api-key-0123456789abcdef";
+    let ordinary = |account: serde_json::Value| {
+        let package = json!({"format":"sequent.tenant-package/1","messagingAccounts":{
+            "format":"sequent.tenant-messaging-accounts/1","accounts":[account]}})
+        .to_string();
+        let grid = vec![
+            vec![Cell::text("key"), Cell::text("value")],
+            vec![Cell::text("tenant_package"), Cell::text(package.as_str())],
+        ];
+        let sheet = Sheet::from_grid("Parameters", &grid).unwrap();
+        is_ordinary_workbook(
+            &write_xlsx(&Workbook::new(vec![sheet]).unwrap()).unwrap(),
+        )
+    };
+    let viber = |extra: serde_json::Value| {
+        let mut account = json!({"reference":"viber","name":"Synthetic Viber",
+            "sender":{"provider":"VIBER_INFOBIP","base_url":"https://abc-1.api.infobip.com","sender":"Demo"}});
+        for (k, v) in extra.as_object().unwrap() {
+            account[k] = v.clone();
+        }
+        account
+    };
+    // Without a key (or with an empty one) the workbook stays ordinary.
+    assert!(ordinary(viber(json!({}))));
+    assert!(ordinary(viber(json!({"infobip_api_key": ""}))));
+    assert!(ordinary(viber(json!({"infobip_api_key": null}))));
+    // A key, in any spelling or nesting, goes to protected intake.
+    for extra in [
+        json!({"infobip_api_key": API_KEY}),
+        json!({"api_key": API_KEY}),
+        json!({"apiKey": API_KEY}),
+        json!({"API-KEY": API_KEY}),
+        json!({"credentials": {"infobip_api_key": API_KEY}}),
+    ] {
+        assert!(!ordinary(viber(extra.clone())), "{extra}");
+    }
+    let mut whatsapp = viber(json!({"infobip_api_key": API_KEY}));
+    whatsapp["sender"] = json!({"provider":"WHATSAPP_INFOBIP",
+        "base_url":"https://abc-1.api.infobip.com","sender_number":"447796344125"});
+    assert!(!ordinary(whatsapp));
 }
 
 /// A verifier is sensitive account bootstrap data. It is never a review,

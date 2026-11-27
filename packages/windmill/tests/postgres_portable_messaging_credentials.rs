@@ -41,6 +41,7 @@ fn entry() -> SidecarEntry {
         nonce: "07".repeat(32),
         aws_access_key_id: KEY_ID.into(),
         aws_secret_access_key: SECRET.into(),
+        infobip_api_key: None,
     }
 }
 

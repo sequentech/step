@@ -2,12 +2,13 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 
-//! Static AWS SES/SNS key pairs that travel beside a signed delivery, never
-//! inside it.
+//! Messaging account credentials that travel beside a signed delivery, never
+//! inside it: static AWS SES/SNS key pairs, and Infobip API keys (Viber and
+//! WhatsApp through Infobip).
 //!
 //! The signed `tenant_messaging_accounts.json` member carries, per account,
-//! only a hiding SHA-256 commitment ([`commitment`]) to the exact key pair
-//! and a 32-byte random nonce. The pair and nonce form a separate
+//! only a hiding SHA-256 commitment ([`commitment`]) to the exact credential
+//! and a 32-byte random nonce. The credential and nonce form a separate
 //! [`CredentialSidecar`]. Signing, approval and the stored package therefore
 //! bind the exact secret bytes without holding them. A receiver accepts a
 //! sidecar only when [`verify_sidecar`] matches every committed account of the
@@ -22,7 +23,9 @@
 //! value: errors are fixed strings. Key and secret buffers are cleared when
 //! dropped (`zeroize`); this does not reach copies a caller makes.
 
-use super::portable_messaging::{PortableMessagingAccounts, PortableSender};
+use super::portable_messaging::{
+    DeliveredCredentialKind, PortableMessagingAccounts,
+};
 use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
 use ring::digest::{Context, SHA256};
 use ring::rand::{SecureRandom, SystemRandom};
@@ -36,6 +39,10 @@ pub use zeroize::Zeroizing;
 
 pub const SIDECAR_FORMAT: &str = "sequent.messaging-credentials/1";
 const COMMITMENT_DOMAIN: &[u8] = b"sequent.messaging-credential-commitment/1\0";
+/// API keys are committed under their own domain, so an AWS pair's
+/// commitment can never verify as a key's, or the reverse.
+const API_KEY_COMMITMENT_DOMAIN: &[u8] =
+    b"sequent.messaging-api-key-commitment/1\0";
 const MAX_SIDECAR_BYTES: usize = 16 * 1024;
 const MAX_ACCOUNTS: usize = 32;
 
@@ -63,8 +70,8 @@ pub enum CredentialError {
 impl fmt::Display for CredentialError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::InvalidSidecar => "The messaging credentials are not a supported AWS key pair document.",
-            Self::SidecarMismatch => "The messaging credentials do not match the signed delivery's AWS accounts.",
+            Self::InvalidSidecar => "The messaging credentials are not a supported credentials document.",
+            Self::SidecarMismatch => "The messaging credentials do not match the signed delivery's messaging accounts.",
             Self::InvalidRecordKey => "The installation's credentials key is unavailable or invalid.",
             Self::RandomUnavailable => "Secure randomness is unavailable.",
             Self::SealFailed => "The messaging credentials could not be protected.",
@@ -102,6 +109,48 @@ impl AwsStaticKeyPair {
     }
 }
 
+/// An Infobip API key, in memory only (never serialized).
+#[derive(Clone, PartialEq, Eq)]
+pub struct ApiKey(Zeroizing<String>);
+
+impl ApiKey {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Debug for ApiKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("ApiKey(<redacted>)")
+    }
+}
+
+/// A verified credential for one account, by kind.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum DeliveredCredential {
+    AwsKeyPair(AwsStaticKeyPair),
+    ApiKey(ApiKey),
+}
+
+impl DeliveredCredential {
+    pub fn kind(&self) -> DeliveredCredentialKind {
+        match self {
+            Self::AwsKeyPair(_) => DeliveredCredentialKind::AWS_KEY_PAIR,
+            Self::ApiKey(_) => DeliveredCredentialKind::API_KEY,
+        }
+    }
+}
+
+/// Infobip's keys are hexadecimal groups joined by `-`; any key the
+/// `Authorization: App <key>` header can carry is letters, digits, `-`,
+/// `_` and `.`. Length-bounded: never a document or a pasted header.
+fn valid_api_key(key: &str) -> bool {
+    (16..=256).contains(&key.len())
+        && key
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
+}
+
 fn valid_pair(id: &str, secret: &str) -> bool {
     let id = id.as_bytes();
     let secret = secret.as_bytes();
@@ -123,8 +172,15 @@ pub struct SidecarEntry {
     pub reference: String,
     /// 32 random bytes, lowercase hex. Only here, never in the manifest.
     pub nonce: String,
+    /// An AWS account's pair. Empty (and not written) for an API key entry.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub aws_access_key_id: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub aws_secret_access_key: String,
+    /// An Infobip account's API key (Viber, WhatsApp). An entry holds
+    /// either this or a pair.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub infobip_api_key: Option<String>,
 }
 
 impl SidecarEntry {
@@ -137,10 +193,49 @@ impl SidecarEntry {
         }
     }
 
+    /// Which credential this entry holds; `None` when it holds both, part
+    /// of a pair, or nothing.
+    pub fn kind(&self) -> Option<DeliveredCredentialKind> {
+        let aws = (
+            self.aws_access_key_id.is_empty(),
+            self.aws_secret_access_key.is_empty(),
+        );
+        match (aws, &self.infobip_api_key) {
+            ((false, false), None) => {
+                Some(DeliveredCredentialKind::AWS_KEY_PAIR)
+            }
+            ((true, true), Some(_)) => Some(DeliveredCredentialKind::API_KEY),
+            _ => None,
+        }
+    }
+
+    fn credential(&self) -> Option<DeliveredCredential> {
+        match self.kind()? {
+            DeliveredCredentialKind::AWS_KEY_PAIR => {
+                Some(DeliveredCredential::AwsKeyPair(self.pair()))
+            }
+            DeliveredCredentialKind::API_KEY => {
+                let key = self.infobip_api_key.as_ref()?;
+                Some(DeliveredCredential::ApiKey(ApiKey(Zeroizing::new(
+                    key.clone(),
+                ))))
+            }
+        }
+    }
+
     fn valid(&self) -> bool {
         reference(&self.reference)
             && lower_hex(&self.nonce, 32)
-            && valid_pair(&self.aws_access_key_id, &self.aws_secret_access_key)
+            && match self.kind() {
+                Some(DeliveredCredentialKind::AWS_KEY_PAIR) => valid_pair(
+                    &self.aws_access_key_id,
+                    &self.aws_secret_access_key,
+                ),
+                Some(DeliveredCredentialKind::API_KEY) => {
+                    self.infobip_api_key.as_deref().is_some_and(valid_api_key)
+                }
+                None => false,
+            }
     }
 }
 
@@ -149,6 +244,9 @@ impl Drop for SidecarEntry {
         self.nonce.zeroize();
         self.aws_access_key_id.zeroize();
         self.aws_secret_access_key.zeroize();
+        if let Some(key) = self.infobip_api_key.as_mut() {
+            key.zeroize();
+        }
     }
 }
 
@@ -255,9 +353,10 @@ fn framed(context: &mut Context, part: &[u8]) {
 }
 
 /// SHA-256 over a fixed domain, the destination tenant's 16 UUID bytes, the
-/// reference, the random nonce and the exact pair, each length-prefixed. The
-/// 256-bit nonce hides the pair even if a secret were guessable; the tenant
-/// and reference stop a commitment being replayed for another destination or
+/// reference, the random nonce and the exact credential (the pair, or the
+/// API key under its own domain), each length-prefixed. The 256-bit nonce
+/// hides the credential even if a secret were guessable; the tenant and
+/// reference stop a commitment being replayed for another destination or
 /// account.
 pub fn commitment(
     tenant: &Uuid,
@@ -271,12 +370,24 @@ pub fn commitment(
             .map_err(|_| CredentialError::InvalidSidecar)?,
     );
     let mut context = Context::new(&SHA256);
-    context.update(COMMITMENT_DOMAIN);
+    let api_key = entry
+        .infobip_api_key
+        .as_deref()
+        .filter(|_| entry.kind() == Some(DeliveredCredentialKind::API_KEY));
+    context.update(match api_key {
+        Some(_) => API_KEY_COMMITMENT_DOMAIN,
+        None => COMMITMENT_DOMAIN,
+    });
     framed(&mut context, tenant.as_bytes());
     framed(&mut context, entry.reference.as_bytes());
     framed(&mut context, &nonce);
-    framed(&mut context, entry.aws_access_key_id.as_bytes());
-    framed(&mut context, entry.aws_secret_access_key.as_bytes());
+    match api_key {
+        Some(key) => framed(&mut context, key.as_bytes()),
+        None => {
+            framed(&mut context, entry.aws_access_key_id.as_bytes());
+            framed(&mut context, entry.aws_secret_access_key.as_bytes());
+        }
+    }
     Ok(hex::encode(context.finish().as_ref()))
 }
 
@@ -289,14 +400,15 @@ fn same(a: &str, b: &str) -> bool {
             == 0
 }
 
-/// The exact set match: every committed AWS account has exactly one entry
-/// whose commitment equals the signed one, and the sidecar names no other
-/// account or tenant. Returns the pairs by package reference key.
+/// The exact set match: every committed account has exactly one entry,
+/// holding the kind of credential its sender takes, whose commitment equals
+/// the signed one, and the sidecar names no other account or tenant.
+/// Returns the credentials by package reference key.
 pub fn verify_sidecar(
     definitions: &PortableMessagingAccounts,
     tenant: &Uuid,
     sidecar: &CredentialSidecar,
-) -> Result<BTreeMap<String, AwsStaticKeyPair>, CredentialError> {
+) -> Result<BTreeMap<String, DeliveredCredential>, CredentialError> {
     sidecar.validate()?;
     definitions
         .validate()
@@ -312,25 +424,24 @@ pub fn verify_sidecar(
     if committed.len() != sidecar.accounts.len() {
         return Err(CredentialError::SidecarMismatch);
     }
-    let mut pairs = BTreeMap::new();
+    let mut delivered = BTreeMap::new();
     for (account, signed) in committed {
-        if !matches!(
-            account.sender,
-            PortableSender::AWS_SES { .. } | PortableSender::AWS_SNS { .. }
-        ) {
-            return Err(CredentialError::SidecarMismatch);
-        }
         let entry = sidecar
             .accounts
             .iter()
             .find(|e| e.reference == account.reference)
             .ok_or(CredentialError::SidecarMismatch)?;
-        if !same(&commitment(tenant, entry)?, signed) {
+        if account.sender.delivered_credential().is_none()
+            || entry.kind() != account.sender.delivered_credential()
+            || !same(&commitment(tenant, entry)?, signed)
+        {
             return Err(CredentialError::SidecarMismatch);
         }
-        pairs.insert(account.reference_key(), entry.pair());
+        let credential =
+            entry.credential().ok_or(CredentialError::SidecarMismatch)?;
+        delivered.insert(account.reference_key(), credential);
     }
-    Ok(pairs)
+    Ok(delivered)
 }
 
 /// The deployment-derived, purpose-separated installation key. It is never
@@ -469,13 +580,161 @@ mod tests {
         Uuid::parse_str(s).unwrap()
     }
 
+    // Synthetic, format-valid, not an Infobip key.
+    const API_KEY: &str = "synthetic-infobip-api-key-0123456789abcdef";
+
     fn entry(reference: &str) -> SidecarEntry {
         SidecarEntry {
             reference: reference.into(),
             nonce: "07".repeat(32),
             aws_access_key_id: KEY_ID.into(),
             aws_secret_access_key: SECRET.into(),
+            infobip_api_key: None,
         }
+    }
+
+    fn api_entry(reference: &str) -> SidecarEntry {
+        SidecarEntry {
+            reference: reference.into(),
+            nonce: "07".repeat(32),
+            aws_access_key_id: String::new(),
+            aws_secret_access_key: String::new(),
+            infobip_api_key: Some(API_KEY.into()),
+        }
+    }
+
+    fn infobip_definitions(
+        commit_viber: Option<String>,
+        commit_whatsapp: Option<String>,
+    ) -> PortableMessagingAccounts {
+        let mut viber = serde_json::json!({"reference":"viber","name":"Demo Viber",
+            "sender":{"provider":"VIBER_INFOBIP","base_url":"https://abc-1.api.infobip.com","sender":"Demo"}});
+        let mut whatsapp = serde_json::json!({"reference":"whatsapp","name":"Demo WhatsApp",
+            "sender":{"provider":"WHATSAPP_INFOBIP","base_url":"https://abc-1.api.infobip.com","sender_number":"447796344125"}});
+        if let Some(c) = commit_viber {
+            viber["credential_commitment"] = c.into();
+        }
+        if let Some(c) = commit_whatsapp {
+            whatsapp["credential_commitment"] = c.into();
+        }
+        let doc = serde_json::json!({"format":"sequent.tenant-messaging-accounts/1","accounts":[viber, whatsapp]});
+        parse_accounts(&serde_json::to_vec(&doc).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn aws_entries_serialize_exactly_as_before() {
+        // Receivers and sealed records from before API keys read these bytes.
+        let bytes = sidecar(vec![entry("email")]).to_bytes().unwrap();
+        assert_eq!(
+            std::str::from_utf8(&bytes).unwrap(),
+            format!(
+                r#"{{"format":"sequent.messaging-credentials/1","tenant_id":"{TENANT}","accounts":[{{"reference":"email","nonce":"{}","aws_access_key_id":"{KEY_ID}","aws_secret_access_key":"{SECRET}"}}]}}"#,
+                "07".repeat(32)
+            )
+        );
+    }
+
+    #[test]
+    fn an_api_key_entry_is_strict_and_never_printed() {
+        let s = sidecar(vec![api_entry("viber")]);
+        let bytes = s.to_bytes().unwrap();
+        let text = std::str::from_utf8(&bytes).unwrap();
+        assert!(
+            text.contains(r#""infobip_api_key":"#) && !text.contains("aws_")
+        );
+        assert!(CredentialSidecar::parse(&bytes).is_ok());
+        let printed = format!("{s:?} {:?}", s.accounts[0]);
+        assert!(!printed.contains(API_KEY));
+        let mut both = api_entry("viber");
+        both.aws_access_key_id = KEY_ID.into();
+        both.aws_secret_access_key = SECRET.into();
+        let mut neither = api_entry("viber");
+        neither.infobip_api_key = None;
+        let mut half = api_entry("viber");
+        half.aws_access_key_id = KEY_ID.into();
+        assert!(sidecar(vec![both]).validate().is_err());
+        assert!(sidecar(vec![neither]).validate().is_err());
+        assert!(sidecar(vec![half]).validate().is_err());
+        for bad in [
+            "short-key",
+            "App 0123456789abcdef0123456789abcdef",
+            "key-with\nnewline-0123456789abcdef",
+            "key/with/slashes/0123456789abcdef",
+            &"k".repeat(257),
+        ] {
+            let mut e = api_entry("viber");
+            e.infobip_api_key = Some(bad.into());
+            assert!(sidecar(vec![e]).validate().is_err(), "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn api_key_commitment_binds_every_input() {
+        let t = tenant(TENANT);
+        let base = api_entry("viber");
+        let c = commitment(&t, &base).unwrap();
+        assert_ne!(c, commitment(&tenant(OTHER_TENANT), &base).unwrap());
+        let mut other = base.clone();
+        other.reference = "whatsapp".into();
+        assert_ne!(c, commitment(&t, &other).unwrap());
+        other = base.clone();
+        other.nonce = "08".repeat(32);
+        assert_ne!(c, commitment(&t, &other).unwrap());
+        other = base.clone();
+        other.infobip_api_key = Some(format!("{API_KEY}0"));
+        assert_ne!(c, commitment(&t, &other).unwrap());
+        // Independent vector (Python hashlib/struct/uuid): its own domain,
+        // then tenant, reference, nonce and key, each length-prefixed.
+        assert_eq!(
+            c,
+            "de759ca3a3f705f41262f54ad08ec06467b94bd0084d5077c6ec4abe542fa364"
+        );
+    }
+
+    #[test]
+    fn each_account_receives_only_its_own_kind_of_credential() {
+        let t = tenant(TENANT);
+        let viber = api_entry("viber");
+        let whatsapp = api_entry("whatsapp");
+        let both = infobip_definitions(
+            Some(commitment(&t, &viber).unwrap()),
+            Some(commitment(&t, &whatsapp).unwrap()),
+        );
+        let delivered =
+            verify_sidecar(&both, &t, &sidecar(vec![viber.clone(), whatsapp]))
+                .unwrap();
+        let DeliveredCredential::ApiKey(key) = &delivered["package:viber"]
+        else {
+            panic!("an API key");
+        };
+        assert_eq!(key.as_str(), API_KEY);
+        assert!(!format!("{:?}", delivered["package:viber"]).contains(API_KEY));
+        // An AWS pair for an Infobip account, committed as such, is refused.
+        let mut aws_for_viber = entry("viber");
+        aws_for_viber.reference = "viber".into();
+        let wrong = infobip_definitions(
+            Some(commitment(&t, &aws_for_viber).unwrap()),
+            None,
+        );
+        assert!(
+            verify_sidecar(&wrong, &t, &sidecar(vec![aws_for_viber])).is_err()
+        );
+        // An API key for an AWS account, committed as such, is refused.
+        let key_for_email = api_entry("email");
+        let wrong =
+            definitions(Some(commitment(&t, &key_for_email).unwrap()), None);
+        assert!(
+            verify_sidecar(&wrong, &t, &sidecar(vec![key_for_email])).is_err()
+        );
+        // Only the committed account: the other keeps the receiver's keys.
+        let one =
+            infobip_definitions(Some(commitment(&t, &viber).unwrap()), None);
+        assert_eq!(
+            verify_sidecar(&one, &t, &sidecar(vec![viber]))
+                .unwrap()
+                .len(),
+            1
+        );
     }
 
     fn sidecar(entries: Vec<SidecarEntry>) -> CredentialSidecar {
@@ -622,7 +881,11 @@ mod tests {
             pairs.keys().cloned().collect::<Vec<_>>(),
             ["package:email", "package:sms"]
         );
-        assert_eq!(pairs["package:email"].aws_access_key_id.as_str(), KEY_ID);
+        let DeliveredCredential::AwsKeyPair(pair) = &pairs["package:email"]
+        else {
+            panic!("an AWS key pair");
+        };
+        assert_eq!(pair.aws_access_key_id.as_str(), KEY_ID);
         // Missing, extra, foreign tenant, or a different pair: refused.
         assert!(
             verify_sidecar(&both, &t, &sidecar(vec![email.clone()])).is_err()

@@ -5,6 +5,7 @@
 //! Resolve signed package-local references to narrowly matched tenant accounts.
 //! Planning and applying the registry never run a provider or read its secrets.
 
+use super::accounts::check_account;
 use super::config::account_summary;
 use crate::postgres::messaging::{
     account_endpoint, check_account_update, empty_status, insert_messaging_account_with_id,
@@ -17,7 +18,8 @@ use anyhow::{anyhow, ensure, Context, Result};
 use chrono::{TimeZone, Utc};
 use deadpool_postgres::Transaction;
 use sequent_core::election_config::portable_messaging::{
-    PortableMessagingAccount, PortableMessagingAccounts, REF_PREFIX,
+    DeliveredCredentialKind, PortableMessagingAccount, PortableMessagingAccounts, PortableSender,
+    REF_PREFIX,
 };
 use sequent_core::types::messaging::{
     AccountCheck, AccountLimits, AccountSender, AccountSummary, CredentialName, ProviderApproval,
@@ -91,15 +93,21 @@ impl PortableRegistryPlan {
 }
 
 /// The only vault credential names a delivery may install: an explicitly
-/// signed AWS pair. An omitted commitment never deletes or changes local keys.
-fn installed_credential_names(definition: &PortableMessagingAccount) -> BTreeSet<CredentialName> {
-    if definition.credential_commitment.is_some() {
-        BTreeSet::from([
+/// signed AWS pair, or an explicitly signed Infobip API key. An omitted
+/// commitment never deletes or changes local credentials.
+pub(crate) fn installed_credential_names(
+    definition: &PortableMessagingAccount,
+) -> BTreeSet<CredentialName> {
+    if definition.credential_commitment.is_none() {
+        return BTreeSet::new();
+    }
+    match definition.sender.delivered_credential() {
+        Some(DeliveredCredentialKind::AWS_KEY_PAIR) => BTreeSet::from([
             CredentialName::AWS_ACCESS_KEY_ID,
             CredentialName::AWS_SECRET_ACCESS_KEY,
-        ])
-    } else {
-        BTreeSet::new()
+        ]),
+        Some(DeliveredCredentialKind::API_KEY) => BTreeSet::from([CredentialName::API_KEY]),
+        None => BTreeSet::new(),
     }
 }
 
@@ -261,17 +269,35 @@ fn replacement_settings(
         (
             AccountSender::VIBER_INFOBIP {
                 approved_templates: saved,
+                content_mode: saved_mode,
                 ..
             },
             AccountSender::VIBER_INFOBIP {
-                approved_templates, ..
+                approved_templates,
+                content_mode,
+                ..
             },
         ) => {
-            ensure!(
-                same_identity || saved.is_empty(),
-                "portable messaging reference {reference} cannot move a sender with tenant-managed template approvals"
-            );
-            approved_templates.clone_from(saved);
+            // What the package declares is the package's; what it leaves
+            // out stays as the tenant set it.
+            let PortableSender::VIBER_INFOBIP {
+                content_mode: declared_mode,
+                approved_templates: declared,
+                ..
+            } = &definition.sender
+            else {
+                unreachable!("a Viber account is declared as Viber");
+            };
+            if declared.is_none() {
+                ensure!(
+                    same_identity || saved.is_empty(),
+                    "portable messaging reference {reference} cannot move a sender with tenant-managed template approvals"
+                );
+                approved_templates.clone_from(saved);
+            }
+            if declared_mode.is_none() {
+                *content_mode = *saved_mode;
+            }
         }
         _ => {}
     }
@@ -388,7 +414,7 @@ fn plan_from_registry(
                     definition.credential_commitment.is_none()
                         || (account.id == incoming_id && account.created_at == account.updated_at
                             && has_pair(account, definition)),
-                    "portable messaging reference {reference} already exists on this tenant; its AWS keys are managed here, not by a package"
+                    "portable messaging reference {reference} already exists on this tenant; its credentials are managed here, not by a package"
                 );
                 (
                     account.id,
@@ -596,16 +622,16 @@ pub async fn apply(
     let current = plan_from_registry(tenant, package_sha, definitions, &existing, &owners)?;
     ensure!(current == *expected, CHANGED);
     // Resolve all required verified input before the first write.
-    let mut pairs = BTreeMap::new();
+    let mut delivered = BTreeMap::new();
     for definition in &definitions.accounts {
         let reference = definition.reference_key();
         if definition.credential_commitment.is_some()
             && current.bindings[&reference].action != RegistryAction::Reuse
         {
-            let pair = credentials
+            let credential = credentials
                 .and_then(|staged| staged.get(&reference))
                 .ok_or_else(|| anyhow!(package_credentials::NOT_ACCEPTED))?;
-            pairs.insert(reference, pair);
+            delivered.insert(reference, credential);
         }
     }
     for definition in &definitions.accounts {
@@ -650,8 +676,8 @@ pub async fn apply(
                 ensure!(changed == 1, CHANGED);
             }
         }
-        if let Some(pair) = pairs.get(&reference) {
-            package_credentials::install(tx, &tenant, id, pair).await?;
+        if let Some(credential) = delivered.get(&reference) {
+            package_credentials::install(tx, &tenant, id, credential).await?;
         }
         remember_install(tx, &tenant, id, &reference, package_sha).await?;
     }
@@ -694,6 +720,50 @@ pub async fn apply(
             CHANGED
         );
     }
+    Ok(installed)
+}
+
+/// Check, with their providers, the accounts this Apply created or replaced,
+/// in the transaction that wrote them (so their rows are still locked), and
+/// read the installed plan again. A check only stores the account's status,
+/// which the installed plan's fingerprints include: the event import, which
+/// compares them, then sees each account as it was checked here, and the
+/// purposes a passing check makes ready stay on. A provider that can't be
+/// reached, or an account without its credentials, stores why instead; that
+/// never fails the import, and those purposes stay off as before.
+pub async fn check_written(
+    tx: &Transaction<'_>,
+    tenant: Uuid,
+    package_sha: &str,
+    definitions: &PortableMessagingAccounts,
+    planned: &PortableRegistryPlan,
+    endpoints: &messaging::providers::Endpoints,
+) -> Result<PortableRegistryPlan> {
+    for binding in planned.bindings.values() {
+        if binding.action == RegistryAction::Reuse {
+            continue;
+        }
+        // A database error aborts the transaction, and the reads below
+        // report it; anything else (an unreadable credential, say) leaves
+        // the account unchecked, as the daily check would.
+        if let Err(error) = check_account(tx, &tenant, &binding.account_id, endpoints).await {
+            tracing::warn!(account = %binding.account_id, "package account check could not run: {error:#}");
+        }
+    }
+    let applied = list_registry_accounts(tx, &tenant).await?;
+    let owners = list_ownership(tx, &tenant).await?;
+    let installed = plan_from_registry(tenant, package_sha, definitions, &applied, &owners)?;
+    ensure!(!installed.needs_apply(), CHANGED);
+    ensure!(
+        installed.bindings.len() == planned.bindings.len()
+            && installed.bindings.iter().all(|(reference, binding)| {
+                planned
+                    .bindings
+                    .get(reference)
+                    .is_some_and(|before| before.account_id == binding.account_id)
+            }),
+        CHANGED
+    );
     Ok(installed)
 }
 
@@ -1030,6 +1100,148 @@ mod tests {
             plan_from_registry(tenant, SHA, &defs, &[row], &owners)
                 .unwrap()
                 .bindings["package:email"]
+                .action,
+            RegistryAction::Replace
+        );
+    }
+
+    fn infobip(sender: Value) -> PortableMessagingAccounts {
+        serde_json::from_value(json!({
+            "format":"sequent.tenant-messaging-accounts/1",
+            "accounts":[{"reference":"infobip","name":"Demo Infobip","sender":sender}]
+        }))
+        .unwrap()
+    }
+
+    fn viber(extra: Value) -> PortableMessagingAccounts {
+        let mut sender = json!({"provider":"VIBER_INFOBIP",
+            "base_url":"https://abc-1.api.infobip.com","sender":"Demo"});
+        for (k, v) in extra.as_object().unwrap() {
+            sender[k] = v.clone();
+        }
+        infobip(sender)
+    }
+
+    #[test]
+    fn each_committed_account_installs_only_its_own_kind_of_credential() {
+        let whatsapp = infobip(json!({"provider":"WHATSAPP_INFOBIP",
+            "base_url":"https://abc-1.api.infobip.com","sender_number":"447796344125"}));
+        let mut committed = whatsapp.clone();
+        committed.accounts[0].credential_commitment = Some("ab".repeat(32));
+        assert_eq!(
+            installed_credential_names(&committed.accounts[0]),
+            BTreeSet::from([CredentialName::API_KEY])
+        );
+        let mut viber = viber(json!({}));
+        viber.accounts[0].credential_commitment = Some("ab".repeat(32));
+        assert_eq!(
+            installed_credential_names(&viber.accounts[0]),
+            BTreeSet::from([CredentialName::API_KEY])
+        );
+        let mut aws = definitions();
+        aws.accounts[0].credential_commitment = Some("ab".repeat(32));
+        assert_eq!(
+            installed_credential_names(&aws.accounts[0]),
+            BTreeSet::from([
+                CredentialName::AWS_ACCESS_KEY_ID,
+                CredentialName::AWS_SECRET_ACCESS_KEY
+            ])
+        );
+        // Without a commitment nothing is installed, and nothing removed.
+        assert!(installed_credential_names(&whatsapp.accounts[0]).is_empty());
+    }
+
+    #[test]
+    fn whatsapp_through_infobip_is_created_from_its_declaration() {
+        let tenant = Uuid::from_u128(42);
+        let defs = infobip(json!({"provider":"WHATSAPP_INFOBIP",
+            "base_url":"https://abc-1.api.infobip.com","sender_number":"447796344125",
+            "display_name":"Demo Elections"}));
+        let wanted = settings(&defs.accounts[0]).unwrap();
+        assert_eq!(
+            wanted.channel,
+            sequent_core::types::messaging::MessageChannel::WHATSAPP
+        );
+        assert_eq!(
+            wanted.sender.provider(),
+            sequent_core::types::messaging::MessagingProvider::WHATSAPP_INFOBIP
+        );
+        let plan = plan_from_accounts(tenant, SHA, &defs, &[]).unwrap();
+        assert_eq!(
+            plan.bindings["package:infobip"].action,
+            RegistryAction::Create
+        );
+        // Without a key, an existing account of the same number is reused.
+        let existing = with_account(Uuid::from_u128(30), &defs);
+        let reused = plan_from_accounts(tenant, SHA, &defs, &[existing.clone()]).unwrap();
+        assert_eq!(
+            reused.bindings["package:infobip"].action,
+            RegistryAction::Reuse
+        );
+        assert_eq!(reused.bindings["package:infobip"].account_id, existing.id);
+    }
+
+    #[test]
+    fn viber_keeps_its_own_mode_and_approvals_unless_the_package_declares_them() {
+        use sequent_core::types::messaging::{MessagePurpose, ViberContentMode};
+        let tenant = Uuid::from_u128(42);
+        let plain = viber(json!({}));
+        let mut row = with_account(Uuid::from_u128(31), &plain);
+        let entered = BTreeMap::from([(
+            MessagePurpose::OTP,
+            BTreeMap::from([("en".to_string(), "entered-here".to_string())]),
+        )]);
+        if let AccountSender::VIBER_INFOBIP {
+            content_mode,
+            approved_templates,
+            ..
+        } = &mut row.sender
+        {
+            *content_mode = ViberContentMode::FREE_TEXT;
+            *approved_templates = entered.clone();
+        }
+        let owners: Ownership = BTreeMap::from([(
+            "package:infobip".into(),
+            ManagedAccount {
+                account_id: row.id,
+                applied_package_sha256: Some(SHA.into()),
+                credential_metadata: Some(json!({})),
+            },
+        )]);
+        let sender_of = |defs: &PortableMessagingAccounts| {
+            replacement_settings(&defs.accounts[0], &row)
+                .unwrap()
+                .sender
+        };
+        // Silent: the receiver's mode and approvals stay, so nothing changes.
+        assert_eq!(sender_of(&plain), row.sender);
+        assert_eq!(
+            plan_from_registry(tenant, OTHER_SHA, &plain, &[row.clone()], &owners)
+                .unwrap()
+                .bindings["package:infobip"]
+                .action,
+            RegistryAction::Reuse
+        );
+        // Declared: the package's own mode and approvals replace them.
+        let declared = viber(json!({"content_mode":"APPROVED_TEMPLATES",
+            "approved_templates":{"OTP":{"en":"from-package"},"NOTICE":{"en":"notice"}}}));
+        let AccountSender::VIBER_INFOBIP {
+            content_mode,
+            approved_templates,
+            ..
+        } = sender_of(&declared)
+        else {
+            panic!("VIBER_INFOBIP");
+        };
+        assert_eq!(content_mode, ViberContentMode::APPROVED_TEMPLATES);
+        assert_eq!(
+            approved_templates[&MessagePurpose::OTP]["en"],
+            "from-package"
+        );
+        assert_eq!(
+            plan_from_registry(tenant, OTHER_SHA, &declared, &[row.clone()], &owners)
+                .unwrap()
+                .bindings["package:infobip"]
                 .action,
             RegistryAction::Replace
         );

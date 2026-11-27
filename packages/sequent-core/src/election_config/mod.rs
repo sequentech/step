@@ -37,8 +37,9 @@ mod messaging_config;
 #[cfg(feature = "election_config_templates")]
 pub mod portable_messaging;
 
-/// AWS key pairs beside, never inside, a signed delivery: the sidecar, its
-/// signed commitment and the installation record seal.
+/// Messaging credentials (AWS key pairs, Infobip API keys) beside, never
+/// inside, a signed delivery: the sidecar, its signed commitment and the
+/// installation record seal.
 #[cfg(feature = "election_config_signing")]
 pub mod messaging_credentials;
 

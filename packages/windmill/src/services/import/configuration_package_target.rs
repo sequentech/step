@@ -10,7 +10,7 @@
 use super::configuration_package_apply::{
     PackageTarget, SectionPreview, SectionSubmission, TaskState,
 };
-use super::configuration_package_messaging::{explain, pending_note, PackageMessaging};
+use super::configuration_package_messaging::{explain, preview_note, PackageMessaging};
 use super::configuration_package_sections::{
     absent_admin_rows, admin_changes, admin_column_problems, admin_detail_problems,
     admin_permission_label_updates, admin_profile_updates, event_changes, merged_tenant,
@@ -718,7 +718,7 @@ impl PlatformTarget {
                                     Some(config) => {
                                         match portable.preview_event(&transaction, config, &replacement_map, &election_ids).await {
                                             Ok(preview) if !preview.pending.is_empty() => {
-                                                warnings.push(pending_note(&preview.pending));
+                                                warnings.push(preview_note(&preview.pending));
                                                 pending_messaging = preview.pending;
                                             }
                                             Ok(_) => {}
@@ -1180,7 +1180,7 @@ impl PackageTarget for PlatformTarget {
                 let mut db: DbClient = get_hasura_pool().await.get().await?;
                 let tx = db.transaction().await?;
                 let (changes, installed) = plan
-                    .install(&tx)
+                    .install(&tx, &messaging::providers::Endpoints::from_env())
                     .await
                     .map_err(|error| anyhow!("{}", portable_blocker(&error)))?;
                 let audit = task_audit::tenant_config(

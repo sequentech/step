@@ -4,9 +4,11 @@
 
 //! Credential-free sender identities bound by a signed delivery. A receiver
 //! maps these references to target-owned accounts; no authorization travels.
-use crate::types::messaging::AccountSender;
+use crate::types::messaging::{
+    AccountSender, MessagePurpose, ViberContentMode,
+};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub const MEMBER: &str = "tenant_messaging_accounts.json";
 pub const REF_PREFIX: &str = "package:";
@@ -31,10 +33,12 @@ pub struct PortableMessagingAccount {
     pub reference: String,
     pub name: String,
     pub sender: PortableSender,
-    /// AWS SES/SNS only: a hiding commitment to a static key pair that
-    /// travels beside the signed delivery, never inside it (see
-    /// `messaging_credentials`). Absent: the receiver keeps the account's
-    /// existing keys, or the service's workload role for a new account.
+    /// A hiding commitment to the account's credential, which travels
+    /// beside the signed delivery, never inside it (see
+    /// `messaging_credentials`): a static key pair for AWS SES/SNS, an API
+    /// key for Infobip (Viber, WhatsApp). Absent: the receiver keeps the
+    /// account's existing credentials (for a new AWS account, the
+    /// service's workload role; a new Infobip account waits for its key).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub credential_commitment: Option<String>,
 }
@@ -59,6 +63,24 @@ pub enum PortableSender {
     VIBER_INFOBIP {
         base_url: String,
         sender: String,
+        /// Absent: the receiver's default (approved templates), or the
+        /// account's current mode when it already exists.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        content_mode: Option<ViberContentMode>,
+        /// Template IDs the partner approved, per purpose, as language to
+        /// template ID: public, and not readable from Infobip. Absent: an
+        /// existing account keeps the approvals entered on it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        approved_templates:
+            Option<BTreeMap<MessagePurpose, BTreeMap<String, String>>>,
+    },
+    WHATSAPP_INFOBIP {
+        base_url: String,
+        /// The WhatsApp number registered with Infobip, in international
+        /// format, with or without `+`.
+        sender_number: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        display_name: Option<String>,
     },
     AWS_SNS {
         sender_id: Option<String>,
@@ -70,6 +92,16 @@ pub enum PortableSender {
         from_name: Option<String>,
         region: Option<String>,
     },
+}
+
+/// The kind of credential a sender's declaration may commit to.
+#[allow(non_camel_case_types)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DeliveredCredentialKind {
+    /// A long-term AWS access key ID and secret (AWS SES and SNS).
+    AWS_KEY_PAIR,
+    /// An Infobip API key (Viber and WhatsApp through Infobip).
+    API_KEY,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -127,17 +159,15 @@ impl PortableMessagingAccount {
     pub fn reference_key(&self) -> String {
         format!("{REF_PREFIX}{}", self.reference)
     }
-    /// Only AWS senders take a static key pair, and only as a SHA-256
-    /// commitment: 64 lowercase hexadecimal digits, never key material.
+    /// Only senders that take a delivered credential may commit to one, and
+    /// only as a SHA-256 commitment: 64 lowercase hexadecimal digits, never
+    /// key material.
     fn credential_commitment_valid(&self) -> bool {
         match &self.credential_commitment {
             None => true,
             Some(c) => {
-                matches!(
-                    self.sender,
-                    PortableSender::AWS_SES { .. }
-                        | PortableSender::AWS_SNS { .. }
-                ) && c.len() == 64
+                self.sender.delivered_credential().is_some()
+                    && c.len() == 64
                     && c.bytes().all(|b| {
                         b.is_ascii_digit() || (b'a'..=b'f').contains(&b)
                     })
@@ -173,14 +203,28 @@ impl PortableMessagingAccount {
                 api_version: api_version.clone(),
                 api_base_url: None,
             },
-            VIBER_INFOBIP { base_url, sender } => {
-                AccountSender::VIBER_INFOBIP {
-                    base_url: base_url.clone(),
-                    sender: sender.clone(),
-                    content_mode: Default::default(),
-                    approved_templates: Default::default(),
-                }
-            }
+            VIBER_INFOBIP {
+                base_url,
+                sender,
+                content_mode,
+                approved_templates,
+            } => AccountSender::VIBER_INFOBIP {
+                base_url: base_url.clone(),
+                sender: sender.clone(),
+                content_mode: content_mode.unwrap_or_default(),
+                approved_templates: approved_templates
+                    .clone()
+                    .unwrap_or_default(),
+            },
+            WHATSAPP_INFOBIP {
+                base_url,
+                sender_number,
+                display_name,
+            } => AccountSender::WHATSAPP_INFOBIP {
+                base_url: base_url.clone(),
+                sender_number: sender_number.clone(),
+                display_name: display_name.clone(),
+            },
             AWS_SNS {
                 sender_id,
                 origination_number,
@@ -274,7 +318,34 @@ fn email(s: &str) -> bool {
                 && part.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
         })
 }
+/// A language tag, as Viber templates are keyed: `en`, `pt-BR`, `es_419`.
+fn language(s: &str) -> bool {
+    (2..=16).contains(&s.len())
+        && s.as_bytes().first().is_some_and(u8::is_ascii_alphabetic)
+        && s.bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+}
+fn template_id(s: &str) -> bool {
+    (1..=128).contains(&s.len())
+        && s.bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
+}
 impl PortableSender {
+    /// The credential a declaration for this sender may commit to. `None`:
+    /// its credentials are only ever entered on the receiving system.
+    pub fn delivered_credential(&self) -> Option<DeliveredCredentialKind> {
+        use PortableSender::*;
+        match self {
+            AWS_SES { .. } | AWS_SNS { .. } => {
+                Some(DeliveredCredentialKind::AWS_KEY_PAIR)
+            }
+            VIBER_INFOBIP { .. } | WHATSAPP_INFOBIP { .. } => {
+                Some(DeliveredCredentialKind::API_KEY)
+            }
+            WHATSAPP_CLOUD_API { .. } | MESSENGER_SEND_API { .. } => None,
+        }
+    }
+
     fn valid(&self) -> bool {
         use PortableSender::*;
         match self {
@@ -308,8 +379,33 @@ impl PortableSender {
                     })
                     && graph_version(api_version)
             }
-            VIBER_INFOBIP { base_url, sender } => {
-                infobip(base_url) && label(sender)
+            VIBER_INFOBIP {
+                base_url,
+                sender,
+                content_mode: _,
+                approved_templates,
+            } => {
+                infobip(base_url)
+                    && label(sender)
+                    && approved_templates.as_ref().is_none_or(|purposes| {
+                        purposes.values().all(|languages| {
+                            languages
+                                .iter()
+                                .all(|(l, id)| language(l) && template_id(id))
+                        })
+                    })
+            }
+            WHATSAPP_INFOBIP {
+                base_url,
+                sender_number,
+                display_name,
+            } => {
+                let number =
+                    sender_number.strip_prefix('+').unwrap_or(sender_number);
+                infobip(base_url)
+                    && digits(number, 5, 15)
+                    && !number.starts_with('0')
+                    && display_name.as_deref().is_none_or(label)
             }
             AWS_SNS {
                 sender_id,
@@ -636,7 +732,8 @@ mod tests {
     }
 
     #[test]
-    fn only_aws_senders_take_a_hex_commitment_and_never_raw_keys() {
+    fn only_senders_with_delivered_credentials_take_a_hex_commitment_never_keys(
+    ) {
         let commitment = "ab".repeat(32);
         let aws = |provider: &str, extra: serde_json::Value| {
             let mut sender = serde_json::json!({"provider": provider, "region": "us-east-1"});
@@ -693,6 +790,168 @@ mod tests {
             "sender":{"provider":"MESSENGER_SEND_API","page_id":"123","api_version":"v23.0"},
             "credential_commitment": commitment}]});
         assert!(parse(&serde_json::to_vec(&meta).unwrap()).is_err());
+    }
+
+    fn one(sender: serde_json::Value) -> serde_json::Value {
+        serde_json::json!({"format":FORMAT,"accounts":[
+            {"reference":"infobip","name":"Demo Infobip","sender":sender}
+        ]})
+    }
+
+    fn parsed(doc: &serde_json::Value) -> Option<PortableMessagingAccounts> {
+        parse(&serde_json::to_vec(doc).unwrap()).ok()
+    }
+
+    #[test]
+    fn whatsapp_through_infobip_is_a_portable_sender() {
+        use crate::types::messaging::MessageChannel;
+        let sender = serde_json::json!({"provider":"WHATSAPP_INFOBIP",
+            "base_url":"https://abc-1.api.infobip.com","sender_number":"447796344125",
+            "display_name":"Demo Elections"});
+        let bundle = parsed(&one(sender.clone())).unwrap();
+        assert_eq!(
+            bundle.accounts[0].account_sender(),
+            AccountSender::WHATSAPP_INFOBIP {
+                base_url: "https://abc-1.api.infobip.com".into(),
+                sender_number: "447796344125".into(),
+                display_name: Some("Demo Elections".into()),
+            }
+        );
+        assert_eq!(
+            bundle.accounts[0].account_sender().provider().channel(),
+            Some(MessageChannel::WHATSAPP)
+        );
+        let mut plus = sender.clone();
+        plus["sender_number"] = "+447796344125".into();
+        assert!(parsed(&one(plus)).is_some());
+        let mut unnamed = sender.clone();
+        unnamed.as_object_mut().unwrap().remove("display_name");
+        assert!(parsed(&one(unnamed)).is_some());
+        for (field, bad) in [
+            ("base_url", "https://api.infobip.com.attacker.test"),
+            ("base_url", "http://abc-1.api.infobip.com"),
+            ("sender_number", "0447796344125"),
+            ("sender_number", "44 7796 344125"),
+            ("sender_number", "1234"),
+            ("display_name", " padded"),
+        ] {
+            let mut doc = sender.clone();
+            doc[field] = bad.into();
+            assert!(parsed(&one(doc)).is_none(), "{field}={bad}");
+        }
+        // Credentials never have a field in the declaration.
+        for field in ["api_key", "credentials", "report_password"] {
+            let mut doc = sender.clone();
+            doc[field] = "CANARY-NOT-IN-ERROR".into();
+            let err =
+                parse(&serde_json::to_vec(&one(doc)).unwrap()).unwrap_err();
+            assert!(!err.to_string().contains("CANARY"));
+        }
+    }
+
+    #[test]
+    fn viber_carries_its_content_mode_and_approved_template_ids() {
+        use crate::types::messaging::{MessagePurpose, ViberContentMode};
+        let base = serde_json::json!({"provider":"VIBER_INFOBIP",
+            "base_url":"https://abc-1.api.infobip.com","sender":"Demo Voice"});
+        // Omitted: the receiver's defaults, and the signed bytes of older
+        // declarations stay exactly as they were.
+        let plain = parsed(&one(base.clone())).unwrap();
+        let AccountSender::VIBER_INFOBIP {
+            content_mode,
+            approved_templates,
+            ..
+        } = plain.accounts[0].account_sender()
+        else {
+            panic!("VIBER_INFOBIP");
+        };
+        assert_eq!(content_mode, ViberContentMode::APPROVED_TEMPLATES);
+        assert!(approved_templates.is_empty());
+        let printed = serde_json::to_string(&plain).unwrap();
+        assert!(
+            !printed.contains("content_mode")
+                && !printed.contains("approved_templates")
+        );
+
+        let mut free = base.clone();
+        free["content_mode"] = "FREE_TEXT".into();
+        let AccountSender::VIBER_INFOBIP { content_mode, .. } =
+            parsed(&one(free)).unwrap().accounts[0].account_sender()
+        else {
+            panic!("VIBER_INFOBIP");
+        };
+        assert_eq!(content_mode, ViberContentMode::FREE_TEXT);
+
+        let mut templated = base.clone();
+        templated["approved_templates"] = serde_json::json!({
+            "OTP": {"en": "otp-en-1", "es": "otp_es.2"},
+            "NOTICE": {"en": "notice-en"}
+        });
+        let AccountSender::VIBER_INFOBIP {
+            approved_templates, ..
+        } = parsed(&one(templated.clone())).unwrap().accounts[0]
+            .account_sender()
+        else {
+            panic!("VIBER_INFOBIP");
+        };
+        assert_eq!(approved_templates[&MessagePurpose::OTP]["es"], "otp_es.2");
+        assert_eq!(
+            approved_templates[&MessagePurpose::NOTICE]["en"],
+            "notice-en"
+        );
+        for bad in [
+            serde_json::json!({"OTP": {"en": ""}}),
+            serde_json::json!({"OTP": {"en": "has space"}}),
+            serde_json::json!({"OTP": {"": "otp"}}),
+            serde_json::json!({"OTP": {"english language": "otp"}}),
+            serde_json::json!({"OTP": {"en": "x".repeat(129)}}),
+            serde_json::json!({"MARKETING": {"en": "otp"}}),
+        ] {
+            let mut doc = base.clone();
+            doc["approved_templates"] = bad.clone();
+            assert!(parsed(&one(doc)).is_none(), "{bad}");
+        }
+        let mut unknown_mode = base;
+        unknown_mode["content_mode"] = "SOMETHING".into();
+        assert!(parsed(&one(unknown_mode)).is_none());
+    }
+
+    #[test]
+    fn infobip_senders_take_an_api_key_commitment() {
+        let commitment = "cd".repeat(32);
+        for sender in [
+            serde_json::json!({"provider":"VIBER_INFOBIP",
+                "base_url":"https://abc-1.api.infobip.com","sender":"Demo Voice"}),
+            serde_json::json!({"provider":"WHATSAPP_INFOBIP",
+                "base_url":"https://abc-1.api.infobip.com","sender_number":"447796344125"}),
+        ] {
+            let mut doc = one(sender);
+            let bundle = parsed(&doc).unwrap();
+            assert_eq!(
+                bundle.accounts[0].sender.delivered_credential(),
+                Some(DeliveredCredentialKind::API_KEY)
+            );
+            doc["accounts"][0]["credential_commitment"] =
+                commitment.clone().into();
+            assert!(parsed(&doc).is_some());
+            doc["accounts"][0]["credential_commitment"] =
+                "CD".repeat(32).into();
+            assert!(parsed(&doc).is_none());
+        }
+        let ses = parsed(&serde_json::json!({"format":FORMAT,"accounts":[
+            {"reference":"email","name":"Demo Email","sender":{"provider":"AWS_SES","from_address":"demo@example.invalid"}}
+        ]}))
+        .unwrap();
+        assert_eq!(
+            ses.accounts[0].sender.delivered_credential(),
+            Some(DeliveredCredentialKind::AWS_KEY_PAIR)
+        );
+        let cloud =
+            parsed(&one(serde_json::json!({"provider":"WHATSAPP_CLOUD_API",
+            "business_account_id":"123","phone_number_id":"456",
+            "display_phone_number":"+631234567890","api_version":"v23.0"})))
+            .unwrap();
+        assert_eq!(cloud.accounts[0].sender.delivered_credential(), None);
     }
 
     fn sms() -> serde_json::Value {

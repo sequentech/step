@@ -13,7 +13,7 @@ use crate::services::messaging::portable_registry::{self, PortableRegistryPlan, 
 use anyhow::{anyhow, ensure, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::election_config::portable_messaging::{
-    validate_event_references, PortableMessagingAccounts, REF_PREFIX,
+    validate_event_references, DeliveredCredentialKind, PortableMessagingAccounts, REF_PREFIX,
 };
 use sequent_core::signing::sha256_hex;
 use sequent_core::types::messaging::{
@@ -34,8 +34,9 @@ pub struct PackageMessaging {
     digest: String,
     definitions: PortableMessagingAccounts,
     confirmed: Option<String>,
-    /// The protected staging document whose vault entry holds any AWS key
-    /// pairs delivered with this package. Set by the server, never the package.
+    /// The protected staging document whose vault entry holds any
+    /// credentials (AWS key pairs, Infobip API keys) delivered with this
+    /// package. Set by the server, never the package.
     staged_document: Option<Uuid>,
     /// The task's verified actor (the JWT-derived audit user ID Harvest put
     /// in the task body): staged credentials are only for their uploader.
@@ -173,9 +174,13 @@ impl PackageMessaging {
                     "channel": provider.channel(),
                     "action": binding.action,
                 });
-                // Only that keys are delivered: never a value, ID or digest.
+                // Only which kind of credential is delivered: never a value,
+                // ID or digest.
                 if definition.credential_commitment.is_some() {
-                    row["credentials"] = json!("AWS_STATIC_KEY_PAIR");
+                    row["credentials"] = match definition.sender.delivered_credential() {
+                        Some(DeliveredCredentialKind::API_KEY) => json!("API_KEY"),
+                        _ => json!("AWS_STATIC_KEY_PAIR"),
+                    };
                 }
                 Ok(row)
             })
@@ -194,9 +199,12 @@ impl PackageMessaging {
             .collect())
     }
 
+    /// Installs the reviewed accounts and their delivered credentials, then
+    /// checks the accounts it wrote with their providers, all in `tx`.
     pub(crate) async fn install(
         &self,
         tx: &Transaction<'_>,
+        endpoints: &messaging::providers::Endpoints,
     ) -> Result<(Value, PortableRegistryPlan)> {
         ensure!(self.confirmed.is_some(), "{STALE}");
         let planned = self.snapshot.get().ok_or_else(|| anyhow!("{STALE}"))?;
@@ -213,10 +221,20 @@ impl PackageMessaging {
             credentials.as_ref(),
         )
         .await?;
-        // Same transaction: the staged pair goes only once its keys are in.
+        // Same transaction: the staged credentials go only once they are in.
         if let (Some(_), Some(document)) = (&credentials, &self.staged_document) {
             package_credentials::discard(tx, &self.tenant, document).await?;
         }
+        debug_assert!(!installed.needs_apply());
+        let installed = portable_registry::check_written(
+            tx,
+            self.tenant,
+            &self.digest,
+            &self.definitions,
+            planned,
+            endpoints,
+        )
+        .await?;
         Ok((self.changes(planned)?, installed))
     }
 
@@ -405,8 +423,24 @@ pub(crate) fn explain(error: &MessagingConfigError) -> String {
     }
 }
 
+/// Preview's note: the purposes not ready on the accounts as they are now.
+/// Apply checks the accounts it creates or replaces, so some may pass then.
+pub(crate) fn preview_note(pending: &[PendingMessaging]) -> String {
+    format!(
+        "Not ready yet: {}. Apply checks the accounts this package creates or replaces with their providers and keeps on what passes; anything else is turned off until its credentials, accounts and templates are fixed.",
+        pending_channels(pending)
+    )
+}
+
 pub(crate) fn pending_note(pending: &[PendingMessaging]) -> String {
-    let channels = pending
+    format!(
+        "Sending is off for {}. Configure the destination credentials, check the accounts and templates, then enable the purposes in the event.",
+        pending_channels(pending)
+    )
+}
+
+fn pending_channels(pending: &[PendingMessaging]) -> String {
+    pending
         .iter()
         .map(|row| {
             format!(
@@ -419,11 +453,8 @@ pub(crate) fn pending_note(pending: &[PendingMessaging]) -> String {
                     .join(", ")
             )
         })
-        .collect::<Vec<_>>();
-    format!(
-        "Sending is off for {}. Configure the destination credentials, check the accounts and templates, then enable the purposes in the event.",
-        channels.join("; ")
-    )
+        .collect::<Vec<_>>()
+        .join("; ")
 }
 
 #[cfg(test)]
@@ -608,5 +639,101 @@ mod tests {
         assert!(problem
             .to_string()
             .contains("the referenced sending account is missing in this tenant"));
+    }
+
+    /// The accounts as Apply's own check leaves them: connected, and for
+    /// WhatsApp the approved templates the number's listing named.
+    fn checked_infobip() -> (Vec<AccountSummary>, Value) {
+        let definitions = portable_messaging::parse(&serde_json::to_vec(&json!({
+            "format": "sequent.tenant-messaging-accounts/1",
+            "accounts": [
+                {"reference":"whatsapp","name":"Demo WhatsApp","sender":{"provider":"WHATSAPP_INFOBIP",
+                    "base_url":"https://demo.api.infobip.com","sender_number":"447796344125"}},
+                {"reference":"viber","name":"Demo Viber","sender":{"provider":"VIBER_INFOBIP",
+                    "base_url":"https://demo.api.infobip.com","sender":"Demo","content_mode":"FREE_TEXT"}}
+            ]
+        })).unwrap()).unwrap();
+        let mut accounts = vec![];
+        let mut channels = vec![];
+        for (index, definition) in definitions.accounts.iter().enumerate() {
+            let sender = definition.account_sender();
+            let provider = sender.provider();
+            let channel = provider.channel().unwrap();
+            let id = format!("10000000-0000-4000-8000-{index:012x}");
+            let mut check = AccountCheck {
+                connected: true,
+                production_access: true,
+                checked_at: Some("2026-11-27T00:00:00Z".into()),
+                ..Default::default()
+            };
+            check.details.identity = Some(sender.identity());
+            let mut row = json!({"channel":channel,"account_id":id,"purposes":["OTP","NOTICE"]});
+            if channel == MessageChannel::WHATSAPP {
+                check.approved_templates = BTreeMap::from([
+                    (MessagePurpose::OTP, vec!["en".to_string()]),
+                    (MessagePurpose::NOTICE, vec!["en".to_string()]),
+                ]);
+                row["templates"] = json!([
+                    {"purpose":"OTP","language":"en","provider_template":"otp_code"},
+                    {"purpose":"NOTICE","language":"en","provider_template":"election_notice"}
+                ]);
+            }
+            accounts.push(AccountSummary {
+                id: id.clone(),
+                tenant_id: TENANT.into(),
+                channel,
+                provider,
+                capabilities: sender.capabilities(channel).unwrap(),
+                provider_approval: ProviderApproval::PENDING,
+                readiness: ReadinessPolicy::PROVIDER_CHECK,
+                check,
+                identity: Some(sender.identity()),
+                public_label: None,
+                messenger_page: None,
+                callback_blockers: vec![ReadinessBlocker::CALLBACK_NOT_CONFIGURED],
+            });
+            channels.push(row);
+        }
+        (accounts, json!({"version":1,"channels":channels}))
+    }
+
+    #[test]
+    fn infobip_accounts_that_pass_their_check_keep_every_purpose() {
+        let (accounts, config) = checked_infobip();
+        let portable = accounts.iter().map(|a| a.channel).collect();
+        let intended: EventMessagingConfig = serde_json::from_value(config).unwrap();
+        let prepared = prepare(intended.clone(), TENANT, &[], &accounts, &portable).unwrap();
+        assert_eq!(prepared.pending, vec![]);
+        let saved: EventMessagingConfig = serde_json::from_value(prepared.config).unwrap();
+        for purpose in [MessagePurpose::OTP, MessagePurpose::NOTICE] {
+            assert_eq!(
+                saved.enabled_channels(purpose, None),
+                [MessageChannel::WHATSAPP, MessageChannel::VIBER]
+            );
+        }
+        // Unchecked (no key delivered, or the provider refused it): off.
+        let unchecked: Vec<_> = accounts
+            .into_iter()
+            .map(|mut account| {
+                account.check = AccountCheck::default();
+                account
+            })
+            .collect();
+        let prepared = prepare(intended, TENANT, &[], &unchecked, &portable).unwrap();
+        assert_eq!(prepared.pending.len(), 2);
+    }
+
+    #[test]
+    fn preview_says_apply_checks_the_accounts_before_anything_stays_off() {
+        let pending = [PendingMessaging {
+            channel: MessageChannel::WHATSAPP,
+            purposes: BTreeSet::from([MessagePurpose::OTP, MessagePurpose::NOTICE]),
+        }];
+        let note = preview_note(&pending);
+        assert!(
+            note.starts_with("Not ready yet: WHATSAPP (OTP, NOTICE)."),
+            "{note}"
+        );
+        assert!(note.contains("Apply checks"), "{note}");
     }
 }
