@@ -5,13 +5,16 @@
 //! platform already keeps of a live election event.
 //!
 //! Findings about a voter never carry a Ballot ID and findings about a ballot
-//! never name its voter.
+//! never name its voter. In a pseudonymous election event the checks never
+//! link a voter to a ballot at all: ballots are found by the Ballot IDs the
+//! voters were shown, and voters by their participation records.
 use super::{
     definition::Probe,
     ledger::{Finding, Subject},
 };
 use anyhow::Result;
 use chrono::{DateTime, Utc};
+use electoral_log::adapters::privacy::{normalize_privacy_code, BallotIdentity};
 use sequent_core::{
     ballot::{HashableBallot, SignedHashableBallot},
     encrypt::{hash_ballot_sha512, hash_multi_ballot_sha512},
@@ -59,6 +62,18 @@ impl StoredBallot {
     }
 }
 
+/// A valid cast ballot of a pseudonymous election event, found by the Ballot
+/// ID its voter was shown. It does not say who cast it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CastBallot {
+    /// The short Ballot ID of its receipt.
+    pub ballot_id: String,
+    /// Hex of the ballot hash the ballot box stored it under.
+    pub ballot_hash: String,
+    pub content: String,
+    pub cast_at: DateTime<Utc>,
+}
+
 /// A cast vote statement in the event's log.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LoggedCast {
@@ -72,8 +87,18 @@ pub trait VotingRecords {
     fn voter(&self, event: &str, username: &str) -> Result<Option<Voter>>;
     fn user_events(&self, event: &str, voter_id: &str) -> Result<Vec<UserEvent>>;
     fn published_areas(&self, event: &str, areas: &[String]) -> Result<BTreeSet<String>>;
+    fn ballot_identity(&self, event: &str) -> Result<BallotIdentity>;
+    /// Voter-id events only.
     fn stored_ballots(&self, event: &str, voter_ids: &[String]) -> Result<Vec<StoredBallot>>;
+    /// Voter-id events only.
     fn logged_casts(&self, event: &str, voter_id: &str) -> Result<Vec<LoggedCast>>;
+    /// Pseudonymous events: which of the voters voted.
+    fn participants(&self, event: &str, voter_ids: &[String]) -> Result<BTreeSet<String>>;
+    /// Pseudonymous events: the valid cast ballots with these Ballot IDs.
+    fn cast_ballots(&self, event: &str, ballot_ids: &[String]) -> Result<Vec<CastBallot>>;
+    /// Pseudonymous events: Ballot IDs of the cast vote statements in the
+    /// event's log since `since`.
+    fn private_casts(&self, event: &str, since: DateTime<Utc>) -> Result<BTreeSet<String>>;
 }
 
 /// Keycloak's event for a completed sign-in.
@@ -86,16 +111,23 @@ pub struct VoterFacts {
     pub events: Vec<UserEvent>,
     pub ballots: Vec<StoredBallot>,
     pub logged: Vec<LoggedCast>,
+    /// Pseudonymous events: whether the voter has voted in the event.
+    pub participated: bool,
 }
 
 /// Everything the probes need, read once so all checks judge the same state.
 #[derive(Debug)]
 pub struct Facts {
     pub since: DateTime<Utc>,
+    pub identity: BallotIdentity,
     pub voters: Vec<VoterFacts>,
     pub published_areas: BTreeSet<String>,
     /// Ballot IDs read from the voters' confirmation screens or receipts.
     pub presented_ballot_ids: Vec<String>,
+    /// Pseudonymous events: the presented ballots cast since `since`.
+    pub cast_ballots: Vec<CastBallot>,
+    /// Pseudonymous events: Ballot IDs with a cast vote statement in the log.
+    pub private_casts: BTreeSet<String>,
 }
 
 impl Facts {
@@ -107,13 +139,17 @@ impl Facts {
         presented_ballot_ids: Vec<String>,
         since: DateTime<Utc>,
     ) -> Result<Self> {
+        let identity = records.ballot_identity(event)?;
         let mut voters = Vec::new();
         for username in usernames {
             let voter = records.voter(event, username)?;
             let (events, logged) = match &voter {
                 Some(voter) => (
                     records.user_events(event, &voter.id)?,
-                    records.logged_casts(event, &voter.id)?,
+                    match identity {
+                        BallotIdentity::VoterId => records.logged_casts(event, &voter.id)?,
+                        BallotIdentity::Pseudonym => vec![],
+                    },
                 ),
                 None => Default::default(),
             };
@@ -123,6 +159,7 @@ impl Facts {
                 events: events.into_iter().filter(|e| e.at >= since).collect(),
                 ballots: vec![],
                 logged,
+                participated: false,
             });
         }
         let found = |facts: &VoterFacts| facts.voter.clone();
@@ -138,27 +175,67 @@ impl Facts {
         } else {
             records.published_areas(event, &areas)?
         };
-        if !ids.is_empty() {
-            for ballot in records.stored_ballots(event, &ids)? {
-                if ballot.cast_at < since {
-                    continue;
+        let mut cast_ballots = vec![];
+        let mut private_casts = BTreeSet::new();
+        match identity {
+            BallotIdentity::VoterId if !ids.is_empty() => {
+                for ballot in records.stored_ballots(event, &ids)? {
+                    if ballot.cast_at < since {
+                        continue;
+                    }
+                    if let Some(facts) = voters.iter_mut().find(|facts| {
+                        facts
+                            .voter
+                            .as_ref()
+                            .is_some_and(|voter| voter.id == ballot.voter_id)
+                    }) {
+                        facts.ballots.push(ballot);
+                    }
                 }
-                if let Some(facts) = voters.iter_mut().find(|facts| {
-                    facts
-                        .voter
-                        .as_ref()
-                        .is_some_and(|voter| voter.id == ballot.voter_id)
-                }) {
-                    facts.ballots.push(ballot);
+            }
+            BallotIdentity::VoterId => {}
+            BallotIdentity::Pseudonym => {
+                if !ids.is_empty() {
+                    let participants = records.participants(event, &ids)?;
+                    for facts in &mut voters {
+                        facts.participated = facts
+                            .voter
+                            .as_ref()
+                            .is_some_and(|voter| participants.contains(&voter.id));
+                    }
+                }
+                let codes: BTreeSet<String> = presented_ballot_ids
+                    .iter()
+                    .map(|id| privacy_code(id))
+                    .collect();
+                if !codes.is_empty() {
+                    let codes: Vec<String> = codes.into_iter().collect();
+                    cast_ballots = records
+                        .cast_ballots(event, &codes)?
+                        .into_iter()
+                        .filter(|ballot| ballot.cast_at >= since)
+                        .collect();
+                    private_casts = records.private_casts(event, since)?;
                 }
             }
         }
         Ok(Self {
             since,
+            identity,
             voters,
             published_areas,
             presented_ballot_ids,
+            cast_ballots,
+            private_casts,
         })
+    }
+
+    /// Pseudonymous events: the cast ballot a presented Ballot ID names.
+    fn cast_ballot(&self, presented: &str) -> Option<&CastBallot> {
+        let code = privacy_code(presented);
+        self.cast_ballots
+            .iter()
+            .find(|ballot| same_id(&ballot.ballot_id, &code))
     }
 
     fn ballots(&self) -> impl Iterator<Item = (&VoterFacts, &StoredBallot)> {
@@ -173,16 +250,29 @@ pub fn probe(probe: Probe, facts: &Facts) -> Result<Vec<Finding>, String> {
     if facts.voters.is_empty() {
         return Err("no voters were given".into());
     }
-    match probe {
-        Probe::VoterAuthenticated => Ok(voter_authenticated(facts)),
-        Probe::BallotPublished => Ok(ballot_published(facts)),
-        Probe::BallotCast => Ok(ballot_cast(facts)),
-        Probe::ReceiptProduced => receipt_produced(facts),
-        Probe::BallotStored => Ok(ballot_stored(facts)),
+    match (probe, facts.identity) {
+        (Probe::VoterAuthenticated, _) => Ok(voter_authenticated(facts)),
+        (Probe::BallotPublished, _) => Ok(ballot_published(facts)),
+        (Probe::BallotCast, BallotIdentity::VoterId) => Ok(ballot_cast(facts)),
+        (Probe::BallotCast, BallotIdentity::Pseudonym) => Ok(participation(facts)),
+        (Probe::ReceiptProduced, BallotIdentity::VoterId) => receipt_produced(facts),
+        (Probe::ReceiptProduced, BallotIdentity::Pseudonym) => receipt_by_ballot_id(facts),
+        (Probe::BallotStored, BallotIdentity::VoterId) => Ok(ballot_stored(facts)),
+        (Probe::BallotStored, BallotIdentity::Pseudonym) => ballot_stored_by_ballot_id(facts),
     }
 }
 
 const NOT_A_VOTER: &str = "is not a voter of this election event";
+
+const NO_BALLOT_IDS: &str = "no Ballot IDs from confirmation screens or receipts were given";
+
+const NO_CAST_BALLOTS: &str = "the checked voters have no cast ballots";
+
+/// A presented Ballot ID in the form pseudonymous receipts show it, or as
+/// given when it is not one.
+fn privacy_code(id: &str) -> String {
+    normalize_privacy_code(id).unwrap_or_else(|| id.trim().to_owned())
+}
 
 /// Name of findings about the voters of a run as a whole.
 const CHECKED_VOTERS: &str = "checked voters";
@@ -286,7 +376,7 @@ fn same_id(left: &str, right: &str) -> bool {
 fn receipt_produced(facts: &Facts) -> Result<Vec<Finding>, String> {
     let presented = &facts.presented_ballot_ids;
     if presented.is_empty() {
-        return Err("no Ballot IDs from confirmation screens or receipts were given".into());
+        return Err(NO_BALLOT_IDS.into());
     }
     let mut findings: Vec<Finding> = presented
         .iter()
@@ -312,11 +402,7 @@ fn receipt_produced(facts: &Facts) -> Result<Vec<Finding>, String> {
         .filter(|(_, ballot)| !presented.iter().any(|id| ballot.presented_as(id)))
         .count();
     findings.push(if stored == 0 {
-        Finding::fail(
-            Subject::Stage,
-            CHECKED_VOTERS,
-            "the checked voters have no cast ballots",
-        )
+        Finding::fail(Subject::Stage, CHECKED_VOTERS, NO_CAST_BALLOTS)
     } else if missing > 0 {
         Finding::fail(
             Subject::Stage,
@@ -328,6 +414,75 @@ fn receipt_produced(facts: &Facts) -> Result<Vec<Finding>, String> {
             Subject::Stage,
             CHECKED_VOTERS,
             format!("the Ballot ID of every cast ballot was presented: {stored}"),
+        )
+    });
+    Ok(findings)
+}
+
+/// Pseudonymous events: whether each voter voted, from the participation
+/// records. They carry no time, so a vote before `since` counts too.
+fn participation(facts: &Facts) -> Vec<Finding> {
+    facts
+        .voters
+        .iter()
+        .map(|facts_of| {
+            let name = facts_of.username.as_str();
+            if facts_of.voter.is_none() {
+                Finding::fail(Subject::Voter, name, NOT_A_VOTER)
+            } else if facts_of.participated {
+                Finding::pass(Subject::Voter, name, "has voted in this election event")
+            } else {
+                Finding::fail(Subject::Voter, name, "has not voted in this election event")
+            }
+        })
+        .collect()
+}
+
+/// Pseudonymous events: every presented Ballot ID names a ballot cast in this
+/// run, and there are at least as many of them as checked voters who voted.
+/// Without linking voters to ballots, which ballot is whose is not known.
+fn receipt_by_ballot_id(facts: &Facts) -> Result<Vec<Finding>, String> {
+    let presented = &facts.presented_ballot_ids;
+    if presented.is_empty() {
+        return Err(NO_BALLOT_IDS.into());
+    }
+    let mut matched = BTreeSet::new();
+    let mut findings: Vec<Finding> = presented
+        .iter()
+        .map(|id| match facts.cast_ballot(id) {
+            Some(ballot) => {
+                matched.insert(ballot.ballot_id.as_str());
+                Finding::pass(
+                    Subject::Ballot,
+                    id,
+                    "is a ballot cast in this election event",
+                )
+            }
+            None => Finding::fail(
+                Subject::Ballot,
+                id,
+                format!(
+                    "is not a ballot cast in this election event since {}",
+                    facts.since.to_rfc3339()
+                ),
+            ),
+        })
+        .collect();
+    let voted = facts.voters.iter().filter(|f| f.participated).count();
+    let matched = matched.len();
+    findings.push(if voted == 0 {
+        Finding::fail(Subject::Stage, CHECKED_VOTERS, NO_CAST_BALLOTS)
+    } else if matched < voted {
+        Finding::fail(
+            Subject::Stage,
+            CHECKED_VOTERS,
+            format!("presented Ballot IDs of cast ballots: {matched}, fewer than the checked voters who voted: {voted}"),
+        )
+    } else {
+        Finding::pass(
+            Subject::Stage,
+            CHECKED_VOTERS,
+            format!("presented Ballot IDs of cast ballots: {matched}; checked voters who voted: {voted}"),
         )
     });
     Ok(findings)
@@ -397,10 +552,65 @@ fn ballot_stored(facts: &Facts) -> Vec<Finding> {
         findings.push(Finding::fail(
             Subject::Stage,
             CHECKED_VOTERS,
-            "the checked voters have no cast ballots",
+            NO_CAST_BALLOTS,
         ));
     }
     findings
+}
+
+/// Pseudonymous events: each presented cast ballot is stored under the hash
+/// of its content and its cast vote statement is in the event's log.
+fn ballot_stored_by_ballot_id(facts: &Facts) -> Result<Vec<Finding>, String> {
+    if facts.presented_ballot_ids.is_empty() {
+        return Err(NO_BALLOT_IDS.into());
+    }
+    let mut findings: Vec<Finding> = facts
+        .cast_ballots
+        .iter()
+        .map(|ballot| {
+            let id = ballot.ballot_id.as_str();
+            let hashes = content_hashes(&ballot.content);
+            if hashes.is_empty() {
+                return Finding::fail(Subject::Ballot, id, "the stored content cannot be read");
+            }
+            if !hashes.iter().any(|hash| names_hash(&ballot.ballot_hash, hash)) {
+                return Finding::fail(
+                    Subject::Ballot,
+                    id,
+                    "the stored content does not match the ballot hash it is stored under",
+                );
+            }
+            if !facts.private_casts.iter().any(|logged| same_id(logged, id)) {
+                return Finding::fail(
+                    Subject::Ballot,
+                    id,
+                    "the election event's log has no cast vote entry for this Ballot ID",
+                );
+            }
+            Finding::pass(
+                Subject::Ballot,
+                id,
+                "the stored content matches its ballot hash and the election event's log has its cast vote entry",
+            )
+        })
+        .collect();
+    if findings.is_empty() {
+        findings.push(Finding::fail(
+            Subject::Stage,
+            CHECKED_VOTERS,
+            "no presented Ballot ID names a cast ballot",
+        ));
+    }
+    Ok(findings)
+}
+
+/// Whether a ballot hash, SHA-512 truncated to 256 bits, is that of the full
+/// `sha512` hex digest.
+fn names_hash(ballot_hash: &str, sha512: &str) -> bool {
+    ballot_hash.len() == sha512.len() / 2
+        && sha512
+            .get(..ballot_hash.len())
+            .is_some_and(|prefix| same_id(prefix, ballot_hash))
 }
 
 #[cfg(test)]
@@ -441,6 +651,9 @@ pub(crate) mod tests {
         pub published: BTreeSet<String>,
         pub ballots: Vec<StoredBallot>,
         pub logged: BTreeMap<String, Vec<LoggedCast>>,
+        /// Ballots carry pseudonyms; each one's receipt Ballot ID is its code.
+        pub pseudonymous: bool,
+        pub private_casts: BTreeSet<String>,
     }
 
     impl Event {
@@ -483,8 +696,34 @@ pub(crate) mod tests {
             event
         }
 
+        /// The same voters in a pseudonymous election event.
+        pub fn voted_under_pseudonyms(usernames: &[&str]) -> Self {
+            let mut event = Self::voted(usernames);
+            event.pseudonymous = true;
+            event.logged.clear();
+            for (index, ballot) in event.ballots.iter_mut().enumerate() {
+                let code = format!("ABCD-{index:04}");
+                event.private_casts.insert(code.clone());
+                ballot.receipt_ballot_id = Some(code);
+            }
+            event
+        }
+
         pub fn ballot_ids(&self) -> Vec<String> {
-            self.ballots.iter().map(|b| b.ballot_id.clone()).collect()
+            self.ballots
+                .iter()
+                .map(|b| match &b.receipt_ballot_id {
+                    Some(code) if self.pseudonymous => code.clone(),
+                    _ => b.ballot_id.clone(),
+                })
+                .collect()
+        }
+
+        fn voter_id_only(&self) -> Result<()> {
+            if self.pseudonymous {
+                anyhow::bail!("Identity-based acceptance is unsupported for pseudonym events");
+            }
+            Ok(())
         }
 
         pub fn facts(&self, usernames: &[&str], presented: Vec<String>) -> Facts {
@@ -507,7 +746,15 @@ pub(crate) mod tests {
                 .cloned()
                 .collect())
         }
+        fn ballot_identity(&self, _: &str) -> Result<BallotIdentity> {
+            Ok(if self.pseudonymous {
+                BallotIdentity::Pseudonym
+            } else {
+                BallotIdentity::VoterId
+            })
+        }
         fn stored_ballots(&self, _: &str, voter_ids: &[String]) -> Result<Vec<StoredBallot>> {
+            self.voter_id_only()?;
             Ok(self
                 .ballots
                 .iter()
@@ -516,7 +763,34 @@ pub(crate) mod tests {
                 .collect())
         }
         fn logged_casts(&self, _: &str, voter_id: &str) -> Result<Vec<LoggedCast>> {
+            self.voter_id_only()?;
             Ok(self.logged.get(voter_id).cloned().unwrap_or_default())
+        }
+        fn participants(&self, _: &str, voter_ids: &[String]) -> Result<BTreeSet<String>> {
+            Ok(self
+                .ballots
+                .iter()
+                .map(|ballot| ballot.voter_id.clone())
+                .filter(|voter| voter_ids.contains(voter))
+                .collect())
+        }
+        fn cast_ballots(&self, _: &str, ballot_ids: &[String]) -> Result<Vec<CastBallot>> {
+            Ok(self
+                .ballots
+                .iter()
+                .filter_map(|ballot| {
+                    let code = ballot.receipt_ballot_id.clone()?;
+                    ballot_ids.contains(&code).then(|| CastBallot {
+                        ballot_id: code,
+                        ballot_hash: ballot.ballot_id.clone(),
+                        content: ballot.content.clone(),
+                        cast_at: ballot.cast_at,
+                    })
+                })
+                .collect())
+        }
+        fn private_casts(&self, _: &str, _: DateTime<Utc>) -> Result<BTreeSet<String>> {
+            Ok(self.private_casts.clone())
         }
     }
 
@@ -755,5 +1029,172 @@ pub(crate) mod tests {
         for which in ALL {
             assert!(probe(which, &facts).is_err());
         }
+    }
+
+    #[test]
+    fn pseudonymous_voters_who_signed_in_and_voted_pass_every_check() {
+        let event = Event::voted_under_pseudonyms(&["ana", "ben"]);
+        let facts = event.facts(&["ana", "ben"], event.ballot_ids());
+        assert_eq!(facts.identity, BallotIdentity::Pseudonym);
+        assert!(facts.voters.iter().all(|voter| voter.ballots.is_empty()));
+        for which in ALL {
+            let findings = probe(which, &facts).unwrap();
+            assert!(!findings.is_empty());
+            assert_eq!(failures(&findings), Vec::<String>::new(), "{which}");
+        }
+        assert_eq!(
+            probe(Probe::ReceiptProduced, &facts)
+                .unwrap()
+                .last()
+                .unwrap()
+                .detail,
+            "presented Ballot IDs of cast ballots: 2; checked voters who voted: 2"
+        );
+    }
+
+    #[test]
+    fn pseudonymous_findings_never_hold_a_voter_and_a_ballot_together() {
+        let event = Event::voted_under_pseudonyms(&["ana", "ben"]);
+        let facts = event.facts(&["ana", "ben"], event.ballot_ids());
+        let hashes: Vec<String> = event.ballots.iter().map(|b| b.ballot_id.clone()).collect();
+        for which in ALL {
+            for finding in probe(which, &facts).unwrap() {
+                let text = format!("{} {}", finding.name, finding.detail);
+                let voter = ["ana", "ben", "id-ana", "id-ben"]
+                    .iter()
+                    .any(|name| text.split_whitespace().any(|word| word == *name));
+                let ballot = event
+                    .ballot_ids()
+                    .iter()
+                    .chain(&hashes)
+                    .any(|id| text.contains(id.as_str()));
+                assert!(!(voter && ballot), "{which}: {text}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_pseudonymous_voter_without_participation_fails_ballot_cast() {
+        let mut event = Event::voted_under_pseudonyms(&["ana", "ben"]);
+        event.ballots.pop();
+        let facts = event.facts(&["ana", "ben", "carl"], vec![]);
+        assert_eq!(
+            failed(Probe::BallotCast, &facts),
+            [
+                "voter ben: has not voted in this election event",
+                "voter carl: is not a voter of this election event"
+            ]
+        );
+    }
+
+    #[test]
+    fn pseudonymous_receipts_compare_presented_ballot_ids_with_voters_who_voted() {
+        let event = Event::voted_under_pseudonyms(&["ana", "ben"]);
+        let ids = event.ballot_ids();
+
+        let facts = event.facts(&["ana", "ben"], vec![]);
+        assert!(probe(Probe::ReceiptProduced, &facts).is_err());
+        assert!(probe(Probe::BallotStored, &facts).is_err());
+
+        let facts = event.facts(
+            &["ana", "ben"],
+            vec![ids[0].to_lowercase().replace('-', "")],
+        );
+        assert_eq!(
+            failed(Probe::ReceiptProduced, &facts),
+            ["stage checked voters: presented Ballot IDs of cast ballots: 1, fewer than the checked voters who voted: 2"]
+        );
+
+        let facts = event.facts(
+            &["ana", "ben"],
+            vec![
+                ids[0].clone(),
+                ids[1].clone(),
+                ids[1].clone(),
+                "ZZZZ-ZZZZ".into(),
+            ],
+        );
+        assert_eq!(
+            failed(Probe::ReceiptProduced, &facts),
+            ["ballot ZZZZ-ZZZZ: is not a ballot cast in this election event since 2028-01-10T09:00:00+00:00"]
+        );
+
+        let mut early = event.clone();
+        early.ballots[1].cast_at = since() - Duration::seconds(1);
+        assert_eq!(
+            failed(Probe::ReceiptProduced, &early.facts(&["ana", "ben"], ids.clone())),
+            [
+                format!(
+                    "ballot {}: is not a ballot cast in this election event since 2028-01-10T09:00:00+00:00",
+                    ids[1]
+                ),
+                "stage checked voters: presented Ballot IDs of cast ballots: 1, fewer than the checked voters who voted: 2".into()
+            ]
+        );
+
+        let mut none = event;
+        none.ballots.clear();
+        assert_eq!(
+            failed(
+                Probe::ReceiptProduced,
+                &none.facts(&["ana", "ben"], ids.clone())
+            )
+            .last()
+            .unwrap(),
+            "stage checked voters: the checked voters have no cast ballots"
+        );
+    }
+
+    #[test]
+    fn a_pseudonymous_stored_ballot_must_match_its_hash_and_the_log() {
+        let event = Event::voted_under_pseudonyms(&["ana", "ben"]);
+        let ids = event.ballot_ids();
+
+        let mut changed = event.clone();
+        changed.ballots[0].content = changed.ballots[1].content.clone();
+        assert_eq!(
+            failed(
+                Probe::BallotStored,
+                &changed.facts(&["ana", "ben"], ids.clone())
+            ),
+            [format!(
+                "ballot {}: the stored content does not match the ballot hash it is stored under",
+                ids[0]
+            )]
+        );
+
+        let mut unlogged = event.clone();
+        unlogged.private_casts.remove(&ids[1]);
+        assert_eq!(
+            failed(
+                Probe::BallotStored,
+                &unlogged.facts(&["ana", "ben"], ids.clone())
+            ),
+            [format!(
+                "ballot {}: the election event's log has no cast vote entry for this Ballot ID",
+                ids[1]
+            )]
+        );
+
+        let mut unreadable = event.clone();
+        unreadable.ballots[0].content = "{}".into();
+        assert_eq!(
+            failed(
+                Probe::BallotStored,
+                &unreadable.facts(&["ana", "ben"], ids.clone())
+            ),
+            [format!(
+                "ballot {}: the stored content cannot be read",
+                ids[0]
+            )]
+        );
+
+        assert_eq!(
+            failed(
+                Probe::BallotStored,
+                &event.facts(&["ana", "ben"], vec!["ZZZZ-ZZZZ".into()])
+            ),
+            ["stage checked voters: no presented Ballot ID names a cast ballot"]
+        );
     }
 }

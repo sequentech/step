@@ -416,10 +416,7 @@ impl PostgresStore {
             .await?
             .query(
                 &format!(
-                    "SELECT r.ballot_id, b.id::text, b.ballot_id, b.election_id::text, \
-                            b.area_id::text, b.voter_id, b.status, b.voting_channel, \
-                            (extract(epoch FROM b.accepted_at) * 1000000)::bigint, b.content \
-                     FROM ballot_box_received r \
+                    "SELECT {CAST_BALLOT_COLUMNS} FROM ballot_box_received r \
                      JOIN ballot_box_ballot b \
                        ON b.election_event_id = r.election_event_id AND b.ballot_id = r.ballot_hash \
                      WHERE r.election_event_id = $1::text::uuid AND r.voter_id = $2 \
@@ -436,30 +433,65 @@ impl PostgresStore {
             )
             .await
             .context("Error looking up the voter's cast received ballots")?;
-        rows.iter()
-            .map(|row| {
-                let status: String = row.try_get(6)?;
-                Ok(ReceivedCastBallot {
-                    received_ballot_id: row.try_get(0)?,
-                    ballot: BallotContent {
-                        ballot: StoredBallot {
-                            id: row.try_get(1)?,
-                            ballot_id: row.try_get(2)?,
-                            election_id: row.try_get(3)?,
-                            area_id: row.try_get(4)?,
-                            voter_id: row.try_get(5)?,
-                            status: status
-                                .parse()
-                                .map_err(|_| anyhow!("Unknown ballot status {status:?}"))?,
-                            voting_channel: row.try_get(7)?,
-                            accepted_at: row.try_get(8)?,
-                        },
-                        content: row.try_get(9)?,
-                    },
-                })
-            })
-            .collect()
+        rows.iter().map(received_cast_ballot).collect()
     }
+
+    /// The election event's cast received ballots with these short Ballot IDs,
+    /// whoever cast them, with their stored ballots, in acceptance order.
+    pub async fn cast_ballots_by_ballot_id(
+        &self,
+        election_event_id: &str,
+        ballot_ids: &[String],
+    ) -> Result<Vec<ReceivedCastBallot>> {
+        let rows = self
+            .client()
+            .await?
+            .query(
+                &format!(
+                    "SELECT {CAST_BALLOT_COLUMNS} FROM ballot_box_received r \
+                     JOIN ballot_box_ballot b \
+                       ON b.election_event_id = r.election_event_id AND b.ballot_id = r.ballot_hash \
+                       AND b.election_id = r.election_id AND b.voter_id = r.voter_id \
+                     WHERE r.election_event_id = $1::text::uuid AND r.ballot_id = ANY($2) \
+                       AND r.status = $3 \
+                     ORDER BY b.seq"
+                ),
+                &[
+                    &election_event_id,
+                    &ballot_ids,
+                    &ReceivedStatus::Cast.to_string(),
+                ],
+            )
+            .await
+            .context("Error looking up cast received ballots by Ballot ID")?;
+        rows.iter().map(received_cast_ballot).collect()
+    }
+}
+
+const CAST_BALLOT_COLUMNS: &str = "r.ballot_id, b.id::text, b.ballot_id, b.election_id::text, \
+     b.area_id::text, b.voter_id, b.status, b.voting_channel, \
+     (extract(epoch FROM b.accepted_at) * 1000000)::bigint, b.content";
+
+fn received_cast_ballot(row: &Row) -> Result<ReceivedCastBallot> {
+    let status: String = row.try_get(6)?;
+    Ok(ReceivedCastBallot {
+        received_ballot_id: row.try_get(0)?,
+        ballot: BallotContent {
+            ballot: StoredBallot {
+                id: row.try_get(1)?,
+                ballot_id: row.try_get(2)?,
+                election_id: row.try_get(3)?,
+                area_id: row.try_get(4)?,
+                voter_id: row.try_get(5)?,
+                status: status
+                    .parse()
+                    .map_err(|_| anyhow!("Unknown ballot status {status:?}"))?,
+                voting_channel: row.try_get(7)?,
+                accepted_at: row.try_get(8)?,
+            },
+            content: row.try_get(9)?,
+        },
+    })
 }
 
 #[cfg(test)]

@@ -4,13 +4,15 @@
 //! Reads the voters' stored ballots from the election event's ballot box, in the
 //! event's electoral-log database on the server `ELECTORAL_LOG_PG_*` names.
 //! Administrators' GraphQL access never returns ballot contents.
-use super::voting::StoredBallot;
+use super::voting::{CastBallot, StoredBallot};
 use anyhow::{bail, ensure, Context, Result};
 use electoral_log::adapters::ballot_box::BallotStatus;
 use electoral_log::adapters::ballot_box_reads::BallotIdMatch;
 use electoral_log::adapters::ballot_box_received::ReceivedStatus;
 use electoral_log::adapters::postgres::PostgresStore;
 use electoral_log::adapters::privacy::BallotIdentity;
+use std::collections::BTreeSet;
+use std::future::Future;
 use std::time::{Duration, Instant};
 use windmill::services::ballot_box_reads::ballot_box_time;
 use windmill::services::electoral_log_board::get_event_store;
@@ -95,19 +97,92 @@ pub async fn valid_ballots(
     Ok(stored)
 }
 
-/// The voters' valid ballots in the election event's ballot box, once the
-/// sequencer has recorded them all.
-pub fn stored_ballots(election_event_id: &str, voter_ids: &[String]) -> Result<Vec<StoredBallot>> {
+/// Run `read` on the election event's ballot box.
+fn with_store<T, F>(election_event_id: &str, read: impl FnOnce(PostgresStore) -> F) -> Result<T>
+where
+    F: Future<Output = Result<T>>,
+{
     tokio::runtime::Runtime::new()
         .context("Failed to create Tokio runtime")?
         .block_on(async {
             let store = get_event_store(election_event_id)
                 .await
                 .context("Cannot open the election event's ballot box (ELECTORAL_LOG_PG_*)")?;
-            require_identity_acceptance(&store, election_event_id).await?;
-            wait_until_recorded(&store, election_event_id, RECORDED_WAIT).await?;
-            valid_ballots(&store, election_event_id, voter_ids).await
+            read(store).await
         })
+}
+
+/// The voters' valid ballots in the election event's ballot box, once the
+/// sequencer has recorded them all.
+pub fn stored_ballots(election_event_id: &str, voter_ids: &[String]) -> Result<Vec<StoredBallot>> {
+    with_store(election_event_id, |store| async move {
+        require_identity_acceptance(&store, election_event_id).await?;
+        wait_until_recorded(&store, election_event_id, RECORDED_WAIT).await?;
+        valid_ballots(&store, election_event_id, voter_ids).await
+    })
+}
+
+/// Whether the election event's ballots carry voter ids or pseudonyms.
+pub fn ballot_identity(election_event_id: &str) -> Result<BallotIdentity> {
+    with_store(election_event_id, |store| async move {
+        store.ballot_identity(election_event_id).await
+    })
+}
+
+/// The voters who voted in a pseudonymous election event, from its
+/// participation records, which never name a ballot.
+pub async fn participating(
+    store: &PostgresStore,
+    election_event_id: &str,
+    voter_ids: &[String],
+) -> Result<BTreeSet<String>> {
+    Ok(store
+        .participation_for_voters(election_event_id, voter_ids, None)
+        .await?
+        .into_iter()
+        .map(|participation| participation.voter_id)
+        .collect())
+}
+
+pub fn participants(election_event_id: &str, voter_ids: &[String]) -> Result<BTreeSet<String>> {
+    with_store(election_event_id, |store| async move {
+        participating(&store, election_event_id, voter_ids).await
+    })
+}
+
+/// The valid cast ballots of the election event with these Ballot IDs,
+/// whoever cast them. Nothing about who cast them is kept.
+pub async fn cast_ballots_by_id(
+    store: &PostgresStore,
+    election_event_id: &str,
+    ballot_ids: &[String],
+) -> Result<Vec<CastBallot>> {
+    let mut cast = Vec::new();
+    for found in store
+        .cast_ballots_by_ballot_id(election_event_id, ballot_ids)
+        .await?
+    {
+        let ballot = found.ballot.ballot;
+        if ballot.status != BallotStatus::Valid {
+            continue;
+        }
+        cast.push(CastBallot {
+            ballot_id: found.received_ballot_id,
+            ballot_hash: ballot.ballot_id,
+            content: found.ballot.content,
+            cast_at: ballot_box_time(ballot.accepted_at)?,
+        });
+    }
+    Ok(cast)
+}
+
+/// The cast ballots with these Ballot IDs, once the sequencer has recorded
+/// every accepted ballot.
+pub fn cast_ballots(election_event_id: &str, ballot_ids: &[String]) -> Result<Vec<CastBallot>> {
+    with_store(election_event_id, |store| async move {
+        wait_until_recorded(&store, election_event_id, RECORDED_WAIT).await?;
+        cast_ballots_by_id(&store, election_event_id, ballot_ids).await
+    })
 }
 
 #[cfg(test)]
@@ -118,13 +193,14 @@ mod privacy_tests {
 
     #[tokio::test]
     #[ignore = "requires disposable ELECTORAL_LOG_PG_* and ENV_SLUG"]
-    async fn identity_based_acceptance_refuses_privacy_events_before_returning_empty_ballots() {
+    async fn pseudonym_events_are_read_by_ballot_id_and_participation_never_by_voter() {
         let databases = get_event_databases().await.unwrap();
         let tenant = uuid::Uuid::new_v4().to_string();
         let event = uuid::Uuid::new_v4().to_string();
         let store = databases.create_event(&tenant, &event).await.unwrap();
         store.create_ballot_box(&event).await.unwrap();
-        assert!(valid_ballots(&store, &event, &["synthetic-voter".into()])
+        let voters = vec!["synthetic-voter".to_string()];
+        assert!(valid_ballots(&store, &event, &voters)
             .await
             .unwrap()
             .is_empty());
@@ -132,9 +208,19 @@ mod privacy_tests {
             .set_ballot_identity(&event, BallotIdentity::Pseudonym)
             .await
             .unwrap();
-        let result = valid_ballots(&store, &event, &["synthetic-voter".into()]).await;
+        store
+            .allocate_voter_pseudonyms(&event, &voters)
+            .await
+            .unwrap();
+        let by_voter = valid_ballots(&store, &event, &voters).await;
+        let participants = participating(&store, &event, &voters).await;
+        let by_id = cast_ballots_by_id(&store, &event, &["ABCD-EFGH".into()]).await;
         databases.drop_event(&tenant, &event).await.unwrap();
-        let error = result.unwrap_err();
-        assert!(error.to_string().contains("public ballot proof"));
+        assert!(by_voter
+            .unwrap_err()
+            .to_string()
+            .contains("public ballot proof"));
+        assert!(participants.unwrap().is_empty());
+        assert!(by_id.unwrap().is_empty());
     }
 }
