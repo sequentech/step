@@ -3,7 +3,12 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-only
 import {renderHook} from "@testing-library/react"
-import {configuredLanguage, useInheritedLanguage, usePresentationName} from "./usePresentationName"
+import {
+    configuredLanguage,
+    useInheritedLanguage,
+    usePresentationName,
+    valueInAnyLanguage,
+} from "./usePresentationName"
 import {useAliasRenderer} from "./useAliasRenderer"
 
 jest.mock("@sequentech/ui-core", () =>
@@ -84,6 +89,38 @@ describe("names in the interface language, the configured default language, then
     })
 })
 
+describe("names in any language the record has, as a last resort", () => {
+    it("shows a record with no default language and no interface or English name", () => {
+        const record = entity({fr: {name: "Conseil"}})
+        expect(render("es").name(record)).toBe("Conseil")
+        expect(render("es").alias(record)).toBe("Conseil")
+        expect(render("es").alias(record.presentation)).toBe("Conseil")
+    })
+
+    it("shows a record whose default language has no name", () => {
+        const record = entity({es: {}, fr: {alias: "Conseil", name: "Conseil municipal"}}, "es")
+        expect(render("tl").name(record)).toBe("Conseil municipal")
+        expect(render("tl").alias(record)).toBe("Conseil")
+    })
+
+    it("still prefers the default language and English", () => {
+        const record = entity({fr: {name: "Conseil"}, es: {name: "Consejo"}}, "es")
+        expect(render("tl").alias(record)).toBe("Consejo")
+        const english = entity({fr: {name: "Conseil"}, en: {name: "Council"}})
+        expect(render("tl").name(english)).toBe("Council")
+        expect(render("tl").alias(english)).toBe("Council")
+    })
+
+    it("reads a record or its presentation, and nothing else", () => {
+        const record = entity({fr: {name: "Conseil"}})
+        expect(valueInAnyLanguage(record, ["alias", "name"])).toBe("Conseil")
+        expect(valueInAnyLanguage(record.presentation, ["name"])).toBe("Conseil")
+        expect(valueInAnyLanguage(entity({fr: {name: ""}}), ["name"])).toBeUndefined()
+        expect(valueInAnyLanguage({}, ["name"])).toBeUndefined()
+        expect(valueInAnyLanguage(null, ["name"])).toBeUndefined()
+    })
+})
+
 describe("configuredLanguage", () => {
     it("reads a record or its presentation", () => {
         expect(configuredLanguage(entity({}, "es"))).toBe("es")
@@ -114,9 +151,12 @@ describe("useInheritedLanguage", () => {
 
     it("lets a contest heading show its election's language", () => {
         mockRecords["sequent_backend_election/e1"] = entity({}, "es")
-        const contest = {election_id: "e1", ...entity({en: {}, es: {name: "Escaño"}})}
+        const contest = {
+            election_id: "e1",
+            ...entity({en: {}, tl: {name: "Puwesto"}, es: {name: "Escaño"}}),
+        }
         const inherited = renderHook(() => useInheritedLanguage(contest)).result.current
-        expect(render("en").alias(contest)).toBe("-")
+        expect(render("en").alias(contest)).toBe("Puwesto")
         expect(render("en").alias(contest, configuredLanguage(contest) ?? inherited)).toBe("Escaño")
     })
 })

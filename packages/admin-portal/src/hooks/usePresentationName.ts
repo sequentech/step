@@ -29,10 +29,32 @@ export const configuredLanguage = (record: unknown): string | undefined => {
 }
 
 /**
+ * The first of `keys` a record has in any language of its `presentation.i18n`.
+ * A last resort for records with no value in the interface language, the
+ * default language or English. Accepts the record or its presentation.
+ */
+export const valueInAnyLanguage = (record: unknown, keys: string[]): string | undefined => {
+    const owner = record as (PresentationRecord & LanguageConfigured) | null | undefined
+    const i18n = owner?.presentation?.i18n ?? owner?.i18n
+    if (typeof i18n !== "object" || i18n === null) {
+        return undefined
+    }
+    for (const language of Object.keys(i18n)) {
+        for (const key of keys) {
+            const value = translateFromPresentation(owner, key, language)
+            if (value) {
+                return value
+            }
+        }
+    }
+    return undefined
+}
+
+/**
  * Election events, elections, contests and candidates keep their names in
  * `presentation.i18n` (migration 1772358027729), so this renders a record's
  * name in the interface language, else in the record's default language, else
- * in English.
+ * in English, else in any language it has.
  */
 export function usePresentationName() {
     const {i18n} = useTranslation()
@@ -42,6 +64,7 @@ export function usePresentationName() {
                 defaultLanguageCode: configuredLanguage(record),
             }) ??
             translateFromPresentation(record, "name", "en") ??
+            valueInAnyLanguage(record, ["name"]) ??
             "",
         [i18n.language]
     )
