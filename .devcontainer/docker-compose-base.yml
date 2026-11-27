@@ -202,16 +202,19 @@ services:
       - KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY=${KEYCLOAK_ELECTION_EVENT_REALM_CONFIG_S3_KEY}
     entrypoint: /scripts/entrypoint.sh
 
-  # S3 emulator for the wbraid dev loop (packages/wbraid): its b4v6 bulletin
-  # board keeps every message body in S3. Opt-in profile — not started with the
-  # base stack; packages/wbraid/localstack.sh brings it up by name, which
-  # auto-enables the profile.
-  # The image is pinned to the 4.x line: from the 2026 calendar releases on,
-  # localstack/localstack:latest exits at startup without an auth token.
+  # S3 storage for wbraid (packages/wbraid): its b4v6 bulletin board keeps
+  # every message body in the wbraid-messages bucket, while postgres-b4v6 keeps
+  # only the rows that point at them. The bodies must outlive a restart, so this
+  # is MinIO with a named volume: LocalStack keeps no state across restarts
+  # without a paid license (meta#15323). The service keeps the name and address
+  # LocalStack had (port 4566, alias localhost.localstack.cloud), which the
+  # modes, forwarded ports, signed URLs and scripts already use.
+  # Removed only on purpose, e.g. with `docker compose down -v`.
   localstack:
     profiles: ["full", "base", "wbraid"]
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}localstack
-    image: "localstack/localstack:4@sha256:3ebc37595918b8accb852f8048fef2aff047d465167edd655528065b07bc364a"
+    image: docker.io/pgsty/silo:RELEASE.2026-09-16T00-00-00Z@sha256:635197cb9f36d01bee221d34d1c7d7960f6a95c48b0b6c01d99cd13bdae51a46
+    restart: unless-stopped
     ports:
       - "4566:4566"
     networks:
@@ -221,44 +224,40 @@ services:
           # and this service inside Compose, without host-file changes.
           - localhost.localstack.cloud
     environment:
-      - HOSTNAME_EXTERNAL=localhost
-      - S3_HOSTNAME=localhost:4566
+      # Dev-only credentials, shared with b4v6 and configure-localstack. MinIO
+      # refuses a root password shorter than 8 characters.
+      - MINIO_ROOT_USER=wbraid-dev
+      - MINIO_ROOT_PASSWORD=wbraid-dev-storage
+    # MinIO allows browsers' CORS requests from any origin by default.
+    command: server --address :4566 /data
     volumes:
-      - "${LOCAL_WORKSPACE_FOLDER:-..}/.devcontainer/scripts/localstack-wbraid-ready.sh:/etc/localstack/init/ready.d/localstack-wbraid-ready.sh:ro,z"
-      - "${LOCAL_WORKSPACE_FOLDER:-..}/packages/wbraid/s3-cors.json:/aws/s3-cors.json:ro,z"
+      - wbraid_storage:/data
     healthcheck:
-      # A previous configure-localstack exit cannot prove readiness after an emulator restart.
-      test:
-        - CMD-SHELL
-        - >-
-          curl -fsS http://127.0.0.1:4566/_localstack/init/ready |
-          python3 -c 'import json,sys; x=json.load(sys.stdin); sys.exit(not(x["completed"] and
-          any(s["name"]=="localstack-wbraid-ready.sh" and s["state"]=="SUCCESSFUL" for s in x["scripts"])))'
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:4566/minio/health/live"]
       interval: 5s
       timeout: 10s
       retries: 25
       start_period: 5s
 
-  # Creates the wbraid-messages bucket and applies its CORS rules — the twin of
-  # what localstack.ps1 does inline on Windows.
+  # Creates the wbraid-messages bucket when it is missing — the twin of what
+  # localstack.sh and localstack.ps1 do outside Compose.
   configure-localstack:
     profiles: ["full", "base", "wbraid"]
     container_name: ${DEVCONTAINER_NAME_PREFIX:-}configure-localstack
     image: amazon/aws-cli
-    volumes:
-      - "${LOCAL_WORKSPACE_FOLDER:-..}/packages/wbraid/s3-cors.json:/aws/s3-cors.json:ro,z"
     depends_on:
       localstack:
         condition: service_healthy
     environment:
-      - AWS_ACCESS_KEY_ID=test
-      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_ACCESS_KEY_ID=wbraid-dev
+      - AWS_SECRET_ACCESS_KEY=wbraid-dev-storage
       - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ENDPOINT_URL=http://localstack:4566
     entrypoint: /bin/sh
     command: >-
-      -c "aws --endpoint-url=http://localstack:4566 s3 mb s3://wbraid-messages 2>/dev/null;
-      aws --endpoint-url=http://localstack:4566 s3api put-bucket-cors
-      --bucket wbraid-messages --cors-configuration file:///aws/s3-cors.json"
+      -c "aws s3api head-bucket --bucket wbraid-messages 2>/dev/null ||
+      aws s3api create-bucket --bucket wbraid-messages >/dev/null ||
+      aws s3api head-bucket --bucket wbraid-messages"
 
   postgres-b4v6:
     profiles: ["full", "base", "wbraid"]
@@ -286,8 +285,9 @@ services:
 
   # The supplied wbraid board server stores protocol rows in PostgreSQL.
   # AWS_ENDPOINT_URL is embedded in presigned URLs fetched by workers and
-  # trustees, so it must be reachable from those clients. LocalStack's loopback
-  # DNS hostname has a Compose alias above for container clients.
+  # trustees, so it must be reachable from those clients. The loopback DNS
+  # hostname localhost.localstack.cloud has a Compose alias above for container
+  # clients.
   b4v6:
     profiles: ["full", "base", "wbraid"]
     image: sequentech.local/cargo-packages
@@ -333,8 +333,8 @@ services:
       WBRAID_B4_PG_PASSWORD: ${WBRAID_B4_PG_PASSWORD}
       DATABASE_URL: postgres://postgres@postgres-b4v6:5432/b4
       AWS_ENDPOINT_URL: ${WBRAID_S3_ENDPOINT_URL}
-      AWS_ACCESS_KEY_ID: test
-      AWS_SECRET_ACCESS_KEY: test
+      AWS_ACCESS_KEY_ID: wbraid-dev
+      AWS_SECRET_ACCESS_KEY: wbraid-dev-storage
       AWS_REGION: us-east-1
       S3_BUCKET_NAME: wbraid-messages
     healthcheck:
@@ -1422,6 +1422,7 @@ volumes:
   b4v6_data:
   b4v6_db_data:
   b4v6_db_logs:
+  wbraid_storage:
   # Created by initialize-command.sh and never removed by Compose, not even by
   # `down --volumes`.
   devcontainer-nix:

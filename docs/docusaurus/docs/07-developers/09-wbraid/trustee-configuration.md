@@ -142,7 +142,7 @@ change it there if you change `HARVEST_PORT`.
 ## Development workspace
 
 Both **backend** and **full** development modes start `trustee1` and `trustee2`
-alongside `b4v6`, its PostgreSQL database, and LocalStack. The board and trustee
+alongside `b4v6`, its PostgreSQL database, and its S3 storage. The board and trustee
 watchers use locked release builds and share this checkout's
 `packages/rust-local-target/docker-dev` build cache. Each trustee has a separate
 `message_store` volume and uses its identity in `packages/trustee/dev/`.
@@ -159,7 +159,7 @@ retries authentication while the account is being configured.
 Existing workspaces therefore inherit new settings without replacing local
 overrides or secrets. Explicit local values still win: remove an obsolete
 override or update it when migrating a workspace. The default
-`WBRAID_S3_ENDPOINT_URL=http://localhost.localstack.cloud:4566` reaches LocalStack
+`WBRAID_S3_ENDPOINT_URL=http://localhost.localstack.cloud:4566` reaches the storage
 through public loopback DNS from a browser and a network alias inside Compose.
 No browser-host hosts-file change is needed. Older workspaces with an explicit
 `http://localstack:4566` override must update it to this default.
@@ -173,6 +173,59 @@ These ports must retain their local numbers; VS Code reports a conflict instead
 of silently selecting another port. Use the local forwarded admin URL,
 `http://localhost:3002/trustee`, when developing through a remote workspace.
 An HTTPS preview URL also requires an HTTPS storage endpoint.
+
+### Board message storage
+
+`b4v6` keeps each message's row in `postgres-b4v6` and its body in the
+`wbraid-messages` bucket of the `localstack` service. That service is MinIO,
+not LocalStack: it keeps LocalStack's name, port **4566** and
+`localhost.localstack.cloud` alias, and stores the bodies in the
+`wbraid_storage` volume. Bodies therefore survive a restart of the service, a
+stack recreation and a devcontainer rebuild, so a tally can run on a key
+ceremony from an earlier session. `docker compose down -v` removes them together
+with the board database. The `configure-localstack` step creates the bucket only
+when it is missing. MinIO allows browsers' CORS requests from any origin, so no
+CORS rules are applied.
+
+LocalStack kept the bodies only until it restarted. A board written before that
+can no longer be read: its tallies stop at their first step with
+`failed to download S3 body: HTTP 404 Not Found`. Run a new key ceremony for
+such an election event.
+
+To switch an existing workspace, stop `b4v6`, replace the storage, then start
+`b4v6` again with the new credentials. Each command runs only when the previous
+one succeeded. From the checkout root:
+
+```sh
+compose() { docker compose --project-directory .devcontainer \
+  --env-file .devcontainer/.env.development --env-file .devcontainer/.env \
+  -f .devcontainer/docker-compose.yml --profile full "$@"; }
+compose stop b4v6 &&
+  compose up -d --no-deps --wait localstack &&
+  compose up --no-deps configure-localstack &&
+  compose up -d --no-deps b4v6
+```
+
+Replacing the storage drops the bodies LocalStack still holds. To keep them,
+copy them into a volume while `b4v6` is stopped, and copy them back before it
+starts again, so that no message is written in between. The copy is removed
+only after it has been restored; if a step fails, `b4v6` stays stopped and the
+copy stays, so the remaining steps can be run again:
+
+```sh
+network=$(docker inspect localstack --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}')
+s3() { docker run --rm --network "$network" -v wbraid_localstack_copy:/copy \
+  -e AWS_DEFAULT_REGION=us-east-1 -e AWS_ENDPOINT_URL=http://localstack:4566 "$@"; }
+compose stop b4v6 &&
+  s3 -e AWS_ACCESS_KEY_ID=test -e AWS_SECRET_ACCESS_KEY=test \
+    amazon/aws-cli s3 sync s3://wbraid-messages /copy &&
+  compose up -d --no-deps --wait localstack &&
+  compose up --no-deps configure-localstack &&
+  s3 -e AWS_ACCESS_KEY_ID=wbraid-dev -e AWS_SECRET_ACCESS_KEY=wbraid-dev-storage \
+    amazon/aws-cli s3 sync /copy s3://wbraid-messages &&
+  docker volume rm wbraid_localstack_copy &&
+  compose up -d --no-deps b4v6
+```
 
 ### Browser trustee accounts
 

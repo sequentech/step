@@ -4,6 +4,7 @@
 
 import json
 import shlex
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -94,6 +95,143 @@ class WorkspaceTrusteesTest(unittest.TestCase):
             self.services["b4v6"]["environment"]["AWS_ENDPOINT_URL"],
             "http://localhost.localstack.cloud:4566",
         )
+
+
+WBRAID = ROOT / "packages" / "wbraid"
+
+
+def storage_credentials(service):
+    environment = service["environment"]
+    return environment["AWS_ACCESS_KEY_ID"], environment["AWS_SECRET_ACCESS_KEY"]
+
+
+@unittest.skipUnless(compose_available(), "Docker Compose is required")
+class WbraidStorageTest(unittest.TestCase):
+    """b4v6 message bodies outlive a restart of the S3 service (meta#15323)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.services = compose_services(["docker-compose.yml"])
+        cls.storage = cls.services["localstack"]
+
+    def test_bodies_are_kept_in_a_named_volume(self):
+        volumes = [
+            volume for volume in self.storage["volumes"] if volume["target"] == "/data"
+        ]
+        self.assertEqual(len(volumes), 1)
+        self.assertEqual(volumes[0]["type"], "volume")
+        self.assertEqual(volumes[0]["source"], "wbraid_storage")
+
+    def test_storage_is_the_pinned_minio_server_on_the_localstack_port(self):
+        self.assertEqual(self.storage["image"], self.services["minio"]["image"])
+        command = self.storage["command"]
+        self.assertEqual(command[:3], ["server", "--address", ":4566"])
+        self.assertEqual(command[-1], "/data")
+        self.assertEqual(self.storage["ports"][0]["target"], 4566)
+        self.assertIn("/minio/health/", " ".join(self.storage["healthcheck"]["test"]))
+
+    def test_board_and_bucket_step_use_the_storage_root_credentials(self):
+        environment = self.storage["environment"]
+        root = environment["MINIO_ROOT_USER"], environment["MINIO_ROOT_PASSWORD"]
+        # MinIO refuses to start with a root password shorter than 8 characters.
+        self.assertGreaterEqual(len(root[1]), 8)
+        for name in ("b4v6", "configure-localstack"):
+            with self.subTest(service=name):
+                self.assertEqual(storage_credentials(self.services[name]), root)
+
+    def test_bucket_step_creates_the_bucket_only_when_missing(self):
+        step = self.services["configure-localstack"]
+        script = " ".join(step["command"])
+        self.assertIn("head-bucket --bucket wbraid-messages", script)
+        self.assertIn("create-bucket --bucket wbraid-messages", script)
+        # MinIO answers put-bucket-cors with NotImplemented, which would fail the
+        # step and keep b4v6 from starting; it allows every origin already.
+        self.assertNotIn("cors", script)
+        self.assertNotIn("volumes", step)
+        self.assertEqual(
+            self.services["b4v6"]["depends_on"]["configure-localstack"]["condition"],
+            "service_completed_successfully",
+        )
+
+    def test_e2e_overlay_keeps_the_storage_and_its_credentials(self):
+        services = compose_services(["docker-compose.yml", "docker-compose-ci.yml"])
+        self.assertEqual(
+            services["b4v6"]["environment"]["AWS_ENDPOINT_URL"],
+            "http://localstack:4566",
+        )
+        self.assertEqual(
+            storage_credentials(services["b4v6"]),
+            storage_credentials(self.services["b4v6"]),
+        )
+        self.assertEqual(services["localstack"]["volumes"], self.storage["volumes"])
+
+    def test_scripts_outside_compose_start_the_same_storage(self):
+        image = self.storage["image"]
+        user, password = storage_credentials(self.services["b4v6"])
+        for name in ("localstack.sh", "localstack.ps1", "b4.sh", "b4.ps1"):
+            with self.subTest(script=name):
+                text = (WBRAID / name).read_text()
+                expected = [f'"{user}"', f'"{password}"']
+                if name.startswith("localstack"):
+                    expected += [image, "wbraid_storage:/data"]
+                for fragment in expected:
+                    self.assertTrue(fragment in text, f"{name} lacks {fragment}")
+                for fragment in ('"test"', "put-bucket-cors"):
+                    self.assertFalse(fragment in text, f"{name} has {fragment}")
+
+
+STUB = """#!/bin/sh
+echo "$(basename "$0") $*" >> "$STUB_LOG"
+case "$(basename "$0") $*" in
+    "docker run "*) exit "${STUB_DOCKER_RUN:-0}" ;;
+    "curl "*) exit "${STUB_CURL:-0}" ;;
+    "aws "*head-bucket*) exit 254 ;;
+    "aws "*create-bucket*) exit "${STUB_CREATE_BUCKET:-0}" ;;
+esac
+"""
+
+
+class StandaloneStorageScriptTest(unittest.TestCase):
+    """localstack.sh outside Compose reports ready only once storage is usable."""
+
+    def run_script(self, **failures):
+        with tempfile.TemporaryDirectory() as directory:
+            bin_dir = Path(directory)
+            for tool in ("docker", "aws", "curl", "sleep", "hostname"):
+                stub = bin_dir / tool
+                stub.write_text(STUB)
+                stub.chmod(0o755)
+            log = bin_dir / "calls.log"
+            log.touch()
+            environment = {
+                "PATH": f"{bin_dir}:/usr/bin:/bin",
+                "STUB_LOG": str(log),
+                **{f"STUB_{name.upper()}": "1" for name in failures},
+            }
+            completed = subprocess.run(
+                ["bash", str(WBRAID / "localstack.sh")],
+                env=environment,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            return completed, log.read_text()
+
+    def test_ready_storage_gets_its_bucket(self):
+        completed, calls = self.run_script()
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn("create-bucket --bucket wbraid-messages", calls)
+        self.assertIn("wbraid storage ready", completed.stdout)
+
+    def test_each_failed_step_fails_the_script(self):
+        for failure in ("docker_run", "curl", "create_bucket"):
+            with self.subTest(failure=failure):
+                completed, calls = self.run_script(**{failure: True})
+                self.assertNotEqual(completed.returncode, 0)
+                self.assertNotIn("wbraid storage ready", completed.stdout)
+                if failure == "curl":
+                    self.assertIn("localhost:4566", completed.stderr)
+                    self.assertNotIn("aws ", calls)
 
 
 class WorkspaceEnvironmentTest(unittest.TestCase):
