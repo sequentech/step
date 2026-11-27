@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.9.2">
 <title data-rh="true">Messaging Channels | Sequent Online Voting</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:url" content="https://sequentech.github.io/docusaurus/pr-preview/pr-4421/docs/election_managers/reference/messaging_channels"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Messaging Channels | Sequent Online Voting"><meta data-rh="true" name="description" content="&lt;!--"><meta data-rh="true" property="og:description" content="&lt;!--"><link data-rh="true" rel="icon" href="/docusaurus/pr-preview/pr-4421/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4421/docs/election_managers/reference/messaging_channels"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4421/docs/election_managers/reference/messaging_channels" hreflang="en"><link data-rh="true" rel="alternate" href="https://sequentech.github.io/docusaurus/pr-preview/pr-4421/docs/election_managers/reference/messaging_channels" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Messaging Channels","item":"https://sequentech.github.io/docusaurus/pr-preview/pr-4421/docs/election_managers/reference/messaging_channels"}]}</script><link rel="stylesheet" href="/docusaurus/pr-preview/pr-4421/assets/css/styles.871bebf1.css">
-<script src="/docusaurus/pr-preview/pr-4421/assets/js/runtime~main.2adb13bb.js" defer="defer"></script>
+<script src="/docusaurus/pr-preview/pr-4421/assets/js/runtime~main.68ac8686.js" defer="defer"></script>
 <script src="/docusaurus/pr-preview/pr-4421/assets/js/main.4fd93c15.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -131,8 +131,9 @@ the account stays as its package declared it, and <strong>Check connection</stro
 <em>The provider couldn&#x27;t be reached: the account stays as its configuration
 package declared it</em>. An answer from the provider, such as a refused key,
 is stored as usual. Entering a missing credential needs no connection;
-replacing one that is already stored is checked with the provider first, so
-offline, apply a package carrying the new key instead.</p>
+replacing one that is already stored is checked with the provider first,
+and offline that check can&#x27;t connect: choose <strong>Save anyway</strong> (see below), or
+apply a package carrying the new key.</p>
 <p>An account that arrives without its credentials is created all the same:
 enter them on the account. Until then its messages are not sent, and the
 reason shows in the event&#x27;s Logs.</p>
@@ -147,7 +148,11 @@ the provider <strong>before</strong> saving it. If it doesn&#x27;t connect, noth
 the previous credential keeps sending, and the drawer says why, followed by
 <em>The new credentials didn&#x27;t connect: the previous ones are kept</em>. For
 WhatsApp and Messenger, the new token must also be valid, not expired and
-allowed to send, and Meta must accept the app secret. A credential entered
+allowed to send, and Meta must accept the app secret. Having read why,
+you can choose <strong>Save anyway</strong>: the new credentials replace the stored ones
+without being checked, and the account&#x27;s status stays as it was until it
+is checked again. Use it when the provider can&#x27;t be reached (a system
+offline until its sending window), and check the account once it can. A credential entered
 for the first time has nothing to keep: it is saved and then checked. A
 replaced credential takes effect at once, with no restart.</p>
 <p>Changing the address the credentials are sent to (the Graph API base URL,
