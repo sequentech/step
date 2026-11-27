@@ -234,6 +234,74 @@ fn only_an_image_is_embedded() {
 }
 
 #[test]
+fn gif_and_webp_files_are_images_too() {
+    assert!(data_address(b"GIF87a....")
+        .unwrap()
+        .starts_with("data:image/gif;base64,"));
+    assert!(data_address(b"GIF89a....")
+        .unwrap()
+        .starts_with("data:image/gif;base64,"));
+    assert!(data_address(b"RIFF\0\0\0\0WEBPVP8 ")
+        .unwrap()
+        .starts_with("data:image/webp;base64,"));
+    // RIFF with another format inside, and a file too short to say.
+    assert!(data_address(b"RIFF\0\0\0\0WAVEfmt ").is_err());
+    assert!(data_address(b"RIFF").is_err());
+}
+
+#[test]
+fn addresses_in_json_lists_are_checked_and_embedded() {
+    // A list of texts and other values, in a JSON text, in a cell. A cell
+    // names each address once, so the list's image has its own address.
+    const BANNER: &str = "https://images.example.org/banner.png";
+    let value = json!({
+        "logos": [{"logo_url": SEAL}, 7, null, true],
+        "texts": [format!("<img src=\"{BANNER}\">"), "nothing here"],
+        "unparsed": "[not json",
+    });
+    let grid = vec![
+        vec![Cell::text("type"), Cell::text("key"), Cell::text("value")],
+        vec![
+            Cell::text("event"),
+            Cell::text("election_event.presentation"),
+            Cell::text(value.to_string()),
+        ],
+    ];
+    let workbook =
+        Workbook::new(vec![Sheet::from_grid("Parameters", &grid).unwrap()])
+            .unwrap();
+    let problems = check(&workbook);
+    assert_eq!(problems.len(), 2, "{problems:?}");
+    assert!(problems[0].message.contains("(logos.logo_url)"));
+    assert!(problems[1].message.contains("(texts)"));
+
+    let (embedded, replaced) = embed_image(&workbook, SEAL, SVG).unwrap();
+    let (embedded, banners) = embed_image(&embedded, BANNER, SVG).unwrap();
+    assert_eq!((replaced, banners), (1, 1));
+    assert!(check(&embedded).is_empty());
+    let out = value_of(&embedded, "election_event.presentation");
+    assert_eq!(out["logos"], json!([{"logo_url": data()}, 7, null, true]));
+    assert_eq!(out["texts"][0], format!("<img src=\"{}\">", data()));
+    assert_eq!(out["texts"][1], "nothing here");
+    assert_eq!(out["unparsed"], "[not json");
+}
+
+#[test]
+fn an_import_with_no_semicolon_does_not_stop_the_rule() {
+    // An @import with no `;` after it ends the scan where it is.
+    let css = format!(
+        "a {{ background: url({SEAL}) }} b {{ background: url({SEAL}) }}"
+    );
+    let (out, n) = embed_in_text(&format!("@import x\n{css}"), SEAL, &data());
+    assert_eq!(n, 2);
+    assert!(out.starts_with(":root {"), "{out}");
+    // Twice, but outside a stylesheet: replaced where it is.
+    let (out, n) = embed_in_text(&format!("{SEAL} {SEAL}"), SEAL, &data());
+    assert_eq!(n, 2);
+    assert_eq!(out, format!("{0} {0}", data()));
+}
+
+#[test]
 fn an_address_the_workbook_does_not_name_is_refused() {
     let problem =
         embed_image(&workbook(SEAL), "https://other.example/x.png", SVG)

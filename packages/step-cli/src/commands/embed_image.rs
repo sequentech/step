@@ -92,3 +92,109 @@ impl EmbedImage {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sequent_core::election_config::sheet::{Sheet, Workbook};
+    use sequent_core::election_config::Cell;
+    use std::path::Path;
+
+    const SEAL: &str = "https://images.example.org/seal.svg";
+    const FONT: &str = "https://fonts.example.org/a.woff2";
+    // A synthetic image: no client file is in the repository.
+    const SVG: &[u8] = br#"<svg xmlns="http://www.w3.org/2000/svg"><circle r="1"/></svg>"#;
+
+    /// A workbook whose event presentation names the image and a font.
+    fn write_workbook(path: &Path) {
+        let presentation = serde_json::json!({
+            "logo_url": SEAL,
+            "css": format!("@font-face {{ src: url({FONT}); }}"),
+        });
+        let grid = vec![
+            vec![Cell::text("type"), Cell::text("key"), Cell::text("value")],
+            vec![
+                Cell::text("event"),
+                Cell::text("election_event.presentation"),
+                Cell::text(presentation.to_string()),
+            ],
+        ];
+        let workbook = Workbook::new(vec![Sheet::from_grid("Parameters", &grid).unwrap()]).unwrap();
+        fs::write(path, write_xlsx(&workbook).unwrap()).unwrap();
+    }
+
+    fn command(dir: &Path, address: &str, out: &str) -> EmbedImage {
+        EmbedImage {
+            workbook: dir.join("in.xlsx"),
+            address: address.to_string(),
+            image: dir.join("seal.svg"),
+            out: dir.join(out),
+        }
+    }
+
+    fn setup() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        write_workbook(&dir.path().join("in.xlsx"));
+        fs::write(dir.path().join("seal.svg"), SVG).unwrap();
+        dir
+    }
+
+    #[test]
+    fn the_image_is_embedded_in_a_new_workbook() {
+        let dir = setup();
+        command(dir.path(), SEAL, "out.xlsx").embed().unwrap();
+        let out = read_xlsx(&fs::read(dir.path().join("out.xlsx")).unwrap()).unwrap();
+        // Only the font is left to warn about; the image travels inside.
+        let left: Vec<String> = check(&out)
+            .into_iter()
+            .map(|p| p.details["address"].to_string())
+            .collect();
+        assert_eq!(left, [FONT]);
+        let original = read_xlsx(&fs::read(dir.path().join("in.xlsx")).unwrap()).unwrap();
+        assert_eq!(check(&original).len(), 2);
+    }
+
+    #[test]
+    fn run_writes_the_workbook_when_it_can() {
+        let dir = setup();
+        command(dir.path(), SEAL, "run.xlsx").run();
+        assert!(dir.path().join("run.xlsx").is_file());
+    }
+
+    #[test]
+    fn the_workbook_read_is_never_overwritten() {
+        let dir = setup();
+        let error = command(dir.path(), SEAL, "in.xlsx").embed().unwrap_err();
+        assert!(
+            error.to_string().contains("--out is the workbook"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn files_that_cannot_be_read_or_used_are_refused() {
+        let dir = setup();
+        let mut missing = command(dir.path(), SEAL, "out.xlsx");
+        missing.image = dir.path().join("absent.svg");
+        let error = format!("{:#}", missing.embed().unwrap_err());
+        assert!(error.contains("could not read"), "{error}");
+
+        let mut no_workbook = command(dir.path(), SEAL, "out.xlsx");
+        no_workbook.workbook = dir.path().join("absent.xlsx");
+        let error = format!("{:#}", no_workbook.embed().unwrap_err());
+        assert!(error.contains("could not read"), "{error}");
+
+        let mut not_xlsx = command(dir.path(), SEAL, "out.xlsx");
+        not_xlsx.workbook = dir.path().join("seal.svg");
+        assert!(not_xlsx.embed().is_err());
+
+        let unnamed = command(dir.path(), "https://other.example/x.png", "out.xlsx");
+        let error = unnamed.embed().unwrap_err().to_string();
+        assert!(error.contains("nothing in the workbook names"), "{error}");
+
+        let unwritable = command(dir.path(), SEAL, "no-such-dir/out.xlsx");
+        let error = format!("{:#}", unwritable.embed().unwrap_err());
+        assert!(error.contains("could not write"), "{error}");
+        assert!(!dir.path().join("out.xlsx").exists());
+    }
+}
