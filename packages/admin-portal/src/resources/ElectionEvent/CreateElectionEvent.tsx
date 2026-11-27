@@ -59,6 +59,7 @@ interface IElectionSubmit {
 
 interface IElectionEventSubmit {
     name: string
+    external_id?: string | null
     description: string
     elections: Array<IElectionSubmit>
     encryption_protocol: string
@@ -255,6 +256,10 @@ export const CreateElectionList: React.FC = () => {
                 </Box>
                 <Typography variant="body2">{t("createResource.electionEvent")}</Typography>
                 <TextInput source="name" />
+                <TextInput
+                    source="external_id"
+                    label={String(t("electionEventScreen.field.externalId"))}
+                />
                 <TextInput source="description" />
                 <Hidden>
                     <SelectInput

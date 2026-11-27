@@ -1204,6 +1204,7 @@ input CreateElectionEventInput {
     annotations: jsonb
     tenant_id: String!
     name: String!
+    external_id: String
     description: String
     presentation: jsonb
     bulletin_board_reference: jsonb

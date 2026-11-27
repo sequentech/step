@@ -37,7 +37,7 @@ use tracing::{event, instrument, Level};
 /// The fields of a new election event its entry lists.
 const AUDITED_FIELDS: [&str; 8] = [
     "name",
-    "alias",
+    "external_id",
     "description",
     "encryption_protocol",
     "voting_channels",
@@ -233,7 +233,7 @@ pub struct CreateElectionEventInput {
     pub is_audit: Option<bool>,
     pub audit_election_event_id: Option<String>,
     pub public_key: Option<String>,
-    pub alias: Option<String>,
+    pub external_id: Option<String>,
     pub statistics: Option<Value>,
 }
 
@@ -269,7 +269,7 @@ mod tests {
 
     fn event() -> CreateElectionEventInput {
         serde_json::from_value(json!({
-            "tenant_id": TENANT_ID, "name": "Barangay 2026", "alias": "brgy-2026",
+            "tenant_id": TENANT_ID, "name": "Barangay 2026", "external_id": "brgy-2026",
             "encryption_protocol": "RSA256", "labels": {"internal": true},
             "voting_channels": {"online": true}, "public_key": "key",
         }))
@@ -297,8 +297,8 @@ mod tests {
         assert_eq!(
             serde_json::to_value(&entry.changes).unwrap(),
             json!([
-                {"path": "alias", "new": "brgy-2026"},
                 {"path": "encryption_protocol", "new": "RSA256"},
+                {"path": "external_id", "new": "brgy-2026"},
                 {"path": "name", "new": "Barangay 2026"},
                 {"path": "voting_channels.online", "new": true},
             ])

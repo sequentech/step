@@ -1954,6 +1954,7 @@ const spanishTranslation: TranslationType = {
                 },
                 name: "Nombre",
                 alias: "Alias",
+                externalId: "ID externo",
                 description: "Descripción",
                 startDateTime: "Fecha y hora de inicio",
                 endDateTime: "Fecha y hora de finalización",

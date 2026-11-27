@@ -1437,6 +1437,8 @@ export const EditElectionEventDataForm: React.FC<{
 
         return {
             ...values,
+            // A blank ID stays empty, so it can still be set later.
+            ...("external_id" in values ? {external_id: values.external_id?.trim() || null} : {}),
             presentation: {
                 ...values.presentation,
                 lifecycle_policies: savedPolicies(),
@@ -1519,6 +1521,12 @@ export const EditElectionEventDataForm: React.FC<{
                         </ElectionHeaderStyles.Wrapper>
                     </AccordionSummary>
                     <AccordionDetails>
+                        <TextInput
+                            disabled={!canEdit}
+                            source="external_id"
+                            label={String(t("electionEventScreen.field.externalId"))}
+                            readOnly={!!record?.external_id}
+                        />
                         <Tabs value={value} onChange={handleChange}>
                             {renderTabs(parsedValue)}
                         </Tabs>

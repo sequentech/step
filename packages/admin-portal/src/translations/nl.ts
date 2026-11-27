@@ -1575,6 +1575,7 @@ const dutchTranslation: TranslationType = {
                 },
                 name: "Naam",
                 alias: "Alias",
+                externalId: "Externe ID",
                 description: "Beschrijving",
                 startDateTime: "Startdatum en -tijd",
                 endDateTime: "Einddatum en -tijd",

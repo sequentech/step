@@ -17,6 +17,7 @@ import {AuthContext} from "@/providers/AuthContextProvider"
 import {SettingsContext} from "@/providers/SettingsContextProvider"
 import {NewResourceContext} from "@/providers/NewResourceProvider"
 import {CreateElectionList} from "./CreateElectionEvent"
+import {i18n} from "@sequentech/ui-core"
 
 interface Scenario {
     settings: Record<string, unknown>
@@ -181,6 +182,29 @@ export const DefaultLanguageWhenNotConfigured: Story = {
     play: async ({canvasElement}) => {
         await submit(canvasElement)
         assertLanguage({enabled_language_codes: ["en"], default_language_code: "en"})
+    },
+}
+export const CreationWithAnExternalId: Story = {
+    play: async ({canvasElement}) => {
+        const canvas = within(canvasElement)
+        const externalId = await canvas.findByRole("textbox", {
+            name: i18n.t("electionEventScreen.field.externalId"),
+        })
+        await userEvent.type(externalId, "council-2026")
+        await submit(canvasElement)
+        const call = boundary.calls.find((call) => call.name === "CreateElectionEvent")
+        expect(call?.variables.electionEvent).toEqual(
+            expect.objectContaining({name: "Council event", external_id: "council-2026"})
+        )
+    },
+}
+export const CreationWithoutAnExternalId: Story = {
+    play: async ({canvasElement}) => {
+        await submit(canvasElement)
+        const call = boundary.calls.find((call) => call.name === "CreateElectionEvent")
+        const event = call?.variables.electionEvent as {external_id?: string | null} | undefined
+        // The ID is optional: an event created without one stores none.
+        expect(event?.external_id ?? null).toBeNull()
     },
 }
 export const CreationFailureKeepsFormAvailable: Story = {

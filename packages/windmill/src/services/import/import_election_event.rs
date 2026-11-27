@@ -1154,6 +1154,43 @@ pub async fn ensure_new_election_event(
     Ok(())
 }
 
+/// The election event a create request stores, before its vote privacy is
+/// configured. A blank external ID is stored as none, so it can be set later.
+fn new_election_event(object: &CreateElectionEventInput, election_event_id: &str) -> ElectionEvent {
+    ElectionEvent {
+        id: election_event_id.to_string(),
+        tenant_id: object.tenant_id.clone(),
+        description: object.description.clone(),
+        public_key: object.public_key.clone(),
+        status: object.status.clone(),
+        created_at: None,
+        updated_at: None,
+        labels: object.labels.clone(),
+        annotations: object.annotations.clone(),
+        presentation: object.presentation.clone(),
+        bulletin_board_reference: object.bulletin_board_reference.clone(),
+        is_archived: object.is_archived.unwrap_or(false),
+        voting_channels: object.voting_channels.clone(),
+        user_boards: object.user_boards.clone(),
+        encryption_protocol: object
+            .encryption_protocol
+            .clone()
+            .unwrap_or("WBRAID".to_string()),
+        is_audit: object.is_audit.clone(),
+        audit_election_event_id: object.audit_election_event_id.clone(),
+        statistics: Some(json!({
+            "num_emails_sent": 0,
+            "num_sms_sent": 0
+        })),
+        external_id: object
+            .external_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|external_id| !external_id.is_empty())
+            .map(str::to_string),
+    }
+}
+
 #[instrument(skip(hasura_transaction), err)]
 pub async fn insert_election_event_db(
     hasura_transaction: &Transaction<'_>,
@@ -1182,33 +1219,7 @@ pub async fn insert_election_event_db(
         return Ok(());
     }
 
-    let mut new_election_input = ElectionEvent {
-        id: election_event_id.clone(),
-        tenant_id: object.tenant_id.clone(),
-        description: object.description.clone(),
-        public_key: object.public_key.clone(),
-        status: object.status.clone(),
-        created_at: None,
-        updated_at: None,
-        labels: object.labels.clone(),
-        annotations: object.annotations.clone(),
-        presentation: object.presentation.clone(),
-        bulletin_board_reference: object.bulletin_board_reference.clone(),
-        is_archived: object.is_archived.unwrap_or(false),
-        voting_channels: object.voting_channels.clone(),
-        user_boards: object.user_boards.clone(),
-        encryption_protocol: object
-            .encryption_protocol
-            .clone()
-            .unwrap_or("WBRAID".to_string()),
-        is_audit: object.is_audit.clone(),
-        audit_election_event_id: object.audit_election_event_id.clone(),
-        statistics: Some(json!({
-            "num_emails_sent": 0,
-            "num_sms_sent": 0
-        })),
-        external_id: None,
-    };
+    let mut new_election_input = new_election_event(object, &election_event_id);
 
     crate::services::vote_privacy::configure_new_event(&mut new_election_input)?;
     insert_election_event(&hasura_transaction, &new_election_input).await?;
@@ -5432,6 +5443,73 @@ mod imported_realm_sanitization_tests {
         assert_eq!(
             client_claim_mapper_count(&sanitize(&template), "voting-portal-kiosk"),
             kiosk_mappers
+        );
+    }
+}
+
+#[cfg(test)]
+mod created_event_external_id_tests {
+    use super::*;
+
+    fn created(external_id: serde_json::Value) -> ElectionEvent {
+        let input: CreateElectionEventInput = serde_json::from_value(serde_json::json!({
+            "tenant_id": "4f1c6b38-9f5e-4a59-8d3b-2a7f0c1e5d61",
+            "name": "Council 2026",
+            "external_id": external_id,
+        }))
+        .unwrap();
+        new_election_event(&input, "b7e2d915-3c4a-4e8f-9a61-5d0f2c8b7e43")
+    }
+
+    #[test]
+    fn a_created_event_keeps_the_external_id_it_was_given() {
+        assert_eq!(
+            created(serde_json::json!("council-2026")).external_id,
+            Some("council-2026".to_string())
+        );
+    }
+
+    #[test]
+    fn a_created_event_stores_its_external_id_without_surrounding_blanks() {
+        assert_eq!(
+            created(serde_json::json!("  council 2026 \n")).external_id,
+            Some("council 2026".to_string())
+        );
+    }
+
+    #[test]
+    fn a_created_event_without_an_external_id_stores_none() {
+        // Absent, null, empty and blank all leave the column empty, so the
+        // Data tab still lets an administrator set it later.
+        for external_id in [
+            serde_json::Value::Null,
+            serde_json::json!(""),
+            serde_json::json!("   "),
+        ] {
+            assert_eq!(
+                created(external_id.clone()).external_id,
+                None,
+                "{external_id}"
+            );
+        }
+        let input: CreateElectionEventInput = serde_json::from_value(serde_json::json!({
+            "tenant_id": "4f1c6b38-9f5e-4a59-8d3b-2a7f0c1e5d61",
+            "name": "Council 2026",
+        }))
+        .unwrap();
+        assert_eq!(new_election_event(&input, "event").external_id, None);
+    }
+
+    #[test]
+    fn a_created_event_keeps_the_rest_of_its_input() {
+        let event = created(serde_json::json!("council-2026"));
+        assert_eq!(event.id, "b7e2d915-3c4a-4e8f-9a61-5d0f2c8b7e43");
+        assert_eq!(event.tenant_id, "4f1c6b38-9f5e-4a59-8d3b-2a7f0c1e5d61");
+        assert_eq!(event.encryption_protocol, "WBRAID");
+        assert!(!event.is_archived);
+        assert_eq!(
+            event.statistics,
+            Some(serde_json::json!({"num_emails_sent": 0, "num_sms_sent": 0}))
         );
     }
 }

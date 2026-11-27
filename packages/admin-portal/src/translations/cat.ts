@@ -1571,6 +1571,7 @@ const catalanTranslation: TranslationType = {
                 },
                 name: "Nom",
                 alias: "Àlies",
+                externalId: "ID extern",
                 description: "Descripció",
                 startDateTime: "Data i hora d'inici",
                 endDateTime: "Data i hora de finalització",

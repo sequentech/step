@@ -22,6 +22,7 @@ insert_permissions:
               - created_at
               - description
               - encryption_protocol
+              - external_id
               - id
               - is_archived
               - is_audit
@@ -44,6 +45,7 @@ insert_permissions:
               - is_archived
               - is_audit
               - encryption_protocol
+              - external_id
               - user_boards
               - annotations
               - bulletin_board_reference
@@ -69,6 +71,7 @@ insert_permissions:
               - is_archived
               - is_audit
               - encryption_protocol
+              - external_id
               - user_boards
               - annotations
               - bulletin_board_reference
@@ -95,6 +98,7 @@ insert_permissions:
               - created_at
               - description
               - encryption_protocol
+              - external_id
               - id
               - is_archived
               - is_audit
@@ -118,6 +122,7 @@ select_permissions:
               - created_at
               - description
               - encryption_protocol
+              - external_id
               - id
               - is_archived
               - is_audit
@@ -141,6 +146,7 @@ select_permissions:
               - is_archived
               - is_audit
               - encryption_protocol
+              - external_id
               - user_boards
               - annotations
               - bulletin_board_reference
@@ -167,6 +173,7 @@ select_permissions:
               - is_archived
               - is_audit
               - encryption_protocol
+              - external_id
               - user_boards
               - annotations
               - bulletin_board_reference
@@ -193,6 +200,7 @@ select_permissions:
               - is_archived
               - is_audit
               - encryption_protocol
+              - external_id
               - user_boards
               - annotations
               - bulletin_board_reference
@@ -222,6 +230,7 @@ select_permissions:
               - created_at
               - description
               - encryption_protocol
+              - external_id
               - id
               - is_archived
               - is_audit
@@ -245,6 +254,7 @@ select_permissions:
               - is_archived
               - is_audit
               - encryption_protocol
+              - external_id
               - user_boards
               - annotations
               - bulletin_board_reference
@@ -271,6 +281,7 @@ select_permissions:
               - is_archived
               - is_audit
               - encryption_protocol
+              - external_id
               - user_boards
               - annotations
               - bulletin_board_reference
@@ -297,6 +308,7 @@ select_permissions:
               - is_archived
               - is_audit
               - encryption_protocol
+              - external_id
               - user_boards
               - annotations
               - bulletin_board_reference
@@ -323,6 +335,7 @@ select_permissions:
               - is_archived
               - is_audit
               - encryption_protocol
+              - external_id
               - user_boards
               - annotations
               - bulletin_board_reference
@@ -348,6 +361,7 @@ select_permissions:
               - is_archived
               - is_audit
               - encryption_protocol
+              - external_id
               - user_boards
               - annotations
               - bulletin_board_reference
@@ -377,6 +391,7 @@ select_permissions:
               - created_at
               - description
               - encryption_protocol
+              - external_id
               - id
               - is_archived
               - is_audit
@@ -403,6 +418,7 @@ select_permissions:
               - created_at
               - description
               - encryption_protocol
+              - external_id
               - id
               - is_archived
               - is_audit
@@ -427,6 +443,7 @@ select_permissions:
               - created_at
               - description
               - encryption_protocol
+              - external_id
               - id
               - is_archived
               - is_audit
@@ -452,6 +469,7 @@ select_permissions:
               - created_at
               - description
               - encryption_protocol
+              - external_id
               - id
               - is_archived
               - is_audit
@@ -479,6 +497,7 @@ update_permissions:
               - created_at
               - description
               - encryption_protocol
+              - external_id
               - id
               - is_archived
               - is_audit
@@ -519,6 +538,7 @@ update_permissions:
               - created_at
               - description
               - encryption_protocol
+              - external_id
               - id
               - is_archived
               - is_audit
@@ -544,6 +564,7 @@ update_permissions:
               - is_archived
               - is_audit
               - encryption_protocol
+              - external_id
               - user_boards
               - annotations
               - labels
@@ -574,6 +595,7 @@ update_permissions:
               - created_at
               - description
               - encryption_protocol
+              - external_id
               - id
               - is_archived
               - is_audit

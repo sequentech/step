@@ -42,7 +42,7 @@ let boundaries: ReturnType<typeof eventDataBoundaries>
 
 // The edit view provides the record and the save; like EditBase, the save applies the
 // button's transform before writing.
-function Fixture({transform, saved, saveError, neverOpened, sealAtClose}: Scenario) {
+function Fixture({transform, saved, saveError, neverOpened, sealAtClose, externalId}: Scenario) {
     const {permissions, tenant} = useStoryGlobals()
     const save: SaveHandler<RaRecord> = async (values, options) => {
         const data = options?.transform ? await options.transform(values) : values
@@ -58,7 +58,9 @@ function Fixture({transform, saved, saveError, neverOpened, sealAtClose}: Scenar
         >
             <WidgetsContextProvider>
                 <ResourceContextProvider value="sequent_backend_election_event">
-                    <RecordContextProvider value={eventDataEvent(false, neverOpened, sealAtClose)}>
+                    <RecordContextProvider
+                        value={eventDataEvent(false, neverOpened, sealAtClose, {}, externalId)}
+                    >
                         <SaveContextProvider
                             value={{save, saving: false, mutationMode: "pessimistic"}}
                         >
@@ -299,6 +301,7 @@ export const LockedDownAdministrator: Story = {
         const canvas = await loaded(canvasElement)
         // Without the event write permission there is nothing to save.
         expect(canvas.getByRole("textbox", {name: field("name")})).toBeDisabled()
+        expect(canvas.getByRole("textbox", {name: field("externalId")})).toBeDisabled()
         expect(canvas.queryByRole("button", {name: "Save"})).toBeNull()
         await openSection(canvasElement, "advancedConfigurations")
         await expect(canvas.getByRole("combobox", {name: results("policyAccess")})).toBeVisible()
@@ -362,6 +365,51 @@ export const SaveTheEvent: Story = {
         // The unchanged password policy and realm attributes are not written.
         expect(operations()).not.toContain("UpdateRealmPasswordPolicy")
         expect(operations()).not.toContain("UpdateRealmAttributes")
+    },
+}
+
+export const ExternalIdIsReadOnlyOnceSet: Story = {
+    args: {externalId: "legacy-seat-v1:11"},
+    play: async ({canvasElement}) => {
+        const canvas = await loaded(canvasElement)
+        const externalId = canvas.getByRole("textbox", {name: field("externalId")})
+        await expect(externalId).toBeVisible()
+        expect(externalId).toHaveValue("legacy-seat-v1:11")
+        expect(externalId).toHaveAttribute("readonly")
+        // It sits above the language tabs: one ID for the event, not one per language.
+        expect(externalId.compareDocumentPosition(canvas.getByRole("tab", {name: "English"}))).toBe(
+            Node.DOCUMENT_POSITION_FOLLOWING
+        )
+    },
+}
+
+export const SetTheExternalIdWhileEmpty: Story = {
+    parameters: {widgets: ["EventSaveButton", "ResultsWebsitePolicyFields"]},
+    play: async ({canvasElement, args}) => {
+        const canvas = await loaded(canvasElement)
+        const externalId = canvas.getByRole("textbox", {name: field("externalId")})
+        expect(externalId).toHaveValue("")
+        expect(externalId).not.toHaveAttribute("readonly")
+        await userEvent.type(externalId, "  council-2026 ")
+        await userEvent.click(saveButton(canvasElement))
+        await waitFor(() => expect(args.saved).toHaveBeenCalledTimes(1))
+        // The ID is stored without the blanks around it.
+        expect(args.transform.mock.calls[0][0]).toMatchObject({external_id: "council-2026"})
+    },
+}
+
+export const SaveWithoutAnExternalId: Story = {
+    parameters: {widgets: ["EventSaveButton", "ResultsWebsitePolicyFields"]},
+    play: async ({canvasElement, args}) => {
+        await editDescription(canvasElement)
+        const externalId = within(canvasElement).getByRole("textbox", {
+            name: field("externalId"),
+        })
+        await userEvent.type(externalId, "   ")
+        await userEvent.click(saveButton(canvasElement))
+        await waitFor(() => expect(args.saved).toHaveBeenCalledTimes(1))
+        // A blank ID stays empty, so it can still be set later.
+        expect(args.transform.mock.calls[0][0]).toMatchObject({external_id: null})
     },
 }
 

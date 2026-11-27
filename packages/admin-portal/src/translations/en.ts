@@ -2082,6 +2082,7 @@ const englishTranslation = {
                 },
                 name: "Name",
                 alias: "Alias",
+                externalId: "External ID",
                 description: "Description",
                 startDateTime: "Start Date and Time",
                 endDateTime: "End Date and Time",
