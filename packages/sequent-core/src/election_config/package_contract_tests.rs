@@ -76,7 +76,10 @@ fn every_member_of_a_complete_delivery_has_its_documented_disposition() {
             "export_permissions-t1.csv",
             Disposition::Applied(Section::RolePermissions),
         ),
-        ("export_templates-t1.csv", Disposition::Manual),
+        (
+            "export_templates-t1.csv",
+            Disposition::Applied(Section::MessageTemplates),
+        ),
         (
             "keycloak_admin-t1.json",
             Disposition::Applied(Section::TenantSettings),
@@ -85,7 +88,7 @@ fn every_member_of_a_complete_delivery_has_its_documented_disposition() {
             "tenant_platform-t1.json",
             Disposition::Applied(Section::TenantConfiguration),
         ),
-        ("templates/templates.json", Disposition::Manual),
+        ("templates/templates.json", Disposition::RecordOnly),
         (
             "trustees_public.json",
             Disposition::Applied(Section::Trustees),
@@ -193,6 +196,7 @@ fn the_apply_order_puts_tenant_configuration_before_the_event() {
             Section::RolePermissions,
             Section::AdminAccounts,
             Section::Trustees,
+            Section::MessageTemplates,
             Section::MessagingAccounts,
             Section::ElectionEvent
         ]

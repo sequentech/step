@@ -5,7 +5,9 @@
 //! Credential-free sender identities bound by a signed delivery. A receiver
 //! maps these references to target-owned accounts; no authorization travels.
 use crate::types::messaging::{
-    AccountSender, MessagePurpose, ViberContentMode,
+    AccountCheck, AccountCheckDetails, AccountSender, CheckSource,
+    EventMessagingConfig, MessageChannel, MessagePurpose, ProviderApproval,
+    ViberContentMode,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -155,6 +157,65 @@ pub fn parse(
     Ok(parsed)
 }
 
+/// Per account reference (`package:<ref>`) and purpose, the template
+/// languages a configuration package names for it.
+pub type DeclaredLanguages =
+    BTreeMap<String, BTreeMap<MessagePurpose, BTreeSet<String>>>;
+
+impl PortableMessagingAccounts {
+    /// The template languages the package names for each account: its event's
+    /// template settings on the account's channel (each binding's language and
+    /// the provider's code for it), Viber's declared template IDs, and, for
+    /// notices, the provider languages of the package's message templates on
+    /// the account's channel (`notice_templates`).
+    pub fn declared_languages(
+        &self,
+        event: Option<&EventMessagingConfig>,
+        notice_templates: &[(MessageChannel, String)],
+    ) -> DeclaredLanguages {
+        let mut declared = DeclaredLanguages::new();
+        for account in &self.accounts {
+            let reference = account.reference_key();
+            let mut languages: BTreeMap<MessagePurpose, BTreeSet<String>> =
+                BTreeMap::new();
+            if let PortableSender::VIBER_INFOBIP {
+                approved_templates: Some(templates),
+                ..
+            } = &account.sender
+            {
+                for (purpose, by_language) in templates {
+                    languages
+                        .entry(*purpose)
+                        .or_default()
+                        .extend(by_language.keys().cloned());
+                }
+            }
+            let channels = event
+                .map(|event| event.channels.as_slice())
+                .unwrap_or_default();
+            for channel in channels.iter().filter(|c| c.account_id == reference)
+            {
+                for binding in &channel.templates {
+                    let entry = languages.entry(binding.purpose).or_default();
+                    entry.insert(binding.language.clone());
+                    entry.insert(binding.provider_language().to_string());
+                }
+            }
+            let channel = account.account_sender().provider().channel();
+            for (template_channel, language) in notice_templates {
+                if Some(*template_channel) == channel {
+                    languages
+                        .entry(MessagePurpose::NOTICE)
+                        .or_default()
+                        .insert(language.clone());
+                }
+            }
+            declared.insert(reference, languages);
+        }
+        declared
+    }
+}
+
 impl PortableMessagingAccount {
     pub fn reference_key(&self) -> String {
         format!("{REF_PREFIX}{}", self.reference)
@@ -172,6 +233,42 @@ impl PortableMessagingAccount {
                         b.is_ascii_digit() || (b'a'..=b'f').contains(&b)
                     })
             }
+        }
+    }
+    /// The account as its package's author checked it: connected, with
+    /// production access and the provider's approval, and approved templates
+    /// in the languages the package names for it ([`PortableMessagingAccounts::declared_languages`]).
+    /// A receiver takes it as checked at `checked_at`, for the account's own
+    /// identity, until an administrator checks it with the provider.
+    pub fn declared_check(
+        &self,
+        languages: &DeclaredLanguages,
+        checked_at: String,
+    ) -> AccountCheck {
+        let sender = self.account_sender();
+        AccountCheck {
+            connected: true,
+            production_access: true,
+            approved_templates: languages
+                .get(&self.reference_key())
+                .map(|by_purpose| {
+                    by_purpose
+                        .iter()
+                        .filter(|(_, languages)| !languages.is_empty())
+                        .map(|(purpose, languages)| {
+                            (*purpose, languages.iter().cloned().collect())
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
+            checked_at: Some(checked_at),
+            reason: None,
+            details: AccountCheckDetails {
+                identity: Some(sender.identity()),
+                provider_approval: Some(ProviderApproval::CONFIRMED),
+                source: CheckSource::CONFIGURATION_PACKAGE,
+                ..Default::default()
+            },
         }
     }
     pub fn account_sender(&self) -> AccountSender {
@@ -790,6 +887,96 @@ mod tests {
             "sender":{"provider":"MESSENGER_SEND_API","page_id":"123","api_version":"v23.0"},
             "credential_commitment": commitment}]});
         assert!(parse(&serde_json::to_vec(&meta).unwrap()).is_err());
+    }
+
+    /// A package's accounts arrive checked: what its author checked, as
+    /// the package names it. Each account is approved for exactly the
+    /// template languages the package uses on it, and is ready for them.
+    #[test]
+    fn a_package_account_arrives_checked_for_the_templates_it_names() {
+        use crate::types::messaging::{
+            purpose_readiness, CheckSource, EventMessagingConfig,
+            MessageChannel, ProviderApproval,
+        };
+        let bundle = parsed(&serde_json::json!({"format":FORMAT,"accounts":[
+            {"reference":"whatsapp","name":"Demo WhatsApp","sender":{"provider":"WHATSAPP_INFOBIP",
+                "base_url":"https://abc-1.api.infobip.com","sender_number":"447796344125"}},
+            {"reference":"viber","name":"Demo Viber","sender":{"provider":"VIBER_INFOBIP",
+                "base_url":"https://abc-1.api.infobip.com","sender":"Demo","content_mode":"APPROVED_TEMPLATES",
+                "approved_templates":{"OTP":{"es":"code_es"}}}},
+            {"reference":"sms","name":"Demo SMS","sender":{"provider":"AWS_SNS","sender_id":"Sample","region":"us-east-1"}}
+        ]}))
+        .unwrap();
+        let event: EventMessagingConfig = serde_json::from_value(serde_json::json!({
+            "version":1,"channels":[
+                {"channel":"WHATSAPP","account_id":"package:whatsapp","purposes":["OTP","NOTICE"],
+                 "templates":[
+                    {"purpose":"OTP","key":"otp","language":"en","provider_language":"en_GB","provider_template":"authentication",
+                     "buttons":[{"type":"URL","parameter":"{{code}}"}]},
+                    {"purpose":"NOTICE","key":"contactChanged.notice.text","language":"es","provider_template":"contact_changed"}
+                 ]},
+                {"channel":"VIBER","account_id":"package:viber","purposes":["OTP"]}
+            ]
+        }))
+        .unwrap();
+        // A message template's WhatsApp part names its own template.
+        let notices = [(MessageChannel::WHATSAPP, "fr".to_string())];
+        let languages = bundle.declared_languages(Some(&event), &notices);
+        let at = "2026-11-27T10:00:00Z".to_string();
+
+        let whatsapp = &bundle.accounts[0];
+        let check = whatsapp.declared_check(&languages, at.clone());
+        assert!(check.connected && check.production_access);
+        assert_eq!(check.checked_at.as_deref(), Some(at.as_str()));
+        assert_eq!(check.reason, None);
+        assert_eq!(check.details.source, CheckSource::CONFIGURATION_PACKAGE);
+        assert_eq!(
+            check.details.identity,
+            Some(whatsapp.account_sender().identity())
+        );
+        assert_eq!(
+            check.details.provider_approval,
+            Some(ProviderApproval::CONFIRMED)
+        );
+        assert_eq!(
+            check.approved_templates,
+            BTreeMap::from([
+                (MessagePurpose::OTP, vec!["en".into(), "en_GB".into()]),
+                (MessagePurpose::NOTICE, vec!["es".into(), "fr".into()]),
+            ])
+        );
+        let sender = whatsapp.account_sender();
+        let capabilities =
+            sender.capabilities(MessageChannel::WHATSAPP).unwrap();
+        for purpose in [MessagePurpose::OTP, MessagePurpose::NOTICE] {
+            let readiness = purpose_readiness(
+                &capabilities,
+                ProviderApproval::PENDING,
+                Some(&sender.identity()),
+                &check,
+                purpose,
+                None,
+            );
+            assert!(readiness.is_ready(), "{purpose}: {readiness:?}");
+        }
+
+        // Viber: the template IDs it declares; never WhatsApp's notices.
+        let viber = bundle.accounts[1].declared_check(&languages, at.clone());
+        assert_eq!(
+            viber.approved_templates,
+            BTreeMap::from([(MessagePurpose::OTP, vec!["es".into()])])
+        );
+        // An account without templates is simply connected.
+        let sms = bundle.accounts[2].declared_check(&languages, at);
+        assert!(sms.connected && sms.approved_templates.is_empty());
+        // Checks stored here say nothing of their source.
+        let plain = serde_json::to_value(
+            crate::types::messaging::AccountCheck::default(),
+        )
+        .unwrap();
+        assert!(plain["details"].get("source").is_none());
+        let stored = serde_json::to_value(&sms).unwrap();
+        assert_eq!(stored["details"]["source"], "CONFIGURATION_PACKAGE");
     }
 
     fn one(sender: serde_json::Value) -> serde_json::Value {

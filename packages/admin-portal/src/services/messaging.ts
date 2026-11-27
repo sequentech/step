@@ -36,6 +36,8 @@ import {
     IPublicMessagingChannels,
     IPurposeReadiness,
     ITemplateBinding,
+    KEYCLOAK_NOTICE_MESSAGE_KEYS,
+    KEYCLOAK_OTP_MESSAGE_KEYS,
     MESSAGE_CHANNELS,
     MESSAGE_PURPOSES,
     UNSUPPORTED_PROVIDERS,
@@ -553,6 +555,49 @@ export const templateFor = (
         null
     )
 }
+
+/** A channel that sends only approved templates, and the sign-in pages' messages it has none for. */
+export interface IMissingTemplates {
+    channel: EMessageChannel
+    /** Keycloak message keys, as `template_key`. */
+    keys: string[]
+}
+
+/**
+ * On each channel that sends a purpose it offers only as approved templates,
+ * the messages of the sign-in pages (codes, links and their notices) with no
+ * template to send: no binding for the message or default for its purpose
+ * and, for Viber, none among the account's own approved templates. Voters on
+ * that channel never get them. Notices sent from the Admin Portal name their
+ * own template, so they aren't counted.
+ */
+export const missingTemplates = (
+    config: IEventMessagingConfig,
+    accounts: IMessagingAccount[]
+): IMissingTemplates[] =>
+    config.channels.flatMap((entry) => {
+        const account = accounts.find((candidate) => candidate.id === entry.account_id)
+        const required = account ? (accountCapabilities(account)?.template_required_for ?? []) : []
+        const own =
+            account?.sender.provider === EMessagingProvider.VIBER_INFOBIP
+                ? (account.sender.approved_templates ?? {})
+                : {}
+        const keys = (
+            [
+                [EMessagePurpose.OTP, KEYCLOAK_OTP_MESSAGE_KEYS],
+                [EMessagePurpose.NOTICE, KEYCLOAK_NOTICE_MESSAGE_KEYS],
+            ] as Array<[EMessagePurpose, string[]]>
+        ).flatMap(([purpose, messageKeys]) =>
+            entry.purposes.includes(purpose) &&
+            required.includes(purpose) &&
+            Object.keys(own[purpose] ?? {}).length === 0
+                ? messageKeys.filter(
+                      (key) => !templateFor(config, entry.channel, purpose, key, null)
+                  )
+                : []
+        )
+        return keys.length ? [{channel: entry.channel, keys}] : []
+    })
 
 export const emptyEventMessagingConfig = (): IEventMessagingConfig => ({
     version: EVENT_MESSAGING_CONFIG_VERSION,

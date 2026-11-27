@@ -6598,6 +6598,12 @@ const tagalogTranslation: TranslationType = {
             needsSavingAgain: "Kailangang i-save muli ang configuration.",
             needsSavingAgainHelp:
                 "Kinopya ito mula sa dating storage at hindi ito pumasa sa mga pagsusuring ginagawa sa pag-save. Ayusin ang mga problemang ipinapakita, saka i-save itong muli.",
+            missingTemplates: {
+                title: "May mga mensaheng hindi makararating sa mga botante",
+                channel:
+                    "Mga aprubadong template lang ang ipinapadala ng {{channel}} at wala itong template para sa: {{messages}}. Hindi matatanggap ng mga botanteng gumagamit ng {{channel}} ang mga mensaheng ito.",
+                help: "Magdagdag ng template para sa bawat isa sa Mga aprubadong template, o ng default para sa layunin. Ginagamit ang default sa bawat mensaheng walang sariling template, kaya dapat akma ang mga placeholder nito sa bawat isa.",
+            },
         },
         messaging: {
             channel: {

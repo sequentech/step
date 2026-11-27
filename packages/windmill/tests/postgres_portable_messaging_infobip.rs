@@ -3,25 +3,27 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 //! Infobip accounts (Viber, WhatsApp) delivered with a package, against
-//! PostgreSQL, the vault and a loopback provider: their API keys arrive in
-//! the encrypted package, are installed with the accounts, and Apply checks
-//! the accounts it wrote before the event import reads them. An account
-//! delivered without its key is still created, and waits for it. Synthetic
-//! values only. Its own binary: the registry takes a NOWAIT table lock that
-//! concurrent registry tests would contend for.
+//! PostgreSQL and the vault: their API keys arrive in the encrypted package
+//! and are installed with the accounts, each its own, and every account is
+//! taken as checked for the templates the package names, without asking a
+//! provider. An account delivered without its key is still created, checked
+//! as declared, and waits for its key. Synthetic values only. Its own binary:
+//! the registry takes a NOWAIT table lock that concurrent registry tests
+//! would contend for.
 
 #[path = "support/schema.rs"]
 mod schema;
 
-use messaging::providers::Endpoints;
-use messaging::test_server::{Reply, ServerOptions, TestServer};
 use sequent_core::election_config::encrypted_delivery::encrypt_signed_delivery_with_credentials;
 use sequent_core::election_config::messaging_credentials::{
     commitment, CredentialSidecar, SidecarEntry, SidecarFormat,
 };
 use sequent_core::election_config::portable_messaging::{parse, PortableMessagingAccounts};
-use sequent_core::types::messaging::{AccountSender, CredentialName, MessagePurpose};
+use sequent_core::types::messaging::{
+    AccountSender, CheckSource, CredentialName, EventMessagingConfig, MessagePurpose,
+};
 use serde_json::json;
+use std::collections::BTreeMap;
 use uuid::Uuid;
 use windmill::postgres::messaging::list_messaging_accounts;
 use windmill::services::documents::publish_unwrapped_pointer;
@@ -65,19 +67,23 @@ fn definitions(tenant: &Uuid, base_url: &str) -> PortableMessagingAccounts {
     parse(&serde_json::to_vec(&doc).unwrap()).unwrap()
 }
 
-/// The number's templates, as Infobip lists them: one approved per purpose.
-fn templates() -> Reply {
-    Reply::Json(
-        200,
-        json!({"templates":[
-            {"name":"otp_code","language":"en","status":"APPROVED","category":"AUTHENTICATION"},
-            {"name":"election_notice","language":"en","status":"APPROVED","category":"UTILITY"}
-        ]}),
-    )
+/// The signed event's settings: WhatsApp codes and notices with their
+/// approved templates, Viber in free text.
+fn event() -> EventMessagingConfig {
+    serde_json::from_value(json!({"version":1,"channels":[
+        {"channel":"WHATSAPP","account_id":"package:whatsapp","purposes":["OTP","NOTICE"],
+         "templates":[
+            {"purpose":"OTP","key":"otp","language":"en","provider_template":"otp_code",
+             "buttons":[{"type":"URL","parameter":"{{code}}"}]},
+            {"purpose":"NOTICE","language":"en","provider_template":"election_notice"}
+         ]},
+        {"channel":"VIBER","account_id":"package:viber","purposes":["OTP","NOTICE"]}
+    ]}))
+    .unwrap()
 }
 
 #[tokio::test]
-async fn delivered_infobip_keys_are_installed_and_checked_at_apply() {
+async fn delivered_infobip_keys_are_installed_and_their_accounts_arrive_checked() {
     std::env::set_var("MASTER_SECRET", MASTER_SECRET);
     let pool = schema::pool().await;
     let mut client = pool.get().await.unwrap();
@@ -129,21 +135,20 @@ async fn delivered_infobip_keys_are_installed_and_checked_at_apply() {
         .unwrap();
     tx.commit().await.unwrap();
 
-    let server = TestServer::start_with(
-        vec![],
-        ServerOptions {
-            then: Some(templates()),
-            ..Default::default()
-        },
-    )
-    .await;
-    let endpoints = Endpoints {
-        meta_graph: None,
-        infobip: Some(server.base_url.clone()),
-        aws: None,
-    };
+    let languages = definitions.declared_languages(Some(&event()), &[]);
+    let at = "2026-11-27T10:00:00+00:00".to_string();
+    let declared: BTreeMap<String, _> = definitions
+        .accounts
+        .iter()
+        .map(|account| {
+            (
+                account.reference_key(),
+                account.declared_check(&languages, at.clone()),
+            )
+        })
+        .collect();
 
-    // Apply, as the accounts section does it: install, discard, check.
+    // Apply, as the accounts section does it: install, then discard the keys.
     let tx = client.transaction().await.unwrap();
     let plan = portable_registry::plan(&tx, tenant, &sha, &definitions)
         .await
@@ -160,48 +165,32 @@ async fn delivered_infobip_keys_are_installed_and_checked_at_apply() {
     .await
     .unwrap()
     .expect("the uploader's staged keys");
-    portable_registry::apply(&tx, tenant, &sha, &definitions, &plan, Some(&staged))
-        .await
-        .unwrap();
+    let installed = portable_registry::apply(
+        &tx,
+        tenant,
+        &sha,
+        &definitions,
+        &plan,
+        Some(&staged),
+        &declared,
+    )
+    .await
+    .unwrap();
     discard(&tx, &tenant, &document).await.unwrap();
-    let installed =
-        portable_registry::check_written(&tx, tenant, &sha, &definitions, &plan, &endpoints)
-            .await
-            .unwrap();
     tx.commit().await.unwrap();
-
-    // Each delivered key went to its own account, with its own header.
-    let requests = server.requests();
-    for (sender, key) in [
-        ("/viber/1/senders/Synthetic/templates", VIBER_KEY),
-        ("/whatsapp/2/senders/447700900123/templates", WHATSAPP_KEY),
-    ] {
-        let request = requests
-            .iter()
-            .find(|request| request.path == sender)
-            .unwrap_or_else(|| panic!("{sender} was checked: {requests:?}"));
-        assert_eq!(
-            request.header("authorization"),
-            Some(format!("App {key}").as_str())
-        );
-    }
-    // The account without its key was never sent to the provider.
-    assert!(!requests
-        .iter()
-        .any(|request| request.path.contains("447700900124")));
 
     let tx = client.transaction().await.unwrap();
     let accounts = list_messaging_accounts(&tx, &tenant).await.unwrap();
     assert_eq!(accounts.len(), 3);
     for account in &accounts {
-        let (expected_key, connected) = match &account.sender {
-            AccountSender::VIBER_INFOBIP { .. } => (Some(VIBER_KEY), true),
+        let expected_key = match &account.sender {
+            AccountSender::VIBER_INFOBIP { .. } => Some(VIBER_KEY),
             AccountSender::WHATSAPP_INFOBIP { sender_number, .. }
                 if sender_number == "447700900123" =>
             {
-                (Some(WHATSAPP_KEY), true)
+                Some(WHATSAPP_KEY)
             }
-            AccountSender::WHATSAPP_INFOBIP { .. } => (None, false),
+            AccountSender::WHATSAPP_INFOBIP { .. } => None,
             other => panic!("unexpected account {other:?}"),
         };
         let stored = read_secret(
@@ -217,9 +206,13 @@ async fn delivered_infobip_keys_are_installed_and_checked_at_apply() {
             account.credentials.contains_key(&CredentialName::API_KEY),
             expected_key.is_some()
         );
-        assert_eq!(account.status.connected, connected, "{:?}", account.status);
-        // Checked, so the daily pass leaves it until tomorrow.
-        assert!(account.status.checked_at.is_some(), "{}", account.name);
+        // Taken as checked, as the package declares it, for its own sender.
+        assert!(account.status.connected, "{:?}", account.status);
+        assert_eq!(account.status.checked_at.as_deref(), Some(at.as_str()));
+        assert_eq!(
+            account.status.details.source,
+            CheckSource::CONFIGURATION_PACKAGE
+        );
         assert_eq!(
             account.status.details.identity,
             Some(account.sender.identity())

@@ -5,10 +5,9 @@
 //! Resolve signed package-local references to narrowly matched tenant accounts.
 //! Planning and applying the registry never run a provider or read its secrets.
 
-use super::accounts::check_account;
 use super::config::account_summary;
 use crate::postgres::messaging::{
-    account_endpoint, check_account_update, empty_status, insert_messaging_account_with_id,
+    account_endpoint, check_account_update, insert_messaging_account_with_id,
     update_messaging_account_reentering, AccountSettings, MessagingAccount,
 };
 use crate::services::import::configuration_package_credentials::{
@@ -507,6 +506,22 @@ pub async fn plan(
     plan_from_registry(tenant, package_sha, definitions, &existing, &ownership)
 }
 
+/// Per account reference (`package:<ref>`), the check its package declares
+/// ([`PortableMessagingAccount::declared_check`]): what an account the
+/// package creates or replaces is taken to be, without asking its provider.
+/// An account without one is stored unchecked.
+pub type DeclaredChecks = BTreeMap<String, AccountCheck>;
+
+fn declared_status(
+    declared: &DeclaredChecks,
+    definition: &PortableMessagingAccount,
+) -> AccountCheck {
+    declared
+        .get(&definition.reference_key())
+        .cloned()
+        .unwrap_or_default()
+}
+
 fn fresh_account(tenant: Uuid, id: Uuid, wanted: AccountSettings) -> MessagingAccount {
     let now = Utc.timestamp_opt(0, 0).single().expect("Unix epoch");
     MessagingAccount {
@@ -535,6 +550,7 @@ pub async fn account_summaries(
     tenant: Uuid,
     definitions: &PortableMessagingAccounts,
     expected: &PortableRegistryPlan,
+    declared: &DeclaredChecks,
 ) -> Result<Vec<AccountSummary>> {
     let mut existing = list_registry_accounts(tx, &tenant).await?;
     let ownership = list_ownership(tx, &tenant).await?;
@@ -553,11 +569,9 @@ pub async fn account_summaries(
         match binding.action {
             RegistryAction::Reuse => {}
             RegistryAction::Create => {
-                existing.push(fresh_account(
-                    tenant,
-                    binding.account_id,
-                    settings(definition)?,
-                ));
+                let mut account = fresh_account(tenant, binding.account_id, settings(definition)?);
+                account.status = declared_status(declared, definition);
+                existing.push(account);
             }
             RegistryAction::Replace => {
                 let account = existing
@@ -569,7 +583,7 @@ pub async fn account_summaries(
                 account.sender = wanted.sender;
                 account.provider_approval = wanted.provider_approval;
                 account.readiness = wanted.readiness;
-                account.status = AccountCheck::default();
+                account.status = declared_status(declared, definition);
             }
         }
     }
@@ -615,6 +629,7 @@ pub async fn apply(
     definitions: &PortableMessagingAccounts,
     expected: &PortableRegistryPlan,
     credentials: Option<&StagedCredentials>,
+    declared: &DeclaredChecks,
 ) -> Result<PortableRegistryPlan> {
     lock_registry(tx).await?;
     let existing = list_registry_accounts(tx, &tenant).await?;
@@ -661,21 +676,23 @@ pub async fn apply(
                 )
                 .await?
                 .context(CHANGED)?;
-                // The prior sender's approval/check never becomes evidence
-                // for the replacement. Keep safety history, not readiness.
-                let changed = tx
-                    .execute(
-                        "UPDATE sequent_backend.messaging_account
-                     SET status = jsonb_set($3::jsonb, '{details,number_changes}',
-                             COALESCE(status#>'{details,number_changes}', '[]'::jsonb)),
-                         readiness = 'PROVIDER_CHECK', updated_at = now()
-                     WHERE tenant_id = $1 AND id = $2",
-                        &[&tenant, id, &empty_status()?],
-                    )
-                    .await?;
-                ensure!(changed == 1, CHANGED);
             }
         }
+        // The prior sender's approval/check never becomes evidence for the
+        // replacement: the account is what its package declares it checked
+        // as, or unchecked. Keep safety history, not readiness.
+        let status = serde_json::to_value(declared_status(declared, definition))?;
+        let changed = tx
+            .execute(
+                "UPDATE sequent_backend.messaging_account
+                 SET status = jsonb_set($3::jsonb, '{details,number_changes}',
+                         COALESCE(status#>'{details,number_changes}', '[]'::jsonb)),
+                     readiness = 'PROVIDER_CHECK', updated_at = now()
+                 WHERE tenant_id = $1 AND id = $2",
+                &[&tenant, id, &status],
+            )
+            .await?;
+        ensure!(changed == 1, CHANGED);
         if let Some(credential) = delivered.get(&reference) {
             package_credentials::install(tx, &tenant, id, credential).await?;
         }
@@ -710,7 +727,13 @@ pub async fn apply(
                 && row.readiness == wanted.readiness
                 && row.is_default == wanted.is_default
                 && row.limits == wanted.limits
-                && row.status == AccountCheck::default()
+                && row.status == {
+                    let mut status = declared_status(declared, definition);
+                    status.details.number_changes = prior
+                        .map(|prior| prior.status.details.number_changes.clone())
+                        .unwrap_or_default();
+                    status
+                }
                 && prior.is_none_or(|prior| row.created_at == prior.created_at)
                 && (definition.credential_commitment.is_some()
                     || prior.map_or_else(
@@ -720,50 +743,6 @@ pub async fn apply(
             CHANGED
         );
     }
-    Ok(installed)
-}
-
-/// Check, with their providers, the accounts this Apply created or replaced,
-/// in the transaction that wrote them (so their rows are still locked), and
-/// read the installed plan again. A check only stores the account's status,
-/// which the installed plan's fingerprints include: the event import, which
-/// compares them, then sees each account as it was checked here, and the
-/// purposes a passing check makes ready stay on. A provider that can't be
-/// reached, or an account without its credentials, stores why instead; that
-/// never fails the import, and those purposes stay off as before.
-pub async fn check_written(
-    tx: &Transaction<'_>,
-    tenant: Uuid,
-    package_sha: &str,
-    definitions: &PortableMessagingAccounts,
-    planned: &PortableRegistryPlan,
-    endpoints: &messaging::providers::Endpoints,
-) -> Result<PortableRegistryPlan> {
-    for binding in planned.bindings.values() {
-        if binding.action == RegistryAction::Reuse {
-            continue;
-        }
-        // A database error aborts the transaction, and the reads below
-        // report it; anything else (an unreadable credential, say) leaves
-        // the account unchecked, as the daily check would.
-        if let Err(error) = check_account(tx, &tenant, &binding.account_id, endpoints).await {
-            tracing::warn!(account = %binding.account_id, "package account check could not run: {error:#}");
-        }
-    }
-    let applied = list_registry_accounts(tx, &tenant).await?;
-    let owners = list_ownership(tx, &tenant).await?;
-    let installed = plan_from_registry(tenant, package_sha, definitions, &applied, &owners)?;
-    ensure!(!installed.needs_apply(), CHANGED);
-    ensure!(
-        installed.bindings.len() == planned.bindings.len()
-            && installed.bindings.iter().all(|(reference, binding)| {
-                planned
-                    .bindings
-                    .get(reference)
-                    .is_some_and(|before| before.account_id == binding.account_id)
-            }),
-        CHANGED
-    );
     Ok(installed)
 }
 

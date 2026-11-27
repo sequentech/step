@@ -6476,6 +6476,12 @@ const galegoTranslation: TranslationType = {
             needsSavingAgain: "Hai que volver gardar a configuración.",
             needsSavingAgainHelp:
                 "Copiouse do almacenamento anterior e non superou as comprobacións que fai un gardado. Corrixa os problemas que se mostran e volva gardala.",
+            missingTemplates: {
+                title: "Algunhas mensaxes non chegarán aos votantes",
+                channel:
+                    "{{channel}} só envía modelos aprobados e non ten ningún para: {{messages}}. Os votantes que usan {{channel}} non recibirán estas mensaxes.",
+                help: "Engada un modelo para cada unha en Modelos aprobados, ou un predeterminado para o propósito. O predeterminado úsase para cada mensaxe sen modelo propio, así que os seus marcadores deben servir para todas elas.",
+            },
         },
         messaging: {
             channel: {

@@ -6533,6 +6533,12 @@ const dutchTranslation: TranslationType = {
             needsSavingAgain: "De configuratie moet opnieuw worden opgeslagen.",
             needsSavingAgainHelp:
                 "Ze is gekopieerd uit de eerdere opslag en doorstond de controles van een opslag niet. Los de getoonde problemen op en sla ze daarna opnieuw op.",
+            missingTemplates: {
+                title: "Sommige berichten bereiken kiezers niet",
+                channel:
+                    "{{channel}} verstuurt alleen goedgekeurde sjablonen en heeft er geen voor: {{messages}}. Kiezers die {{channel}} gebruiken, krijgen deze berichten niet.",
+                help: "Voeg voor elk een sjabloon toe onder Goedgekeurde sjablonen, of een standaardsjabloon voor het doel. Een standaardsjabloon wordt gebruikt voor elk bericht zonder eigen sjabloon, dus de plaatshouders moeten bij elk ervan passen.",
+            },
         },
         messaging: {
             channel: {

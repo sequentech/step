@@ -1830,6 +1830,7 @@ pub async fn process_election_event_file(
     // signed event. Apply receipt validation runs under the import's own
     // transaction; old UUID accounts never enter the portable-only path.
     let resolved_ids = HashMap::new();
+    let mut messaging_readiness = crate::services::messaging::config::ProviderReadiness::REQUIRED;
     let config_replacements = if let Some(portable) = package_messaging {
         let config = data
             .messaging_config
@@ -1850,6 +1851,7 @@ pub async fn process_election_event_file(
             ));
         }
         data.messaging_config = Some(prepared.config);
+        messaging_readiness = prepared.readiness;
         &resolved_ids
     } else {
         &replacement_map
@@ -1866,6 +1868,7 @@ pub async fn process_election_event_file(
                 config,
                 config_replacements,
                 object.messaging_config_permission,
+                &messaging_readiness,
             )
             .await?;
         }
@@ -2025,6 +2028,7 @@ pub async fn process_election_event_file(
             config,
             config_replacements,
             object.messaging_config_permission,
+            &messaging_readiness,
         )
         .await
         .with_context(|| "Error importing the messaging configuration")?;

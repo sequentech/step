@@ -32,7 +32,8 @@
           "sha256": "99cfffbe3625b9caa64298d4f51c17869e92fea9c32dd4c4877b8e271c01d075",
           "size": 6,
           "disposition": {
-            "kind": "manual"
+            "kind": "applied",
+            "section": "message-templates"
           }
         },
         {
@@ -124,6 +125,12 @@
           "state": "present",
           "members": [
             "trustees_public.json"
+          ]
+        },
+        "message-templates": {
+          "state": "present",
+          "members": [
+            "export_templates-t1.csv"
           ]
         },
         "messaging-accounts": {
@@ -266,6 +273,30 @@
         }
       },
       {
+        "section": "message-templates",
+        "members": [
+          "export_templates-t1.csv"
+        ],
+        "status": {
+          "state": "applied",
+          "submission": {
+            "taskId": "task-MessageTemplates",
+            "detail": {}
+          },
+          "reconciled": false
+        },
+        "history": {
+          "submissions": [
+            {
+              "taskId": "task-MessageTemplates",
+              "detail": {}
+            }
+          ],
+          "inFlight": null,
+          "applied": true
+        }
+      },
+      {
         "section": "messaging-accounts",
         "members": [],
         "status": {
@@ -337,7 +368,8 @@
           "sha256": "99cfffbe3625b9caa64298d4f51c17869e92fea9c32dd4c4877b8e271c01d075",
           "size": 6,
           "disposition": {
-            "kind": "manual"
+            "kind": "applied",
+            "section": "message-templates"
           }
         },
         {
@@ -429,6 +461,12 @@
           "state": "present",
           "members": [
             "trustees_public.json"
+          ]
+        },
+        "message-templates": {
+          "state": "present",
+          "members": [
+            "export_templates-t1.csv"
           ]
         },
         "messaging-accounts": {
@@ -566,6 +604,29 @@
         }
       },
       {
+        "section": "message-templates",
+        "members": [
+          "export_templates-t1.csv"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "export_templates-t1.csv"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
         "section": "messaging-accounts",
         "members": [],
         "status": {
@@ -636,7 +697,8 @@
           "sha256": "99cfffbe3625b9caa64298d4f51c17869e92fea9c32dd4c4877b8e271c01d075",
           "size": 6,
           "disposition": {
-            "kind": "manual"
+            "kind": "applied",
+            "section": "message-templates"
           }
         },
         {
@@ -728,6 +790,12 @@
           "state": "present",
           "members": [
             "trustees_public.json"
+          ]
+        },
+        "message-templates": {
+          "state": "present",
+          "members": [
+            "export_templates-t1.csv"
           ]
         },
         "messaging-accounts": {
@@ -867,6 +935,29 @@
         }
       },
       {
+        "section": "message-templates",
+        "members": [
+          "export_templates-t1.csv"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "export_templates-t1.csv"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
         "section": "messaging-accounts",
         "members": [],
         "status": {
@@ -937,7 +1028,8 @@
           "sha256": "99cfffbe3625b9caa64298d4f51c17869e92fea9c32dd4c4877b8e271c01d075",
           "size": 6,
           "disposition": {
-            "kind": "manual"
+            "kind": "applied",
+            "section": "message-templates"
           }
         },
         {
@@ -1029,6 +1121,12 @@
           "state": "present",
           "members": [
             "trustees_public.json"
+          ]
+        },
+        "message-templates": {
+          "state": "present",
+          "members": [
+            "export_templates-t1.csv"
           ]
         },
         "messaging-accounts": {
@@ -1167,6 +1265,29 @@
         }
       },
       {
+        "section": "message-templates",
+        "members": [
+          "export_templates-t1.csv"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "export_templates-t1.csv"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
         "section": "messaging-accounts",
         "members": [],
         "status": {
@@ -1237,7 +1358,8 @@
           "sha256": "99cfffbe3625b9caa64298d4f51c17869e92fea9c32dd4c4877b8e271c01d075",
           "size": 6,
           "disposition": {
-            "kind": "manual"
+            "kind": "applied",
+            "section": "message-templates"
           }
         },
         {
@@ -1329,6 +1451,12 @@
           "state": "present",
           "members": [
             "trustees_public.json"
+          ]
+        },
+        "message-templates": {
+          "state": "present",
+          "members": [
+            "export_templates-t1.csv"
           ]
         },
         "messaging-accounts": {
@@ -1471,6 +1599,30 @@
         }
       },
       {
+        "section": "message-templates",
+        "members": [
+          "export_templates-t1.csv"
+        ],
+        "status": {
+          "state": "applied",
+          "submission": {
+            "taskId": "task-MessageTemplates",
+            "detail": {}
+          },
+          "reconciled": true
+        },
+        "history": {
+          "submissions": [
+            {
+              "taskId": "task-MessageTemplates",
+              "detail": {}
+            }
+          ],
+          "inFlight": null,
+          "applied": true
+        }
+      },
+      {
         "section": "messaging-accounts",
         "members": [],
         "status": {
@@ -1539,7 +1691,8 @@
           "sha256": "99cfffbe3625b9caa64298d4f51c17869e92fea9c32dd4c4877b8e271c01d075",
           "size": 6,
           "disposition": {
-            "kind": "manual"
+            "kind": "applied",
+            "section": "message-templates"
           }
         },
         {
@@ -1631,6 +1784,12 @@
           "state": "present",
           "members": [
             "trustees_public.json"
+          ]
+        },
+        "message-templates": {
+          "state": "present",
+          "members": [
+            "export_templates-t1.csv"
           ]
         },
         "messaging-accounts": {
@@ -1753,6 +1912,29 @@
             "changes": {
               "files": [
                 "trustees_public.json"
+              ]
+            },
+            "blockers": []
+          }
+        },
+        "history": {
+          "submissions": [],
+          "inFlight": null,
+          "applied": false
+        }
+      },
+      {
+        "section": "message-templates",
+        "members": [
+          "export_templates-t1.csv"
+        ],
+        "status": {
+          "state": "previewed",
+          "preview": {
+            "needsApply": true,
+            "changes": {
+              "files": [
+                "export_templates-t1.csv"
               ]
             },
             "blockers": []

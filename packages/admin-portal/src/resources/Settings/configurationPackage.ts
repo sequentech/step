@@ -16,6 +16,7 @@ export const PACKAGE_SECTIONS = [
     "role-permissions",
     "admin-accounts",
     "trustees",
+    "message-templates",
     "messaging-accounts",
     "election-event",
 ] as const
@@ -29,9 +30,12 @@ export interface PackageRequirements {
     census: CensusRequirement
 }
 
-/** Default required sections and census; portable messaging is opt-in. */
+/** Sections a delivery carries only when it has them: never required by default. */
+const OPTIONAL_SECTIONS: PackageSection[] = ["message-templates", "messaging-accounts"]
+
+/** Default required sections and census; templates and portable messaging are opt-in. */
 export const COMPLETE_DELIVERY: PackageRequirements = {
-    sections: PACKAGE_SECTIONS.filter((section) => section !== "messaging-accounts"),
+    sections: PACKAGE_SECTIONS.filter((section) => !OPTIONAL_SECTIONS.includes(section)),
     census: "required",
 }
 

@@ -8,12 +8,15 @@
 
 use crate::services::import::configuration_package_apply::SectionPreview;
 use crate::services::import::configuration_package_credentials as package_credentials;
-use crate::services::messaging::config::with_original_account_ids;
-use crate::services::messaging::portable_registry::{self, PortableRegistryPlan, RegistryAction};
+use crate::services::messaging::config::{with_original_account_ids, ProviderReadiness};
+use crate::services::messaging::portable_registry::{
+    self, DeclaredChecks, PortableRegistryPlan, RegistryAction,
+};
 use anyhow::{anyhow, ensure, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::election_config::portable_messaging::{
-    validate_event_references, DeliveredCredentialKind, PortableMessagingAccounts, REF_PREFIX,
+    validate_event_references, DeclaredLanguages, DeliveredCredentialKind,
+    PortableMessagingAccounts, REF_PREFIX,
 };
 use sequent_core::signing::sha256_hex;
 use sequent_core::types::messaging::{
@@ -41,6 +44,9 @@ pub struct PackageMessaging {
     /// The task's verified actor (the JWT-derived audit user ID Harvest put
     /// in the task body): staged credentials are only for their uploader.
     actor: Option<String>,
+    /// What each account the package creates or replaces is taken to be:
+    /// checked, as its author checked it. Apply never asks a provider.
+    declared: DeclaredChecks,
     snapshot: OnceLock<PortableRegistryPlan>,
     installed_here: OnceLock<PortableRegistryPlan>,
 }
@@ -52,8 +58,31 @@ pub(crate) struct PendingMessaging {
 }
 
 pub(crate) struct PreparedMessaging {
+    /// The event's settings as signed, bound to this tenant's accounts.
     pub config: Value,
+    /// What isn't ready yet on the package's accounts: kept, and said.
     pub pending: Vec<PendingMessaging>,
+    /// The readiness the settings are stored with: the package's own
+    /// channels may still wait for their accounts.
+    pub readiness: ProviderReadiness,
+}
+
+/// The template languages the package names for its accounts
+/// ([`PortableMessagingAccounts::declared_languages`]), read from the signed
+/// event's messaging settings in `event_zip` and the provider languages of
+/// the package's message templates (`notice_templates`). Settings that don't
+/// read name none here: the event import refuses them itself.
+pub(crate) fn declared_languages(
+    definitions: &PortableMessagingAccounts,
+    event_zip: Option<&[u8]>,
+    notice_templates: &[(MessageChannel, String)],
+) -> DeclaredLanguages {
+    let event = event_zip
+        .and_then(|zip| super::configuration_package_sections::event_document(zip).ok())
+        .and_then(|document| serde_json::from_slice::<Value>(&document).ok())
+        .and_then(|document| document.get("messaging_config").cloned())
+        .and_then(|config| serde_json::from_value::<EventMessagingConfig>(config).ok());
+    definitions.declared_languages(event.as_ref(), notice_templates)
 }
 
 impl PackageMessaging {
@@ -64,7 +93,19 @@ impl PackageMessaging {
         confirmed: Option<String>,
         staged_document: Option<Uuid>,
         actor: Option<String>,
+        languages: &DeclaredLanguages,
     ) -> Self {
+        let checked_at = chrono::Utc::now().to_rfc3339();
+        let declared = definitions
+            .accounts
+            .iter()
+            .map(|definition| {
+                (
+                    definition.reference_key(),
+                    definition.declared_check(languages, checked_at.clone()),
+                )
+            })
+            .collect();
         Self {
             tenant,
             digest,
@@ -72,6 +113,7 @@ impl PackageMessaging {
             confirmed,
             staged_document,
             actor,
+            declared,
             snapshot: OnceLock::new(),
             installed_here: OnceLock::new(),
         }
@@ -199,12 +241,12 @@ impl PackageMessaging {
             .collect())
     }
 
-    /// Installs the reviewed accounts and their delivered credentials, then
-    /// checks the accounts it wrote with their providers, all in `tx`.
+    /// Installs the reviewed accounts, as checked as their package declares
+    /// them, and their delivered credentials, all in `tx`. No provider is
+    /// asked: an administrator may check an account again at any time.
     pub(crate) async fn install(
         &self,
         tx: &Transaction<'_>,
-        endpoints: &messaging::providers::Endpoints,
     ) -> Result<(Value, PortableRegistryPlan)> {
         ensure!(self.confirmed.is_some(), "{STALE}");
         let planned = self.snapshot.get().ok_or_else(|| anyhow!("{STALE}"))?;
@@ -219,6 +261,7 @@ impl PackageMessaging {
             &self.definitions,
             planned,
             credentials.as_ref(),
+            &self.declared,
         )
         .await?;
         // Same transaction: the staged credentials go only once they are in.
@@ -226,15 +269,6 @@ impl PackageMessaging {
             package_credentials::discard(tx, &self.tenant, document).await?;
         }
         debug_assert!(!installed.needs_apply());
-        let installed = portable_registry::check_written(
-            tx,
-            self.tenant,
-            &self.digest,
-            &self.definitions,
-            planned,
-            endpoints,
-        )
-        .await?;
         Ok((self.changes(planned)?, installed))
     }
 
@@ -305,8 +339,14 @@ impl PackageMessaging {
             .map(|channel| channel.channel)
             .collect();
         let bound = plan.bind(&original)?;
-        let accounts =
-            portable_registry::account_summaries(tx, self.tenant, &self.definitions, plan).await?;
+        let accounts = portable_registry::account_summaries(
+            tx,
+            self.tenant,
+            &self.definitions,
+            plan,
+            &self.declared,
+        )
+        .await?;
         let config = serde_json::from_value(bound)
             .map_err(|_| anyhow!("Unreadable resolved event messaging configuration."))?;
         prepare(
@@ -319,69 +359,43 @@ impl PackageMessaging {
     }
 }
 
-/// For a writable public definition, unavailable live credentials/checks do
-/// **not** turn into provider approval or public capability. Keep the account
-/// link, but leave the affected live purposes disabled. All structural /
-/// legacy failures still block. The final shape must pass the usual validator.
+/// The signed settings are kept exactly as signed: channels, purposes,
+/// template settings and their buttons. A package's accounts arrive checked
+/// as their author checked them; whatever is still not ready on them (a
+/// purpose without an approved template, a missing callback address) is
+/// reported, never removed, and sends through it wait until it is ready.
+/// Every other problem (a missing or foreign account, a wrong channel, a
+/// button without a value, a removed provider) still refuses the import.
 fn prepare(
-    mut config: EventMessagingConfig,
+    config: EventMessagingConfig,
     tenant: &str,
     elections: &[String],
     accounts: &[AccountSummary],
     portable: &BTreeSet<MessageChannel>,
 ) -> Result<PreparedMessaging> {
+    let readiness = ProviderReadiness::AWAITED(portable.clone());
     let mut pending: BTreeMap<MessageChannel, BTreeSet<MessagePurpose>> = BTreeMap::new();
+    let mut refused = vec![];
     for error in config
         .validate(tenant, accounts, elections)
         .err()
         .unwrap_or_default()
     {
-        match error {
-            MessagingConfigError::PURPOSE_NOT_READY {
-                channel,
-                purpose,
-                blockers,
-            } if portable.contains(&channel)
-                && !blockers.iter().any(|reason| {
-                    matches!(
-                        reason,
-                        ReadinessBlocker::UNSUPPORTED_PROVIDER
-                            | ReadinessBlocker::UNSUPPORTED_PURPOSE
-                    )
-                }) =>
-            {
+        match readiness.awaited(&error) {
+            Some((channel, purpose)) => {
                 pending.entry(channel).or_default().insert(purpose);
             }
-            MessagingConfigError::TEMPLATE_NOT_APPROVED {
-                channel, purpose, ..
-            } if portable.contains(&channel) => {
-                pending.entry(channel).or_default().insert(purpose);
-            }
-            other => return Err(anyhow!("{}", explain(&other))),
+            None => refused.push(explain(&error)),
         }
     }
-    for channel in &mut config.channels {
-        if let Some(purposes) = pending.get(&channel.channel) {
-            channel
-                .purposes
-                .retain(|purpose| !purposes.contains(purpose));
-            channel
-                .templates
-                .retain(|template| !purposes.contains(&template.purpose));
-        }
-    }
-    if let Err(errors) = config.validate(tenant, accounts, elections) {
-        return Err(anyhow!(
-            "{}",
-            errors.iter().map(explain).collect::<Vec<_>>().join("; ")
-        ));
-    }
+    ensure!(refused.is_empty(), "{}", refused.join("; "));
     Ok(PreparedMessaging {
         config: serde_json::to_value(config)?,
         pending: pending
             .into_iter()
             .map(|(channel, purposes)| PendingMessaging { channel, purposes })
             .collect(),
+        readiness,
     })
 }
 
@@ -423,18 +437,18 @@ pub(crate) fn explain(error: &MessagingConfigError) -> String {
     }
 }
 
-/// Preview's note: the purposes not ready on the accounts as they are now.
-/// Apply checks the accounts it creates or replaces, so some may pass then.
+/// Preview's note: what the package's accounts aren't ready for yet, as the
+/// package declares them.
 pub(crate) fn preview_note(pending: &[PendingMessaging]) -> String {
     format!(
-        "Not ready yet: {}. Apply checks the accounts this package creates or replaces with their providers and keeps on what passes; anything else is turned off until its credentials, accounts and templates are fixed.",
+        "Not ready yet: {}. These settings are kept as configured; messages on them wait until the accounts, templates or callback address they need are ready.",
         pending_channels(pending)
     )
 }
 
 pub(crate) fn pending_note(pending: &[PendingMessaging]) -> String {
     format!(
-        "Sending is off for {}. Configure the destination credentials, check the accounts and templates, then enable the purposes in the event.",
+        "Kept as configured but not ready yet: {}. Messages on them wait until it is: see the event's Messaging tab for what is missing.",
         pending_channels(pending)
     )
 }
@@ -537,7 +551,15 @@ mod tests {
                 },
             )]),
         };
-        let context = PackageMessaging::new(tenant, digest.clone(), definitions, None, None, None);
+        let context = PackageMessaging::new(
+            tenant,
+            digest.clone(),
+            definitions,
+            None,
+            None,
+            None,
+            &Default::default(),
+        );
         context.snapshot.set(plan.clone()).unwrap();
         let changes = context.changes(&plan).unwrap();
         assert_eq!(
@@ -557,6 +579,7 @@ mod tests {
             None,
             Some(Uuid::from_u128(7)),
             Some("user-a".into()),
+            &Default::default(),
         );
         let rows = with_keys.changes(&plan).unwrap();
         assert_eq!(rows[0]["credentials"], "AWS_STATIC_KEY_PAIR");
@@ -592,23 +615,18 @@ mod tests {
         assert_eq!(context.audit_bindings().unwrap()["package:email"], id);
     }
 
+    /// Nothing the package's author configured is turned off or dropped
+    /// for accounts that aren't ready here yet: it is kept as signed, and
+    /// what isn't ready is reported.
     #[test]
-    fn a_pristine_tenant_retains_all_five_links_but_offers_no_unchecked_otp_or_notice() {
+    fn a_pristine_tenant_keeps_every_link_purpose_and_template_as_signed() {
         let (intended, accounts, portable) = example();
         let prepared = prepare(intended.clone(), TENANT, &[], &accounts, &portable).unwrap();
         assert_eq!(prepared.pending.len(), 5);
         assert!(prepared.pending.iter().all(|item| item.purposes.len() == 2));
+        assert_eq!(prepared.readiness, ProviderReadiness::AWAITED(portable));
         let saved: EventMessagingConfig = serde_json::from_value(prepared.config).unwrap();
-        assert_eq!(saved.channels.len(), 5);
-        for (current, source) in saved.channels.iter().zip(&intended.channels) {
-            assert_eq!(current.account_id, source.account_id);
-            assert!(current.purposes.is_empty());
-        }
-        assert!(saved.enabled_channels(MessagePurpose::OTP, None).is_empty());
-        assert!(saved
-            .enabled_channels(MessagePurpose::NOTICE, None)
-            .is_empty());
-        let _ = saved.validate(TENANT, &accounts, &[]).unwrap();
+        assert_eq!(saved, intended);
     }
 
     #[test]
@@ -624,15 +642,12 @@ mod tests {
         email.check.checked_at = Some("2026-11-01T00:00:00Z".into());
         let prepared = prepare(intended.clone(), TENANT, &[], &accounts, &portable).unwrap();
         assert_eq!(prepared.pending.len(), 4);
+        assert!(prepared
+            .pending
+            .iter()
+            .all(|item| item.channel != MessageChannel::EMAIL));
         let saved: EventMessagingConfig = serde_json::from_value(prepared.config).unwrap();
-        assert_eq!(
-            saved.enabled_channels(MessagePurpose::OTP, None),
-            [MessageChannel::EMAIL]
-        );
-        assert_eq!(
-            saved.enabled_channels(MessagePurpose::NOTICE, None),
-            [MessageChannel::EMAIL]
-        );
+        assert_eq!(saved, intended);
         let problem = prepare(intended, TENANT, &[], &[], &BTreeSet::new())
             .err()
             .unwrap();
@@ -674,7 +689,8 @@ mod tests {
                     (MessagePurpose::NOTICE, vec!["en".to_string()]),
                 ]);
                 row["templates"] = json!([
-                    {"purpose":"OTP","language":"en","provider_template":"otp_code"},
+                    {"purpose":"OTP","key":"otp","language":"en","provider_language":"en_GB",
+                     "provider_template":"otp_code","buttons":[{"type":"URL","parameter":"{{code}}"}]},
                     {"purpose":"NOTICE","language":"en","provider_template":"election_notice"}
                 ]);
             }
@@ -698,20 +714,16 @@ mod tests {
     }
 
     #[test]
-    fn infobip_accounts_that_pass_their_check_keep_every_purpose() {
+    fn infobip_settings_stay_as_signed_whether_or_not_their_accounts_are_ready() {
         let (accounts, config) = checked_infobip();
         let portable = accounts.iter().map(|a| a.channel).collect();
         let intended: EventMessagingConfig = serde_json::from_value(config).unwrap();
         let prepared = prepare(intended.clone(), TENANT, &[], &accounts, &portable).unwrap();
         assert_eq!(prepared.pending, vec![]);
         let saved: EventMessagingConfig = serde_json::from_value(prepared.config).unwrap();
-        for purpose in [MessagePurpose::OTP, MessagePurpose::NOTICE] {
-            assert_eq!(
-                saved.enabled_channels(purpose, None),
-                [MessageChannel::WHATSAPP, MessageChannel::VIBER]
-            );
-        }
-        // Unchecked (no key delivered, or the provider refused it): off.
+        assert_eq!(saved, intended);
+        // Not ready (say the WhatsApp templates weren't declared): still
+        // every purpose, template, language code and button, as signed.
         let unchecked: Vec<_> = accounts
             .into_iter()
             .map(|mut account| {
@@ -719,12 +731,41 @@ mod tests {
                 account
             })
             .collect();
-        let prepared = prepare(intended, TENANT, &[], &unchecked, &portable).unwrap();
+        let prepared = prepare(intended.clone(), TENANT, &[], &unchecked, &portable).unwrap();
         assert_eq!(prepared.pending.len(), 2);
+        let saved: EventMessagingConfig = serde_json::from_value(prepared.config).unwrap();
+        assert_eq!(saved, intended);
+        let binding = saved
+            .template_for(
+                MessageChannel::WHATSAPP,
+                MessagePurpose::OTP,
+                Some("otp"),
+                Some("en"),
+            )
+            .unwrap();
+        assert_eq!(binding.provider_language(), "en_GB");
+        assert_eq!(binding.buttons.as_ref().unwrap()[0].parameter, "{{code}}");
     }
 
     #[test]
-    fn preview_says_apply_checks_the_accounts_before_anything_stays_off() {
+    fn a_problem_that_never_gets_ready_still_refuses_the_import() {
+        let (accounts, config) = checked_infobip();
+        let portable = accounts.iter().map(|a| a.channel).collect();
+        let mut intended: EventMessagingConfig = serde_json::from_value(config).unwrap();
+        intended.channels[0].templates[0].buttons.as_mut().unwrap()[0].parameter = " ".into();
+        let refused = prepare(intended, TENANT, &[], &accounts, &portable)
+            .err()
+            .unwrap();
+        assert!(
+            refused
+                .to_string()
+                .contains("a template button has no value"),
+            "{refused}"
+        );
+    }
+
+    #[test]
+    fn notes_say_what_is_not_ready_and_that_it_is_kept() {
         let pending = [PendingMessaging {
             channel: MessageChannel::WHATSAPP,
             purposes: BTreeSet::from([MessagePurpose::OTP, MessagePurpose::NOTICE]),
@@ -734,6 +775,7 @@ mod tests {
             note.starts_with("Not ready yet: WHATSAPP (OTP, NOTICE)."),
             "{note}"
         );
-        assert!(note.contains("Apply checks"), "{note}");
+        assert!(note.contains("kept as configured"), "{note}");
+        assert!(pending_note(&pending).contains("WHATSAPP (OTP, NOTICE)"));
     }
 }

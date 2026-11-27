@@ -17,14 +17,65 @@ use crate::postgres::messaging::{
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
 use sequent_core::types::messaging::{
-    AccountSummary, DeliveryFeedback, EventMessagingConfig, MessageChannel, MessagingConfigError,
-    ProviderCapabilities, PublicMessagingChannels, ReadinessBlocker,
+    AccountSummary, DeliveryFeedback, EventMessagingConfig, MessageChannel, MessagePurpose,
+    MessagingConfigError, ProviderCapabilities, PublicMessagingChannels, ReadinessBlocker,
     EVENT_MESSAGING_CONFIG_VERSION, MESSAGING_CONFIG_ANNOTATION,
 };
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 use tracing::warn;
 use uuid::Uuid;
+
+/// What an event's messaging settings must already have from their
+/// accounts' providers when they are stored.
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub enum ProviderReadiness {
+    /// Every enabled purpose ready and every bound template approved: what
+    /// saving the event's Messaging tab requires.
+    #[default]
+    REQUIRED,
+    /// On these channels, the accounts a configuration package delivers may
+    /// still wait for what they need (an approved template, a callback
+    /// address): the settings are stored as signed, and sends through them
+    /// wait until the account is ready. Nothing else is relaxed.
+    AWAITED(BTreeSet<MessageChannel>),
+}
+
+impl ProviderReadiness {
+    /// The channel and purpose `error` waits on, when this readiness lets
+    /// it wait. A removed provider or a purpose the provider can't carry
+    /// never gets ready, so it never waits.
+    pub fn awaited(
+        &self,
+        error: &MessagingConfigError,
+    ) -> Option<(MessageChannel, MessagePurpose)> {
+        let ProviderReadiness::AWAITED(channels) = self else {
+            return None;
+        };
+        match error {
+            MessagingConfigError::PURPOSE_NOT_READY {
+                channel,
+                purpose,
+                blockers,
+            } if channels.contains(channel)
+                && !blockers.iter().any(|blocker| {
+                    matches!(
+                        blocker,
+                        ReadinessBlocker::UNSUPPORTED_PROVIDER
+                            | ReadinessBlocker::UNSUPPORTED_PURPOSE
+                    )
+                }) =>
+            {
+                Some((*channel, *purpose))
+            }
+            MessagingConfigError::TEMPLATE_NOT_APPROVED {
+                channel, purpose, ..
+            } if channels.contains(channel) => Some((*channel, *purpose)),
+            _ => None,
+        }
+    }
+}
 
 /// What the configuration knows of `account`, with the callback blockers
 /// of `MESSAGING_WEBHOOKS_PUBLIC_URL`.
@@ -280,7 +331,14 @@ pub(crate) async fn preview_import_event_messaging_config(
 ) -> Result<Vec<MessagingConfigError>> {
     let parsed = imported_messaging_config(config, replacement_map, permission)
         .map_err(anyhow::Error::msg)?;
-    event_messaging_import_errors(tx, tenant_id, elections, &parsed).await
+    event_messaging_import_errors(
+        tx,
+        tenant_id,
+        elections,
+        &parsed,
+        &ProviderReadiness::REQUIRED,
+    )
+    .await
 }
 
 async fn event_messaging_import_errors(
@@ -288,6 +346,7 @@ async fn event_messaging_import_errors(
     tenant_id: &Uuid,
     elections: &[String],
     parsed: &EventMessagingConfig,
+    readiness: &ProviderReadiness,
 ) -> Result<Vec<MessagingConfigError>> {
     let accounts: Vec<AccountSummary> = list_messaging_accounts(tx, tenant_id)
         .await?
@@ -297,7 +356,10 @@ async fn event_messaging_import_errors(
     Ok(parsed
         .validate(&tenant_id.to_string(), &accounts, elections)
         .err()
-        .unwrap_or_default())
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|error| readiness.awaited(error).is_none())
+        .collect())
 }
 
 /// Check the typed settings of a signed V2 event before provisioning its
@@ -310,11 +372,13 @@ pub async fn preflight_import_event_messaging_config(
     config: &Value,
     replacement_map: &std::collections::HashMap<String, String>,
     permission: MessagingConfigPermission,
+    readiness: &ProviderReadiness,
 ) -> Result<()> {
     let parsed = imported_messaging_config(config, replacement_map, permission)
         .map_err(anyhow::Error::msg)?;
     lock_referenced_accounts(tx, tenant_id, &parsed).await?;
-    let errors = event_messaging_import_errors(tx, tenant_id, elections, &parsed).await?;
+    let errors =
+        event_messaging_import_errors(tx, tenant_id, elections, &parsed, readiness).await?;
     if !errors.is_empty() {
         return Err(anyhow!(
             "{NOT_IMPORTED}: {}",
@@ -327,8 +391,9 @@ pub async fn preflight_import_event_messaging_config(
 /// Stores an imported event's configuration only as
 /// `update_event_messaging_config` would: when the importer holds
 /// `messaging-config-write` and it validates against the importing
-/// tenant's accounts and the new event's elections. Otherwise nothing is
-/// stored and the reason is returned for the import's log.
+/// tenant's accounts and the new event's elections, but for what
+/// `readiness` lets wait. Otherwise nothing is stored and the reason is
+/// returned for the import's log.
 pub async fn import_event_messaging_config(
     tx: &Transaction<'_>,
     tenant_id: &Uuid,
@@ -336,17 +401,20 @@ pub async fn import_event_messaging_config(
     config: &Value,
     replacement_map: &std::collections::HashMap<String, String>,
     permission: MessagingConfigPermission,
+    readiness: &ProviderReadiness,
 ) -> Result<ImportOutcome> {
     let parsed = match imported_messaging_config(config, replacement_map, permission) {
         Ok(parsed) => parsed,
         Err(reason) => return Ok(ImportOutcome::NotImported(reason)),
     };
-    match save_event_messaging_config_as(
+    match save_checked(
         tx,
         tenant_id,
         election_event_id,
         &parsed,
         Some(IMPORTED_BY),
+        webhooks_public_url().as_deref(),
+        readiness,
     )
     .await?
     {
@@ -622,6 +690,27 @@ pub async fn save_event_messaging_config_with(
     updated_by: Option<&str>,
     component_url: Option<&str>,
 ) -> Result<SaveOutcome> {
+    save_checked(
+        tx,
+        tenant_id,
+        election_event_id,
+        config,
+        updated_by,
+        component_url,
+        &ProviderReadiness::REQUIRED,
+    )
+    .await
+}
+
+async fn save_checked(
+    tx: &Transaction<'_>,
+    tenant_id: &Uuid,
+    election_event_id: &Uuid,
+    config: &EventMessagingConfig,
+    updated_by: Option<&str>,
+    component_url: Option<&str>,
+    readiness: &ProviderReadiness,
+) -> Result<SaveOutcome> {
     if !event_exists(tx, tenant_id, election_event_id).await? {
         return Ok(SaveOutcome::UnknownEvent);
     }
@@ -633,7 +722,14 @@ pub async fn save_event_messaging_config_with(
         .collect();
     let labels = election_labels(tx, tenant_id, election_event_id).await?;
     let elections: Vec<String> = labels.keys().cloned().collect();
-    if let Err(errors) = config.validate(&tenant_id.to_string(), &accounts, &elections) {
+    let errors: Vec<MessagingConfigError> = config
+        .validate(&tenant_id.to_string(), &accounts, &elections)
+        .err()
+        .unwrap_or_default()
+        .into_iter()
+        .filter(|error| readiness.awaited(error).is_none())
+        .collect();
+    if !errors.is_empty() {
         return Ok(SaveOutcome::Invalid(errors));
     }
     let stored = serde_json::to_value(config)?;

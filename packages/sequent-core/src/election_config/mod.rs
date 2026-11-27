@@ -99,6 +99,10 @@ pub mod manifest;
 #[cfg(feature = "election_config_archive")]
 pub mod package_contract;
 
+/// The message templates a package carries, as the platform stores them.
+#[cfg(feature = "election_config_archive")]
+pub mod package_templates;
+
 /// Tenant settings, role mappings, administrators and trustees' public keys,
 /// written for the Admin Portal settings zip.
 #[cfg(feature = "election_config_archive")]

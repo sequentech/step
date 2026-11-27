@@ -339,6 +339,7 @@ const englishTranslation = {
             sections: {
                 "tenant-configuration": "Tenant configuration",
                 "tenant-settings": "Tenant settings",
+                "message-templates": "Message templates",
                 "messaging-accounts": "Messaging accounts",
                 "role-permissions": "Role permissions",
                 "admin-accounts": "Administrator accounts",
@@ -7020,6 +7021,12 @@ const englishTranslation = {
             needsSavingAgain: "Configuration needs saving again.",
             needsSavingAgainHelp:
                 "It was copied from the earlier storage and didn't pass the checks a save makes. Fix the problems shown, then save it again.",
+            missingTemplates: {
+                title: "Some messages can't reach voters",
+                channel:
+                    "{{channel}} sends only approved templates and has none for: {{messages}}. Voters who use {{channel}} won't get these messages.",
+                help: "Add a template for each under Approved templates, or a default for the purpose. A default is used for every message without its own, so its placeholders must fit each of them.",
+            },
         },
         messaging: {
             channel: {

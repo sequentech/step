@@ -216,7 +216,10 @@ fn a_complete_delivery_nests_tenant_sections_and_reports_missing_ones() {
         &Requirements {
             sections: Section::APPLY_ORDER
                 .into_iter()
-                .filter(|s| *s != Section::MessagingAccounts)
+                .filter(|s| {
+                    *s != Section::MessagingAccounts
+                        && *s != Section::MessageTemplates
+                })
                 .collect(),
             census: CensusRequirement::Optional,
         },

@@ -24,6 +24,7 @@ import {
     MessagingDeliveryStatus,
     MessagingTemplateBindings,
     MigratedConfigNotice,
+    MissingTemplatesNotice,
 } from "./EditElectionEventMessaging"
 
 jest.mock("react-i18next", () => ({
@@ -854,5 +855,65 @@ describe("a configuration copied from the old storage that didn't validate", () 
         expect(container).toBeEmptyDOMElement()
         render(<MigratedConfigNotice updatedBy={null} />)
         expect(screen.queryByRole("alert")).toBeNull()
+    })
+})
+
+describe("MissingTemplatesNotice", () => {
+    const whatsapp = {
+        id: "wa",
+        tenant_id: "tenant-1",
+        channel: EMessageChannel.WHATSAPP,
+        provider: EMessagingProvider.WHATSAPP_INFOBIP,
+        name: "WhatsApp",
+        sender: {
+            provider: EMessagingProvider.WHATSAPP_INFOBIP,
+            base_url: "https://demo.api.infobip.com",
+            sender_number: "447700900123",
+        },
+        is_default: false,
+    } as IMessagingAccount
+    const withCodeTemplate = (): IEventMessagingConfig => ({
+        ...emptyEventMessagingConfig(),
+        channels: [
+            {
+                channel: EMessageChannel.WHATSAPP,
+                account_id: "wa",
+                purposes: [EMessagePurpose.OTP, EMessagePurpose.NOTICE],
+                templates: [
+                    {
+                        purpose: EMessagePurpose.OTP,
+                        key: "otp",
+                        language: "en",
+                        provider_template: "authentication",
+                    },
+                ],
+                out_of_window: EOutOfWindowPolicy.DISABLED,
+            },
+        ],
+    })
+
+    it("names each sign-in message WhatsApp voters won't get, by its label", () => {
+        render(<MissingTemplatesNotice config={withCodeTemplate()} accounts={[whatsapp]} />)
+        const alert = screen.getByTestId("missing-templates")
+        expect(alert).toHaveTextContent("messagingEvent.missingTemplates.title")
+        expect(alert).toHaveTextContent("messagingEvent.messageTypes.contactChanged")
+        expect(alert).not.toHaveTextContent("messagingEvent.messageTypes.otp,")
+    })
+
+    it("says nothing once every message has a template", () => {
+        const config = withCodeTemplate()
+        config.channels[0].templates.push({
+            purpose: EMessagePurpose.NOTICE,
+            language: "en",
+            provider_template: "notice",
+        })
+        config.channels[0].templates.push({
+            purpose: EMessagePurpose.OTP,
+            key: "otl",
+            language: "en",
+            provider_template: "link",
+        })
+        const {container} = render(<MissingTemplatesNotice config={config} accounts={[whatsapp]} />)
+        expect(container).toBeEmptyDOMElement()
     })
 })

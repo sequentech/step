@@ -23,7 +23,7 @@ use celery::error::TaskError;
 use chrono::{DateTime, Duration, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::messaging::{
-    AccountCheck, AccountIdentity, AccountSender, MessagingProvider, ProviderSupport,
+    AccountCheck, AccountIdentity, AccountSender, CheckSource, MessagingProvider, ProviderSupport,
 };
 use std::collections::{BTreeMap, VecDeque};
 use std::str::FromStr;
@@ -91,6 +91,10 @@ pub fn check_due(
     };
     if status.details.identity.as_ref() != Some(identity) {
         return Some(CheckDue::OTHER_IDENTITY);
+    }
+    // Taken as checked: an administrator checks it again when they choose.
+    if status.details.source == CheckSource::CONFIGURATION_PACKAGE {
+        return None;
     }
     (now - checked_at >= Duration::hours(CHECK_EVERY_HOURS)).then_some(CheckDue::STALE)
 }
@@ -305,6 +309,25 @@ mod tests {
         };
         status.details.identity = identity;
         status
+    }
+
+    /// An account its configuration package declared checked stays as
+    /// declared: the daily pass never checks it again. Changing its sender
+    /// does: the declaration was of another identity.
+    #[test]
+    fn a_package_declared_check_is_left_until_someone_checks_the_account() {
+        let now = at("2026-12-10T12:00:00Z");
+        let provider = MessagingProvider::AWS_SNS;
+        let current = sns("Elections").identity();
+        let mut declared = status(Some("2026-10-01T00:00:00Z"), Some(current.clone()));
+        declared.details.source =
+            sequent_core::types::messaging::CheckSource::CONFIGURATION_PACKAGE;
+        assert_eq!(check_due(provider, &current, &declared, now), None);
+        let other = sns("Other").identity();
+        assert_eq!(
+            check_due(provider, &other, &declared, now),
+            Some(CheckDue::OTHER_IDENTITY)
+        );
     }
 
     #[test]

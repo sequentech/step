@@ -145,9 +145,17 @@ async fn delivered_keys_install_once_for_the_uploader_and_keep_the_account_prist
     assert!(!format!("{staged:?}").contains(SECRET));
 
     // Apply: the account and its two vault credentials in one transaction.
-    let installed = portable_registry::apply(&tx, tenant, &sha, &definitions, &plan, Some(&staged))
-        .await
-        .unwrap();
+    let installed = portable_registry::apply(
+        &tx,
+        tenant,
+        &sha,
+        &definitions,
+        &plan,
+        Some(&staged),
+        &Default::default(),
+    )
+    .await
+    .unwrap();
     discard(&tx, &tenant, &document).await.unwrap();
     tx.commit().await.unwrap();
 
@@ -281,9 +289,15 @@ async fn delivered_keys_install_once_for_the_uploader_and_keep_the_account_prist
         RegistryAction::Replace
     );
     assert_eq!(preview.bindings["package:email"].account_id, original.id);
-    let projected = portable_registry::account_summaries(&tx, tenant, &replacement, &preview)
-        .await
-        .unwrap();
+    let projected = portable_registry::account_summaries(
+        &tx,
+        tenant,
+        &replacement,
+        &preview,
+        &Default::default(),
+    )
+    .await
+    .unwrap();
     assert_eq!(projected[0].check, AccountCheck::default());
     assert_eq!(
         list_messaging_accounts(&tx, &tenant).await.unwrap()[0].status,
@@ -299,9 +313,17 @@ async fn delivered_keys_install_once_for_the_uploader_and_keep_the_account_prist
             .as_deref()
             == Some(SECRET)
     );
-    let no_keys = portable_registry::apply(&tx, tenant, next_sha, &replacement, &preview, None)
-        .await
-        .unwrap_err();
+    let no_keys = portable_registry::apply(
+        &tx,
+        tenant,
+        next_sha,
+        &replacement,
+        &preview,
+        None,
+        &Default::default(),
+    )
+    .await
+    .unwrap_err();
     assert_eq!(no_keys.to_string(), NOT_ACCEPTED);
     tx.rollback().await.unwrap();
 
@@ -316,9 +338,17 @@ async fn delivered_keys_install_once_for_the_uploader_and_keep_the_account_prist
     .unwrap();
     tx.commit().await.unwrap();
     let tx = client.transaction().await.unwrap();
-    let stale = portable_registry::apply(&tx, tenant, next_sha, &replacement, &preview, None)
-        .await
-        .unwrap_err();
+    let stale = portable_registry::apply(
+        &tx,
+        tenant,
+        next_sha,
+        &replacement,
+        &preview,
+        None,
+        &Default::default(),
+    )
+    .await
+    .unwrap_err();
     assert!(stale
         .to_string()
         .contains("preview the configuration package again"));
@@ -357,10 +387,17 @@ async fn delivered_keys_install_once_for_the_uploader_and_keep_the_account_prist
         )
         .await
         .unwrap();
-        let after =
-            portable_registry::apply(&tx, tenant, next_sha, &replacement, &plan, staged.as_ref())
-                .await
-                .unwrap();
+        let after = portable_registry::apply(
+            &tx,
+            tenant,
+            next_sha,
+            &replacement,
+            &plan,
+            staged.as_ref(),
+            &Default::default(),
+        )
+        .await
+        .unwrap();
         discard(&tx, &tenant, &replacement_document).await.unwrap();
         assert_eq!(
             after.bindings["package:email"].action,
