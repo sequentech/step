@@ -117,6 +117,39 @@ fn the_check_names_each_cell_and_address_once() {
 }
 
 #[test]
+fn a_font_or_an_import_is_not_called_an_image() {
+    let css = "@import url(https://fonts.example/css2?family=A);\n\
+               @font-face { src: url(https://fonts.example/a.woff2?v=1); }\n\
+               a { background: url(https://a.example/1.png); }";
+    let grid = vec![
+        vec![Cell::text("name"), Cell::text("presentation.css")],
+        vec![Cell::text("Event"), Cell::text(css)],
+    ];
+    let workbook =
+        Workbook::new(vec![Sheet::from_grid("ElectionEvent", &grid).unwrap()])
+            .unwrap();
+    let found: Vec<(Option<String>, String)> = check(&workbook)
+        .into_iter()
+        .map(|p| (p.id.clone(), p.message))
+        .collect();
+    let ids: Vec<&str> =
+        found.iter().map(|(id, _)| id.as_deref().unwrap()).collect();
+    assert_eq!(
+        ids,
+        [
+            "page.internet-stylesheet",
+            "page.internet-font",
+            "page.internet-image"
+        ],
+        "{found:?}"
+    );
+    assert!(found[0].1.contains("@import"), "{}", found[0].1);
+    assert!(!found[0].1.contains("empty space"), "{}", found[0].1);
+    assert!(found[1].1.contains("other fonts"), "{}", found[1].1);
+    assert!(found[2].1.contains("empty space"), "{}", found[2].1);
+}
+
+#[test]
 fn a_logo_url_column_is_checked_too() {
     let grid = vec![
         vec![Cell::text("name"), Cell::text("presentation.logo_url")],

@@ -40,13 +40,82 @@ fn is_internet(address: &str) -> bool {
         || lower.starts_with("//")
 }
 
+/// What a page does with a file it fetches, which says what a site with no
+/// Internet loses.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Fetch {
+    /// Shown: an empty space where it goes.
+    Image,
+    /// A font file in `url(...)`: the page uses its other fonts.
+    Font,
+    /// An `@import`ed stylesheet: its rules (often fonts) are missing.
+    Stylesheet,
+}
+
+impl Fetch {
+    fn of(prefix: &str, address: &str) -> Fetch {
+        if prefix == "@import" {
+            return Fetch::Stylesheet;
+        }
+        let path = address
+            .split(['?', '#'])
+            .next()
+            .unwrap_or(address)
+            .to_ascii_lowercase();
+        if [".woff2", ".woff", ".ttf", ".otf", ".eot"]
+            .iter()
+            .any(|ext| path.ends_with(ext))
+        {
+            Fetch::Font
+        } else {
+            Fetch::Image
+        }
+    }
+
+    fn id(self) -> &'static str {
+        match self {
+            Fetch::Image => "page.internet-image",
+            Fetch::Font => "page.internet-font",
+            Fetch::Stylesheet => "page.internet-stylesheet",
+        }
+    }
+
+    fn message(self, address: &str, inside: &str) -> String {
+        match self {
+            Fetch::Image => format!(
+                "a page shows {address}{inside}, an image on the Internet: a \
+                 site with no Internet shows an empty space there. Embed the \
+                 file in the workbook as a data: address"
+            ),
+            Fetch::Font => format!(
+                "a page loads {address}{inside}, a font on the Internet: a \
+                 site with no Internet uses the page's other fonts instead"
+            ),
+            Fetch::Stylesheet => format!(
+                "a page imports {address}{inside}, a stylesheet on the \
+                 Internet: a site with no Internet goes without its rules (for \
+                 fonts, the page uses its other fonts instead). Put the rules \
+                 the page needs in the workbook instead of the @import"
+            ),
+        }
+    }
+}
+
 /// The Internet addresses a browser fetches for this text, in order, each
 /// once.
 pub fn internet_addresses(text: &str) -> Vec<String> {
+    internet_fetches(text)
+        .into_iter()
+        .map(|(address, _)| address)
+        .collect()
+}
+
+/// [`internet_addresses`], with what the page does with each.
+fn internet_fetches(text: &str) -> Vec<(String, Fetch)> {
     // ASCII lowercasing keeps every byte where it was, so an offset in
     // `lower` is the same offset in `text`.
     let lower = text.to_ascii_lowercase();
-    let mut found: Vec<String> = Vec::new();
+    let mut found: Vec<(String, Fetch)> = Vec::new();
     for prefix in FETCHED {
         let mut from = 0;
         while let Some(at) = lower[from..].find(prefix) {
@@ -81,8 +150,16 @@ pub fn internet_addresses(text: &str) -> Vec<String> {
                 })
                 .unwrap_or(rest.len());
             let address = rest[..end].to_string();
-            if !found.contains(&address) {
-                found.push(address);
+            if !found.iter().any(|(seen, _)| *seen == address) {
+                // `@import url(...)` is found by the `url(` scan first.
+                let imported = prefix == "url("
+                    && lower[..start].trim_end().ends_with("@import");
+                let fetch = if imported {
+                    Fetch::Stylesheet
+                } else {
+                    Fetch::of(prefix, &address)
+                };
+                found.push((address, fetch));
             }
         }
     }
@@ -127,13 +204,16 @@ fn json_in(text: &str) -> Option<Value> {
         .filter(|v| v.is_object() || v.is_array())
 }
 
-/// A warning for each cell whose pages would ask the Internet for an image.
+/// A warning for each cell and address whose pages would ask the Internet
+/// for a file: an image (`page.internet-image`), a font
+/// (`page.internet-font`) or an imported stylesheet
+/// (`page.internet-stylesheet`).
 pub fn check(workbook: &Workbook) -> Vec<Problem> {
     let mut problems = Vec::new();
     for sheet in workbook.sheets() {
         for row in &sheet.rows {
             for (column, value) in &row.cells {
-                let mut named: Vec<(String, String)> = Vec::new();
+                let mut named: Vec<(String, String, Fetch)> = Vec::new();
                 walk(value, "", &mut |path, text| {
                     let key = if path.is_empty() {
                         column.as_str()
@@ -141,17 +221,18 @@ pub fn check(workbook: &Workbook) -> Vec<Problem> {
                         path
                     };
                     let is_logo = key.ends_with(LOGO_URL);
-                    let mut addresses = internet_addresses(text);
+                    let mut addresses = internet_fetches(text);
                     if is_logo && is_internet(text.trim()) {
-                        addresses.insert(0, text.trim().to_string());
+                        addresses
+                            .insert(0, (text.trim().to_string(), Fetch::Image));
                     }
-                    for address in addresses {
-                        if !named.iter().any(|(_, seen)| *seen == address) {
-                            named.push((path.to_string(), address));
+                    for (address, fetch) in addresses {
+                        if !named.iter().any(|(_, seen, _)| *seen == address) {
+                            named.push((path.to_string(), address, fetch));
                         }
                     }
                 });
-                for (path, address) in named {
+                for (path, address, fetch) in named {
                     let origin = row.origin(Some(column));
                     let inside = if path.is_empty() {
                         String::new()
@@ -162,15 +243,10 @@ pub fn check(workbook: &Workbook) -> Vec<Problem> {
                         Problem::warning(
                             Code::InvalidValue,
                             origin.to_string(),
-                            format!(
-                                "a page shows {address}{inside}, an image on \
-                                 the Internet: a site with no Internet shows an \
-                                 empty space there. Embed the file in the \
-                                 workbook as a data: address"
-                            ),
+                            fetch.message(&address, &inside),
                         )
                         .at(&origin)
-                        .id("page.internet-image")
+                        .id(fetch.id())
                         .detail("address", &address),
                     );
                 }
