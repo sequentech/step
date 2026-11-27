@@ -28,6 +28,10 @@ pub struct ExecutionState {
     pub completed: Vec<ExecutionScope>,
     pub refreshed_events: Vec<ExecutionScope>,
     pub initialized: Vec<(ExecutionScope, String)>,
+    /// Elections whose initialization report the tally holds for its
+    /// signatures: marking them records nothing, as the Postgres ledger.
+    pub held: Vec<String>,
+    pub awaiting_signatures: Vec<(ExecutionScope, String)>,
 }
 impl ExecutionState {
     fn check(&mut self, write: Write) -> Result<()> {
@@ -84,7 +88,13 @@ impl ExecutionLedger for MemoryTallyExecution {
     async fn mark_initialization(&self, scope: &ExecutionScope, election: &str) -> Result<()> {
         let mut state = self.0.lock().unwrap();
         state.check(Write::Initialization)?;
-        state.initialized.push((scope.clone(), election.into()));
+        if state.held.iter().any(|held| held == election) {
+            state
+                .awaiting_signatures
+                .push((scope.clone(), election.into()));
+        } else {
+            state.initialized.push((scope.clone(), election.into()));
+        }
         Ok(())
     }
 }

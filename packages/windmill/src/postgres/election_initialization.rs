@@ -334,3 +334,68 @@ pub async fn initialization_report_coverage(
         })
         .transpose()
 }
+
+/// Whether the tally holds the Post-level report of `election_id` in
+/// results `results_event_id` for its signatures (`signing_tally_hold`):
+/// its document is stored only once the signed report is released.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn post_report_is_held(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    results_event_id: Uuid,
+    election_id: Uuid,
+) -> Result<bool> {
+    Ok(hasura_transaction
+        .query_opt(
+            "SELECT 1 FROM sequent_backend.signing_tally_hold
+             WHERE tenant_id = $1 AND election_event_id = $2 AND results_event_id = $3
+                 AND election_id = $4 AND area_id IS NULL
+             LIMIT 1",
+            &[
+                &tenant_id,
+                &election_event_id,
+                &results_event_id,
+                &election_id,
+            ],
+        )
+        .await
+        .context("Error reading the Post's held report")?
+        .is_some())
+}
+
+/// The initialization report tally sessions with an execution that produced
+/// results `results_event_id`, each with the results of its last execution.
+#[instrument(skip(hasura_transaction), err)]
+pub async fn initialization_sessions_of_results(
+    hasura_transaction: &Transaction<'_>,
+    tenant_id: Uuid,
+    election_event_id: Uuid,
+    results_event_id: Uuid,
+) -> Result<Vec<(Uuid, Option<Uuid>)>> {
+    Ok(hasura_transaction
+        .query(
+            "SELECT session.id,
+                 (SELECT last.results_event_id FROM sequent_backend.tally_session_execution last
+                  WHERE last.tenant_id = session.tenant_id
+                      AND last.election_event_id = session.election_event_id
+                      AND last.tally_session_id = session.id
+                  ORDER BY last.created_at DESC NULLS LAST LIMIT 1)
+             FROM sequent_backend.tally_session session
+             WHERE session.tenant_id = $1 AND session.election_event_id = $2
+                 AND session.tally_type = 'INITIALIZATION_REPORT'
+                 AND EXISTS (
+                     SELECT 1 FROM sequent_backend.tally_session_execution execution
+                     WHERE execution.tenant_id = session.tenant_id
+                         AND execution.election_event_id = session.election_event_id
+                         AND execution.tally_session_id = session.id
+                         AND execution.results_event_id = $3)
+             ORDER BY session.created_at, session.id",
+            &[&tenant_id, &election_event_id, &results_event_id],
+        )
+        .await
+        .context("Error reading the initialization report of the results")?
+        .into_iter()
+        .map(|row| (row.get(0), row.get(1)))
+        .collect())
+}

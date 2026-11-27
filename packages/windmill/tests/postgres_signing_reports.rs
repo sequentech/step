@@ -1545,3 +1545,264 @@ async fn the_sweeper_mails_what_no_task_did_and_fails_stale_sends() {
             .count();
     assert_eq!(errors, 1);
 }
+
+/// Publishes as [`Publications`] does and, for a tally's report, makes the
+/// released document its results row's PDF, as the stored reports do.
+struct ResultPublications(Arc<Publications>);
+
+#[async_trait]
+impl ReportPublisher for ResultPublications {
+    async fn publish(
+        &self,
+        tx: &Transaction<'_>,
+        request: &SigningRequestRow,
+        release: &ReportRelease,
+        pdf: &[u8],
+    ) -> anyhow::Result<ReleasedDocument> {
+        let released = self.0.publish(tx, request, release, pdf).await?;
+        if let ReleaseTarget::TallyResult {
+            results_event_id,
+            election_id,
+            area_id,
+            ..
+        } = &release.target
+        {
+            set_result_pdf(
+                tx,
+                request.tenant_id,
+                request.election_event_id,
+                *results_event_id,
+                *election_id,
+                *area_id,
+                released.document_id,
+            )
+            .await?;
+        }
+        Ok(released)
+    }
+
+    async fn mail(
+        &self,
+        email: &ReportEmail,
+        released: &ReleasedDocument,
+        content: &[u8],
+    ) -> anyhow::Result<()> {
+        self.0.mail(email, released, content).await
+    }
+}
+
+struct ResultReleaseEffects {
+    documents: Arc<Documents>,
+    publications: ResultPublications,
+}
+
+#[async_trait]
+impl SignedActionEffects for ResultReleaseEffects {
+    async fn run(
+        &self,
+        tx: &Transaction<'_>,
+        request: &SigningRequestRow,
+        _approvals: &[SigningApprovalRow],
+        progress: &EffectProgress,
+    ) -> anyhow::Result<Value> {
+        release_report(
+            tx,
+            self.documents.as_ref(),
+            &self.publications,
+            request,
+            progress,
+        )
+        .await
+    }
+}
+
+/// A completed initialization report tally of Post `post` (no countries)
+/// whose report the tally held: its results carry the hash but no
+/// rendering, and its hold waits.
+async fn held_initialization(w: &World, post: Uuid, results: Uuid) -> Uuid {
+    w.execute(
+        "INSERT INTO sequent_backend.ballot_publication (id, tenant_id, election_event_id)
+         VALUES ($1, $2, $3)",
+        &[&Uuid::new_v4(), &w.tenant, &w.event],
+    )
+    .await;
+    w.execute(
+        "INSERT INTO sequent_backend.election (id, tenant_id, election_event_id, presentation)
+         VALUES ($1, $2, $3, $4)",
+        &[
+            &post,
+            &w.tenant,
+            &w.event,
+            &json!({
+                "initialization_report_policy": "required",
+                "i18n": { "en": { "name": "Initialized Post" } },
+            }),
+        ],
+    )
+    .await;
+    let keys = Uuid::new_v4();
+    w.execute(
+        "INSERT INTO sequent_backend.keys_ceremony
+             (id, tenant_id, election_event_id, trustee_ids, threshold)
+         VALUES ($1, $2, $3, '{}', 2)",
+        &[&keys, &w.tenant, &w.event],
+    )
+    .await;
+    let session = Uuid::new_v4();
+    w.execute(
+        "INSERT INTO sequent_backend.tally_session
+             (id, tenant_id, election_event_id, keys_ceremony_id, threshold, election_ids,
+              area_ids, annotations, tally_type, execution_status)
+         VALUES ($1, $2, $3, $4, 2, $5, '{}', $6, 'INITIALIZATION_REPORT', 'SUCCESS')",
+        &[
+            &session,
+            &w.tenant,
+            &w.event,
+            &keys,
+            &vec![post],
+            &json!({ "executer_username": "sbei-0", "executer_user_id": "sbei-0" }),
+        ],
+    )
+    .await;
+    {
+        let mut client = w.pool.get().await.unwrap();
+        let tx = client.transaction().await.unwrap();
+        windmill::postgres::election_initialization::insert_initialization_report_coverage(
+            &tx,
+            w.tenant,
+            w.event,
+            session,
+            &[(post.to_string(), vec![])].into_iter().collect(),
+        )
+        .await
+        .unwrap();
+        tx.commit().await.unwrap();
+    }
+    w.execute(
+        "INSERT INTO sequent_backend.results_event (id, tenant_id, election_event_id)
+         VALUES ($1, $2, $3)",
+        &[&results, &w.tenant, &w.event],
+    )
+    .await;
+    w.execute(
+        "INSERT INTO sequent_backend.results_election
+             (id, tenant_id, election_event_id, results_event_id, election_id,
+              total_voters_percent, annotations, documents)
+         VALUES ($1, $2, $3, $4, $5, 0, $6, $7)",
+        &[
+            &Uuid::new_v4(),
+            &w.tenant,
+            &w.event,
+            &results,
+            &post,
+            &json!({ "results_hash": "init-hash" }),
+            &json!({ "json": "results.json" }),
+        ],
+    )
+    .await;
+    w.execute(
+        "INSERT INTO sequent_backend.tally_session_execution
+             (id, tenant_id, election_event_id, tally_session_id, current_message_id,
+              results_event_id)
+         VALUES ($1, $2, $3, $4, 1, $5)",
+        &[&Uuid::new_v4(), &w.tenant, &w.event, &session, &results],
+    )
+    .await;
+    w.execute(
+        "INSERT INTO sequent_backend.signing_tally_hold
+             (tenant_id, election_event_id, results_event_id, action, report_type,
+              election_id, file_name, base_document_id, base_sha256, requested_by,
+              requested_by_username)
+         VALUES ($1, $2, $3, 'generate-reports', 'INITIALIZATION_REPORT', $4,
+                 'report.pdf', $5, 'base-sha', 'sbei-0', 'sbei-0')",
+        &[&w.tenant, &w.event, &results, &post, &Uuid::new_v4()],
+    )
+    .await;
+    session
+}
+
+/// With the rule required, the initialization report's release is what
+/// initializes its Post: the signed PDF becomes the record's document, in
+/// the release's transaction, once.
+#[tokio::test]
+async fn a_released_initialization_report_initializes_its_post_once() {
+    let _turn = HELD_MAILS.lock().await;
+    let preset = &PRESETS[1];
+    let (post, results) = (Uuid::new_v4(), Uuid::new_v4());
+    let target = ReleaseTarget::TallyResult {
+        results_event_id: results,
+        election_id: post,
+        area_id: None,
+        report_type: "INITIALIZATION_REPORT".into(),
+    };
+    let s = signed_to(preset, None, Some(target)).await;
+    let session = held_initialization(&s.w, post, results).await;
+    let initializations = |w: &World| {
+        let pool = w.pool.clone();
+        let (tenant, event) = (w.tenant, w.event);
+        async move {
+            let mut client = pool.get().await.unwrap();
+            let tx = client.transaction().await.unwrap();
+            let rows = windmill::postgres::election_initialization::list_election_initializations(
+                &tx, tenant, event,
+            )
+            .await
+            .unwrap();
+            let flag: Option<bool> = tx
+                .query_one(
+                    "SELECT initialization_report_generated FROM sequent_backend.election
+                     WHERE id = $1",
+                    &[&post],
+                )
+                .await
+                .unwrap()
+                .get(0);
+            (rows, flag.unwrap_or(false))
+        }
+    };
+    // Held: nothing recorded yet.
+    let (rows, initialized) = initializations(&s.w).await;
+    assert!(rows.is_empty());
+    assert!(!initialized);
+
+    let effects = ResultReleaseEffects {
+        documents: s.documents.clone(),
+        publications: ResultPublications(Arc::new(Publications::new(s.documents.clone(), false))),
+    };
+    let mut client = s.w.pool.get().await.unwrap();
+    let run = run_dispatched(&mut client, &effects, &NoSeal, &s.task)
+        .await
+        .unwrap();
+    let RunOutcome::Executed(result) = run else {
+        panic!("{run:?}");
+    };
+    let released: Uuid = serde_json::from_value(result["document_id"].clone()).unwrap();
+    let (rows, initialized) = initializations(&s.w).await;
+    assert!(initialized);
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].election_id, post);
+    assert_eq!(rows[0].area_id, None);
+    assert_eq!(rows[0].tally_session_id, session);
+    assert_eq!(rows[0].results_event_id, Some(results));
+    assert_eq!(rows[0].document_id, Some(released));
+    assert_eq!(rows[0].report_hash.as_deref(), Some("init-hash"));
+
+    // Run again, and released again: nothing recorded twice.
+    let again = run_dispatched(&mut client, &effects, &NoSeal, &s.task)
+        .await
+        .unwrap();
+    assert!(matches!(again, RunOutcome::NotClaimed), "{again:?}");
+    let request = s.w.request(s.summary.id).await;
+    let tx = client.transaction().await.unwrap();
+    release_report(
+        &tx,
+        s.documents.as_ref(),
+        &effects.publications,
+        &request,
+        &EffectProgress::default(),
+    )
+    .await
+    .unwrap();
+    tx.commit().await.unwrap();
+    assert_eq!(initializations(&s.w).await, (rows, true));
+}

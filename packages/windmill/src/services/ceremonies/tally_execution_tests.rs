@@ -432,6 +432,27 @@ async fn completed_initialization_marks_each_requested_election() {
     );
 }
 #[tokio::test]
+async fn a_held_initialization_report_completes_the_tally_and_awaits_its_signatures() {
+    let store = MemoryTallyExecution::default();
+    store.0.lock().unwrap().held = vec!["election-b".into()];
+    persist(
+        &store,
+        ExecutionConclusion::Completed,
+        TallyType::INITIALIZATION_REPORT,
+    )
+    .await
+    .unwrap();
+    let state = store.0.lock().unwrap();
+    assert_record(&state, "Completed");
+    assert_eq!(state.completed, vec![scope()]);
+    assert_eq!(state.refreshed_events, vec![scope()]);
+    assert_eq!(state.initialized, vec![(scope(), "election-a".into())]);
+    assert_eq!(
+        state.awaiting_signatures,
+        vec![(scope(), "election-b".into())]
+    );
+}
+#[tokio::test]
 async fn absent_result_documents_and_batches_remain_absent_in_the_snapshot() {
     let store = MemoryTallyExecution::default();
     let mut row = record();
