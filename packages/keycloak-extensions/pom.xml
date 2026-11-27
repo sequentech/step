@@ -30,6 +30,7 @@ SPDX-License-Identifier: AGPL-3.0-only
         <module>url-truststore-provider</module>
         <module>idp-linking-authenticator</module>
         <module>scanovate-authenticator</module>
+        <module>idp-attribute-mapper</module>
     </modules>
 
 	<profiles>
