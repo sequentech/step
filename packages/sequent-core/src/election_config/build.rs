@@ -470,7 +470,13 @@ pub fn build(
         options.base_export.as_ref(),
     )
     .map_err(Report::from_problem)?;
-    Builder::new(workbook, templates, options, sources)?.build()
+    let mut bundle =
+        Builder::new(workbook, templates, options, sources)?.build()?;
+    // A site with no Internet would show an empty space for these.
+    for problem in super::page_images::check(workbook) {
+        bundle.warnings.push(problem);
+    }
+    Ok(bundle)
 }
 
 struct Builder<'a> {

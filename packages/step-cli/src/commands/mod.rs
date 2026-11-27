@@ -26,6 +26,7 @@ pub mod delete_tenant;
 pub mod download_document;
 pub mod download_tally_results;
 pub mod duplicate_votes;
+pub mod embed_image;
 pub mod export_cast_votes;
 pub mod export_election_event;
 pub mod export_tenant_config;

@@ -134,6 +134,9 @@ pub mod import_problems;
 /// IVR's own rule, shared by the wizard, the bundle validator and the importer.
 pub mod ivr;
 pub mod legacy_names;
+/// Images a page names by an Internet address: the build's warning, and
+/// embedding one in a workbook as a `data:` address.
+pub mod page_images;
 pub mod paths;
 pub mod scanovate;
 

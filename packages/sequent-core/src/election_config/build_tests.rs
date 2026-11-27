@@ -5066,3 +5066,42 @@ fn null_receipts_get_a_default_but_malformed_receipts_are_left_for_validation()
         assert_eq!(event["presentation"]["receipts"], expected);
     }
 }
+
+/// An event whose page names an image on the Internet builds, with a warning:
+/// a site with no Internet would show an empty space there.
+#[test]
+fn an_internet_image_is_a_warning() {
+    let address = "https://images.example.org/seal.svg";
+    let event = |logo: &str| {
+        with_sheet(
+            "ElectionEvent",
+            vec![
+                vec![
+                    text("external_id"),
+                    text("presentation.i18n.en.name"),
+                    text("presentation.logo_url"),
+                ],
+                vec![
+                    text("union-2027"),
+                    text("Union Election 2027"),
+                    text(logo),
+                ],
+            ],
+        )
+    };
+    let warned: Vec<_> = built(&event(address))
+        .warnings
+        .problems
+        .into_iter()
+        .filter(|p| p.id.as_deref() == Some("page.internet-image"))
+        .collect();
+    assert_eq!(warned.len(), 1);
+    assert_eq!(warned[0].details["address"], address);
+
+    let embedded = "data:image/png;base64,iVBORw0KGgo=";
+    assert!(!built(&event(embedded))
+        .warnings
+        .problems
+        .iter()
+        .any(|p| p.id.as_deref() == Some("page.internet-image")));
+}
