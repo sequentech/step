@@ -1126,6 +1126,26 @@ public class Utils {
     return new MessageFormat(messages.getProperty(key, key), locale).format(attributes.toArray());
   }
 
+  /**
+   * The text of a rejection or pending reason key in the voter's language, from the same theme
+   * messages as {@link #formatLoginMessage}. A key without a translation is kept as it is, and a
+   * missing key gives an empty text rather than "null". The text is not run through MessageFormat,
+   * since it is inserted into another message as a parameter.
+   */
+  static String reasonText(KeycloakSession session, RealmModel realm, String reasonKey) {
+    if (reasonKey == null || reasonKey.isBlank()) {
+      return "";
+    }
+    try {
+      Locale locale = session.getContext().resolveLocale(null);
+      Theme theme = session.theme().getTheme(Theme.Type.LOGIN);
+      return theme.getEnhancedMessages(realm, locale).getProperty(reasonKey, reasonKey);
+    } catch (IOException | RuntimeException e) {
+      log.warnv("reasonText(): no translation for {0}", reasonKey);
+      return reasonKey;
+    }
+  }
+
   /** The tenant of an election event or tenant realm, from its name. */
   public String tenantId(RealmModel realm) {
     Matcher matcher =
@@ -2098,7 +2118,7 @@ public class Utils {
                 SEND_PENDING_SMS_I18N_KEY,
                 () ->
                     List.of(
-                        String.valueOf(rejectReasonKey),
+                        reasonText(session, realm, rejectReasonKey),
                         convertToString(mismatchedFields, ", ", null)),
                 context)
             .keycloak();
@@ -2156,7 +2176,9 @@ public class Utils {
 
       SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
       List<String> smsAttributes =
-          ImmutableList.of(rejectReasonKey, convertToString(mismatchedFields, ", ", null));
+          ImmutableList.of(
+              reasonText(session, realm, rejectReasonKey),
+              convertToString(mismatchedFields, ", ", null));
 
       String formattedText =
           smsSenderProvider.send(
@@ -2211,7 +2233,7 @@ public class Utils {
                 SEND_REJECT_SMS_I18N_KEY,
                 () ->
                     List.of(
-                        String.valueOf(rejectReasonKey),
+                        reasonText(session, realm, rejectReasonKey),
                         convertToString(mismatchedFields, ", ", null)),
                 context)
             .keycloak();
@@ -2265,7 +2287,9 @@ public class Utils {
 
       SmsSenderProvider smsSenderProvider = session.getProvider(SmsSenderProvider.class);
       List<String> smsAttributes =
-          ImmutableList.of(rejectReasonKey, convertToString(mismatchedFields, ", ", null));
+          ImmutableList.of(
+              reasonText(session, realm, rejectReasonKey),
+              convertToString(mismatchedFields, ", ", null));
 
       String formattedText =
           smsSenderProvider.send(

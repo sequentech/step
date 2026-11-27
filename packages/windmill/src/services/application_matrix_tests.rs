@@ -171,6 +171,33 @@ fn no_registry_voter_is_rejected_with_every_field_differing() {
     assert!(!decision.inputs.voter_found);
 }
 
+/// A matrix that compares only fields the lookup ignores gives the lookup
+/// nothing to match on: no voter is found and the application is rejected as
+/// not matching, instead of the lookup failing.
+#[test]
+fn an_application_with_nothing_to_search_on_is_rejected_as_no_voter() {
+    let matrix = MatrixVersion::built_in(vec!["embassy".to_string()]);
+    let filter = get_filter_from_applicant_data(
+        "tenant".to_string(),
+        Some("event".to_string()),
+        None,
+        None,
+        "realm".to_string(),
+        None,
+        &matrix.matrix.compared_fields,
+        &applicant(None),
+    )
+    .unwrap();
+    assert!(!lookup_has_criteria(&filter));
+
+    let (result, _) = verify(vec![], &matrix, None, None);
+    assert_eq!(result.application_status, ApplicationStatus::REJECTED);
+    assert_eq!(
+        result.rejection_reason,
+        Some(ApplicationRejectReason::NO_VOTER)
+    );
+}
+
 #[test]
 fn a_manual_entry_goes_to_manual_review_even_when_everything_matches() {
     let (result, decision) = verify(

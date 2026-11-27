@@ -14,12 +14,20 @@
       "rejected": {
         "email": {
           "subject": "Application rejected",
-          "plaintext_body": "Hello {{{user.first_name}}} {{{user.last_name}}}!\n\nYour application to vote online has been rejected.\n\n\n\nRegards,",
-          "html_body": "Hello {{{user.first_name}}} {{{user.last_name}}}!<br><br>Your application to vote online has been rejected.<br><br><br><br>Regards,<br><br>"
+          "plaintext_body": "Hello {{{user.first_name}}} {{{user.last_name}}}!\n\nYour application to vote online has been rejected.{{#if rejection_reason}}\n\nReason: {{{rejection_reason}}}{{/if}}{{#if rejection_message}}\n\nMessage from the reviewer: {{{rejection_message}}}{{/if}}\n\n\n\nRegards,",
+          "html_body": "Hello {{{user.first_name}}} {{{user.last_name}}}!<br><br>Your application to vote online has been rejected.{{#if rejection_reason}}<br><br>Reason: {{rejection_reason}}{{/if}}{{#if rejection_message}}<br><br>Message from the reviewer: {{{rejection_message_html}}}{{/if}}<br><br><br><br>Regards,<br><br>"
         },
         "sms": {
-          "message": "Hello {{{user.first_name}}} {{{user.last_name}}}. Your application to vote online has been rejected."
+          "message": "Hello {{{user.first_name}}} {{{user.last_name}}}. Your application to vote online has been rejected.{{#if rejection_reason}} Reason: {{{rejection_reason}}}.{{/if}}{{#if rejection_message}} Message from the reviewer: {{{rejection_message}}}{{/if}}"
         }
+      },
+      "reasons": {
+        "insufficient-information": "Missing data",
+        "no-matching-voter": "No matching voter",
+        "voter-already-approved": "Already approved",
+        "identity-not-verified": "Identity not verified",
+        "email-in-use": "Email used by another voter",
+        "other": "Other"
       }
     },
     "timezones": {
@@ -1144,12 +1152,20 @@
       "rejected": {
         "email": {
           "subject": "Ang aplikasyon ay tinanggi",
-          "plaintext_body": "Kumusta {{{user.first_name}}} {{{user.last_name}}}!\n\nAng iyong aplikasyon para sa online voting ay tinanggi.\n\n\n\nMabuting araw,",
-          "html_body": "Kumusta {{{user.first_name}}} {{{user.last_name}}}!<br><br>Ang iyong aplikasyon para sa online voting ay tinanggi.<br><br><br><br>Mabuting araw,<br><br>"
+          "plaintext_body": "Kumusta {{{user.first_name}}} {{{user.last_name}}}!\n\nAng iyong aplikasyon para sa online voting ay tinanggi.{{#if rejection_reason}}\n\nDahilan: {{{rejection_reason}}}{{/if}}{{#if rejection_message}}\n\nMensahe mula sa tagasuri: {{{rejection_message}}}{{/if}}\n\n\n\nMabuting araw,",
+          "html_body": "Kumusta {{{user.first_name}}} {{{user.last_name}}}!<br><br>Ang iyong aplikasyon para sa online voting ay tinanggi.{{#if rejection_reason}}<br><br>Dahilan: {{rejection_reason}}{{/if}}{{#if rejection_message}}<br><br>Mensahe mula sa tagasuri: {{{rejection_message_html}}}{{/if}}<br><br><br><br>Mabuting araw,<br><br>"
         },
         "sms": {
-          "message": "Kumusta {{{user.first_name}}} {{{user.last_name}}}. Ang iyong aplikasyon para sa online voting ay tinanggi."
+          "message": "Kumusta {{{user.first_name}}} {{{user.last_name}}}. Ang iyong aplikasyon para sa online voting ay tinanggi.{{#if rejection_reason}} Dahilan: {{{rejection_reason}}}.{{/if}}{{#if rejection_message}} Mensahe mula sa tagasuri: {{{rejection_message}}}{{/if}}"
         }
+      },
+      "reasons": {
+        "insufficient-information": "Kulang na datos",
+        "no-matching-voter": "Walang tumutugmang botante",
+        "voter-already-approved": "Naaprubahan na",
+        "identity-not-verified": "Hindi napatunayan ang pagkakakilanlan",
+        "email-in-use": "Ginagamit ng ibang botante ang email",
+        "other": "Iba pa"
       }
     },
     "timezones": {
