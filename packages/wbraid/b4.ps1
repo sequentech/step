@@ -2,7 +2,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Run b4 against localstack, or clear everything it has accumulated.
+# Run b4 against its S3 storage (localstack.ps1), or clear everything it has
+# accumulated.
 #
 #   .\b4.ps1                # run the service
 #   .\b4.ps1 -Reset         # delete all stored data, then run
@@ -22,8 +23,9 @@ param(
 )
 
 $env:AWS_ENDPOINT_URL="http://localhost:4566"
-$env:AWS_ACCESS_KEY_ID="test"
-$env:AWS_SECRET_ACCESS_KEY="test"
+# The dev-only credentials of the storage (localstack.ps1).
+$env:AWS_ACCESS_KEY_ID="wbraid-dev"
+$env:AWS_SECRET_ACCESS_KEY="wbraid-dev-storage"
 $env:AWS_REGION="us-east-1"
 $env:S3_BUCKET_NAME="wbraid-messages"
 $env:AWS_FORCE_PATH_STYLE="true"
@@ -65,8 +67,7 @@ if ($Reset) {
         Write-Host "  no b4.db to remove" -ForegroundColor DarkGray
     }
 
-    # The bucket itself stays: localstack.ps1 recreates it idempotently and
-    # reapplies the CORS configuration, so emptying it avoids that step.
+    # The bucket itself stays, so localstack.ps1 need not recreate it.
     aws --endpoint-url=$env:AWS_ENDPOINT_URL s3 rm "s3://$($env:S3_BUCKET_NAME)" --recursive | Out-Null
     if ($LASTEXITCODE -eq 0) {
         Write-Host "  emptied s3://$($env:S3_BUCKET_NAME)" -ForegroundColor DarkGray

@@ -96,6 +96,89 @@ class WorkspaceTrusteesTest(unittest.TestCase):
         )
 
 
+WBRAID = ROOT / "packages" / "wbraid"
+
+
+def storage_credentials(service):
+    environment = service["environment"]
+    return environment["AWS_ACCESS_KEY_ID"], environment["AWS_SECRET_ACCESS_KEY"]
+
+
+@unittest.skipUnless(compose_available(), "Docker Compose is required")
+class WbraidStorageTest(unittest.TestCase):
+    """b4v6 message bodies outlive a restart of the S3 service (meta#15323)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.services = compose_services(["docker-compose.yml"])
+        cls.storage = cls.services["localstack"]
+
+    def test_bodies_are_kept_in_a_named_volume(self):
+        volumes = [
+            volume for volume in self.storage["volumes"] if volume["target"] == "/data"
+        ]
+        self.assertEqual(len(volumes), 1)
+        self.assertEqual(volumes[0]["type"], "volume")
+        self.assertEqual(volumes[0]["source"], "wbraid_storage")
+
+    def test_storage_is_the_pinned_minio_server_on_the_localstack_port(self):
+        self.assertEqual(self.storage["image"], self.services["minio"]["image"])
+        command = self.storage["command"]
+        self.assertEqual(command[:3], ["server", "--address", ":4566"])
+        self.assertEqual(command[-1], "/data")
+        self.assertEqual(self.storage["ports"][0]["target"], 4566)
+        self.assertIn("/minio/health/", " ".join(self.storage["healthcheck"]["test"]))
+
+    def test_board_and_bucket_step_use_the_storage_root_credentials(self):
+        environment = self.storage["environment"]
+        root = environment["MINIO_ROOT_USER"], environment["MINIO_ROOT_PASSWORD"]
+        # MinIO refuses to start with a root password shorter than 8 characters.
+        self.assertGreaterEqual(len(root[1]), 8)
+        for name in ("b4v6", "configure-localstack"):
+            with self.subTest(service=name):
+                self.assertEqual(storage_credentials(self.services[name]), root)
+
+    def test_bucket_step_creates_the_bucket_only_when_missing(self):
+        step = self.services["configure-localstack"]
+        script = " ".join(step["command"])
+        self.assertIn("head-bucket --bucket wbraid-messages", script)
+        self.assertIn("create-bucket --bucket wbraid-messages", script)
+        # MinIO answers put-bucket-cors with NotImplemented, which would fail the
+        # step and keep b4v6 from starting; it allows every origin already.
+        self.assertNotIn("cors", script)
+        self.assertNotIn("volumes", step)
+        self.assertEqual(
+            self.services["b4v6"]["depends_on"]["configure-localstack"]["condition"],
+            "service_completed_successfully",
+        )
+
+    def test_e2e_overlay_keeps_the_storage_and_its_credentials(self):
+        services = compose_services(["docker-compose.yml", "docker-compose-ci.yml"])
+        self.assertEqual(
+            services["b4v6"]["environment"]["AWS_ENDPOINT_URL"],
+            "http://localstack:4566",
+        )
+        self.assertEqual(
+            storage_credentials(services["b4v6"]),
+            storage_credentials(self.services["b4v6"]),
+        )
+        self.assertEqual(services["localstack"]["volumes"], self.storage["volumes"])
+
+    def test_scripts_outside_compose_start_the_same_storage(self):
+        image = self.storage["image"]
+        user, password = storage_credentials(self.services["b4v6"])
+        for name in ("localstack.sh", "localstack.ps1", "b4.sh", "b4.ps1"):
+            with self.subTest(script=name):
+                text = (WBRAID / name).read_text()
+                expected = [f'"{user}"', f'"{password}"']
+                if name.startswith("localstack"):
+                    expected += [image, "wbraid_storage:/data"]
+                for fragment in expected:
+                    self.assertTrue(fragment in text, f"{name} lacks {fragment}")
+                for fragment in ('"test"', "put-bucket-cors"):
+                    self.assertFalse(fragment in text, f"{name} has {fragment}")
+
+
 class WorkspaceEnvironmentTest(unittest.TestCase):
     def test_browser_trustee_accounts_have_distinct_matching_identities(self):
         realm = json.loads(

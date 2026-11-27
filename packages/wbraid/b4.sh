@@ -3,7 +3,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-only
 
-# Run b4 against localstack, or clear everything it has accumulated.
+# Run b4 against its S3 storage (localstack.sh), or clear everything it has
+# accumulated.
 # Bash twin of b4.ps1.
 #
 #   ./b4.sh                   # run the service
@@ -62,8 +63,9 @@ if [ -z "${AWS_ENDPOINT_URL:-}" ]; then
     fi
 fi
 export AWS_ENDPOINT_URL
-export AWS_ACCESS_KEY_ID="test"
-export AWS_SECRET_ACCESS_KEY="test"
+# The dev-only credentials of the storage (localstack.sh).
+export AWS_ACCESS_KEY_ID="wbraid-dev"
+export AWS_SECRET_ACCESS_KEY="wbraid-dev-storage"
 export AWS_REGION="us-east-1"
 export S3_BUCKET_NAME="wbraid-messages"
 export AWS_FORCE_PATH_STYLE="true"
@@ -98,8 +100,7 @@ fi
 # The database goes first, and a failure there stops the whole reset: the bucket
 # must not be emptied while the database still points into it, or b4 comes back
 # serving metadata for bodies that are gone -- worse than not having cleared at
-# all. The bucket itself stays: localstack.sh recreates it idempotently and
-# reapplies the CORS configuration, so emptying it avoids that step.
+# all. The bucket itself stays, so localstack.sh need not recreate it.
 empty_bucket() {
     if aws_cli --endpoint-url="$AWS_ENDPOINT_URL" s3 rm "s3://$S3_BUCKET_NAME" --recursive >/dev/null 2>&1; then
         echo "  ${GRAY}emptied s3://$S3_BUCKET_NAME${RESET}"

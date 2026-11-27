@@ -61,7 +61,7 @@ Verificatum interop suite is opt-in and documented in `crates/v2v/TESTING.md`.
 ### Live-b4 tests (opt-in)
 
 Two harnesses talk to a real `b4` over HTTP and are `#[ignore]`d so the default
-run stays hermetic. Both need `b4` **and** S3/LocalStack: b4 stores every message
+run stays hermetic. Both need `b4` **and** its S3 storage: b4 stores every message
 body in S3, so any live-b4 run touches S3 regardless of the test. They differ in 
 the *client* board setup:
 
@@ -71,7 +71,7 @@ the *client* board setup:
   `SqlitePersistence`.
 
 ```sh
-# Terminal 1:  .\localstack.ps1     (S3 via LocalStack)      [bash: ./localstack.sh]
+# Terminal 1:  .\localstack.ps1     (S3 storage on :4566)    [bash: ./localstack.sh]
 # Terminal 2:  .\b4.ps1             (b4 server on :3005)     [bash: ./b4.sh]
 # Terminal 3:
 cargo test -p braid --release -- --ignored
@@ -84,8 +84,8 @@ b4 is the `b4v6` compose service (opt-in `wbraid` profile in
 brings up by name and `./b4.sh --reset` wipes (its SQLite file lives in the
 service's data volume); `.devcontainer/.env.development` (exported into every
 devenv shell) points the two live-b4 tests at it via
-`WBRAID_B4_URL=http://b4v6:3005` and `b4.sh` at the `localstack` service via
-`WBRAID_S3_ENDPOINT_URL`. Unset, everything keeps the upstream defaults above.
+`WBRAID_B4_URL=http://b4v6:3005` and `b4.sh` at the `localstack` storage service
+via `WBRAID_S3_ENDPOINT_URL`. Unset, everything keeps the upstream defaults above.
 
 In CI the same two tests run in the `live-b4` job of
 `.github/workflows/wbraid.yml` — LocalStack as a service container, `b4v6`
@@ -96,17 +96,24 @@ label, since a release build plus two full protocol runs is slow.
 
 - A stable Rust toolchain (for the default build).
 - For the live-b4 tests: **Docker** + the **AWS CLI** — `localstack.ps1` starts
-  LocalStack, creates the `wbraid-messages` bucket, and applies `s3-cors.json` —
+  the S3 storage and creates the `wbraid-messages` bucket when it is missing —
   and the **`b4`** server (`b4.ps1` sets the S3 endpoint/credentials and points
   `DATABASE_URL` at a repo-root `b4.db` sqlite db). In the devcontainer, 
   `localstack.sh` starts the `localstack` compose service instead (opt-in `wbraid`
   profile in `.devcontainer/docker-compose-base.yml`) and `b4.sh` the `b4v6` one; 
   the S3 endpoint is `http://localstack:4566` on the project network — `b4.sh`
   picks the right endpoint automatically, and falls back to the `amazon/aws-cli`
-  docker image when the AWS CLI is not installed. The image is pinned to
-  `localstack/localstack:4`: from the 2026 releases on, `latest` exits at
-  startup without an auth token, so a fresh pull of `latest` (which
-  `localstack.ps1` does) no longer works.
+  docker image when the AWS CLI is not installed.
+- The storage is MinIO (the pinned `pgsty/silo` image the stack's `minio`
+  service runs) on LocalStack's port 4566, with its data in the
+  `wbraid_storage` volume, so message bodies survive restarts and rebuilds.
+  LocalStack kept them only until it restarted, which left every older board
+  unreadable. The scripts keep their `localstack` names. Its dev-only
+  credentials are `wbraid-dev` / `wbraid-dev-storage`; MinIO allows browsers'
+  CORS requests from any origin, so there are no CORS rules to apply.
+  `docker volume rm wbraid_storage` (`docker compose down -v` in the
+  devcontainer) removes the bodies; reset b4's database with them
+  (`b4.sh --reset`).
 
 ## Wasm
 
@@ -150,7 +157,7 @@ validation that the protocol runs correctly under wasm.
 
 ```sh
 # Terminal 1:
-.\localstack.ps1        # docker LocalStack + creates the S3 bucket & CORS
+.\localstack.ps1        # S3 storage in docker + creates the bucket
 # Terminal 2:
 .\b4.ps1                # b4 server on :3005 (SQLite + S3)
 # Terminal 3:
@@ -208,7 +215,7 @@ the note above).
   atomics target-features), plus **Python** for `server.py` (the COOP/COEP dev
   server). `build-wasm.sh` instead stays on stable and uses `RUSTC_BOOTSTRAP=1`
   (the toolchain must ship `rust-src`; the devcontainer's does).
-- For the emulator: **Docker/LocalStack** + **`b4`**, as in the Native live-b4
+- For the emulator: **Docker** (the S3 storage) + **`b4`**, as in the Native live-b4
   prerequisites.
 - **`RUSTFLAGS` caveat** — clear any inherited `RUSTFLAGS` before the headless test
   (and run it from the repo root); `serve.ps1` clears it itself before the
