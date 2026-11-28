@@ -216,6 +216,12 @@ async fn a_reset_drops_its_tenants_retired_databases_only() -> Result<()> {
         ..retired.clone()
     };
     assert!(databases.drop_retired(&claimed).await.is_err());
+    // The refused drop leaves the database and its catalog entry.
+    assert!(database_exists(&databases, &retired.database_name).await?);
+    assert_eq!(
+        databases.retired_events(&tenant.to_string()).await?.len(),
+        1
+    );
     for malformed in [
         RetiredEventDatabase {
             tenant_id: "not-a-tenant".into(),
@@ -230,17 +236,7 @@ async fn a_reset_drops_its_tenants_retired_databases_only() -> Result<()> {
     }
 
     databases.drop_retired(&retired).await?;
-    let exists: bool = databases
-        .catalog()
-        .client()
-        .await?
-        .query_one(
-            "SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)",
-            &[&retired.database_name],
-        )
-        .await?
-        .get(0);
-    assert!(!exists);
+    assert!(!database_exists(&databases, &retired.database_name).await?);
     assert!(databases
         .retired_events(&tenant.to_string())
         .await?
@@ -248,6 +244,19 @@ async fn a_reset_drops_its_tenants_retired_databases_only() -> Result<()> {
     // A retry finds nothing left to do.
     databases.drop_retired(&retired).await?;
     Ok(())
+}
+
+async fn database_exists(databases: &EventDatabases, database: &str) -> Result<bool> {
+    Ok(databases
+        .catalog()
+        .client()
+        .await?
+        .query_one(
+            "SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)",
+            &[&database],
+        )
+        .await?
+        .get(0))
 }
 
 async fn allows_connections(databases: &EventDatabases, database: &str) -> Result<bool> {

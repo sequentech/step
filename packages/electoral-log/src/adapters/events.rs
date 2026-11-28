@@ -992,6 +992,8 @@ impl EventDatabases {
         let tenant = canonical_uuid(&retired.tenant_id)?;
         let event = canonical_uuid(&retired.election_event_id)?;
         let client = self.locked_client().await?;
+        // The catalog belongs to the application role.
+        self.act_as_owner(&client).await?;
         let listed = client
             .query_opt(
                 "SELECT tenant_id::text, election_event_id::text \
@@ -1012,7 +1014,6 @@ impl EventDatabases {
                 retired.database_name
             );
         }
-        self.act_as_owner(&client).await?;
         let failure = format!("Error dropping database {}", retired.database_name);
         client
             .batch_execute(&format!(

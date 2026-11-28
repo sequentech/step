@@ -49,7 +49,6 @@ const meta = {
     component: TenantResetCard,
     args: {preview: EResetStory.READY},
     argTypes: {preview: {control: "inline-radio", options: Object.values(EResetStory)}},
-    parameters: {widgets: ["TenantResetCardFor"]},
     render: (args) => (
         <AdminStoryProvider
             boundary={graphqlBoundary({
@@ -75,6 +74,7 @@ const openDialog = async (canvasElement: HTMLElement, button: string) => {
 }
 
 export const Ready: Story = {
+    parameters: {widgets: ["TenantResetCardFor"]},
     play: async ({canvasElement}) => {
         const dialog = await openDialog(canvasElement, "Reset tenant…")
         await expect(await dialog.findByText(/This deletes 1 election event/)).toBeVisible()
@@ -86,6 +86,7 @@ export const Ready: Story = {
 }
 
 export const BallotsToErase: Story = {
+    parameters: {widgets: ["TenantResetCardFor"]},
     args: {preview: EResetStory.BALLOTS},
     play: async ({canvasElement}) => {
         const dialog = await openDialog(canvasElement, "Reset tenant…")
@@ -101,6 +102,7 @@ export const BallotsToErase: Story = {
 }
 
 export const Unfinished: Story = {
+    parameters: {widgets: ["TenantResetCardFor"]},
     args: {preview: EResetStory.UNFINISHED},
     play: async ({canvasElement}) => {
         const canvas = within(canvasElement)
