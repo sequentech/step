@@ -103,37 +103,18 @@ fn own_tenant(
     Ok(target.to_string())
 }
 
-/// The tenant's slug, and whether it is the super-admin tenant while
-/// other tenants exist: its realm holds the admins of every other tenant.
-async fn tenant_facts(tenant_id: &str) -> Result<(String, bool), RouteError> {
+/// The tenant's slug, what the admin types to confirm.
+async fn tenant_slug(tenant_id: &str) -> Result<String, RouteError> {
     let client = get_hasura_pool().await.get().await.map_err(internal)?;
     let tenant = Uuid::parse_str(tenant_id).map_err(internal)?;
-    let slug: String = client
+    let row = client
         .query_one(
             "SELECT slug FROM sequent_backend.tenant WHERE id = $1",
             &[&tenant],
         )
         .await
-        .map_err(internal)?
-        .get(0);
-    let super_admin = std::env::var("SUPER_ADMIN_TENANT_ID")
-        .ok()
-        .and_then(|id| Uuid::parse_str(&id).ok())
-        .is_some_and(|id| id == tenant);
-    let shared = if super_admin {
-        let others: i64 = client
-            .query_one(
-                "SELECT count(*) FROM sequent_backend.tenant WHERE id <> $1",
-                &[&tenant],
-            )
-            .await
-            .map_err(internal)?
-            .get(0);
-        others > 0
-    } else {
-        false
-    };
-    Ok((slug, shared))
+        .map_err(internal)?;
+    Ok(row.get(0))
 }
 
 /// Refusals that stop a reset the admin confirmed: a ballot refusal does
@@ -165,8 +146,7 @@ pub async fn tenant_reset_preview(
     claims: JwtClaims,
 ) -> Result<Json<TenantResetPreviewOutput>, RouteError> {
     let tenant_id = own_tenant(&claims, &body.tenant_id)?;
-    let (slug, _) = tenant_facts(&tenant_id).await?;
-    // Its refusals include the super-admin one.
+    let slug = tenant_slug(&tenant_id).await?;
     let preview = tenant_reset::preview(&tenant_id).await.map_err(internal)?;
     Ok(Json(TenantResetPreviewOutput {
         preview,
@@ -198,14 +178,7 @@ pub async fn reset_tenant_f(
             "Sign in again before resetting the tenant".to_string(),
         ));
     }
-    let (slug, shared_super_admin) = tenant_facts(&tenant_id).await?;
-    if shared_super_admin {
-        return Err((
-            Status::Conflict,
-            "The super-admin tenant can't be reset while other tenants exist"
-                .to_string(),
-        ));
-    }
+    let slug = tenant_slug(&tenant_id).await?;
     if input.confirmation.trim() != slug {
         return Err((
             Status::BadRequest,
@@ -216,6 +189,8 @@ pub async fn reset_tenant_f(
         .erase_ballots_confirmation
         .as_deref()
         .is_some_and(|phrase| phrase.trim() == ERASE_BALLOTS_PHRASE);
+    // Its refusals include the super-admin tenant's while other tenants
+    // exist, which the claim checks again.
     let preview = tenant_reset::preview(&tenant_id).await.map_err(internal)?;
     let blocking = blocking_refusals(&preview.refusals, erase_ballots);
     if !blocking.is_empty() {
@@ -283,6 +258,45 @@ mod tests {
         assert_eq!(
             blocking_refusals(&[Refusal::Disabled], true),
             [Refusal::Disabled]
+        );
+    }
+
+    use crate::services::authorization::test_claims::{
+        admin_claims, CALLER_TENANT_ID, OTHER_TENANT_ID,
+    };
+
+    fn reset_admin(tenant_id: &str) -> JwtClaims {
+        admin_claims(tenant_id, &[&Permissions::TENANT_RESET.to_string()])
+    }
+
+    #[test]
+    fn an_admin_resets_only_their_own_tenant() {
+        let claims = reset_admin(CALLER_TENANT_ID);
+        assert_eq!(
+            own_tenant(&claims, CALLER_TENANT_ID).unwrap(),
+            CALLER_TENANT_ID
+        );
+        assert_eq!(
+            own_tenant(&claims, OTHER_TENANT_ID).unwrap_err().0,
+            Status::Forbidden
+        );
+        assert_eq!(
+            own_tenant(&claims, "not-a-tenant").unwrap_err().0,
+            Status::BadRequest
+        );
+        let without_role = admin_claims(CALLER_TENANT_ID, &[]);
+        assert!(own_tenant(&without_role, CALLER_TENANT_ID).is_err());
+    }
+
+    #[test]
+    fn the_claims_sign_in_time_decides_a_fresh_login() {
+        let mut claims = reset_admin(CALLER_TENANT_ID);
+        assert!(!is_fresh_login(&claims, 1_000));
+        claims.auth_time = Some(1_000);
+        assert!(is_fresh_login(&claims, 1_000));
+        assert_eq!(
+            internal("boom"),
+            (Status::InternalServerError, "boom".to_string())
         );
     }
 
