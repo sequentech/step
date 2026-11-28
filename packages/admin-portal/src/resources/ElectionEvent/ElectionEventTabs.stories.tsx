@@ -952,7 +952,9 @@ const runLockedDownReadiness =
         await userEvent.click(await canvas.findByRole("button", {name: i18n.t("readiness.action")}))
         const dialog = within(await within(document.body).findByRole("dialog"))
         expect(dialog.getByRole("button", {name: i18n.t("readiness.run")})).toBeDisabled()
-        await userEvent.click(dialog.getByRole("combobox"))
+        const testedEvent = dialog.getByRole("combobox", {name: i18n.t("readiness.testedEvent")})
+        await waitFor(() => expect(testedEvent).toBeEnabled())
+        await userEvent.click(testedEvent)
         await userEvent.click(
             await within(document.body).findByRole("option", {name: /Archived FTL/})
         )

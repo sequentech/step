@@ -104,7 +104,7 @@ export const PublishList: React.FC<TPublishList> = ({
                 const baseUrl = new URL(window.location.href)
                 // The event and election tabs select Publish by id; its position depends on permissions.
                 baseUrl.searchParams.set("tabId", "publish")
-                sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, "true")
+                sessionStorage.setItem(EPublishActions.PENDING_PUBLISH_ACTION, baseUrl.pathname)
                 await reauthWithGold(baseUrl.toString())
             } else {
                 onGenerate()

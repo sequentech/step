@@ -4,6 +4,7 @@
 
 import React from "react"
 import {act, fireEvent, render, screen, within, waitFor} from "@testing-library/react"
+import {EPublishActions} from "@/types/publishActions"
 import {Publish} from "./Publish"
 import {EPublishType} from "./EPublishType"
 
@@ -13,6 +14,7 @@ const mockOtherMutation = jest.fn()
 const mockNotify = jest.fn()
 const mockRefetch = jest.fn()
 const mockRefresh = jest.fn()
+let mockGold = false
 let mockRecord = {id: "event", status: {voting_status: "CLOSED"}, presentation: {}}
 let mockPublication: {id: string; is_generated: boolean} | undefined
 const mockT = (key: string) => key
@@ -47,7 +49,7 @@ jest.mock("@/providers/TenantContextProvider", () => ({useTenantStore: () => ["t
 jest.mock("@/providers/AuthContextProvider", () => ({
     AuthContext: require("react").createContext({
         isAuthorized: () => true,
-        isGoldUser: () => false,
+        isGoldUser: () => mockGold,
     }),
 }))
 jest.mock("@/providers/SettingsContextProvider", () => ({
@@ -85,6 +87,7 @@ const props = {electionEventId: "event", type: EPublishType.Event}
 beforeEach(() => {
     jest.clearAllMocks()
     sessionStorage.clear()
+    mockGold = false
     mockTask = undefined
     mockPublication = undefined
     mockGenerate.mockResolvedValue({
@@ -103,6 +106,35 @@ beforeEach(() => {
             },
         },
     })
+})
+
+it("keeps pending generation through a render before returning from Gold login", async () => {
+    const pending = EPublishActions.PENDING_PUBLISH_ACTION
+    const scope = window.location.pathname
+    const view = render(React.createElement(Publish, props))
+    sessionStorage.setItem(pending, scope)
+
+    view.rerender(React.createElement(Publish, {...props, showList: "list"}))
+    expect(sessionStorage.getItem(pending)).toBe(scope)
+    expect(mockGenerate).not.toHaveBeenCalled()
+
+    mockGold = true
+    view.rerender(React.createElement(Publish, props))
+    expect(await screen.findByRole("progressbar")).toBeTruthy()
+    expect(mockGenerate).toHaveBeenCalledTimes(1)
+    expect(mockGenerate).toHaveBeenCalledWith({variables: {electionEventId: "event"}})
+    expect(sessionStorage.getItem(pending)).toBeNull()
+})
+
+it("discards pending generation for a different election route", () => {
+    const pending = EPublishActions.PENDING_PUBLISH_ACTION
+    sessionStorage.setItem(pending, "/sequent_backend_election_event/another-event")
+    mockGold = true
+
+    render(React.createElement(Publish, props))
+
+    expect(mockGenerate).not.toHaveBeenCalled()
+    expect(sessionStorage.getItem(pending)).toBeNull()
 })
 
 it.each(["CLOSED", "OPEN", "PAUSED", "NOT_STARTED"])(

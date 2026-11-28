@@ -150,6 +150,16 @@ pub async fn pool() -> Pool {
     pool_for(DATABASE.get_or_init(create).await)
 }
 
+/// A fresh migrated database for a test that changes deployment-wide state.
+#[allow(dead_code)] // Other integration test binaries only use the shared pool.
+pub(super) async fn isolated_pool() -> Pool {
+    QUEUE.get_or_init(task_queue_database).await;
+    // The shared fixture provisions cluster-wide roles before a second
+    // database runs the same migrations.
+    DATABASE.get_or_init(create).await;
+    pool_for(&create().await)
+}
+
 static QUEUE: OnceCell<()> = OnceCell::const_new();
 
 /// Every append to an electoral log is admitted for its log's order in the

@@ -576,32 +576,16 @@ const PublishMemo: React.MemoExoticComponent<ComponentType<TPublish>> = React.me
             setOpen(false)
         }
 
-        /**
-         * Checks for any pending actions after the component mounts.
-         * If a pending action is found, it executes the action and removes the flag.
-         */
         useEffect(() => {
-            const executePendingActions = async () => {
-                let isGold = isGoldUser()
-
-                if (isGold) {
-                    const pendingPublish = sessionStorage.getItem(
-                        EPublishActions.PENDING_PUBLISH_ACTION
-                    )
-                    if (pendingPublish) {
-                        onGenerate()
-                    }
-                }
+            // Polling can re-render the tab while Keycloak prepares the redirect.
+            if (!electionEventId || !isGoldUser()) return
+            const pendingPath = sessionStorage.getItem(EPublishActions.PENDING_PUBLISH_ACTION)
+            if (pendingPath === null) return
+            sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
+            if (pendingPath === window.location.pathname) {
+                void onGenerate()
             }
-            const cleanup = () => {
-                sessionStorage.removeItem(EPublishActions.PENDING_PUBLISH_ACTION)
-            }
-
-            if (electionEventId || electionId) {
-                executePendingActions()
-                cleanup()
-            }
-        }, [onChangeStatus, onGenerate])
+        }, [electionEventId, isGoldUser, onGenerate])
 
         useEffect(() => {
             if (showList) {

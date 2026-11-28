@@ -262,7 +262,7 @@ export const GenerationAsksForReauthentication: Story = {
         await waitFor(() => expect(args.reauthenticate).toHaveBeenCalledOnce())
         // Back to the publish tab of the election event page.
         expect(args.reauthenticate).toHaveBeenCalledWith(expect.stringContaining("tabId=publish"))
-        expect(sessionStorage.getItem("pendingPublishAction")).toBe("true")
+        expect(sessionStorage.getItem("pendingPublishAction")).toBe(window.location.pathname)
         expect(args.onGenerate).not.toHaveBeenCalled()
     },
 }
