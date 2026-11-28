@@ -95,12 +95,15 @@ describe("authenticated Gold return", () => {
 
     const install = (
         returned: unknown = {...tab, phase: "approval-recorded"},
-        config = settings
+        config = settings,
+        replied = new URL(config.HASURA_URL, origin).href
     ) => {
         const b = browser()
         expect(markBeforeFullRedirect(b.storage, tab)).toBe(true)
         fetchStub.mockResolvedValueOnce(response(config, origin + "/global-settings.json"))
-        fetchStub.mockResolvedValueOnce(response({data: {operationalInitializeFinish: returned}}))
+        fetchStub.mockResolvedValueOnce(
+            response({data: {operationalInitializeFinish: returned}}, replied)
+        )
         return b
     }
 
@@ -224,12 +227,42 @@ describe("authenticated Gold return", () => {
         }
     })
 
-    it("never sends the proof to another GraphQL origin even when settings say to", async () => {
-        const b = install(tab, {...settings, HASURA_URL: "https://elsewhere.invalid/v1/graphql"})
+    it.each(["/v1/graphql", "/hasura/v1/graphql", "/graphql"])(
+        "exchanges the proof at the configured same-origin GraphQL path %s",
+        async (graphPath) => {
+            const b = install(undefined, {...settings, HASURA_URL: origin + graphPath})
+            expect(await finishOperationalApproval(b.candidate, proof)).toBe(true)
+            expect(fetchStub).toHaveBeenCalledTimes(2)
+            const [destination, request] = fetchStub.mock.calls[1]
+            expect(String(destination)).toBe(origin + graphPath)
+            expect(request.method).toBe("POST")
+            expect(readDisplayReturn(b.storage, path)?.result).toBe("approval-recorded")
+        }
+    )
+
+    it.each([
+        "https://elsewhere.invalid/v1/graphql",
+        "https://elsewhere.invalid/hasura/v1/graphql",
+        "https://127.0.0.1:13444/hasura/v1/graphql",
+        "http://127.0.0.1:13443/hasura/v1/graphql",
+    ])("never sends the proof to another GraphQL origin such as %s", async (graph) => {
+        const b = install(tab, {...settings, HASURA_URL: graph})
         expect(await finishOperationalApproval(b.candidate, proof)).toBe(true)
         expect(readDisplayReturn(b.storage, path)?.result).toBe("reconcile")
         expect(fetchStub).toHaveBeenCalledTimes(1)
         expect(mockAdapter.init).not.toHaveBeenCalled()
+    })
+
+    it.each([
+        ["/v1/graphql", origin + "/hasura/v1/graphql"],
+        ["/hasura/v1/graphql", origin + "/v1/graphql"],
+        ["/hasura/v1/graphql", "https://elsewhere.invalid/hasura/v1/graphql"],
+    ])("accepts the reply for %s only from that URL, not from %s", async (graphPath, replied) => {
+        const b = install(undefined, {...settings, HASURA_URL: origin + graphPath}, replied)
+        expect(await finishOperationalApproval(b.candidate, proof)).toBe(true)
+        expect(fetchStub).toHaveBeenCalledTimes(2)
+        expect(String(fetchStub.mock.calls[1][0])).toBe(origin + graphPath)
+        expect(readDisplayReturn(b.storage, path)?.result).toBe("reconcile")
     })
 
     it("uses the shared return only to confirm the local setup attempt and then restores its dialog", async () => {
