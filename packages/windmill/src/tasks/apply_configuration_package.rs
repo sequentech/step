@@ -810,6 +810,29 @@ async fn execute(
             } else {
                 None
             };
+            // What the package says its accounts were checked for: taken
+            // as checked here, without asking a provider.
+            let declared =
+                crate::services::import::configuration_package_messaging::declared_languages(
+                    &definitions,
+                    plan.payloads
+                        .get(&Section::ElectionEvent)
+                        .and_then(|files| files.first())
+                        .map(|file| file.bytes.as_slice()),
+                    &plan
+                        .payloads
+                        .get(&Section::MessageTemplates)
+                        .and_then(|files| files.first())
+                        .and_then(|file| {
+                            sequent_core::election_config::package_templates::read(&file.bytes).ok()
+                        })
+                        .map(|templates| {
+                            sequent_core::election_config::package_templates::notice_languages(
+                                &templates,
+                            )
+                        })
+                        .unwrap_or_default(),
+                );
             Ok::<_, anyhow::Error>(std::sync::Arc::new(PackageMessaging::new(
                 sequent_core::services::uuid_validation::parse_uuid_v4(&body.tenant_id)?,
                 package_sha256.clone(),
@@ -821,6 +844,7 @@ async fn execute(
                 body.audit_actor
                     .as_ref()
                     .and_then(|actor| actor.user_id.clone()),
+                &declared,
             )))
         })
         .transpose()?;

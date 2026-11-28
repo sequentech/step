@@ -6513,6 +6513,12 @@ const catalanTranslation: TranslationType = {
             needsSavingAgain: "Cal tornar a desar la configuració.",
             needsSavingAgainHelp:
                 "Es va copiar de l'emmagatzematge anterior i no va superar les comprovacions que fa un desament. Corregiu els problemes que es mostren i torneu-la a desar.",
+            missingTemplates: {
+                title: "Alguns missatges no arribaran als votants",
+                channel:
+                    "{{channel}} només envia plantilles aprovades i no en té cap per a: {{messages}}. Els votants que fan servir {{channel}} no rebran aquests missatges.",
+                help: "Afegiu una plantilla per a cadascun a Plantilles aprovades, o una de predeterminada per al propòsit. La predeterminada s'utilitza per a cada missatge sense plantilla pròpia, de manera que els seus marcadors han de servir per a tots.",
+            },
         },
         messaging: {
             channel: {
@@ -6986,6 +6992,9 @@ const catalanTranslation: TranslationType = {
                 cancel: "Cancel·la",
                 close: "Tanca",
                 channelHelp: "No es pot canviar després de crear el compte.",
+                saveAnyway: "Desa igualment",
+                saveAnywayHelp:
+                    "Desa igualment desa les noves credencials sense comprovar-les amb el proveïdor. El compte queda com està fins que es torni a comprovar: comproveu-lo quan es pugui contactar amb el proveïdor.",
             },
             field: {
                 name: "Nom del compte",

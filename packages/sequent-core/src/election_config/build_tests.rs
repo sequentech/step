@@ -2235,6 +2235,232 @@ fn the_otp_preset_binds_its_config_to_the_authenticator_in_the_realm() {
     assert!(aliases.contains(&"janitor-otp-by-availability"));
 }
 
+// -- voters per contact ---------------------------------------------------
+
+/// A realm with two code steps, a step of another kind, and the reset actions.
+///
+/// The code steps differ the way real realms do: one config already states a
+/// limit, one leaves it to Keycloak's default.
+fn realm_with_code_steps() -> Value {
+    json!({
+        "realm": "some-other-realm",
+        "authenticationFlows": [{
+            "alias": "browser",
+            "authenticationExecutions": [
+                {
+                    "authenticator": "message-otp-authenticator",
+                    "authenticatorConfig": "sign-in-code",
+                },
+                {
+                    "authenticator": "deferred-authenticator",
+                    "authenticatorConfig": "deferred",
+                },
+            ],
+        }, {
+            "alias": "registration",
+            "authenticationExecutions": [{
+                "authenticator": "message-otp-authenticator",
+                "authenticatorConfig": "enrollment-code",
+            }],
+        }],
+        "authenticatorConfig": [
+            {"alias": "sign-in-code", "config": {"length": "6"}},
+            {
+                "alias": "enrollment-code",
+                "config": {"length": "8", "max-receiver-reuse": "1"},
+            },
+            {"alias": "deferred", "config": {"some-setting": "x"}},
+        ],
+        "requiredActions": [
+            {"alias": "message-channel-ra", "config": {"max_auth_age": "300"}},
+            {"alias": "messaging-app-otp-ra"},
+            {"alias": "mobile-otp-ra", "config": {}},
+        ],
+    })
+}
+
+fn reuse_parameter(value: &str) -> Workbook {
+    with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![text("settings"), text("max_receiver_reuse"), text(value)],
+        ],
+    )
+}
+
+fn over_code_steps(workbook: &Workbook) -> Bundle {
+    with_options(
+        workbook,
+        BuildOptions {
+            base_export: Some(
+                json!({"keycloak_event_realm": realm_with_code_steps()}),
+            ),
+            ..BuildOptions::default()
+        },
+    )
+}
+
+fn config_of<'a>(realm: &'a Value, alias: &str) -> &'a Value {
+    realm["authenticatorConfig"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|config| config["alias"] == alias)
+        .map(|config| &config["config"])
+        .unwrap_or_else(|| panic!("no '{alias}' config"))
+}
+
+fn required_action<'a>(realm: &'a Value, alias: &str) -> &'a Value {
+    realm["requiredActions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|action| action["alias"] == alias)
+        .unwrap_or_else(|| panic!("no '{alias}' required action"))
+}
+
+#[test]
+fn the_limit_on_voters_per_contact_reaches_every_code_step() {
+    // Keycloak reads the limit from whichever code step it finds first, so a
+    // limit set on one step and not another is a limit that holds or not
+    // depending on the order the realm lists its flows in.
+    let bundle = over_code_steps(&reuse_parameter("3"));
+    let realm = &bundle.export["keycloak_event_realm"];
+
+    assert_eq!(config_of(realm, "sign-in-code")["max-receiver-reuse"], "3");
+    assert_eq!(
+        config_of(realm, "enrollment-code")["max-receiver-reuse"],
+        "3"
+    );
+    // Everything else the step says is untouched.
+    assert_eq!(config_of(realm, "sign-in-code")["length"], "6");
+    assert_eq!(config_of(realm, "enrollment-code")["length"], "8");
+    // A step of another kind has no such setting.
+    assert_eq!(config_of(realm, "deferred"), &json!({"some-setting": "x"}));
+}
+
+#[test]
+fn the_limit_on_voters_per_contact_reaches_the_messaging_app_reset() {
+    // Changing a messaging-app contact reads its own required-action settings,
+    // never a code step's, so it would keep the default limit otherwise. The
+    // first release's id is still served and gets it too.
+    let bundle = over_code_steps(&reuse_parameter("3"));
+    let realm = &bundle.export["keycloak_event_realm"];
+
+    assert_eq!(
+        required_action(realm, "message-channel-ra")["config"],
+        json!({"max_auth_age": "300", "max-receiver-reuse": "3"})
+    );
+    assert_eq!(
+        required_action(realm, "messaging-app-otp-ra")["config"],
+        json!({"max-receiver-reuse": "3"})
+    );
+    // The mobile and email resets read the code step's, which is set above.
+    assert_eq!(required_action(realm, "mobile-otp-ra")["config"], json!({}));
+}
+
+#[test]
+fn no_limit_on_voters_per_contact_is_a_limit_of_zero() {
+    // Keycloak's own meaning of 0, carried as it is.
+    let bundle = over_code_steps(&reuse_parameter("0"));
+    let realm = &bundle.export["keycloak_event_realm"];
+    assert_eq!(config_of(realm, "sign-in-code")["max-receiver-reuse"], "0");
+    assert_eq!(
+        config_of(realm, "enrollment-code")["max-receiver-reuse"],
+        "0"
+    );
+}
+
+#[test]
+fn without_the_parameter_the_environments_limit_stays() {
+    let bundle = over_code_steps(&sound());
+    let realm = &bundle.export["keycloak_event_realm"];
+    assert_eq!(config_of(realm, "sign-in-code"), &json!({"length": "6"}));
+    assert_eq!(
+        config_of(realm, "enrollment-code")["max-receiver-reuse"],
+        "1"
+    );
+    assert_eq!(
+        required_action(realm, "messaging-app-otp-ra").get("config"),
+        None
+    );
+}
+
+#[test]
+fn the_limit_on_voters_per_contact_reaches_the_code_step_a_preset_adds() {
+    let workbook = with_sheet(
+        "Parameters",
+        vec![
+            vec![text("type"), text("key"), text("value")],
+            vec![
+                text("settings"),
+                text("auth_type"),
+                text("otp_email_or_sms"),
+            ],
+            vec![text("settings"), text("max_receiver_reuse"), text("2")],
+        ],
+    );
+    let bundle = over_code_steps(&workbook);
+    let realm = &bundle.export["keycloak_event_realm"];
+    assert_eq!(
+        config_of(realm, "janitor-otp-by-availability")["max-receiver-reuse"],
+        "2"
+    );
+}
+
+#[test]
+fn a_limit_on_voters_per_contact_that_is_not_a_whole_number_is_refused() {
+    for wrong in ["three", "-1", "2.5"] {
+        let report = refused(&reuse_parameter(wrong));
+        assert!(
+            has_error_saying(&report, "max_receiver_reuse"),
+            "{wrong}: {report}"
+        );
+    }
+}
+
+#[test]
+fn a_code_step_with_no_settings_of_its_own_is_warned_about() {
+    // Keycloak does not merge a step's settings over its defaults, so a config
+    // holding the limit alone would reset every other setting of that step. The
+    // step keeps Keycloak's default of one voter per contact, and the author is
+    // told.
+    let bundle = with_options(
+        &reuse_parameter("3"),
+        BuildOptions {
+            base_export: Some(json!({"keycloak_event_realm": base_realm()})),
+            ..BuildOptions::default()
+        },
+    );
+    let realm = &bundle.export["keycloak_event_realm"];
+    assert_eq!(
+        realm["authenticationFlows"][0]["authenticationExecutions"][0]
+            .get("authenticatorConfig"),
+        None
+    );
+    assert!(bundle
+        .warnings
+        .warnings()
+        .any(|problem| problem.message.contains("'browser'")
+            && problem.message.contains("max_receiver_reuse")));
+}
+
+#[test]
+fn a_limit_on_voters_per_contact_with_no_realm_to_apply_it_to_is_warned_about()
+{
+    let bundle = built(&reuse_parameter("3"));
+    assert!(bundle
+        .warnings
+        .warnings()
+        .any(|problem| problem.message.contains("max_receiver_reuse")
+            && problem.message.contains("no realm")));
+    // And it is not also reported as a parameter nothing acted on.
+    assert!(!bundle.export["election_event"]["annotations"]
+        .to_string()
+        .contains("max_receiver_reuse"));
+}
+
 #[test]
 fn the_link_preset_patches_the_user_profile_inside_its_stringified_blob() {
     // It lives inside a Keycloak component as a single JSON string, so it has to

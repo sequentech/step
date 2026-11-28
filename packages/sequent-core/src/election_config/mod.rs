@@ -37,8 +37,9 @@ mod messaging_config;
 #[cfg(feature = "election_config_templates")]
 pub mod portable_messaging;
 
-/// AWS key pairs beside, never inside, a signed delivery: the sidecar, its
-/// signed commitment and the installation record seal.
+/// Messaging credentials (AWS key pairs, Infobip API keys) beside, never
+/// inside, a signed delivery: the sidecar, its signed commitment and the
+/// installation record seal.
 #[cfg(feature = "election_config_signing")]
 pub mod messaging_credentials;
 
@@ -97,6 +98,10 @@ pub mod manifest;
 /// contains.
 #[cfg(feature = "election_config_archive")]
 pub mod package_contract;
+
+/// The message templates a package carries, as the platform stores them.
+#[cfg(feature = "election_config_archive")]
+pub mod package_templates;
 
 /// Tenant settings, role mappings, administrators and trustees' public keys,
 /// written for the Admin Portal settings zip.

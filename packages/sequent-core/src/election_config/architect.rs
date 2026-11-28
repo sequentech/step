@@ -45,6 +45,7 @@ use std::cmp::Ordering;
 use crate::election_config::archive::{Artifact, Layout};
 use crate::election_config::build::{
     build, BuildOptions, Bundle, ImageFile, MaterialFile,
+    PARAM_MAX_RECEIVER_REUSE,
 };
 use crate::election_config::ids::IdFactory;
 use crate::election_config::paths::Cell;
@@ -689,6 +690,21 @@ pub struct Blueprint {
     /// twice and gets differently the second time.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub auth_preset: Option<String>,
+
+    /// How many voters may share one phone number or email address.
+    ///
+    /// `0` is no limit. `None` leaves the environment's own limit alone, which
+    /// is what every plan written before this field did; Keycloak's default is
+    /// one voter per contact.
+    ///
+    /// Independent of [`Blueprint::auth_preset`]: a voter enrolling or changing
+    /// a contact is refused over this limit whichever way they sign in, so it is
+    /// set on every code step in the realm and on the messaging-app reset —
+    /// see `build_realm`'s `apply_receiver_reuse`. Travels as the
+    /// [`PARAM_MAX_RECEIVER_REUSE`] parameter, the road a janitor's workbook
+    /// takes to the same place.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_receiver_reuse: Option<u32>,
 
     /// How contests behave unless they say otherwise.
     ///
@@ -4695,6 +4711,9 @@ fn parameters_sheet(
     base_export: Option<&serde_json::Value>,
 ) -> Option<Result<Sheet, Problem>> {
     let mut rows = keycloak_message_rows(plan);
+    if let Some(limit) = plan.max_receiver_reuse {
+        rows.push((PARAM_MAX_RECEIVER_REUSE.to_string(), limit.to_string()));
+    }
     let carried = plan
         .platform
         .iter()
@@ -4785,6 +4804,13 @@ fn parameters_sheet(
     // uses. `Row.cells` holds only non-blank cells, keyed by raw header, so there
     // is nothing to pad and no column order to guess at.
     let mut merged = carried.clone();
+    // The plan's limit replaces the workbook's: the builder takes the first row
+    // with a key, and the plan's is appended after it.
+    if plan.max_receiver_reuse.is_some() {
+        merged.rows.retain(|row| {
+            row.text("key").map(str::trim) != Some(PARAM_MAX_RECEIVER_REUSE)
+        });
+    }
     let key_header = merged
         .headers
         .iter()

@@ -471,7 +471,7 @@ async fn verified_receiver_needs_the_signed_pin(pool: &Pool) -> Result<()> {
     assert!(tx
         .query_one(
             "SELECT sequent_backend.verified_cast_key_authorize($1,$2,1,$3,1,$4)",
-            &[&tenant, &event, &manifest],
+            &[&tenant, &event, &manifest, &roster],
         )
         .await?
         .get::<_, bool>(0));

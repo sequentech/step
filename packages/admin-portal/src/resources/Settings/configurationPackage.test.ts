@@ -170,7 +170,7 @@ describe("records as the platform serializes them", () => {
     it("reads every outcome", () => {
         for (const name of ["applied", "previewed", "refused", "failed", "unknown", "submitting"]) {
             expect(read(name).outcome).toBe(name === "submitting" ? "running" : name)
-            expect(read(name).sections).toHaveLength(7)
+            expect(read(name).sections).toHaveLength(8)
             expect(states(name)).toContainEqual(["messaging-accounts", "not-included", undefined])
         }
     })
@@ -183,6 +183,7 @@ describe("records as the platform serializes them", () => {
                 "role-permissions",
                 "admin-accounts",
                 "trustees",
+                "message-templates",
                 "messaging-accounts",
                 "election-event",
             ].map((section) =>

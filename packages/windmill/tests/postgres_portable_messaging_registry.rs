@@ -24,7 +24,7 @@ use windmill::services::audit_log::{self, AdminAction, AuditActor};
 use windmill::services::messaging::{
     config::{
         import_event_messaging_config, preflight_import_event_messaging_config, ImportOutcome,
-        MessagingConfigPermission,
+        MessagingConfigPermission, ProviderReadiness,
     },
     portable_registry::{self, RegistryAction},
 };
@@ -114,9 +114,15 @@ async fn portable_registry_preview_apply_and_rebind_never_send_or_modify_existin
         .existing_fingerprint
         .is_none()
         && binding.account_id != other_preview.bindings[reference].account_id));
-    let projected = portable_registry::account_summaries(&tx, tenant, &definitions, &preview)
-        .await
-        .unwrap();
+    let projected = portable_registry::account_summaries(
+        &tx,
+        tenant,
+        &definitions,
+        &preview,
+        &Default::default(),
+    )
+    .await
+    .unwrap();
     assert_eq!(projected.len(), 5);
     assert!(projected
         .iter()
@@ -132,9 +138,17 @@ async fn portable_registry_preview_apply_and_rebind_never_send_or_modify_existin
     tx.commit().await.unwrap();
 
     let tx = client.transaction().await.unwrap();
-    let installed = portable_registry::apply(&tx, tenant, SHA, &definitions, &preview, None)
-        .await
-        .unwrap();
+    let installed = portable_registry::apply(
+        &tx,
+        tenant,
+        SHA,
+        &definitions,
+        &preview,
+        None,
+        &Default::default(),
+    )
+    .await
+    .unwrap();
     assert!(installed.bindings.iter().all(|(reference, binding)| binding
         .existing_fingerprint
         .is_some()
@@ -152,9 +166,17 @@ async fn portable_registry_preview_apply_and_rebind_never_send_or_modify_existin
     let mut would_send = bound.clone();
     would_send["channels"][4]["purposes"] = json!(["OTP", "NOTICE"]);
     assert!(matches!(
-        import_event_messaging_config(&tx, &tenant, &event, &bound, &Default::default(), denied)
-            .await
-            .unwrap(),
+        import_event_messaging_config(
+            &tx,
+            &tenant,
+            &event,
+            &bound,
+            &Default::default(),
+            denied,
+            &ProviderReadiness::REQUIRED
+        )
+        .await
+        .unwrap(),
         ImportOutcome::NotImported(_)
     ));
     assert!(matches!(
@@ -164,7 +186,8 @@ async fn portable_registry_preview_apply_and_rebind_never_send_or_modify_existin
             &event,
             &would_send,
             &Default::default(),
-            approved
+            approved,
+            &ProviderReadiness::REQUIRED
         )
         .await
         .unwrap(),
@@ -181,13 +204,21 @@ async fn portable_registry_preview_apply_and_rebind_never_send_or_modify_existin
         &bound,
         &Default::default(),
         approved,
+        &ProviderReadiness::REQUIRED,
     )
     .await
     .unwrap();
-    let imported =
-        import_event_messaging_config(&tx, &tenant, &event, &bound, &Default::default(), approved)
-            .await
-            .unwrap();
+    let imported = import_event_messaging_config(
+        &tx,
+        &tenant,
+        &event,
+        &bound,
+        &Default::default(),
+        approved,
+        &ProviderReadiness::REQUIRED,
+    )
+    .await
+    .unwrap();
     let ImportOutcome::Imported(public) = imported else {
         panic!("unchecked account selections should import without any sendable purposes");
     };
@@ -233,9 +264,17 @@ async fn portable_registry_preview_apply_and_rebind_never_send_or_modify_existin
         .unwrap();
     assert_eq!(repeated, installed);
     assert_eq!(
-        portable_registry::apply(&tx, tenant, SHA, &definitions, &repeated, None)
-            .await
-            .unwrap(),
+        portable_registry::apply(
+            &tx,
+            tenant,
+            SHA,
+            &definitions,
+            &repeated,
+            None,
+            &Default::default()
+        )
+        .await
+        .unwrap(),
         repeated
     );
     assert_eq!(list_messaging_accounts(&tx, &tenant).await.unwrap(), before);
@@ -268,13 +307,19 @@ async fn portable_registry_preview_apply_and_rebind_never_send_or_modify_existin
     tx.commit().await.unwrap();
 
     let tx = client.transaction().await.unwrap();
-    assert!(
-        portable_registry::apply(&tx, second, SHA, &definitions, &other_preview, None)
-            .await
-            .unwrap_err()
-            .to_string()
-            .contains("preview the configuration package again")
-    );
+    assert!(portable_registry::apply(
+        &tx,
+        second,
+        SHA,
+        &definitions,
+        &other_preview,
+        None,
+        &Default::default()
+    )
+    .await
+    .unwrap_err()
+    .to_string()
+    .contains("preview the configuration package again"));
     assert_eq!(
         list_messaging_accounts(&tx, &second).await.unwrap(),
         vec![donor.clone()]
@@ -286,9 +331,17 @@ async fn portable_registry_preview_apply_and_rebind_never_send_or_modify_existin
         .await
         .unwrap();
     assert_eq!(fresh.bindings["package:email"].account_id, donor.id);
-    let second_installed = portable_registry::apply(&tx, second, SHA, &definitions, &fresh, None)
-        .await
-        .unwrap();
+    let second_installed = portable_registry::apply(
+        &tx,
+        second,
+        SHA,
+        &definitions,
+        &fresh,
+        None,
+        &Default::default(),
+    )
+    .await
+    .unwrap();
     let second_accounts = list_messaging_accounts(&tx, &second).await.unwrap();
     assert_eq!(second_accounts.len(), 5);
     assert_eq!(
@@ -368,9 +421,17 @@ async fn portable_registry_preview_apply_and_rebind_never_send_or_modify_existin
         next.bind(&config()).unwrap(),
         installed.bind(&config()).unwrap()
     );
-    let result = portable_registry::apply(&tx, tenant, &next_digest, &revised, &next, None)
-        .await
-        .unwrap();
+    let result = portable_registry::apply(
+        &tx,
+        tenant,
+        &next_digest,
+        &revised,
+        &next,
+        None,
+        &Default::default(),
+    )
+    .await
+    .unwrap();
     assert!(!result.needs_apply());
     assert_eq!(
         get_messaging_event_config(&tx, &tenant, &event)

@@ -6554,6 +6554,12 @@ const frenchTranslation: TranslationType = {
             needsSavingAgain: "La configuration doit être enregistrée à nouveau.",
             needsSavingAgainHelp:
                 "Elle a été copiée depuis l'ancien stockage et n'a pas passé les vérifications d'un enregistrement. Corrigez les problèmes affichés, puis enregistrez-la à nouveau.",
+            missingTemplates: {
+                title: "Certains messages n'atteindront pas les électeurs",
+                channel:
+                    "{{channel}} n'envoie que des modèles approuvés et n'en a aucun pour : {{messages}}. Les électeurs qui utilisent {{channel}} ne recevront pas ces messages.",
+                help: "Ajoutez un modèle pour chacun dans Modèles approuvés, ou un modèle par défaut pour l'usage. Le modèle par défaut sert pour chaque message sans modèle propre : ses variables doivent convenir à chacun d'eux.",
+            },
         },
         messaging: {
             channel: {
@@ -7026,6 +7032,9 @@ const frenchTranslation: TranslationType = {
                 cancel: "Annuler",
                 close: "Fermer",
                 channelHelp: "Ne peut pas être modifié après la création du compte.",
+                saveAnyway: "Enregistrer quand même",
+                saveAnywayHelp:
+                    "Enregistrer quand même enregistre les nouveaux identifiants sans les vérifier auprès du fournisseur. Le compte reste tel quel jusqu'à sa prochaine vérification : vérifiez-le dès que le fournisseur est joignable.",
             },
             field: {
                 name: "Nom du compte",

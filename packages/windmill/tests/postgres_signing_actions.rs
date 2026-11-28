@@ -127,7 +127,7 @@ async fn persisted_post_without_runtime_never_proceeds_or_presses_other_posts_in
     use windmill::services::signing::operational_device::installed_profile;
     use windmill::services::signing::operational_policy::{signing_mode, OperationalSigningMode};
 
-    let w = world("scope-no-runtime").await;
+    let w = world_in(schema::isolated_pool().await, "scope-no-runtime").await;
     let who = caller("operator", &[], &[]);
     let other = Uuid::new_v4();
     let t = w.tenant.to_string();

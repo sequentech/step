@@ -175,3 +175,45 @@ pub(super) fn normalize(
         )
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn template_bindings_travel_with_their_buttons_and_codes() {
+        // What a WhatsApp code or notice needs to be sent as configured: the
+        // template, the provider's language code, the message key and the
+        // buttons in order. Losing any of them sends something else.
+        let config = json!({"version":1,"channels":[{
+        "channel":"WHATSAPP","account_id":"package:whatsapp","purposes":["OTP","NOTICE"],
+        "templates":[
+            {"purpose":"OTP","language":"en","provider_template":"otp_code",
+             "provider_language":"en_US",
+             "buttons":[{"type":"URL","parameter":"{{code}}"},
+                        {"type":"QUICK_REPLY","parameter":"NA"}]},
+            {"purpose":"NOTICE","key":"vote_invitation","language":"es",
+             "provider_template":"invitacion","buttons":[]}
+        ]}]});
+        let elections = [("e1".to_string(), "e1".to_string())];
+        let normalized = normalize(&config, &Value::Null, &elections).unwrap();
+        let channel = &normalized["channels"][0];
+        let typed =
+            |value: &Value| -> Vec<crate::types::messaging::TemplateBinding> {
+                serde_json::from_value(value.clone()).unwrap()
+            };
+        assert_eq!(
+            typed(&channel["templates"]),
+            typed(&config["channels"][0]["templates"])
+        );
+        // An empty list (send no buttons) stays distinct from none given
+        // (the provider's default buttons).
+        assert_eq!(channel["templates"][1]["buttons"], json!([]));
+        assert_eq!(
+            channel["templates"][0]["buttons"][0]["parameter"],
+            "{{code}}"
+        );
+        assert_eq!(channel["account_id"], "package:whatsapp");
+    }
+}

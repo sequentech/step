@@ -31,6 +31,7 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline"
 import {ChannelLabel} from "@sequentech/ui-essentials"
 import {IPermissions} from "@/types/keycloak"
 import {
+    ECredentialsCheck,
     EApprovalSource,
     ECredentialName,
     EMessageChannel,
@@ -50,7 +51,11 @@ import {
     typedCredentials,
     usesInfobipReports,
 } from "@/services/messaging"
-import {actionRefusalReason, reasonText} from "@/services/messagingReasons"
+import {
+    actionRefusalReason,
+    CANDIDATE_REFUSED_REASON,
+    reasonText,
+} from "@/services/messagingReasons"
 import {UPSERT_MESSAGING_ACCOUNT} from "@/queries/UpsertMessagingAccount"
 import {REPLACE_MESSAGING_ACCOUNT_CREDENTIALS} from "@/queries/ReplaceMessagingAccountCredentials"
 import {
@@ -824,6 +829,8 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
     const [saving, setSaving] = useState(false)
     /** Why the last save was refused, as the backend said it. */
     const [refusal, setRefusal] = useState<string | null>(null)
+    /** The last save was refused because the provider's check refused the typed credentials. */
+    const [checkRefused, setCheckRefused] = useState(false)
     // Once a new account is created, saving again updates it: never a second account.
     const [savedId, setSavedId] = useState<string | null>(account?.id ?? null)
     const [upsertAccount] = useMutation<IUpsertMessagingAccountResult>(UPSERT_MESSAGING_ACCOUNT, {
@@ -877,9 +884,10 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
     const setLimit = (key: keyof IAccountFormValues["limits"], value: string) =>
         setValues({...values, limits: {...values.limits, [key]: value}})
 
-    const save = async () => {
+    const save = async (credentialsCheck: ECredentialsCheck = ECredentialsCheck.REQUIRED) => {
         setSubmitted(true)
         setRefusal(null)
+        setCheckRefused(false)
         if (Object.keys(validateAccountForm(values, originalForm)).length) {
             return
         }
@@ -889,7 +897,7 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
             // One call: the account and the credentials typed with it are
             // stored in one transaction, or neither is.
             const {data} = await upsertAccount({
-                variables: upsertAccountVariables(savedId, values),
+                variables: upsertAccountVariables(savedId, values, credentialsCheck),
             })
             const saved = data?.upsert_messaging_account
             const id = saved?.id ?? savedId
@@ -906,6 +914,7 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
             onClose()
         } catch (error) {
             const reason = actionRefusalReason(error)
+            setCheckRefused(!!reason?.includes(CANDIDATE_REFUSED_REASON))
             setRefusal(
                 reason
                     ? t("messagingAccounts.save.refused", {reason: reasonText(t, reason)})
@@ -1183,11 +1192,34 @@ export const MessagingAccountEditor: React.FC<IMessagingAccountEditorProps> = ({
                 />
             )}
 
-            {refusal ? <Alert severity="error">{refusal}</Alert> : null}
+            {refusal ? (
+                <Alert
+                    severity="error"
+                    action={
+                        checkRefused && canWrite ? (
+                            <Button
+                                color="inherit"
+                                size="small"
+                                disabled={saving}
+                                onClick={() => save(ECredentialsCheck.SKIPPED)}
+                            >
+                                {t("messagingAccounts.editor.saveAnyway")}
+                            </Button>
+                        ) : undefined
+                    }
+                >
+                    {refusal}
+                    {checkRefused ? (
+                        <Box component="span" sx={{display: "block", marginTop: 1}}>
+                            {t("messagingAccounts.editor.saveAnywayHelp")}
+                        </Box>
+                    ) : null}
+                </Alert>
+            ) : null}
 
             <Box sx={{display: "flex", gap: 2}}>
                 {canWrite && !unsupported && (
-                    <Button variant="contained" disabled={saving} onClick={save}>
+                    <Button variant="contained" disabled={saving} onClick={() => save()}>
                         {t("messagingAccounts.editor.save")}
                     </Button>
                 )}

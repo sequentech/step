@@ -43,6 +43,7 @@ interface Scenario {
     roles: string[]
     /** Whether the event already has a messaging configuration. */
     configured: boolean
+    config?: IEventMessagingConfig
     /** What saving answers. */
     save: SaveResult
     /** Whether the deployment has the webhook component's public address. */
@@ -384,7 +385,7 @@ const meta = {
                                                 ),
                                             })),
                                         }
-                                      : STORED_CONFIG,
+                                      : (args.config ?? STORED_CONFIG),
                                   version: 1,
                                   updated_at: FIXED_TIME,
                               },
@@ -873,6 +874,41 @@ export const MigratedConfigurationNeedsSaving: Story = {
         await expect(
             within(canvasElement).getByText(/didn't pass the checks a save makes/)
         ).toBeVisible()
+    },
+}
+
+export const MissingSignInTemplates: Story = {
+    args: {
+        roles: [IPermissions.MESSAGING_CONFIG_READ],
+        config: {
+            ...STORED_CONFIG,
+            channels: STORED_CONFIG.channels.map((entry) =>
+                entry.channel === EMessageChannel.WHATSAPP
+                    ? {
+                          ...entry,
+                          purposes: [EMessagePurpose.OTP],
+                          templates: [
+                              {
+                                  purpose: EMessagePurpose.OTP,
+                                  key: "otp",
+                                  language: "en",
+                                  provider_template: "authentication",
+                              },
+                          ],
+                      }
+                    : entry
+            ),
+        },
+    },
+    parameters: {widgets: ["MissingTemplatesNotice"]},
+    play: async ({canvasElement}) => {
+        const alert = await within(canvasElement).findByTestId("missing-templates")
+        await expect(alert).toBeVisible()
+        await expect(alert).toHaveTextContent("Some messages can't reach voters")
+        await expect(alert).toHaveTextContent(
+            /WhatsApp sends only approved templates.*Sign-in link/
+        )
+        await expect(alert).not.toHaveTextContent("Verification code")
     },
 }
 

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {
     ECredentialName,
+    ECredentialsCheck,
     EMessageChannel,
     EMessagePurpose,
     EMessagingProvider,
@@ -482,12 +483,15 @@ export interface IUpsertAccountVariables {
      * account, so an address change and its credentials are saved together.
      */
     credentials: Partial<Record<ECredentialName, string>> | null
+    /** Whether typed credentials replacing stored ones are checked first. */
+    credentialsCheck: ECredentialsCheck
 }
 
 /** The variables of `upsert_messaging_account` for the form. */
 export const upsertAccountVariables = (
     id: string | null,
-    values: IAccountFormValues
+    values: IAccountFormValues,
+    credentialsCheck: ECredentialsCheck = ECredentialsCheck.REQUIRED
 ): IUpsertAccountVariables => ({
     id,
     channel: values.channel,
@@ -499,6 +503,7 @@ export const upsertAccountVariables = (
         : null,
     isDefault: values.isDefault,
     credentials: credentialsPayload(values),
+    credentialsCheck,
 })
 
 /** Typed credentials to replace, or null when none was typed. */

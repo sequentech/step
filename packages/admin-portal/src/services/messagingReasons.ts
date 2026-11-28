@@ -18,6 +18,10 @@ import {parseActionResponseBody} from "@/services/graphqlActionError"
  * the provider checks (`messaging::providers`) and `callback_readiness`,
  * and harvest's and windmill's refusals of an account or insights request.
  */
+/** How the account save says the provider refused the typed credentials (`CANDIDATE_REFUSED_REASON`). */
+export const CANDIDATE_REFUSED_REASON =
+    "The new credentials didn't connect: the previous ones are kept"
+
 export const KNOWN_REASONS: Record<string, string> = {
     // MessageReason
     "No contact channel": "NO_CONTACT_CHANNEL",
@@ -61,7 +65,7 @@ export const KNOWN_REASONS: Record<string, string> = {
     "The provider address must start with https://": "ENDPOINT_NOT_HTTPS",
     // Account checks and changes (windmill::services::messaging::accounts,
     // windmill::postgres::messaging, the provider checks)
-    "The new credentials didn't connect: the previous ones are kept": "CANDIDATE_REFUSED",
+    [CANDIDATE_REFUSED_REASON]: "CANDIDATE_REFUSED",
     "Used by an election event's messaging settings: remove it there first": "ACCOUNT_IN_USE",
     "A voter changed their WhatsApp number: ask them to verify their contact again":
         "NUMBER_CHANGED",

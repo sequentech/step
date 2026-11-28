@@ -371,7 +371,7 @@ async fn capacity_of(
 #[tokio::test]
 async fn hsm_capacity_can_read_all_actions_before_their_first_rule() {
     let (post, other) = LABELS[0];
-    let w = world(post).await;
+    let w = world_in(schema::isolated_pool().await, post).await;
     w.rule(
         SigningAction::ApproveConfiguration,
         1,

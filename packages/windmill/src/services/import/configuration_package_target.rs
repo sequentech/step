@@ -10,7 +10,7 @@
 use super::configuration_package_apply::{
     PackageTarget, SectionPreview, SectionSubmission, TaskState,
 };
-use super::configuration_package_messaging::{explain, pending_note, PackageMessaging};
+use super::configuration_package_messaging::{explain, preview_note, PackageMessaging};
 use super::configuration_package_sections::{
     absent_admin_rows, admin_changes, admin_column_problems, admin_detail_problems,
     admin_permission_label_updates, admin_profile_updates, event_changes, merged_tenant,
@@ -644,6 +644,26 @@ impl PlatformTarget {
                 }
                 Ok(preview)
             }
+            Section::MessageTemplates => {
+                use super::configuration_package_templates as templates;
+                let wanted = match sequent_core::election_config::package_templates::read(
+                    &one(files, "message templates")?.bytes,
+                ) {
+                    Ok(wanted) => wanted,
+                    Err(problem) => {
+                        return Ok(SectionPreview {
+                            needs_apply: false,
+                            changes: json!([]),
+                            blockers: vec![problem],
+                        })
+                    }
+                };
+                let tenant = uuid::Uuid::parse_str(&self.context.tenant_id)?;
+                let mut db: DbClient = get_hasura_pool().await.get().await?;
+                let transaction = db.transaction().await?;
+                let stored = templates::stored(&transaction, &tenant, &wanted).await?;
+                Ok(templates::preview(&wanted, &stored))
+            }
             Section::Trustees => {
                 let wanted: Vec<TrusteePublic> =
                     serde_json::from_slice(&one(files, "trustees")?.bytes)
@@ -718,7 +738,7 @@ impl PlatformTarget {
                                     Some(config) => {
                                         match portable.preview_event(&transaction, config, &replacement_map, &election_ids).await {
                                             Ok(preview) if !preview.pending.is_empty() => {
-                                                warnings.push(pending_note(&preview.pending));
+                                                warnings.push(preview_note(&preview.pending));
                                                 pending_messaging = preview.pending;
                                             }
                                             Ok(_) => {}
@@ -843,7 +863,9 @@ impl PackageTarget for PlatformTarget {
             Section::AdminAccounts => ETasksExecution::IMPORT_USERS,
             Section::ElectionEvent => ETasksExecution::IMPORT_ELECTION_EVENT,
             // One transaction in this process: nothing outlives the run.
-            Section::Trustees | Section::MessagingAccounts => return Ok(None),
+            Section::Trustees | Section::MessageTemplates | Section::MessagingAccounts => {
+                return Ok(None)
+            }
         };
         let task = post(
             &self.context.tenant_id,
@@ -1134,6 +1156,31 @@ impl PackageTarget for PlatformTarget {
                 )
                 .await;
                 self.terminal(&task, ran).await
+            }
+            Section::MessageTemplates => {
+                let wanted = sequent_core::election_config::package_templates::read(
+                    &one(files, "message templates")?.bytes,
+                )
+                .map_err(|problem| anyhow!("{problem}"))?;
+                let tenant = uuid::Uuid::parse_str(&self.context.tenant_id)?;
+                let mut db: DbClient = get_hasura_pool().await.get().await?;
+                let tx = db.transaction().await?;
+                let changes =
+                    super::configuration_package_templates::apply(&tx, &tenant, &wanted).await?;
+                let audit = task_audit::tenant_config(
+                    self.context.audit_actor.clone(),
+                    &self.context.tenant_id,
+                    AdminAction::Import,
+                    json!({"section": "message-templates", "changes": changes}),
+                )?;
+                crate::services::audit_log::stage(&tx, &audit).await?;
+                // One transaction: every template or none.
+                tx.commit().await?;
+                crate::tasks::audit_log_outbox::kick_audit_log_outbox();
+                Ok(SectionSubmission {
+                    task_id: None,
+                    detail: json!({ "changes": changes }),
+                })
             }
             Section::Trustees => {
                 let wanted: Vec<TrusteePublic> =

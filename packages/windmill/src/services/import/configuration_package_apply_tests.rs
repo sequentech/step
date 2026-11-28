@@ -270,12 +270,11 @@ fn a_delivery_is_read_into_each_sections_files() {
         names(Section::ElectionEvent),
         ["official_election_setup.zip"]
     );
-    // Templates are manual: no section applies them.
-    assert!(plan
-        .payloads
-        .values()
-        .flatten()
-        .all(|f| f.name != "export_templates-t1.csv"));
+    // The templates CSV is applied; the readable copies beside it are not.
+    assert_eq!(
+        names(Section::MessageTemplates),
+        ["export_templates-t1.csv"]
+    );
     assert!(plan.coverage.is_complete());
 }
 
@@ -326,7 +325,15 @@ async fn applying_runs_every_section_in_order_and_confirms_each_from_the_target(
     assert_eq!(record.outcome, Outcome::Applied);
     assert_eq!(
         *target.submissions.lock().unwrap(),
-        LEGACY_SECTIONS.to_vec()
+        [
+            Section::TenantConfiguration,
+            Section::TenantSettings,
+            Section::RolePermissions,
+            Section::AdminAccounts,
+            Section::Trustees,
+            Section::MessageTemplates,
+            Section::ElectionEvent,
+        ]
     );
     assert_eq!(
         status(&record, Section::MessagingAccounts),
@@ -483,6 +490,7 @@ async fn a_failure_stops_later_sections_and_a_rerun_resumes_without_resubmitting
         [
             Section::AdminAccounts,
             Section::Trustees,
+            Section::MessageTemplates,
             Section::ElectionEvent
         ]
     );
@@ -1016,6 +1024,7 @@ async fn history_survives_a_preview_a_refusal_and_an_error_between_applications(
         [
             Section::AdminAccounts,
             Section::Trustees,
+            Section::MessageTemplates,
             Section::ElectionEvent
         ]
     );

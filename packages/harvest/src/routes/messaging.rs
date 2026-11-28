@@ -53,9 +53,9 @@ use windmill::services::messaging::accounts::{
     candidate_check_needed, candidate_refusal, check_account, check_candidate,
     delete_account, entered_credentials, generate_report_credentials,
     messenger_page_change_impact, replace_checked_credentials,
-    replace_credentials, store_candidate_check, CredentialsOutcome,
-    DeleteOutcome, StoredCheck, ACCOUNT_IN_USE_REASON,
-    CANDIDATE_REFUSED_REASON, CHECK_DROPPED_REASON,
+    replace_credentials, store_candidate_check, CheckOutcome, CredentialsCheck,
+    CredentialsOutcome, DeleteOutcome, StoredCheck, ACCOUNT_IN_USE_REASON,
+    CANDIDATE_REFUSED_REASON, CHECK_DROPPED_REASON, PACKAGE_CHECK_KEPT_REASON,
 };
 use windmill::services::messaging::audit::post_attempt_outcomes_or_warn;
 use windmill::services::messaging::config::{
@@ -879,6 +879,9 @@ pub struct UpsertMessagingAccountInput {
     /// Credentials entered with the change. Needed when the address the
     /// credentials are sent to changes (`ENDPOINT_CREDENTIALS_REASON`).
     credentials: Option<HashMap<String, String>>,
+    /// Whether typed credentials replacing stored ones are checked with the
+    /// provider first. Absent: they are.
+    credentials_check: Option<CredentialsCheck>,
 }
 
 #[derive(Serialize, Debug)]
@@ -980,7 +983,18 @@ pub async fn upsert_messaging_account(
         // connect": what an address answered isn't shown (R5-04).
         let new_address = account_endpoint(&current.sender)
             != account_endpoint(&settings.sender);
-        if candidate_check_needed(&current, &values) {
+        let credentials_check = input.credentials_check.unwrap_or_default();
+        if candidate_check_needed(&current, &values)
+            && credentials_check == CredentialsCheck::SKIPPED
+        {
+            warn!(
+                account = %id,
+                "credentials replaced without a check, as the administrator chose"
+            );
+        }
+        if candidate_check_needed(&current, &values)
+            && credentials_check == CredentialsCheck::REQUIRED
+        {
             let check = check_candidate(
                 &tx,
                 &current,
@@ -1150,9 +1164,9 @@ async fn recheck_after_identity_change(
     }
     .await;
     match result {
-        Ok(Some(StoredCheck { check, stored })) => info!(
+        Ok(Some(StoredCheck { check, outcome })) => info!(
             account = %account_id,
-            stored,
+            ?outcome,
             connected = check.connected,
             reason = check.reason.as_deref().unwrap_or("-"),
             "account checked after its identity changed"
@@ -1495,8 +1509,21 @@ pub async fn check_messaging_account(
             .ok_or_else(unknown_account)?;
     // Saved meanwhile with another identity or credentials: the result
     // describes what the account no longer is, and wasn't stored.
-    if !checked.stored {
-        return Err((Status::Conflict, CHECK_DROPPED_REASON.to_string()).into());
+    match checked.outcome {
+        CheckOutcome::STORED => {}
+        CheckOutcome::ACCOUNT_CHANGED => {
+            return Err(
+                (Status::Conflict, CHECK_DROPPED_REASON.to_string()).into()
+            );
+        }
+        // Offline: the account is left ready, as its package declared it.
+        CheckOutcome::PROVIDER_UNREACHABLE => {
+            return Err((
+                Status::ServiceUnavailable,
+                PACKAGE_CHECK_KEPT_REASON.to_string(),
+            )
+                .into());
+        }
     }
     let status = checked.check;
     let readiness = get_messaging_account(&tx, &tenant_id, &id)

@@ -26,7 +26,7 @@ use windmill::postgres::messaging::{
 use windmill::services::messaging::config::{
     get_event_messaging_config, import_event_messaging_config, mark_migrated_configs,
     save_event_messaging_config_as, save_event_messaging_config_with, ImportOutcome,
-    MessagingConfigPermission, SaveOutcome, MIGRATED_BY, MIGRATED_INVALID_BY,
+    MessagingConfigPermission, ProviderReadiness, SaveOutcome, MIGRATED_BY, MIGRATED_INVALID_BY,
 };
 
 fn id(seed: u32, n: u32) -> Uuid {
@@ -388,6 +388,7 @@ async fn an_imported_configuration_is_validated_and_needs_the_write_permission()
         &notices,
         &none,
         MessagingConfigPermission::NOT_PERMITTED,
+        &ProviderReadiness::REQUIRED,
     )
     .await
     .unwrap();
@@ -420,6 +421,7 @@ async fn an_imported_configuration_is_validated_and_needs_the_write_permission()
             &invalid,
             &none,
             MessagingConfigPermission::PERMITTED,
+            &ProviderReadiness::REQUIRED,
         )
         .await
         .unwrap();
@@ -442,6 +444,7 @@ async fn an_imported_configuration_is_validated_and_needs_the_write_permission()
         &notices,
         &none,
         MessagingConfigPermission::PERMITTED,
+        &ProviderReadiness::REQUIRED,
     )
     .await
     .unwrap();
@@ -617,6 +620,7 @@ async fn strict_import_preflight_checks_permission_and_target_bindings_without_w
         &config,
         &replacements,
         MessagingConfigPermission::NOT_PERMITTED,
+        &ProviderReadiness::REQUIRED,
     )
     .await
     .unwrap_err()
@@ -629,6 +633,7 @@ async fn strict_import_preflight_checks_permission_and_target_bindings_without_w
         &config,
         &replacements,
         MessagingConfigPermission::PERMITTED,
+        &ProviderReadiness::REQUIRED,
     )
     .await
     .unwrap();
@@ -644,6 +649,7 @@ async fn strict_import_preflight_checks_permission_and_target_bindings_without_w
             &invalid,
             &replacements,
             MessagingConfigPermission::PERMITTED,
+            &ProviderReadiness::REQUIRED,
         )
         .await
         .unwrap_err()

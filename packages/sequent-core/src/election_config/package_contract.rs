@@ -68,17 +68,19 @@ pub enum Section {
     RolePermissions,
     AdminAccounts,
     Trustees,
+    MessageTemplates,
     MessagingAccounts,
     ElectionEvent,
 }
 
 impl Section {
-    pub const APPLY_ORDER: [Section; 7] = [
+    pub const APPLY_ORDER: [Section; 8] = [
         Section::TenantConfiguration,
         Section::TenantSettings,
         Section::RolePermissions,
         Section::AdminAccounts,
         Section::Trustees,
+        Section::MessageTemplates,
         Section::MessagingAccounts,
         Section::ElectionEvent,
     ];
@@ -250,12 +252,12 @@ fn portal_disposition(path: &str) -> Disposition {
         && path.ends_with(".json")
     {
         Disposition::Applied(Section::TenantSettings)
-    } else if path.starts_with(TEMPLATES_PREFIX)
-        || path.starts_with(TEMPLATES_DIR)
-    {
-        // A templates importer exists in the Admin Portal; applying a package
-        // does not drive it.
-        Disposition::Manual
+    } else if path.starts_with(TEMPLATES_PREFIX) && path.ends_with(".csv") {
+        Disposition::Applied(Section::MessageTemplates)
+    } else if path.starts_with(TEMPLATES_DIR) {
+        // The same templates, one file each, for people to read: the CSV
+        // beside them is what is applied.
+        Disposition::RecordOnly
     } else {
         Disposition::Unknown
     }

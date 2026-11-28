@@ -40,6 +40,7 @@ import {
     enabledChannels,
     hasWebhook,
     isUnsupportedProvider,
+    missingTemplates,
     parseEventMessagingConfig,
     providerCapabilities,
     providerChannel,
@@ -1204,5 +1205,86 @@ describe("check identity (R5-09)", () => {
             accountIdentity(sender("3"))
         )
         expect(readiness.blockers).toEqual([EReadinessBlocker.UNCHECKED])
+    })
+})
+
+describe("missingTemplates", () => {
+    const infobip = (
+        id: string,
+        channel: EMessageChannel,
+        sender: IMessagingAccount["sender"]
+    ): IMessagingAccount => ({
+        id,
+        tenant_id: TENANT,
+        channel,
+        provider: sender.provider,
+        name: id,
+        sender,
+        is_default: false,
+    })
+    const whatsapp = infobip("wa", EMessageChannel.WHATSAPP, {
+        provider: EMessagingProvider.WHATSAPP_INFOBIP,
+        base_url: "https://demo.api.infobip.com",
+        sender_number: "447700900123",
+    } as IMessagingAccount["sender"])
+    const viber = (
+        contentMode: EViberContentMode,
+        approved: Record<string, Record<string, string>>
+    ) =>
+        infobip("vb", EMessageChannel.VIBER, {
+            provider: EMessagingProvider.VIBER_INFOBIP,
+            base_url: "https://demo.api.infobip.com",
+            sender: "Demo",
+            content_mode: contentMode,
+            approved_templates: approved,
+        } as IMessagingAccount["sender"])
+    const both = [EMessagePurpose.OTP, EMessagePurpose.NOTICE]
+
+    it("lists each sign-in message a template-only channel has no template for", () => {
+        const wa = channelConfig(EMessageChannel.WHATSAPP, "wa", both)
+        wa.templates = [
+            {
+                purpose: EMessagePurpose.OTP,
+                key: "otp",
+                language: "en",
+                provider_template: "authentication",
+            },
+            {...binding("contactChanged.notice.text", "en", "contact_changed")},
+        ]
+        const missing = missingTemplates(config({channels: [wa]}), [whatsapp])
+        expect(missing).toHaveLength(1)
+        expect(missing[0].channel).toBe(EMessageChannel.WHATSAPP)
+        expect(missing[0].keys).toContain("otl")
+        expect(missing[0].keys).toContain("messageSuccessSms")
+        expect(missing[0].keys).not.toContain("otp")
+        expect(missing[0].keys).not.toContain("contactChanged.notice.text")
+    })
+
+    it("counts a purpose's default template for every message without its own", () => {
+        const wa = channelConfig(EMessageChannel.WHATSAPP, "wa", both)
+        wa.templates = [
+            {purpose: EMessagePurpose.OTP, language: "en", provider_template: "authentication"},
+            binding(null, "en", "notice"),
+        ]
+        expect(missingTemplates(config({channels: [wa]}), [whatsapp])).toEqual([])
+    })
+
+    it("asks nothing of free-text Viber, purposes that are off, or Viber's own approved templates", () => {
+        const free = channelConfig(EMessageChannel.VIBER, "vb", both)
+        expect(
+            missingTemplates(config({channels: [free]}), [viber(EViberContentMode.FREE_TEXT, {})])
+        ).toEqual([])
+        const off = channelConfig(EMessageChannel.WHATSAPP, "wa", [])
+        expect(missingTemplates(config({channels: [off]}), [whatsapp])).toEqual([])
+        const templated = viber(EViberContentMode.APPROVED_TEMPLATES, {
+            OTP: {en: "code"},
+            NOTICE: {en: "notice"},
+        })
+        expect(missingTemplates(config({channels: [free]}), [templated])).toEqual([])
+        const codesOnly = viber(EViberContentMode.APPROVED_TEMPLATES, {OTP: {en: "code"}})
+        const missing = missingTemplates(config({channels: [free]}), [codesOnly])
+        expect(missing).toHaveLength(1)
+        expect(missing[0].keys).toContain("contactChanged.notice.text")
+        expect(missing[0].keys).not.toContain("otp")
     })
 })

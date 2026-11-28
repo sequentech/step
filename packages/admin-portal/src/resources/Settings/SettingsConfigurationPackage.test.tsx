@@ -1438,7 +1438,7 @@ describe("configuration package hub layout", () => {
         expect(screen.queryByTestId("package-rail")).toBeNull()
     })
 
-    it("rails Overview, the seven sections in apply order, Signing trust and History", () => {
+    it("rails Overview, the eight sections in apply order, Signing trust and History", () => {
         render(<SettingsConfigurationPackage />)
         const rail = screen.getByTestId("package-rail")
         const ids = Array.from(rail.querySelectorAll("[data-testid^='package-rail-']")).map(
@@ -1451,6 +1451,7 @@ describe("configuration package hub layout", () => {
             "package-rail-role-permissions",
             "package-rail-admin-accounts",
             "package-rail-trustees",
+            "package-rail-message-templates",
             "package-rail-messaging-accounts",
             "package-rail-election-event",
             "package-rail-trust",
@@ -1542,6 +1543,7 @@ describe("configuration package hub layout", () => {
             "role-permissions",
             "admin-accounts",
             "trustees",
+            "message-templates",
             "messaging-accounts",
             "election-event",
             "census",

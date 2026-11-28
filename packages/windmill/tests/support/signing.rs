@@ -75,7 +75,11 @@ pub struct World {
 
 /// A new world whose Post carries `label`.
 pub async fn world(label: &str) -> World {
-    let pool = schema::pool().await;
+    world_in(schema::pool().await, label).await
+}
+
+/// A new world in a caller-provided fixture database.
+pub async fn world_in(pool: Pool, label: &str) -> World {
     let tenant = Uuid::new_v4();
     let event = Uuid::new_v4();
     let post = Uuid::new_v4();

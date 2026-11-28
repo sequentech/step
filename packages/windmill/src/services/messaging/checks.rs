@@ -14,7 +14,7 @@
 //! whose check can't run backs off: its attempt is recorded, and it isn't
 //! tried again for [`CHECK_RETRY_AFTER_HOURS`].
 
-use super::accounts::{check_account, StoredCheck};
+use super::accounts::{check_account, CheckOutcome, StoredCheck};
 use super::dispatch::Dispatcher;
 use crate::postgres::messaging::{parse_account_status, record_messaging_account_check_attempt};
 use crate::services::database::get_hasura_pool;
@@ -23,7 +23,7 @@ use celery::error::TaskError;
 use chrono::{DateTime, Duration, Utc};
 use deadpool_postgres::{Client as DbClient, Transaction};
 use sequent_core::types::messaging::{
-    AccountCheck, AccountIdentity, AccountSender, MessagingProvider, ProviderSupport,
+    AccountCheck, AccountIdentity, AccountSender, CheckSource, MessagingProvider, ProviderSupport,
 };
 use std::collections::{BTreeMap, VecDeque};
 use std::str::FromStr;
@@ -91,6 +91,10 @@ pub fn check_due(
     };
     if status.details.identity.as_ref() != Some(identity) {
         return Some(CheckDue::OTHER_IDENTITY);
+    }
+    // Taken as checked: an administrator checks it again when they choose.
+    if status.details.source == CheckSource::CONFIGURATION_PACKAGE {
+        return None;
     }
     (now - checked_at >= Duration::hours(CHECK_EVERY_HOURS)).then_some(CheckDue::STALE)
 }
@@ -221,7 +225,7 @@ pub async fn check_due_accounts(
         {
             Ok(Some(StoredCheck {
                 check,
-                stored: true,
+                outcome: CheckOutcome::STORED,
             })) => {
                 tx.commit().await?;
                 checked += 1;
@@ -237,9 +241,21 @@ pub async fn check_due_accounts(
             }
             // The account changed while it was checked: the next pass
             // checks it as it is now, without backing off.
-            Ok(Some(StoredCheck { stored: false, .. })) => {
+            Ok(Some(StoredCheck {
+                outcome: CheckOutcome::ACCOUNT_CHANGED,
+                ..
+            })) => {
                 tx.commit().await?;
                 true
+            }
+            // Its package's check stands; the attempt is recorded so the
+            // account backs off like any check that couldn't run.
+            Ok(Some(StoredCheck {
+                outcome: CheckOutcome::PROVIDER_UNREACHABLE,
+                ..
+            })) => {
+                tx.commit().await?;
+                false
             }
             Ok(None) => {
                 tx.rollback().await?;
@@ -305,6 +321,25 @@ mod tests {
         };
         status.details.identity = identity;
         status
+    }
+
+    /// An account its configuration package declared checked stays as
+    /// declared: the daily pass never checks it again. Changing its sender
+    /// does: the declaration was of another identity.
+    #[test]
+    fn a_package_declared_check_is_left_until_someone_checks_the_account() {
+        let now = at("2026-12-10T12:00:00Z");
+        let provider = MessagingProvider::AWS_SNS;
+        let current = sns("Elections").identity();
+        let mut declared = status(Some("2026-10-01T00:00:00Z"), Some(current.clone()));
+        declared.details.source =
+            sequent_core::types::messaging::CheckSource::CONFIGURATION_PACKAGE;
+        assert_eq!(check_due(provider, &current, &declared, now), None);
+        let other = sns("Other").identity();
+        assert_eq!(
+            check_due(provider, &other, &declared, now),
+            Some(CheckDue::OTHER_IDENTITY)
+        );
     }
 
     #[test]

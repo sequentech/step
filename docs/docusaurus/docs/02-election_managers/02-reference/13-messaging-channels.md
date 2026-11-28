@@ -126,6 +126,38 @@ or *Not reported*:
 destination. *Accepted* means the provider took the message, not that it
 was delivered.
 
+### Accounts from a configuration package
+
+A configuration package can bring its sending accounts with it. Applying
+the package creates each account (or updates the one it matches) with its
+sender, its settings, the templates it was set up with and, when the
+package carries them, its credentials. Viber and WhatsApp through Infobip
+each carry their own API key, even on the same Infobip account.
+
+An account from a package counts as **checked**: the package says how its
+author set it up, so Apply doesn't contact the provider and the account is
+ready for the templates the package names (the event's template bindings,
+Viber's template IDs and the WhatsApp or Viber templates of its message
+templates). Its drawer shows the time it was applied as its last check.
+The daily check leaves it alone; **Check connection** checks it with the
+provider whenever you choose, and from then on it is checked like any
+other account. Changing its number, Page or sender, or entering new
+credentials, checks it too.
+
+A system that is offline until its sending window can import and keep a
+package's accounts ready throughout: when a check can't reach the provider,
+the account stays as its package declared it, and **Check connection** says
+*The provider couldn't be reached: the account stays as its configuration
+package declared it*. An answer from the provider, such as a refused key,
+is stored as usual. Entering a missing credential needs no connection;
+replacing one that is already stored is checked with the provider first,
+and offline that check can't connect: choose **Save anyway** (see below), or
+apply a package carrying the new key.
+
+An account that arrives without its credentials is created all the same:
+enter them on the account. Until then its messages are not sent, and the
+reason shows in the event's Logs.
+
 ### Credentials
 
 Credentials are write-only. After saving, the account only shows when each
@@ -139,7 +171,11 @@ the provider **before** saving it. If it doesn't connect, nothing is saved,
 the previous credential keeps sending, and the drawer says why, followed by
 *The new credentials didn't connect: the previous ones are kept*. For
 WhatsApp and Messenger, the new token must also be valid, not expired and
-allowed to send, and Meta must accept the app secret. A credential entered
+allowed to send, and Meta must accept the app secret. Having read why,
+you can choose **Save anyway**: the new credentials replace the stored ones
+without being checked, and the account's status stays as it was until it
+is checked again. Use it when the provider can't be reached (a system
+offline until its sending window), and check the account once it can. A credential entered
 for the first time has nothing to keep: it is saved and then checked. A
 replaced credential takes effect at once, with no restart.
 
@@ -336,6 +372,22 @@ An event whose settings were copied from the earlier release's storage and
 don't pass today's checks shows *Configuration needs saving again*: fix the
 problems the tab shows, then save. Until then, sends still check every
 reference they use.
+
+An event applied from a configuration package keeps its messaging
+settings exactly as they were configured: channels, switches, template
+bindings and their buttons. Anything not ready yet on its accounts (a
+missing approved template, say) is listed in the import's notes, and
+messages on it wait until it is ready; nothing is turned off.
+
+When a channel that sends only approved templates (WhatsApp, or Viber with
+approved templates) has no template
+for a message the sign-in pages send, such as **Contact method changed** or
+**Enrollment rejected**, the tab says so at the top: *Some messages can't
+reach voters*, with each channel and the messages it can't send. Add a
+binding for each of them, or a default for the purpose. A default is used
+for every message without its own binding, so its placeholders must fit
+each of them. Messages sent with **Send Notification** name their own
+template and aren't listed.
 
 For each channel the tab selects an account and has separate **OTPs**
 and **Notices** switches. A switch that can't be turned on is disabled with

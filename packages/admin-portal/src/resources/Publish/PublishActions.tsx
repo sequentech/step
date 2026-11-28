@@ -248,7 +248,10 @@ export const PublishActions: React.FC<PublishActionsProps> = ({
     ) => {
         // The event and election tabs select Publish by id; its position depends on permissions.
         baseUrl.searchParams.set("tabId", "publish")
-        sessionStorage.setItem(action, "true")
+        sessionStorage.setItem(
+            action,
+            action === EPublishActions.PENDING_PUBLISH_ACTION ? baseUrl.pathname : "true"
+        )
         if (
             voting_channels &&
             (action === EPublishActions.PENDING_START_VOTING ||

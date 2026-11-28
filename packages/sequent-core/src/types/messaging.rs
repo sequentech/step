@@ -938,6 +938,37 @@ pub enum ApprovalSource {
     ADMIN_ENTERED,
 }
 
+/// What an account's check describes.
+#[allow(non_camel_case_types)]
+#[derive(
+    Display,
+    Serialize,
+    Deserialize,
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Default,
+    EnumString,
+)]
+pub enum CheckSource {
+    /// The provider's answers to a connection check made here.
+    #[default]
+    PROVIDER_CHECK,
+    /// What the signed configuration package that installed the account
+    /// declared: the account as its author checked it. Taken as checked
+    /// here until an administrator checks it, or its credentials change;
+    /// the daily pass leaves it alone.
+    CONFIGURATION_PACKAGE,
+}
+
+impl CheckSource {
+    pub fn is_provider_check(&self) -> bool {
+        *self == CheckSource::PROVIDER_CHECK
+    }
+}
+
 /// The provider's details from a check. Every part is optional: a provider
 /// reports only some of them, and a part it couldn't read is absent, never
 /// guessed.
@@ -999,6 +1030,9 @@ pub struct AccountCheckDetails {
     /// (`appsecret_proof`). Absent where it wasn't checked.
     #[serde(default)]
     pub app_secret: Option<AppSecretStatus>,
+    /// Where this check comes from. Absent in every check made here.
+    #[serde(default, skip_serializing_if = "CheckSource::is_provider_check")]
+    pub source: CheckSource,
 }
 
 /// Whether an account's Meta app secret matched its app.

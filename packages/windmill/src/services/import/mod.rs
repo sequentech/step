@@ -9,6 +9,7 @@ pub mod configuration_package_demo_credentials;
 pub mod configuration_package_messaging;
 pub mod configuration_package_sections;
 pub mod configuration_package_target;
+pub mod configuration_package_templates;
 pub mod import_bulletin_boards;
 pub mod import_election_event;
 pub mod import_publications;

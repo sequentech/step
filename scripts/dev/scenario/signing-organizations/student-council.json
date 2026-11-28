@@ -116,6 +116,12 @@
             "expires_minutes": null
         },
         {
+            "action": "authorize-manual-verification",
+            "requirement": "not-required",
+            "signatures": 1,
+            "requester_signing": "not-allowed"
+        },
+        {
             "action": "approve-configuration",
             "requirement": "required",
             "signatures": 1,

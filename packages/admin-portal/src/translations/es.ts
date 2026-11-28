@@ -356,6 +356,7 @@ const spanishTranslation: TranslationType = {
             sections: {
                 "tenant-configuration": "Configuración del cliente",
                 "tenant-settings": "Ajustes del cliente",
+                "message-templates": "Plantillas de mensajes",
                 "messaging-accounts": "Cuentas de mensajería",
                 "role-permissions": "Permisos de roles",
                 "admin-accounts": "Cuentas de administración",
@@ -6930,6 +6931,12 @@ const spanishTranslation: TranslationType = {
             needsSavingAgain: "Hay que volver a guardar la configuración.",
             needsSavingAgainHelp:
                 "Se copió del almacenamiento anterior y no superó las comprobaciones que hace un guardado. Corrija los problemas que se muestran y vuelva a guardarla.",
+            missingTemplates: {
+                title: "Algunos mensajes no llegarán a los votantes",
+                channel:
+                    "{{channel}} solo envía plantillas aprobadas y no tiene ninguna para: {{messages}}. Los votantes que usan {{channel}} no recibirán estos mensajes.",
+                help: "Añada una plantilla para cada uno en Plantillas aprobadas, o una predeterminada para el propósito. La predeterminada se usa para cada mensaje sin plantilla propia, así que sus marcadores deben servir para todos ellos.",
+            },
         },
         messaging: {
             channel: {
@@ -7405,6 +7412,9 @@ const spanishTranslation: TranslationType = {
                 cancel: "Cancelar",
                 close: "Cerrar",
                 channelHelp: "No se puede cambiar después de crear la cuenta.",
+                saveAnyway: "Guardar de todos modos",
+                saveAnywayHelp:
+                    "Guardar de todos modos almacena las nuevas credenciales sin comprobarlas con el proveedor. La cuenta queda como está hasta que se vuelva a comprobar: compruébela cuando se pueda contactar con el proveedor.",
             },
             field: {
                 name: "Nombre de la cuenta",

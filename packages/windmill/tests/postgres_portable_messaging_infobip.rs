@@ -1,0 +1,284 @@
+// SPDX-FileCopyrightText: 2026 Sequent Tech Inc <legal@sequentech.io>
+//
+// SPDX-License-Identifier: AGPL-3.0-only
+
+//! Infobip accounts (Viber, WhatsApp) delivered with a package, against
+//! PostgreSQL and the vault: their API keys arrive in the encrypted package
+//! and are installed with the accounts, each its own, and every account is
+//! taken as checked for the templates the package names, without asking a
+//! provider. An account delivered without its key is still created, checked
+//! as declared, and waits for its key. Synthetic values only. Its own binary:
+//! the registry takes a NOWAIT table lock that concurrent registry tests
+//! would contend for.
+
+#[path = "support/schema.rs"]
+mod schema;
+
+use sequent_core::election_config::encrypted_delivery::encrypt_signed_delivery_with_credentials;
+use sequent_core::election_config::messaging_credentials::{
+    commitment, CredentialSidecar, SidecarEntry, SidecarFormat,
+};
+use sequent_core::election_config::portable_messaging::{parse, PortableMessagingAccounts};
+use sequent_core::types::messaging::{
+    AccountSender, CheckSource, CredentialName, EventMessagingConfig, MessagePurpose,
+};
+use serde_json::json;
+use std::collections::BTreeMap;
+use uuid::Uuid;
+use windmill::postgres::messaging::list_messaging_accounts;
+use windmill::services::documents::publish_unwrapped_pointer;
+use windmill::services::import::configuration_package_credentials::{
+    discard, load, stage_unwrapped, unwrap_delivery,
+};
+use windmill::services::messaging::accounts::{check_account, CheckOutcome};
+use windmill::services::messaging::keys::credential_secret_key;
+use windmill::services::messaging::portable_registry;
+use windmill::services::vault::read_secret;
+
+// Synthetic: a fixed test vault key and format-valid, non-Infobip keys.
+const MASTER_SECRET: &str = "0a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20212223242526272829";
+const VIBER_KEY: &str = "synthetic-viber-api-key-0123456789abcdef";
+const WHATSAPP_KEY: &str = "synthetic-whatsapp-api-key-0123456789abcdef";
+const PASSWORD: &str = "synthetic transfer password";
+const UPLOADER: &str = "synthetic-uploader";
+
+fn key(reference: &str, api_key: &str) -> SidecarEntry {
+    SidecarEntry {
+        reference: reference.into(),
+        nonce: "07".repeat(32),
+        aws_access_key_id: String::new(),
+        aws_secret_access_key: String::new(),
+        infobip_api_key: Some(api_key.into()),
+    }
+}
+
+fn definitions(tenant: &Uuid, base_url: &str) -> PortableMessagingAccounts {
+    let doc = json!({"format":"sequent.tenant-messaging-accounts/1","accounts":[
+        {"reference":"viber","name":"Synthetic Viber",
+         "sender":{"provider":"VIBER_INFOBIP","base_url":base_url,"sender":"Synthetic",
+                   "content_mode":"FREE_TEXT"},
+         "credential_commitment": commitment(tenant, &key("viber", VIBER_KEY)).unwrap()},
+        {"reference":"whatsapp","name":"Synthetic WhatsApp",
+         "sender":{"provider":"WHATSAPP_INFOBIP","base_url":base_url,"sender_number":"447700900123"},
+         "credential_commitment": commitment(tenant, &key("whatsapp", WHATSAPP_KEY)).unwrap()},
+        // Delivered without its key: created, and left for the operator.
+        {"reference":"whatsapp-later","name":"Synthetic WhatsApp later",
+         "sender":{"provider":"WHATSAPP_INFOBIP","base_url":base_url,"sender_number":"447700900124"}}
+    ]});
+    parse(&serde_json::to_vec(&doc).unwrap()).unwrap()
+}
+
+/// The signed event's settings: WhatsApp codes and notices with their
+/// approved templates, Viber in free text.
+fn event() -> EventMessagingConfig {
+    serde_json::from_value(json!({"version":1,"channels":[
+        {"channel":"WHATSAPP","account_id":"package:whatsapp","purposes":["OTP","NOTICE"],
+         "templates":[
+            {"purpose":"OTP","key":"otp","language":"en","provider_template":"otp_code",
+             "buttons":[{"type":"URL","parameter":"{{code}}"}]},
+            {"purpose":"NOTICE","language":"en","provider_template":"election_notice"}
+         ]},
+        {"channel":"VIBER","account_id":"package:viber","purposes":["OTP","NOTICE"]}
+    ]}))
+    .unwrap()
+}
+
+#[tokio::test]
+async fn delivered_infobip_keys_are_installed_and_their_accounts_arrive_checked() {
+    std::env::set_var("MASTER_SECRET", MASTER_SECRET);
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    // Deterministic RFC 4122 version-4 IDs: the vault accepts only v4 tenants.
+    let tenant = Uuid::parse_str("00000000-0000-4000-8000-00000000022d").unwrap();
+    let document = Uuid::parse_str("00000000-0000-4000-8000-00000000022e").unwrap();
+    // The declared address must be Infobip's; the loopback answers in its
+    // place through the deployment's Infobip endpoint override.
+    let definitions = definitions(&tenant, "https://synthetic.api.infobip.com");
+
+    let tx = client.transaction().await.unwrap();
+    tx.execute(
+        "INSERT INTO sequent_backend.tenant (id, slug) VALUES ($1, $2)",
+        &[&tenant, &format!("tenant-{tenant}")],
+    )
+    .await
+    .unwrap();
+    tx.execute(
+        "INSERT INTO sequent_backend.document (id, tenant_id, name) VALUES ($1, $2, 'delivery.zip')",
+        &[&document, &tenant],
+    )
+    .await
+    .unwrap();
+    tx.execute(
+        "INSERT INTO sequent_backend.configuration_package_staging (tenant_id, document_id, uploaded_by)
+         VALUES ($1, $2, $3)",
+        &[&tenant, &document, &UPLOADER],
+    )
+    .await
+    .unwrap();
+    let sidecar = CredentialSidecar {
+        format: SidecarFormat::V1,
+        tenant_id: tenant.to_string(),
+        accounts: vec![key("viber", VIBER_KEY), key("whatsapp", WHATSAPP_KEY)],
+    };
+    let wire = encrypt_signed_delivery_with_credentials(
+        b"PK\x03\x04synthetic-signed-zip",
+        &sidecar.to_bytes().unwrap(),
+        PASSWORD,
+    )
+    .unwrap();
+    let unwrapped = unwrap_delivery(&tenant, &wire, PASSWORD).unwrap();
+    let sha = unwrapped.package_sha256.clone();
+    let expires_at = stage_unwrapped(&tx, &tenant, &document, &unwrapped, chrono::Utc::now())
+        .await
+        .unwrap();
+    publish_unwrapped_pointer(&tx, tenant, document, Uuid::new_v4(), expires_at)
+        .await
+        .unwrap();
+    tx.commit().await.unwrap();
+
+    let languages = definitions.declared_languages(Some(&event()), &[]);
+    let at = "2026-11-27T10:00:00+00:00".to_string();
+    let declared: BTreeMap<String, _> = definitions
+        .accounts
+        .iter()
+        .map(|account| {
+            (
+                account.reference_key(),
+                account.declared_check(&languages, at.clone()),
+            )
+        })
+        .collect();
+
+    // Apply, as the accounts section does it: install, then discard the keys.
+    let tx = client.transaction().await.unwrap();
+    let plan = portable_registry::plan(&tx, tenant, &sha, &definitions)
+        .await
+        .unwrap();
+    let staged = load(
+        &tx,
+        &tenant,
+        &sha,
+        Some(&document),
+        &definitions,
+        true,
+        Some(UPLOADER),
+    )
+    .await
+    .unwrap()
+    .expect("the uploader's staged keys");
+    let installed = portable_registry::apply(
+        &tx,
+        tenant,
+        &sha,
+        &definitions,
+        &plan,
+        Some(&staged),
+        &declared,
+    )
+    .await
+    .unwrap();
+    discard(&tx, &tenant, &document).await.unwrap();
+    tx.commit().await.unwrap();
+
+    let tx = client.transaction().await.unwrap();
+    let accounts = list_messaging_accounts(&tx, &tenant).await.unwrap();
+    assert_eq!(accounts.len(), 3);
+    for account in &accounts {
+        let expected_key = match &account.sender {
+            AccountSender::VIBER_INFOBIP { .. } => Some(VIBER_KEY),
+            AccountSender::WHATSAPP_INFOBIP { sender_number, .. }
+                if sender_number == "447700900123" =>
+            {
+                Some(WHATSAPP_KEY)
+            }
+            AccountSender::WHATSAPP_INFOBIP { .. } => None,
+            other => panic!("unexpected account {other:?}"),
+        };
+        let stored = read_secret(
+            &tx,
+            &tenant.to_string(),
+            None,
+            &credential_secret_key(&account.id, CredentialName::API_KEY),
+        )
+        .await
+        .unwrap();
+        assert_eq!(stored.as_deref(), expected_key, "{}", account.name);
+        assert_eq!(
+            account.credentials.contains_key(&CredentialName::API_KEY),
+            expected_key.is_some()
+        );
+        // Taken as checked, as the package declares it, for its own sender.
+        assert!(account.status.connected, "{:?}", account.status);
+        assert_eq!(account.status.checked_at.as_deref(), Some(at.as_str()));
+        assert_eq!(
+            account.status.details.source,
+            CheckSource::CONFIGURATION_PACKAGE
+        );
+        assert_eq!(
+            account.status.details.identity,
+            Some(account.sender.identity())
+        );
+    }
+    let whatsapp = accounts
+        .iter()
+        .find(|account| {
+            matches!(&account.sender, AccountSender::WHATSAPP_INFOBIP { sender_number, .. }
+                if sender_number == "447700900123")
+        })
+        .unwrap();
+    assert_eq!(
+        whatsapp.status.approved_templates[&MessagePurpose::OTP],
+        ["en"]
+    );
+    assert_eq!(
+        whatsapp.status.approved_templates[&MessagePurpose::NOTICE],
+        ["en"]
+    );
+    // The event import's later check accepts exactly the checked state.
+    let observed =
+        portable_registry::require_installed(&tx, tenant, &sha, &definitions, &installed)
+            .await
+            .unwrap();
+    assert_eq!(observed, installed);
+    tx.rollback().await.unwrap();
+
+    // Offline until the sending window: a check that can't reach Infobip
+    // (here, a closed local port in its place) says nothing about the
+    // account. It stays as its package declared it, ready to send, and the
+    // check says it couldn't run.
+    let offline = messaging::providers::Endpoints {
+        meta_graph: None,
+        infobip: Some("http://127.0.0.1:9".to_string()),
+        aws: None,
+    };
+    let tx = client.transaction().await.unwrap();
+    // The account delivered without its key can't send anyway: a check
+    // says so, as it would online.
+    let before: Vec<_> = list_messaging_accounts(&tx, &tenant)
+        .await
+        .unwrap()
+        .into_iter()
+        .filter(|account| account.credentials.contains_key(&CredentialName::API_KEY))
+        .collect();
+    assert_eq!(before.len(), 2);
+    for account in &before {
+        let checked = check_account(&tx, &tenant, &account.id, &offline)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            checked.outcome,
+            CheckOutcome::PROVIDER_UNREACHABLE,
+            "{}",
+            account.name
+        );
+    }
+    let after: Vec<_> = list_messaging_accounts(&tx, &tenant)
+        .await
+        .unwrap()
+        .into_iter()
+        .filter(|account| account.credentials.contains_key(&CredentialName::API_KEY))
+        .collect();
+    assert_eq!(after, before);
+    tx.rollback().await.unwrap();
+}

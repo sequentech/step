@@ -720,6 +720,84 @@ async fn a_refused_address_is_never_called_by_the_candidate_check() {
     assert_eq!(internal.served(), 0, "the refused address was called");
 }
 
+/// A typed key that replaces a stored one is checked first, and refused
+/// when the provider refuses it or can't be reached (offline; see
+/// `a_bad_candidate_credential_is_refused_and_the_old_one_kept`). Having
+/// seen that, the administrator may save it anyway: it replaces the stored
+/// one without a check (a check would store its result as the status), and
+/// the account's status stays as it was until it is checked.
+#[rocket::async_test]
+async fn a_refused_replacement_key_can_be_saved_anyway() {
+    let services = services().await;
+    let client = services.client().await;
+    let event = rows::event(&services.hasura).await;
+    // Nothing listens there: the provider can't be reached.
+    let sender = json!({
+        "provider": "VIBER_INFOBIP",
+        "base_url": "https://127.0.0.1:1",
+        "sender": "Elections",
+    });
+    let id =
+        account(&client, &event, json!({"name": "Viber", "sender": sender}))
+            .await;
+    let (status, replaced) = json(
+        credentials(
+            &client,
+            &event,
+            json!({"id": id, "credentials": {"API_KEY": "first-key"}}),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{replaced}");
+    let status_of = || async {
+        let rows = rows::query(
+            &services.hasura,
+            "SELECT status, credentials FROM sequent_backend.messaging_account WHERE id = $1",
+            &[&uuid(&id)],
+        )
+        .await;
+        (rows[0].get::<_, Value>(0), rows[0].get::<_, Value>(1))
+    };
+    let (before, before_credentials) = status_of().await;
+    assert!(
+        before_credentials.get("API_KEY").is_some(),
+        "the first key is stored: {before_credentials} {replaced}"
+    );
+    let save = |check: Option<&str>| {
+        let mut body = json!({
+            "id": id,
+            "name": "Viber",
+            "sender": sender,
+            "credentials": {"API_KEY": "second-key"},
+        });
+        if let Some(check) = check {
+            body["credentials_check"] = json!(check);
+        }
+        body
+    };
+    let (status, saved) = json(
+        post(
+            &client,
+            "/messaging/accounts/upsert",
+            &admin(&event),
+            &save(Some("SKIPPED")),
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(status, Status::Ok, "{saved}");
+    let (after, after_credentials) = status_of().await;
+    assert_eq!(
+        after, before,
+        "the status stays until the account is checked"
+    );
+    assert_ne!(
+        after_credentials["API_KEY"], before_credentials["API_KEY"],
+        "the typed key replaced the stored one"
+    );
+}
+
 #[rocket::async_test]
 async fn credentials_an_account_cannot_use_are_refused() {
     let services = services().await;

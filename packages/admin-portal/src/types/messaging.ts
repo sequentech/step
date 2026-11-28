@@ -439,6 +439,16 @@ export const KEYCLOAK_NOTICE_MESSAGE_KEYS: string[] = [
     "contactChanged.notice.text",
 ]
 
+/**
+ * Whether typed credentials that replace stored ones are checked with the
+ * provider before they are saved. `SKIPPED` saves them anyway, after the
+ * administrator saw the check refuse them or couldn't reach the provider.
+ */
+export enum ECredentialsCheck {
+    REQUIRED = "REQUIRED",
+    SKIPPED = "SKIPPED",
+}
+
 export interface IEventChannelConfig {
     channel: EMessageChannel
     account_id: string

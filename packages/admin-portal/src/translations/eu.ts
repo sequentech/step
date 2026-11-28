@@ -6492,6 +6492,12 @@ const basqueTranslation: TranslationType = {
             needsSavingAgain: "Konfigurazioa berriro gorde behar da.",
             needsSavingAgainHelp:
                 "Aurreko biltegitik kopiatu zen, eta ez zituen gainditu gordetzean egiten diren egiaztapenak. Konpondu agertzen diren arazoak, eta gorde berriro.",
+            missingTemplates: {
+                title: "Mezu batzuk ez zaizkie hautesleei iritsiko",
+                channel:
+                    "{{channel}} kanalak txantiloi onartuak soilik bidaltzen ditu, eta ez du bat ere honetarako: {{messages}}. {{channel}} erabiltzen duten hautesleek ez dituzte mezu hauek jasoko.",
+                help: "Gehitu txantiloi bat bakoitzarentzat Txantiloi onartuetan, edo xederako lehenetsi bat. Lehenetsia bere txantiloirik ez duen mezu orotan erabiltzen da; beraz, haren markatzaileek guztietarako balio behar dute.",
+            },
         },
         messaging: {
             channel: {
@@ -6961,6 +6967,9 @@ const basqueTranslation: TranslationType = {
                 cancel: "Utzi",
                 close: "Itxi",
                 channelHelp: "Ezin da aldatu kontua sortu ondoren.",
+                saveAnyway: "Gorde hala ere",
+                saveAnywayHelp:
+                    "Gorde hala ere aukerak kredentzial berriak gordetzen ditu hornitzailearekin egiaztatu gabe. Kontua dagoen bezala geratzen da berriro egiaztatu arte: egiaztatu hornitzailearekin konektatu ahal denean.",
             },
             field: {
                 name: "Kontuaren izena",

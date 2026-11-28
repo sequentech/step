@@ -44,6 +44,21 @@ pub const PARAM_EVENT_REALM: &str = "keycloak_event_realm";
 pub const PARAM_EVENT_REALM_SOURCE_ID: &str =
     "keycloak_event_realm_source_event_id";
 
+/// How many voters may share one phone number or email address.
+///
+/// A whole number, `0` for no limit: Keycloak's own `max-receiver-reuse`,
+/// which this sets wherever the realm reads it. Absent leaves the realm's own.
+pub const PARAM_MAX_RECEIVER_REUSE: &str = "max_receiver_reuse";
+
+/// The key Keycloak's message OTP extension reads the limit from.
+const MAX_RECEIVER_REUSE_KEY: &str = "max-receiver-reuse";
+
+/// Required actions that read the limit from their own settings rather than a
+/// code step's: changing a messaging-app contact, under its current id and the
+/// first release's, which is still served.
+const RECEIVER_REUSE_REQUIRED_ACTIONS: &[&str] =
+    &["message-channel-ra", "messaging-app-otp-ra"];
+
 impl Builder<'_> {
     /// The preset named by the caller, else by the document's `auth_type`.
     ///
@@ -236,8 +251,31 @@ impl Builder<'_> {
         }
     }
 
+    /// The `max_receiver_reuse` parameter, refused unless it is a whole number.
+    fn receiver_reuse_limit(&mut self) -> Option<u32> {
+        let value = self.parameter(PARAM_MAX_RECEIVER_REUSE)?.clone();
+        if value_as_text(&value).trim().is_empty() {
+            return None;
+        }
+        let limit = whole_number(&value);
+        if limit.is_none() {
+            self.problem(
+                Origin::column("Parameters", "value"),
+                Code::InvalidValue,
+                format!(
+                    "the '{PARAM_MAX_RECEIVER_REUSE}' parameter is how many \
+                     voters may share one phone number or email address: a \
+                     whole number, or 0 for no limit, not '{}'",
+                    value_as_text(&value).trim()
+                ),
+            );
+        }
+        limit
+    }
+
     /// Patch the document's realm or the base export's, or emit none.
     pub(super) fn build_realm(&mut self) -> Value {
+        let receiver_reuse = self.receiver_reuse_limit();
         let base_realm = match self.base_export.get("keycloak_event_realm") {
             Some(Value::Object(realm)) => Some(realm.clone()),
             _ => None,
@@ -296,6 +334,19 @@ impl Builder<'_> {
                 (realm, id)
             }
             (None, None) => {
+                if receiver_reuse.is_some() {
+                    self.warn(
+                        "keycloak_event_realm",
+                        format!(
+                            "no base export, so there is no realm to apply the \
+                             '{PARAM_MAX_RECEIVER_REUSE}' parameter to: voters \
+                             keep the environment's limit on sharing a phone \
+                             number or email address. A whole realm under the \
+                             Parameters key '{PARAM_EVENT_REALM}' applies it \
+                             instead."
+                        ),
+                    );
+                }
                 if !self.realm_patch.patch.is_empty() {
                     let mut keys: Vec<&str> = self
                         .realm_patch
@@ -331,7 +382,10 @@ impl Builder<'_> {
         );
         realm.insert("id".to_string(), Value::String(self.event_id.clone()));
 
-        let realm = self.apply_realm_patch(realm);
+        let mut realm = self.apply_realm_patch(realm);
+        if let Some(limit) = receiver_reuse {
+            self.apply_receiver_reuse(&mut realm, limit);
+        }
 
         // Hosts in rootUrl/redirectUris belong to the environment and stay, but a
         // realm also embeds the event id it was exported with in those URLs.
@@ -424,6 +478,103 @@ impl Builder<'_> {
         self.declare_census_attributes(&mut realm);
         self.warn_missing_secrets(&realm);
         realm
+    }
+
+    /// Set the limit on voters per contact wherever the realm reads it.
+    ///
+    /// Every code step's settings, not only the first: Keycloak's email and
+    /// mobile resets read whichever code step it finds first, so a limit on one
+    /// step and not another holds or not depending on the order of the flows.
+    /// And the messaging-app reset, which reads only its own.
+    ///
+    /// A code step with no settings is reported rather than given some: Keycloak
+    /// takes a step's settings whole, without its defaults underneath, so
+    /// settings holding only the limit would reset everything else the step does.
+    fn apply_receiver_reuse(
+        &mut self,
+        realm: &mut Map<String, Value>,
+        limit: u32,
+    ) {
+        let limit = Value::String(limit.to_string());
+
+        let mut aliases = Vec::new();
+        let mut unconfigured = Vec::new();
+        for flow in realm
+            .get("authenticationFlows")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            for execution in flow
+                .get("authenticationExecutions")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
+                if execution.get("authenticator").and_then(Value::as_str)
+                    != Some(presets::OTP_AUTHENTICATOR)
+                {
+                    continue;
+                }
+                match execution
+                    .get("authenticatorConfig")
+                    .and_then(Value::as_str)
+                {
+                    Some(alias) => aliases.push(alias.to_string()),
+                    None => unconfigured.push(
+                        flow.get("alias")
+                            .and_then(Value::as_str)
+                            .unwrap_or("?")
+                            .to_string(),
+                    ),
+                }
+            }
+        }
+
+        for config in realm
+            .get_mut("authenticatorConfig")
+            .and_then(Value::as_array_mut)
+            .into_iter()
+            .flatten()
+        {
+            let bound = config
+                .get("alias")
+                .and_then(Value::as_str)
+                .is_some_and(|alias| aliases.iter().any(|each| each == alias));
+            if bound {
+                set_setting(config, "config", limit.clone());
+            }
+        }
+
+        for action in realm
+            .get_mut("requiredActions")
+            .and_then(Value::as_array_mut)
+            .into_iter()
+            .flatten()
+        {
+            let reads_its_own =
+                action.get("alias").and_then(Value::as_str).is_some_and(
+                    |alias| RECEIVER_REUSE_REQUIRED_ACTIONS.contains(&alias),
+                );
+            if reads_its_own {
+                set_setting(action, "config", limit.clone());
+            }
+        }
+
+        unconfigured.sort_unstable();
+        unconfigured.dedup();
+        for flow in unconfigured {
+            self.warn(
+                "keycloak_event_realm",
+                format!(
+                    "the code step in the '{flow}' flow has no settings of its \
+                     own, so the '{PARAM_MAX_RECEIVER_REUSE}' parameter does not \
+                     reach it and it keeps Keycloak's default of one voter per \
+                     phone number or email address. Give the step settings in \
+                     the realm to apply the limit there."
+                ),
+            );
+        }
     }
 
     /// Report each secret or deployment setting the preset needs and the realm
@@ -1039,6 +1190,43 @@ fn merge_by_alias(existing: Vec<Value>, additions: Vec<Value>) -> Vec<Value> {
 }
 
 /// Point every execution of an authenticator at a config alias.
+/// Set `max-receiver-reuse` in the `container` map of `entry`, creating it.
+fn set_setting(entry: &mut Value, container: &str, limit: Value) {
+    let Some(entry) = entry.as_object_mut() else {
+        return;
+    };
+    let settings = entry
+        .entry(container.to_string())
+        .or_insert_with(|| Value::Object(Map::new()));
+    if !settings.is_object() {
+        *settings = Value::Object(Map::new());
+    }
+    if let Some(settings) = settings.as_object_mut() {
+        settings.insert(MAX_RECEIVER_REUSE_KEY.to_string(), limit);
+    }
+}
+
+/// A whole, non-negative number, whether a cell held it as text or a number.
+fn whole_number(value: &Value) -> Option<u32> {
+    let number = match value {
+        Value::Number(number) => number.as_f64()?,
+        Value::String(text) => {
+            let text = text.trim();
+            match text.parse::<u32>() {
+                Ok(whole) => return Some(whole),
+                Err(_) => text.parse::<f64>().ok()?,
+            }
+        }
+        _ => return None,
+    };
+    if number.fract() != 0.0 || number < 0.0 || number > f64::from(u32::MAX) {
+        return None;
+    }
+    // In range and whole, checked just above.
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    Some(number as u32)
+}
+
 fn bind_authenticator_config(
     realm: &mut Map<String, Value>,
     authenticator: &str,

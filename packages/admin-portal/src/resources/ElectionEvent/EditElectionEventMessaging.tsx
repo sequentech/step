@@ -85,6 +85,7 @@ import {
     deliverySummary,
     purposeReadiness,
     validateEventMessagingConfig,
+    missingTemplates,
 } from "@/services/messaging"
 import {TemplateButtonsInput} from "@/components/TemplateButtonsInput"
 import {
@@ -1320,6 +1321,40 @@ export const MigratedConfigNotice: React.FC<{updatedBy?: string | null}> = ({upd
     )
 }
 
+/**
+ * What voters on a channel that sends only approved templates won't get: the
+ * sign-in pages' messages it has no template for. Shown whether or not the
+ * tab is being edited, so nobody has to send each message to find out.
+ */
+export const MissingTemplatesNotice: React.FC<{
+    config: IEventMessagingConfig
+    accounts: IMessagingAccount[]
+}> = ({config, accounts}) => {
+    const {t} = useTranslation()
+    const missing = missingTemplates(config, accounts)
+    if (!missing.length) return null
+    const label = (key: string) =>
+        Object.prototype.hasOwnProperty.call(MESSAGE_TYPE_LABELS, key)
+            ? t(`messagingEvent.messageTypes.${MESSAGE_TYPE_LABELS[key]}`)
+            : key
+    return (
+        <Alert severity="warning" data-testid="missing-templates">
+            <strong>{t("messagingEvent.missingTemplates.title")}</strong>
+            {missing.map(({channel, keys}) => (
+                <Box key={channel} component="p" sx={{margin: 0, marginTop: 1}}>
+                    {t("messagingEvent.missingTemplates.channel", {
+                        channel: t(`messaging.channel.${channel}`),
+                        messages: keys.map(label).join(", "),
+                    })}
+                </Box>
+            ))}
+            <Box component="p" sx={{margin: 0, marginTop: 1}}>
+                {t("messagingEvent.missingTemplates.help")}
+            </Box>
+        </Alert>
+    )
+}
+
 const sameErrors = (a: IMessagingConfigError, b: IMessagingConfigError) =>
     JSON.stringify(a) === JSON.stringify(b)
 
@@ -1495,6 +1530,7 @@ export const EditElectionEventMessaging: React.FC = () => {
             <Helper>{t("messagingEvent.intro")}</Helper>
             {!canEdit ? <Alert severity="info">{t("messagingEvent.readOnly")}</Alert> : null}
             <MigratedConfigNotice updatedBy={updatedBy} />
+            <MissingTemplatesNotice config={config} accounts={accounts} />
             <MessagingErrors errors={general} />
             <Section title={t("messagingEvent.sections.channels")} id="messaging-channels">
                 <MessagingChannels
