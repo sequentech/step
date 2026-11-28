@@ -446,7 +446,11 @@ pub async fn ensure_baseline(tenant_id: &str, task_id: Option<&str>) -> Result<b
 
     let mut client = hasura_client().await?;
     let tx = client.transaction().await?;
-    // Checked again: another upload may have recorded one, or applied.
+    // Checked again: another upload may have recorded one, or applied. The
+    // tenant row lock, held until the baseline commits, waits for writers
+    // already in (they hold a key-share lock on it) and keeps new ones out,
+    // so an event can't commit between the check and the baseline.
+    lock_tenant(&tx, tenant_id).await?;
     if !baseline_possible(&tx, tenant_id).await? {
         tx.rollback().await?;
         return Ok(false);

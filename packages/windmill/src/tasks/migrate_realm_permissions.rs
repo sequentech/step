@@ -165,7 +165,7 @@ pub const TEMPLATE_GROUP_GRANTS: [(&str, &[Permissions]); 2] = [
 
 /// A group holding one of these can also read the event messaging
 /// configuration: writing or reading accounts without it hides the tab.
-const READ_FOLLOWS: [Permissions; 2] = [
+pub const READ_FOLLOWS: [Permissions; 2] = [
     Permissions::MESSAGING_CONFIG_WRITE,
     Permissions::MESSAGING_ACCOUNT_READ,
 ];

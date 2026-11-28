@@ -512,9 +512,93 @@ pub async fn check_caller(
             lost.join(", ")
         ));
     }
+    // Surviving groups go back to their recorded roles: the caller must
+    // not lose a role that only those groups give.
+    let ids = admin.groups().await?;
+    let mut now = BTreeSet::new();
+    let mut after = BTreeSet::new();
+    for path in with_parents(&caller) {
+        let Some(id) = ids.get(&path) else { continue };
+        let realm_now = admin
+            .role_names(&format!("groups/{id}/role-mappings/realm"))
+            .await?;
+        let client_now = admin.client_roles(&format!("groups/{id}")).await?;
+        let recorded = baseline.groups.iter().find(|g| g.path == path);
+        let realm_after = restored_group_roles(&path, recorded.map(|g| &g.realm_roles[..]));
+        now.extend(role_keys(&realm_now, &client_now));
+        after.extend(role_keys(
+            &realm_after,
+            recorded
+                .and_then(|g| g.client_roles.as_ref())
+                .unwrap_or(&client_now),
+        ));
+    }
+    let direct = role_keys(
+        &admin
+            .role_names(&format!("users/{keep_user}/role-mappings/realm"))
+            .await?,
+        &admin.client_roles(&format!("users/{keep_user}")).await?,
+    );
+    let lost: Vec<String> = now
+        .iter()
+        .filter(|role| !after.contains(*role) && !direct.contains(*role))
+        .cloned()
+        .collect();
+    if !lost.is_empty() {
+        return Err(anyhow!(
+            "Your account would lose roles its groups give it now ({}): have an admin whose access existed before the first import reset the tenant",
+            lost.join(", ")
+        ));
+    }
     let me = admin.get(&format!("users/{keep_user}"), &[]).await?;
     email_conflicts(&[me], &baseline.users, keep_user)?;
     Ok(())
+}
+
+/// The paths and every parent path: a subgroup's members get its parents'
+/// roles too.
+pub fn with_parents(paths: &[String]) -> BTreeSet<String> {
+    let mut all = BTreeSet::new();
+    for path in paths {
+        let mut prefix = String::new();
+        for part in path.split('/').filter(|p| !p.is_empty()) {
+            prefix = format!("{prefix}/{part}");
+            all.insert(prefix.clone());
+        }
+    }
+    all
+}
+
+/// The realm roles a surviving group holds after a restore: its recorded
+/// ones (none if unrecorded, as it is deleted) and the release roles
+/// `grant_template_roles` gives it back.
+pub fn restored_group_roles(path: &str, recorded: Option<&[String]>) -> Vec<String> {
+    use crate::tasks::migrate_realm_permissions::{READ_FOLLOWS, TEMPLATE_GROUP_GRANTS};
+    let mut roles: BTreeSet<String> = recorded.unwrap_or_default().iter().cloned().collect();
+    for (name, granted) in TEMPLATE_GROUP_GRANTS {
+        if path == format!("/{name}") {
+            roles.extend(granted.iter().map(|r| r.to_string()));
+        }
+    }
+    if READ_FOLLOWS.iter().any(|r| roles.contains(&r.to_string())) {
+        roles.insert(
+            sequent_core::types::permissions::Permissions::MESSAGING_CONFIG_READ.to_string(),
+        );
+    }
+    roles.into_iter().collect()
+}
+
+/// Realm and client roles as comparable names.
+fn role_keys(realm: &[String], clients: &BTreeMap<String, Vec<String>>) -> BTreeSet<String> {
+    realm
+        .iter()
+        .cloned()
+        .chain(
+            clients
+                .iter()
+                .flat_map(|(client, roles)| roles.iter().map(move |r| format!("{client}:{r}"))),
+        )
+        .collect()
 }
 
 fn user_fields(user: &Value) -> Map<String, Value> {
@@ -984,6 +1068,17 @@ mod tests {
             s(&["/new/sub"])
         );
         assert!(caller_groups_deleted(&current, &recorded, &s(&["/admin"])).is_empty());
+    }
+
+    #[test]
+    fn restored_groups_get_their_release_roles_back() {
+        let reset = sequent_core::types::permissions::Permissions::TENANT_RESET.to_string();
+        assert!(restored_group_roles("/admin", Some(&[])).contains(&reset));
+        assert!(!restored_group_roles("/custom", Some(&[])).contains(&reset));
+        assert_eq!(
+            with_parents(&s(&["/a/b"])).into_iter().collect::<Vec<_>>(),
+            s(&["/a", "/a/b"])
+        );
     }
 
     #[test]

@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 use uuid::Uuid;
 use windmill::postgres::tenant::allow_configuration_signing_change;
 use windmill::postgres::tenant_reset::{
-    allow_tenant_reset, capture_rows, capture_tenant_row, claim_reset, get_baseline,
+    allow_tenant_reset, capture_rows, capture_tenant_row, claim_reset, get_baseline, lock_tenant,
     purge_tenant_rows, restore_rows, restore_tenant_row, save_baseline, set_lifecycle_state,
     tenant_tables, Baseline, LifecycleState, TableRole, NOT_RESTORED_TABLES, PRESERVED_TABLES,
     TENANT_LOG_TABLES,
@@ -554,4 +554,45 @@ async fn kept_rows_go_only_in_their_tenants_reset() {
         .await
         .unwrap();
     assert_eq!(counts.get("monitoring_event"), Some(&1));
+}
+
+#[tokio::test]
+async fn the_baseline_lock_waits_for_an_event_being_written() {
+    let pool = schema::pool().await;
+    let mut setup = pool.get().await.unwrap();
+    let tx = setup.transaction().await.unwrap();
+    let target = tenant(&tx, "racing").await;
+    tx.commit().await.unwrap();
+
+    // An event insert passed the guard and has not committed yet.
+    let mut writer = pool.get().await.unwrap();
+    let writing = writer.transaction().await.unwrap();
+    writing
+        .execute(
+            "INSERT INTO sequent_backend.election_event (id, tenant_id, encryption_protocol) \
+             VALUES ($1, $2, 'RSA')",
+            &[&Uuid::new_v4(), &target],
+        )
+        .await
+        .unwrap();
+
+    // The baseline's lock can't be taken until it ends, so the check after
+    // it sees the event.
+    let mut capture = pool.get().await.unwrap();
+    let capturing = capture.transaction().await.unwrap();
+    capturing
+        .batch_execute("SET LOCAL lock_timeout = '300ms'")
+        .await
+        .unwrap();
+    let blocked = lock_tenant(&capturing, &target.to_string()).await;
+    assert!(
+        blocked.is_err(),
+        "the lock did not wait for the event insert"
+    );
+    capturing.rollback().await.unwrap();
+    writing.rollback().await.unwrap();
+
+    let capturing = capture.transaction().await.unwrap();
+    lock_tenant(&capturing, &target.to_string()).await.unwrap();
+    capturing.rollback().await.unwrap();
 }
