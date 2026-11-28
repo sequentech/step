@@ -1117,6 +1117,17 @@ async fn accept_into_ballot_box(
     let election_id = input.election_id.to_string();
     let area_uuid = parse_uuid_v4(ids.area_id)
         .map_err(|e| CastVoteError::UuidParseFailed(e.to_string(), "area_id".to_string()))?;
+    // Shared with a tenant reset: held until the ballot is stored, so a reset
+    // claims the tenant only once no ballot is between this check and its
+    // ballot box, and counts every ballot accepted before it.
+    if crate::postgres::tenant_reset::hold_against_reset(&hasura_transaction, ids.tenant_id)
+        .await
+        .map_err(|e| CastVoteError::CheckStatusFailed(format!("{e:#}")))?
+    {
+        return Err(CastVoteError::CheckStatusFailed(
+            "The tenant is being reset".to_string(),
+        ));
+    }
     let effective_voting_channel = check_status(
         ids.tenant_id,
         ids.election_event_id,
@@ -1149,10 +1160,6 @@ async fn accept_into_ballot_box(
     )
     .await
     .map_err(|e| CastVoteError::CheckRevotesFailed(e.to_string()))?;
-    hasura_transaction
-        .commit()
-        .await
-        .map_err(|e| CastVoteError::CommitFailed(e.to_string()))?;
 
     let voter_signature: Option<Vec<u8>> = voter_signature_data
         .as_ref()
@@ -1179,39 +1186,49 @@ async fn accept_into_ballot_box(
         allowed_votes,
     };
     let _phase = CastVotePhase::start("accept");
-    let (outcome, receipt) = match received {
-        Some(received) => {
-            let forensic = election_event
-                .get_presentation()
-                .map_err(|_| CastVoteError::CheckStatusFailed("Invalid privacy policy".into()))?
-                .unwrap_or_default()
-                .network_data_policy
-                .unwrap_or_default();
-            let network = if crate::services::vote_privacy::identity_mode(election_event)
-                .map_err(|_| CastVoteError::BallotSignFailed("Invalid privacy policy".into()))?
-                == sequent_core::types::vote_privacy::BallotIdentity::Pseudonym
-                && forensic == sequent_core::types::vote_privacy::NetworkDataPolicy::ForensicStore
-            {
-                voter_ip
-                    .as_deref()
-                    .map(|ip| (ip, voter_country.as_deref(), user_agent.as_deref()))
-            } else {
-                None
-            };
-            let (outcome, cast_at, receipt) =
-                crate::services::cast_ballot::accept_received_cast_with_network(
-                    &accept, received, network,
-                )
-                .await?;
-            (outcome, Some((cast_at, receipt)))
-        }
-        None => (
-            accept_ballot(&accept)
-                .await
-                .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?,
-            None,
-        ),
-    };
+    let stored = async {
+        Ok::<_, CastVoteError>(match received {
+            Some(received) => {
+                let forensic = election_event
+                    .get_presentation()
+                    .map_err(|_| CastVoteError::CheckStatusFailed("Invalid privacy policy".into()))?
+                    .unwrap_or_default()
+                    .network_data_policy
+                    .unwrap_or_default();
+                let network = if crate::services::vote_privacy::identity_mode(election_event)
+                    .map_err(|_| CastVoteError::BallotSignFailed("Invalid privacy policy".into()))?
+                    == sequent_core::types::vote_privacy::BallotIdentity::Pseudonym
+                    && forensic
+                        == sequent_core::types::vote_privacy::NetworkDataPolicy::ForensicStore
+                {
+                    voter_ip
+                        .as_deref()
+                        .map(|ip| (ip, voter_country.as_deref(), user_agent.as_deref()))
+                } else {
+                    None
+                };
+                let (outcome, cast_at, receipt) =
+                    crate::services::cast_ballot::accept_received_cast_with_network(
+                        &accept, received, network,
+                    )
+                    .await?;
+                (outcome, Some((cast_at, receipt)))
+            }
+            None => (
+                accept_ballot(&accept)
+                    .await
+                    .map_err(|e| CastVoteError::InsertFailed(format!("{e:#}")))?,
+                None,
+            ),
+        })
+    }
+    .await;
+    // Stored or refused: a reset waiting for the tenant may claim it now.
+    hasura_transaction
+        .commit()
+        .await
+        .map_err(|e| CastVoteError::CommitFailed(e.to_string()))?;
+    let (outcome, receipt) = stored?;
     match outcome {
         AcceptOutcome::Accepted { id, .. } => {
             let accepted_at = receipt

@@ -58,7 +58,8 @@ fn migrated_labels_in_the_portal() -> BTreeMap<String, String> {
                     || key.starts_with("messaging-")
                     || key == "readiness-check"
                     || key == "forensic-read"
-                    || key == "voter-pseudonym-resolve");
+                    || key == "voter-pseudonym-resolve"
+                    || key == "tenant-reset");
             let value = value.trim_end_matches(',');
             (migrated && value.starts_with('"'))
                 .then(|| (key.to_string(), value.trim_matches('"').to_string()))
@@ -69,7 +70,7 @@ fn migrated_labels_in_the_portal() -> BTreeMap<String, String> {
 #[test]
 fn the_migration_adds_release_permissions_with_their_labels() {
     let expected = migrated_labels_in_the_portal();
-    assert_eq!(expected.len(), 29, "{expected:?}");
+    assert_eq!(expected.len(), 30, "{expected:?}");
     let roles: BTreeMap<String, String> = migrated_roles()
         .into_iter()
         .map(|role| (role.name.unwrap(), role.description.unwrap()))
@@ -101,6 +102,7 @@ fn groups_already_granted(realm: &str) -> Vec<Exchange> {
         "messaging-config-write",
         "messaging-config-read",
         "readiness-check",
+        "tenant-reset",
     ];
     vec![
         Exchange::json(
@@ -157,8 +159,8 @@ fn groups_already_granted(realm: &str) -> Vec<Exchange> {
 async fn every_tenant_realm_gets_the_roles_it_lacks() {
     let tenants = ["tenant-one".to_string(), "tenant-two".to_string()];
     let mut exchanges = vec![
-        import("tenant-tenant-one", 200, json!({"added": 29, "skipped": 0})),
-        import("tenant-tenant-two", 200, json!({"added": 0, "skipped": 29})),
+        import("tenant-tenant-one", 200, json!({"added": 30, "skipped": 0})),
+        import("tenant-tenant-two", 200, json!({"added": 0, "skipped": 30})),
     ];
     exchanges.extend(groups_already_granted("tenant-tenant-one"));
     exchanges.extend(groups_already_granted("tenant-tenant-two"));
@@ -172,7 +174,7 @@ async fn every_tenant_realm_gets_the_roles_it_lacks() {
             RealmMigration {
                 realm: "tenant-tenant-one".to_string(),
                 roles: PartialImportSummary {
-                    added: 29,
+                    added: 30,
                     ..Default::default()
                 },
                 granted: vec![],
@@ -180,7 +182,7 @@ async fn every_tenant_realm_gets_the_roles_it_lacks() {
             RealmMigration {
                 realm: "tenant-tenant-two".to_string(),
                 roles: PartialImportSummary {
-                    skipped: 29,
+                    skipped: 30,
                     ..Default::default()
                 },
                 granted: vec![],
@@ -267,6 +269,7 @@ async fn existing_groups_get_the_release_roles_the_template_gives_them() {
         role("messaging-config-write"),
         role("messaging-config-read"),
         role("readiness-check"),
+        role("tenant-reset"),
         Exchange::json(
             "POST",
             &format!("/admin/realms/{realm}/groups/admin-id/role-mappings/realm"),
@@ -301,6 +304,7 @@ async fn existing_groups_get_the_release_roles_the_template_gives_them() {
                     "messaging-config-write".to_string(),
                     "messaging-config-read".to_string(),
                     "readiness-check".to_string(),
+                    "tenant-reset".to_string(),
                 ],
             },
             GroupGrant {
@@ -332,7 +336,8 @@ async fn existing_groups_get_the_release_roles_the_template_gives_them() {
                     "messaging-account-write",
                     "messaging-config-write",
                     "messaging-config-read",
-                    "readiness-check"
+                    "readiness-check",
+                    "tenant-reset"
                 ]),
             ),
             (
@@ -388,7 +393,11 @@ fn the_granted_roles_are_the_realm_templates() {
                 .unwrap()
                 .iter()
                 .filter_map(|role| role.as_str())
-                .filter(|role| role.starts_with("messaging-") || *role == "readiness-check")
+                .filter(|role| {
+                    role.starts_with("messaging-")
+                        || *role == "readiness-check"
+                        || *role == "tenant-reset"
+                })
                 .map(str::to_string)
                 .collect();
             let mut granted: Vec<String> = roles.iter().map(|r| r.to_string()).collect();
@@ -405,7 +414,7 @@ async fn a_realm_that_fails_does_not_stop_the_others_and_fails_the_run() {
     let tenants = ["missing".to_string(), "present".to_string()];
     let mut exchanges = vec![
         import("tenant-missing", 404, json!({"error": "Realm not found."})),
-        import("tenant-present", 200, json!({"added": 29})),
+        import("tenant-present", 200, json!({"added": 30})),
     ];
     exchanges.extend(groups_already_granted("tenant-present"));
     let peer = HttpServer::start(exchanges);
@@ -462,7 +471,7 @@ async fn the_realm_of_every_tenant_in_the_database_is_migrated() {
             .iter()
             .flat_map(|tenant| {
                 let realm = format!("tenant-{tenant}");
-                let mut exchanges = vec![import(&realm, 200, json!({"added": 29}))];
+                let mut exchanges = vec![import(&realm, 200, json!({"added": 30}))];
                 exchanges.extend(groups_already_granted(&realm));
                 exchanges
             })

@@ -94,6 +94,7 @@ use crate::tasks::refresh_monitoring_snapshot::{
 use crate::tasks::refresh_staff_crls::refresh_staff_crls;
 use crate::tasks::render_document_pdf::render_document_pdf;
 use crate::tasks::render_report::render_report;
+use crate::tasks::reset_tenant::reset_tenant_t;
 use crate::tasks::review_boards::review_boards;
 use crate::tasks::review_cast_votes::review_cast_votes;
 use crate::tasks::run_signed_action::run_signed_action;
@@ -344,6 +345,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             send_transmission_package_task,
             delete_election_event_t,
             delete_tenant_t,
+            reset_tenant_t,
             delete_users,
             export_tasks_execution,
             scheduled_reports,
@@ -454,6 +456,7 @@ pub async fn generate_celery_app() -> Result<Arc<Celery>> {
             send_transmission_package_task::NAME => Queue::Short.queue_name(),
             delete_election_event_t::NAME => Queue::Short.queue_name(),
             delete_tenant_t::NAME => Queue::Short.queue_name(),
+            reset_tenant_t::NAME => Queue::Short.queue_name(),
             // Same queue as import_users/export_users: same order of
             // magnitude of work over the same voter set.
             delete_users::NAME => Queue::ImportExport.queue_name(),

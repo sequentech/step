@@ -54,6 +54,7 @@ import {
 import ElectionHeader from "@/components/ElectionHeader"
 import {ImportScreen} from "@/components/election-event/import-data/ImportScreen"
 import {ArchitectApprovalPolicy} from "./ArchitectApprovalPolicy"
+import {TenantResetCard} from "./TenantResetCard"
 import {
     ArchitectSignerRoster,
     RosterStatus,
@@ -557,6 +558,18 @@ const SettingsConfigurationPackageForScope: React.FC<{
         stopPolling()
         setSubmitted(null)
         setPreviewed(null)
+    }
+
+    // A reset deletes the staged package and the task it followed: preview
+    // again before applying.
+    const afterReset = () => {
+        stopFollowing()
+        setDocumentId(null)
+        setExpectedSha(null)
+        setTypedDocumentId("")
+        setConfirming(false)
+        setError(null)
+        refreshHistory()
     }
 
     // Other requirements are not what was previewed.
@@ -1894,6 +1907,8 @@ const SettingsConfigurationPackageForScope: React.FC<{
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            <TenantResetCard tenantId={tenantId} onReset={afterReset} />
         </Box>
     )
 }

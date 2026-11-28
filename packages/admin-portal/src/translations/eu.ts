@@ -70,7 +70,59 @@ const basqueTranslation: TranslationType = {
                 "no-tenant": "Fitxategiak bere tenanta adierazi behar du (tenant_id).",
             },
         },
-        configurationPackage: englishTranslation.translations.configurationPackage,
+        configurationPackage: {
+            ...englishTranslation.translations.configurationPackage,
+            reset: {
+                title: "Arrisku-eremua",
+                explain:
+                    "Berrezartzeak maizter hau bere lehen konfigurazio-paketearen aurreko egoerara itzultzen du: bere hauteskunde-gertaerak, hautesleak, inportatutako ezarpenak, langileen kontuak eta erabiltzen dituzten fitxategiak ezabatzen dira, paketea eta bere sinatzaile-zerrenda berriro inportatu ahal izateko. Maizterraren erregistroa eta berrezarpen honen arrastoa gordetzen dira.",
+                unfinished:
+                    "Maizter honen berrezarpen batek ez zuen amaitu. Maizterrak ez du aldaketarik onartzen amaitu arte: exekutatu berriro amaitzeko.",
+                noBaselineHint:
+                    "Berrezarpena eskuragarri dago lehen konfigurazio-paketea igo zutenean hauteskunde-gertaerarik ez zuten maizterrentzat, funtzio hau sartu ondoren.",
+                open: "Berrezarri maizterra…",
+                finish: "Amaitu berrezarpena…",
+                dialogTitle: "Berrezarri maizterra",
+                loading: "Berrezarpen batek zer ezabatuko lukeen egiaztatzen…",
+                running:
+                    "Maizterra berrezartzen. Minutu batzuk iraun ditzake; mantendu leiho hau irekita emaitza ikusteko.",
+                succeeded:
+                    "Maizterra berrezarri da. Konfigurazio-paketea eta bere sinatzaile-zerrenda berriro inporta ditzakezu.",
+                failed: "Berrezarpenak ez du amaitu. Maizterra blokeatuta geratzen da berrezarpen batek amaitu arte: exekutatu berriro.",
+                previewFailed: "Ezin izan da irakurri berrezarpen batek zer ezabatuko lukeen.",
+                retry: "Saiatu berriro",
+                unknown:
+                    "Ezin da berrezarpenaren aurrerapena irakurri, beraz ez dakigu amaitu den. Egiaztatu berriro, edo itxi eta ireki berriro orri hau.",
+                checkAgain: "Egiaztatu berriro",
+                willDelete:
+                    "Honek {{events}} hauteskunde-gertaera eta {{rows}} erregistro ezabatzen ditu, beren hautesle, boto-txartel, erregistro, fitxategi eta sarbide-domeinuekin. Ezin da desegin.",
+                keeps: "Gordetzen dira: maizterra bera, bere erregistroa, bere sinadura-konfigurazioa eta lehen konfigurazio-paketearen aurretik zituen langileen kontuak eta ezarpenak.",
+                freshLogin: "Hasi saioa berriro zure nortasuna berresteko berrezarri aurretik.",
+                signIn: "Hasi saioa berriro",
+                erasePhrase:
+                    "Boto-txartelak eman edo zigilatu dira. Horiek ere ezabatzeko, idatzi {{phrase}}",
+                confirmLabel: "Idatzi {{slug}} berresteko",
+                confirm: "Berrezarri maizterra",
+                cancel: "Utzi",
+                close: "Itxi",
+                noTask: "Zerbitzariak ez du berrezarpen-zeregina itzuli.",
+                refusal: {
+                    disabled: "Berrezarpenak desaktibatuta daude hedapen honetan.",
+                    super_admin_tenant:
+                        "Administrazio-maizterra ezin da berrezarri beste maizter batzuk dauden bitartean.",
+                    no_baseline:
+                        "Ez zen maizter honen inportazio aurreko egoera erregistratu: lehen konfigurazio-paketea berrezarpenak egon aurretik inportatu zen, edo ordurako hauteskunde-gertaera bat zuen.",
+                    nothing_to_reset: "Oraindik ez da ezer inportatu maizter honetan.",
+                    task_running: "Itxaron martxan dagoen zereginak amaitu arte: {{name}}.",
+                    voting_open: "Bozketa irekita dago {{event}} gertaeran. Itxi lehenik.",
+                    locked_down: "{{event}} blokeatuta dago.",
+                    ballots:
+                        "Boto-txartelak eman ({{cast}}) edo zigilatu ({{sealed}}) dira. Hedapen honek ez du horiek ezabatzea onartzen.",
+                    ballots_overridable:
+                        "Boto-txartelak eman ({{cast}}) edo zigilatu ({{sealed}}) dira. Idatzi beheko esaldia horiek ere ezabatzeko.",
+                },
+            },
+        },
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Itxi",
@@ -2470,6 +2522,8 @@ const basqueTranslation: TranslationType = {
                 "tenant-read": "Irakurri Maizterra",
                 "tenant-write": "Editatu Maizterra",
                 "tenant-delete": "Ezabatu Maizterra",
+                "tenant-reset":
+                    "Berrezarri maizterra bere lehen konfigurazio-paketearen aurreko egoerara",
                 "election-event-create": "Sortu Hauteskunde Gertaera",
                 "election-event-read": "Irakurri Hauteskunde Gertaera",
                 "election-event-write": "Editatu Hauteskunde Gertaera",

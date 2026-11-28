@@ -262,6 +262,8 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/forensic-network-detail", {"election_event_id": UUID_EVENT_ID, "ip": "192.0.2.10"}, [FORENSIC_READ], BACKEND, UNAUTHORIZED),
         case!(UuidTenant, "/privacy/sign-in-network", {"tenant_id": UUID_TENANT_ID, "election_event_id": UUID_EVENT_ID, "voter_id": USER_ID, "delivery_id": "test-signin", "occurred_at_ms": 1_800_000_000_000_i64}, [], UNAUTHORIZED_JSON),
         case!(PrivacyVoter, "/receipt-document", {"election_event_id": UUID_EVENT_ID, "document_id": ELECTION_ID}, [CAST_VOTE], BACKEND, FORBIDDEN),
+        // Granted, the admin still has to have signed in within five minutes.
+        case!(UuidTenant, "/reset-tenant", {"tenant_id": UUID_TENANT_ID, "confirmation": "test"}, [TENANT_RESET], FORBIDDEN, UNAUTHORIZED),
         case!(Admin, "/resolve-voter-pseudonym", {"election_event_id": UUID_EVENT_ID, "pseudonym": "7QKM-2HXD", "reason": "investigation"}, [VOTER_PSEUDONYM_RESOLVE], BACKEND, UNAUTHORIZED),
         case!(Voter, "/acknowledge-support-materials", {"election_event_id": EVENT_ID, "document_ids": []}, [ACK_SUPPORT_MATERIALS], BACKEND, UNAUTHORIZED),
         case!(UuidTenant, "/readiness-check", {"official_event_id": UUID_V4_EVENT_ID, "tested_event_id": "00000000-0000-4000-8000-00000000000f"}, [READINESS_CHECK], BACKEND, UNAUTHORIZED_JSON),
@@ -412,6 +414,7 @@ fn cases() -> Vec<Case> {
         case!(Admin, "/get-user-template", {"template_type": "test-template"}, [REPORT_READ], BACKEND_TEXT, UNAUTHORIZED),
         case!(Admin, "/get-users", {"tenant_id": TENANT_ID}, [USER_READ], BACKEND, UNAUTHORIZED),
         case!(Admin, "/get-users", {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID}, [VOTER_READ], BACKEND_TEXT, UNAUTHORIZED),
+        case!(UuidTenant, "/tenant-reset-preview", {"tenant_id": UUID_TENANT_ID}, [TENANT_RESET], BACKEND, UNAUTHORIZED),
         case!(Admin, "/trustee/action-result", {"id": "test-action", "request": {"tenant_id": TENANT_ID, "election_event_id": EVENT_ID, "keys_ceremony_id": "test-ceremony", "trustee_name": "test-trustee", "signing_public_key": "fixture-signing-key", "share_encryption_public_key": "fixture-share-key"}, "status": "FAILED", "detail": "fixture error"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED_JSON),
         case!(Admin, "/trustee/boards/report", {"board": BOARD, "kind": "HALTED", "detail": "fixture error"}, [TRUSTEE_CEREMONY], BACKEND, UNAUTHORIZED),
         // Board membership is read from the database before b4 is contacted.

@@ -197,6 +197,68 @@ async fn a_deleted_events_database_is_retired_with_its_records() -> Result<()> {
     Ok(())
 }
 
+#[tokio::test]
+#[ignore = "requires ELECTORAL_LOG_PG_* with a role that may create databases"]
+async fn a_reset_drops_its_tenants_retired_databases_only() -> Result<()> {
+    let databases = databases()?;
+    let (tenant, other_tenant, event) = (Uuid::new_v4(), Uuid::new_v4(), Uuid::new_v4());
+    let event_id = event.to_string();
+    databases
+        .create_event(&tenant.to_string(), &event_id)
+        .await?;
+    let retired = databases
+        .retire_event(&tenant.to_string(), &event_id, 1_791_000_001)
+        .await?
+        .unwrap();
+
+    let claimed = RetiredEventDatabase {
+        tenant_id: other_tenant.to_string(),
+        ..retired.clone()
+    };
+    assert!(databases.drop_retired(&claimed).await.is_err());
+    // The refused drop leaves the database and its catalog entry.
+    assert!(database_exists(&databases, &retired.database_name).await?);
+    assert_eq!(
+        databases.retired_events(&tenant.to_string()).await?.len(),
+        1
+    );
+    for malformed in [
+        RetiredEventDatabase {
+            tenant_id: "not-a-tenant".into(),
+            ..retired.clone()
+        },
+        RetiredEventDatabase {
+            election_event_id: "not-an-event".into(),
+            ..retired.clone()
+        },
+    ] {
+        assert!(databases.drop_retired(&malformed).await.is_err());
+    }
+
+    databases.drop_retired(&retired).await?;
+    assert!(!database_exists(&databases, &retired.database_name).await?);
+    assert!(databases
+        .retired_events(&tenant.to_string())
+        .await?
+        .is_empty());
+    // A retry finds nothing left to do.
+    databases.drop_retired(&retired).await?;
+    Ok(())
+}
+
+async fn database_exists(databases: &EventDatabases, database: &str) -> Result<bool> {
+    Ok(databases
+        .catalog()
+        .client()
+        .await?
+        .query_one(
+            "SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)",
+            &[&database],
+        )
+        .await?
+        .get(0))
+}
+
 async fn allows_connections(databases: &EventDatabases, database: &str) -> Result<bool> {
     Ok(databases
         .catalog()

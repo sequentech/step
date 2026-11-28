@@ -129,6 +129,8 @@ jest.mock("react-i18next", () => ({
 jest.mock("@/providers/TenantContextProvider", () => ({
     useTenantStore: () => [mockTenant],
 }))
+// The reset card has tests of its own (TenantResetCard.test.tsx).
+jest.mock("./TenantResetCard", () => ({TenantResetCard: () => null}))
 jest.mock("@/providers/AuthContextProvider", () => {
     const React = require("react")
     return {

@@ -87,6 +87,57 @@ const spanishTranslation: TranslationType = {
             },
         },
         configurationPackage: {
+            reset: {
+                title: "Zona de peligro",
+                explain:
+                    "Restablecer devuelve este inquilino a como estaba antes de su primer paquete de configuración: se eliminan sus eventos electorales, votantes, ajustes importados, cuentas de personal y los archivos que usan, para poder importar de nuevo el paquete y su lista de firmantes. Se conservan el registro propio del inquilino y la constancia de este restablecimiento.",
+                unfinished:
+                    "Un restablecimiento de este inquilino no terminó. El inquilino no admite cambios hasta que termine: vuelva a ejecutarlo para terminarlo.",
+                noBaselineHint:
+                    "El restablecimiento está disponible para inquilinos que no tenían ningún evento electoral cuando se subió su primer paquete de configuración, después de introducir esta función.",
+                open: "Restablecer inquilino…",
+                finish: "Terminar el restablecimiento…",
+                dialogTitle: "Restablecer el inquilino",
+                loading: "Comprobando qué eliminaría un restablecimiento…",
+                running:
+                    "Restableciendo el inquilino. Puede tardar unos minutos; mantenga esta ventana abierta para ver el resultado.",
+                succeeded:
+                    "El inquilino se ha restablecido. Puede volver a importar el paquete de configuración y su lista de firmantes.",
+                failed: "El restablecimiento no terminó. El inquilino sigue bloqueado hasta que termine uno: vuelva a ejecutarlo.",
+                previewFailed: "No se pudo leer qué borraría un restablecimiento.",
+                retry: "Reintentar",
+                unknown:
+                    "No se puede leer el progreso del restablecimiento, así que no se sabe si terminó. Vuelve a comprobarlo, o cierra y vuelve a abrir esta página.",
+                checkAgain: "Comprobar de nuevo",
+                willDelete:
+                    "Se eliminarán {{events}} evento(s) electoral(es) y {{rows}} registro(s), con sus votantes, papeletas, registros, archivos y dominios de acceso. No se puede deshacer.",
+                keeps: "Se conserva: el propio inquilino, su registro, su configuración de firma y las cuentas de personal y ajustes que tenía antes de su primer paquete de configuración.",
+                freshLogin:
+                    "Vuelva a iniciar sesión para confirmar su identidad antes de restablecer.",
+                signIn: "Volver a iniciar sesión",
+                erasePhrase:
+                    "Se emitieron o sellaron papeletas. Para borrarlas también, escriba {{phrase}}",
+                confirmLabel: "Escriba {{slug}} para confirmar",
+                confirm: "Restablecer inquilino",
+                cancel: "Cancelar",
+                close: "Cerrar",
+                noTask: "El servidor no devolvió la tarea de restablecimiento.",
+                refusal: {
+                    disabled: "Los restablecimientos están desactivados en este despliegue.",
+                    super_admin_tenant:
+                        "El inquilino de administración no se puede restablecer mientras existan otros inquilinos.",
+                    no_baseline:
+                        "No se registró el estado previo a la importación de este inquilino: su primer paquete de configuración se importó antes de que existieran los restablecimientos, o ya tenía entonces un evento electoral.",
+                    nothing_to_reset: "Todavía no se ha importado nada en este inquilino.",
+                    task_running: "Espere a que termine la tarea en curso: {{name}}.",
+                    voting_open: "La votación está abierta en {{event}}. Ciérrela primero.",
+                    locked_down: "{{event}} está bloqueado.",
+                    ballots:
+                        "Se emitieron ({{cast}}) o sellaron ({{sealed}}) papeletas. Este despliegue no permite borrarlas.",
+                    ballots_overridable:
+                        "Se emitieron ({{cast}}) o sellaron ({{sealed}}) papeletas. Escriba la frase de abajo para borrarlas también.",
+                },
+            },
             sectionResults: "Resultados por sección",
             hub: {
                 recovery: {
@@ -2870,6 +2921,8 @@ const spanishTranslation: TranslationType = {
                 "tenant-read": "Leer Inquilino",
                 "tenant-write": "Editar Inquilino",
                 "tenant-delete": "Eliminar Inquilino",
+                "tenant-reset":
+                    "Restablecer el inquilino a antes de su primer paquete de configuración",
                 "election-event-create": "Crear Evento Electoral",
                 "election-event-read": "Leer Evento Electoral",
                 "election-event-write": "Editar Evento Electoral",

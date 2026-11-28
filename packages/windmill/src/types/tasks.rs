@@ -46,6 +46,7 @@ pub enum ETasksExecution {
     AUDIT_ELECTORAL_LOG,
     EXPORT_TENANT_LOGS,
     APPLY_CONFIGURATION_PACKAGE,
+    RESET_TENANT,
 }
 
 impl ETasksExecution {
@@ -91,6 +92,7 @@ impl ETasksExecution {
             ETasksExecution::AUDIT_ELECTORAL_LOG => "Audit Electoral Log",
             ETasksExecution::EXPORT_TENANT_LOGS => "Export Tenant Logs",
             ETasksExecution::APPLY_CONFIGURATION_PACKAGE => "Apply Configuration Package",
+            ETasksExecution::RESET_TENANT => "Reset Tenant",
         }
     }
 }

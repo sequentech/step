@@ -79,6 +79,7 @@ pub mod realm_attributes;
 pub mod realm_password_policy;
 pub mod receive_ballot;
 pub mod reports;
+pub mod reset_tenant;
 pub mod results_publication;
 pub mod roles;
 pub mod scheduled_event;

@@ -74,7 +74,60 @@ const dutchTranslation: TranslationType = {
                 "no-tenant": "Het bestand moet zijn tenant vermelden (tenant_id).",
             },
         },
-        configurationPackage: englishTranslation.translations.configurationPackage,
+        configurationPackage: {
+            ...englishTranslation.translations.configurationPackage,
+            reset: {
+                title: "Gevarenzone",
+                explain:
+                    "Terugzetten brengt deze tenant terug naar hoe hij was vóór het eerste configuratiepakket: de verkiezingsevenementen, kiezers, geïmporteerde instellingen, medewerkersaccounts en de bestanden die zij gebruiken worden verwijderd, zodat het pakket en de ondertekenaarslijst opnieuw kunnen worden geïmporteerd. Het eigen logboek van de tenant en de vastlegging van deze terugzetting blijven bewaard.",
+                unfinished:
+                    "Een terugzetting van deze tenant is niet voltooid. De tenant accepteert geen wijzigingen totdat die voltooid is: voer de terugzetting opnieuw uit om haar te voltooien.",
+                noBaselineHint:
+                    "Terugzetten is beschikbaar voor tenants die geen verkiezingsevenement hadden toen hun eerste configuratiepakket werd geüpload, nadat deze functie is ingevoerd.",
+                open: "Tenant terugzetten…",
+                finish: "Terugzetting voltooien…",
+                dialogTitle: "De tenant terugzetten",
+                loading: "Controleren wat een terugzetting zou verwijderen…",
+                running:
+                    "De tenant wordt teruggezet. Dit kan enkele minuten duren; houd dit venster open om het resultaat te zien.",
+                succeeded:
+                    "De tenant is teruggezet. U kunt het configuratiepakket en de ondertekenaarslijst opnieuw importeren.",
+                failed: "De terugzetting is niet voltooid. De tenant blijft vergrendeld totdat een terugzetting voltooid is: voer haar opnieuw uit.",
+                previewFailed: "Kon niet lezen wat terugzetten zou verwijderen.",
+                retry: "Opnieuw proberen",
+                unknown:
+                    "De voortgang van het terugzetten is niet leesbaar, dus het is onbekend of het klaar is. Controleer opnieuw, of sluit deze pagina en open haar opnieuw.",
+                checkAgain: "Opnieuw controleren",
+                willDelete:
+                    "Dit verwijdert {{events}} verkiezingsevenement(en) en {{rows}} opgeslagen record(s), met hun kiezers, stembiljetten, logboeken, bestanden en aanmeldrealms. Dit kan niet ongedaan worden gemaakt.",
+                keeps: "Bewaard: de tenant zelf, het eigen logboek, de ondertekeningsinstellingen en de medewerkersaccounts en instellingen van vóór het eerste configuratiepakket.",
+                freshLogin:
+                    "Meld u opnieuw aan om te bevestigen dat u het bent voordat u terugzet.",
+                signIn: "Opnieuw aanmelden",
+                erasePhrase:
+                    "Er zijn stembiljetten uitgebracht of verzegeld. Typ {{phrase}} om ze ook te wissen",
+                confirmLabel: "Typ {{slug}} om te bevestigen",
+                confirm: "Tenant terugzetten",
+                cancel: "Annuleren",
+                close: "Sluiten",
+                noTask: "De server heeft de terugzettaak niet teruggegeven.",
+                refusal: {
+                    disabled: "Terugzetten is uitgeschakeld in deze installatie.",
+                    super_admin_tenant:
+                        "De beheertenant kan niet worden teruggezet zolang er andere tenants zijn.",
+                    no_baseline:
+                        "Voor deze tenant is geen toestand van vóór de import vastgelegd: het eerste configuratiepakket is geïmporteerd voordat terugzetten bestond, of de tenant had toen al een verkiezingsevenement.",
+                    nothing_to_reset: "Er is nog niets in deze tenant geïmporteerd.",
+                    task_running: "Wacht tot de lopende taak klaar is: {{name}}.",
+                    voting_open: "De stemming is open in {{event}}. Sluit die eerst.",
+                    locked_down: "{{event}} is vergrendeld.",
+                    ballots:
+                        "Er zijn stembiljetten uitgebracht ({{cast}}) of verzegeld ({{sealed}}). Deze installatie staat niet toe ze te wissen.",
+                    ballots_overridable:
+                        "Er zijn stembiljetten uitgebracht ({{cast}}) of verzegeld ({{sealed}}). Typ de zin hieronder om ze ook te wissen.",
+                },
+            },
+        },
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Sluiten",
@@ -2492,6 +2545,7 @@ const dutchTranslation: TranslationType = {
                 "tenant-read": "Tenant Lezen",
                 "tenant-write": "Tenant Bewerken",
                 "tenant-delete": "Tenant Verwijderen",
+                "tenant-reset": "Tenant terugzetten naar vóór het eerste configuratiepakket",
                 "election-event-create": "Verkiezingsevenement Aanmaken",
                 "election-event-read": "Verkiezingsevenement Lezen",
                 "election-event-write": "Verkiezingsevenement Bewerken",

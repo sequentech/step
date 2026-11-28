@@ -26,7 +26,7 @@ use crate::{
     domain::{ElectoralLogMessage, LogEntry, LogQuery, StoredRecord},
     ports::ElectoralLogStore,
 };
-use anyhow::{anyhow, ensure, Context, Result};
+use anyhow::{anyhow, bail, ensure, Context, Result};
 use async_trait::async_trait;
 use std::{
     collections::HashMap,
@@ -979,6 +979,55 @@ impl EventDatabases {
             .await?;
         // A request of this process may have opened the database again meanwhile.
         self.forget(&event);
+        Self::release(client).await;
+        Ok(())
+    }
+
+    /// Drop a retired election event's database and its catalog entry: what a tenant
+    /// reset does with the events it deletes, whose records the reset erases.
+    /// Idempotent. Refuses a database the catalog does not list as the tenant's retired
+    /// one.
+    pub async fn drop_retired(&self, retired: &RetiredEventDatabase) -> Result<()> {
+        self.initialize().await?;
+        let tenant = canonical_uuid(&retired.tenant_id)?;
+        let event = canonical_uuid(&retired.election_event_id)?;
+        let client = self.locked_client().await?;
+        // The catalog belongs to the application role.
+        self.act_as_owner(&client).await?;
+        let listed = client
+            .query_opt(
+                "SELECT tenant_id::text, election_event_id::text \
+                 FROM electoral_log_retired_events WHERE database_name = $1",
+                &[&retired.database_name],
+            )
+            .await?;
+        let Some(listed) = listed else {
+            // Already dropped by an earlier attempt.
+            Self::release(client).await;
+            return Ok(());
+        };
+        let (owner, listed_event): (String, String) = (listed.get(0), listed.get(1));
+        if owner != tenant || listed_event != event {
+            Self::release(client).await;
+            bail!(
+                "Database {} is not a retired database of tenant {tenant}",
+                retired.database_name
+            );
+        }
+        let failure = format!("Error dropping database {}", retired.database_name);
+        client
+            .batch_execute(&format!(
+                "DROP DATABASE IF EXISTS {} WITH (FORCE)",
+                quote_identifier(&retired.database_name)
+            ))
+            .await
+            .context(failure)?;
+        client
+            .execute(
+                "DELETE FROM electoral_log_retired_events WHERE database_name = $1",
+                &[&retired.database_name],
+            )
+            .await?;
         Self::release(client).await;
         Ok(())
     }

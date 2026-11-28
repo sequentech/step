@@ -81,6 +81,8 @@ jest.mock("react-admin", () => ({
 }))
 jest.mock("@/providers/TenantContextProvider", () => ({useTenantStore: () => ["t1"]}))
 const mockToken = jest.fn()
+// The reset card has tests of its own (TenantResetCard.test.tsx).
+jest.mock("./TenantResetCard", () => ({TenantResetCard: () => null}))
 jest.mock("@/providers/AuthContextProvider", () => {
     const React = require("react")
     return {
