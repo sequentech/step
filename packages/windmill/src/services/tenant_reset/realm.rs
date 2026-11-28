@@ -268,8 +268,25 @@ impl Admin<'_> {
     /// `role-mappings/realm`) exactly `wanted`, skipping roles the realm no
     /// longer has.
     async fn set_realm_roles(&self, path: &str, wanted: &[String]) -> Result<()> {
+        self.change_realm_roles(path, wanted, Changes::Both).await
+    }
+
+    /// Moves the realm roles mapped at `path` toward `wanted`: only the
+    /// additions, only the removals, or both, additions first.
+    async fn change_realm_roles(
+        &self,
+        path: &str,
+        wanted: &[String],
+        changes: Changes,
+    ) -> Result<()> {
         let current = self.role_names(path).await?;
-        let (add, remove) = difference(&current, wanted);
+        let (mut add, mut remove) = difference(&current, wanted);
+        if changes == Changes::Remove {
+            add.clear();
+        }
+        if changes == Changes::Add {
+            remove.clear();
+        }
         let mut adding = vec![];
         for name in add {
             match self.realm_role(&name).await? {
@@ -302,14 +319,29 @@ impl Admin<'_> {
         base: &str,
         wanted: &BTreeMap<String, Vec<String>>,
     ) -> Result<()> {
+        self.change_client_roles(base, wanted, Changes::Both).await
+    }
+
+    async fn change_client_roles(
+        &self,
+        base: &str,
+        wanted: &BTreeMap<String, Vec<String>>,
+        changes: Changes,
+    ) -> Result<()> {
         let current = self.client_roles(base).await?;
         let client_ids: BTreeSet<&String> = current.keys().chain(wanted.keys()).collect();
         for client_id in client_ids {
             let empty = vec![];
-            let (add, remove) = difference(
+            let (mut add, mut remove) = difference(
                 current.get(client_id).unwrap_or(&empty),
                 wanted.get(client_id).unwrap_or(&empty),
             );
+            if changes == Changes::Remove {
+                add.clear();
+            }
+            if changes == Changes::Add {
+                remove.clear();
+            }
             if add.is_empty() && remove.is_empty() {
                 continue;
             }
@@ -333,6 +365,20 @@ impl Admin<'_> {
         Ok(())
     }
 }
+
+/// Which role changes a step makes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Changes {
+    Add,
+    Remove,
+    Both,
+}
+
+/// Restoring the groups' roles in two passes, every group's additions
+/// before any group's removals: a role that moves from one group to another
+/// is held by one of them at every step, so a failure partway never leaves
+/// a member, such as the admin doing the reset, without it.
+pub const GROUP_ROLE_PASSES: [Changes; 2] = [Changes::Add, Changes::Remove];
 
 fn str_field(value: &Value, field: &str) -> Option<String> {
     value.get(field).and_then(Value::as_str).map(str::to_string)
@@ -466,6 +512,26 @@ pub fn email_conflicts(
     Ok(conflicts)
 }
 
+/// `email_conflicts` among the users the reset keeps: one it deletes frees
+/// its email that way. The caller and service accounts are kept.
+pub fn surviving_email_conflicts(
+    current: &[Value],
+    recorded: &[BaselineUser],
+    keep_user: &str,
+) -> Result<Vec<(String, String)>> {
+    let recorded_ids: BTreeSet<String> = recorded.iter().map(|u| u.id.clone()).collect();
+    let deleted: BTreeSet<String> = users_to_delete(current, Some(&recorded_ids), keep_user, None)
+        .into_iter()
+        .map(|(id, _)| id)
+        .collect();
+    let kept: Vec<Value> = current
+        .iter()
+        .filter(|u| str_field(u, "id").is_none_or(|id| !deleted.contains(&id)))
+        .cloned()
+        .collect();
+    email_conflicts(&kept, recorded, keep_user)
+}
+
 /// Why the realm refuses an admin's `{"email": ""}`, the update that frees
 /// an email for its recorded owner: the email is the username, or the user
 /// profile requires an email in the admin context. None when it is allowed.
@@ -584,7 +650,7 @@ pub async fn check_caller(
     // The emails the restore frees for their recorded owners: checked here,
     // before anything is deleted, so that a realm that refuses it stops the
     // reset now and not halfway.
-    let conflicts = email_conflicts(&admin.users().await?, &baseline.users, keep_user)?;
+    let conflicts = surviving_email_conflicts(&admin.users().await?, &baseline.users, keep_user)?;
     if !conflicts.is_empty() {
         let settings = admin.get("", &[]).await?;
         let profile = admin.get("users/profile", &[]).await?;
@@ -796,21 +862,25 @@ pub async fn restore_realm(
         summary.groups_created.push(path);
     }
     let ids = admin.groups().await?;
-    for group in &baseline.groups {
-        if let Some(id) = ids.get(&group.path) {
-            // The recorded roles plus what a release grants the template
-            // groups since, in one change that adds before it removes: a
-            // grant the group holds now, such as the reset's own role, is
-            // never taken away to be given back later.
+    // The recorded roles plus what a release grants the template groups
+    // since. A grant a group holds now, such as the reset's own role, is
+    // never taken away to be given back later, and one moving between
+    // groups is added to the new one before it leaves the old.
+    for changes in GROUP_ROLE_PASSES {
+        for group in &baseline.groups {
+            let Some(id) = ids.get(&group.path) else {
+                continue;
+            };
             admin
-                .set_realm_roles(
+                .change_realm_roles(
                     &format!("groups/{id}/role-mappings/realm"),
                     &restored_group_roles(&group.path, Some(&group.realm_roles)),
+                    changes,
                 )
                 .await?;
             if let Some(client_roles) = &group.client_roles {
                 admin
-                    .set_client_roles(&format!("groups/{id}"), client_roles)
+                    .change_client_roles(&format!("groups/{id}"), client_roles, changes)
                     .await?;
             }
         }
@@ -1105,6 +1175,56 @@ mod tests {
         // The caller's account is never changed: refused instead.
         let caller = [json!({"id": "caller", "email": "a@x"})];
         assert!(email_conflicts(&caller, &recorded, "caller").is_err());
+    }
+
+    #[test]
+    fn users_the_reset_deletes_free_their_emails_themselves() {
+        let recorded = [recorded("a", "a@x")];
+        // c is not recorded, so it is deleted before a is restored.
+        let deleted = [json!({"id": "c", "username": "c", "email": "a@x"})];
+        assert!(surviving_email_conflicts(&deleted, &recorded, "caller")
+            .unwrap()
+            .is_empty());
+        // Service accounts and the caller are kept, so they still count.
+        let service =
+            [json!({"id": "s", "username": format!("{SERVICE_ACCOUNT_PREFIX}x"), "email": "a@x"})];
+        assert_eq!(
+            surviving_email_conflicts(&service, &recorded, "caller").unwrap(),
+            vec![("s".to_string(), "a@x".to_string())]
+        );
+        let caller = [json!({"id": "caller", "username": "me", "email": "a@x"})];
+        assert!(surviving_email_conflicts(&caller, &recorded, "caller").is_err());
+    }
+
+    #[test]
+    fn a_role_moving_between_groups_is_held_at_every_step() {
+        let reset = sequent_core::types::permissions::Permissions::TENANT_RESET.to_string();
+        // The caller is in /a and /b; the role moves from /a to /b.
+        let wanted: BTreeMap<&str, Vec<String>> =
+            BTreeMap::from([("/a", vec![]), ("/b", vec![reset.clone()])]);
+        for order in [["/a", "/b"], ["/b", "/a"]] {
+            let mut held: BTreeMap<&str, Vec<String>> =
+                BTreeMap::from([("/a", vec![reset.clone()]), ("/b", vec![])]);
+            // Each group update either applies or fails; a failure stops the
+            // restore, so every prefix of the steps is a state it can stop in.
+            for changes in GROUP_ROLE_PASSES {
+                for group in order {
+                    let (add, remove) = difference(&held[group], &wanted[group]);
+                    let roles = held.get_mut(group).unwrap();
+                    if changes != Changes::Remove {
+                        roles.extend(add);
+                    }
+                    if changes != Changes::Add {
+                        roles.retain(|r| !remove.contains(r));
+                    }
+                    assert!(
+                        held.values().flatten().any(|r| *r == reset),
+                        "the role was held by neither group after {changes:?} on {group}"
+                    );
+                }
+            }
+            assert_eq!(held, wanted);
+        }
     }
 
     #[test]
