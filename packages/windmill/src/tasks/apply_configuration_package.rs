@@ -9,6 +9,7 @@
 use crate::postgres::configuration_packages;
 use crate::postgres::document::get_document;
 use crate::postgres::tasks_execution::{get_task_by_id_with_transaction, get_tasks_by_annotation};
+use crate::postgres::tenant_reset::ApplicationClaim;
 use crate::services::audit_log::AuditActor;
 use crate::services::browser_package_policy::{admit_with_policy, BrowserPolicy};
 use crate::services::database::get_hasura_pool;
@@ -539,20 +540,23 @@ async fn execute(
     // that fails before it is held leaves the task row to its owner.
     let mut claim_db: DbClient = get_hasura_pool().await.get().await.map_err(unclaimed)?;
     let claim = claim_db.transaction().await.map_err(unclaimed)?;
-    let claimed: bool = claim
-        .query_one(
-            "SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))",
-            &[&configuration_packages::application_lock_key(
-                &body.tenant_id,
-            )],
-        )
+    match crate::postgres::tenant_reset::claim_application(&claim, &body.tenant_id)
         .await
         .map_err(unclaimed)?
-        .get(0);
-    if !claimed {
-        return Err(unclaimed(anyhow!(
-            "another configuration package application on this tenant is running; wait for it to finish"
-        )));
+    {
+        ApplicationClaim::Claimed => {}
+        ApplicationClaim::Busy => {
+            return Err(unclaimed(anyhow!(
+                "another configuration package application on this tenant is running; wait for it to finish"
+            )));
+        }
+        // Queued behind a reset's claim: the reset deletes what this would
+        // read and change.
+        ApplicationClaim::Resetting => {
+            return Err(anyhow!(
+                "the tenant is being reset; apply the package again once the reset has finished"
+            ));
+        }
     }
     // What a reset returns the tenant to, if its upload did not record it:
     // without it, this import could never be undone. Only on Apply: a

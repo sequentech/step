@@ -446,26 +446,35 @@ pub async fn ensure_baseline(tenant_id: &str, task_id: Option<&str>) -> Result<b
 
     let mut client = hasura_client().await?;
     let tx = client.transaction().await?;
-    // Checked again: another upload may have recorded one, or applied. The
-    // tenant row lock, held until the baseline commits, waits for writers
-    // already in (they hold a key-share lock on it) and keeps new ones out,
-    // so an event can't commit between the check and the baseline.
-    lock_tenant(&tx, tenant_id).await?;
-    if !baseline_possible(&tx, tenant_id).await? {
-        tx.rollback().await?;
-        return Ok(false);
-    }
-    let baseline = Baseline {
-        tenant_row: capture_tenant_row(&tx, tenant_id).await?,
-        rows: capture_rows(&tx, tenant_id).await?,
-        realm: serde_json::to_value(&realm)?,
-    };
-    let saved = save_baseline(&tx, tenant_id, &baseline, task_id).await?;
+    let saved = record_baseline(&tx, tenant_id, serde_json::to_value(&realm)?, task_id).await?;
     tx.commit().await?;
     if saved {
         info!("Recorded the reset baseline of tenant {tenant_id}");
     }
     Ok(saved)
+}
+
+/// The final step of `ensure_baseline`, with the realm already captured: the
+/// caller commits. Checked again: another upload may have recorded one, or
+/// applied. The tenant row lock, held until the baseline commits, waits for
+/// writers already in (they hold a key-share lock on it) and keeps new ones
+/// out, so an event can't commit between the check and the baseline.
+pub async fn record_baseline(
+    tx: &Transaction<'_>,
+    tenant_id: &str,
+    realm: Value,
+    task_id: Option<&str>,
+) -> Result<bool> {
+    lock_tenant(tx, tenant_id).await?;
+    if !baseline_possible(tx, tenant_id).await? {
+        return Ok(false);
+    }
+    let baseline = Baseline {
+        tenant_row: capture_tenant_row(tx, tenant_id).await?,
+        rows: capture_rows(tx, tenant_id).await?,
+        realm,
+    };
+    save_baseline(tx, tenant_id, &baseline, task_id).await
 }
 
 async fn compute_manifest(

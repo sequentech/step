@@ -466,6 +466,37 @@ pub fn email_conflicts(
     Ok(conflicts)
 }
 
+/// Why the realm refuses an admin's `{"email": ""}`, the update that frees
+/// an email for its recorded owner: the email is the username, or the user
+/// profile requires an email in the admin context. None when it is allowed.
+pub fn why_emails_cannot_be_freed(realm: &Value, profile: &Value) -> Option<&'static str> {
+    if realm
+        .get("registrationEmailAsUsername")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        return Some("the realm uses the email as the username");
+    }
+    let required = profile
+        .get("attributes")
+        .and_then(Value::as_array)?
+        .iter()
+        .find(|a| a.get("name").and_then(Value::as_str) == Some("email"))?
+        .get("required")?;
+    // Required with scopes applies only when those are requested; with
+    // roles, only to those roles; with neither, always.
+    let scoped = required
+        .get("scopes")
+        .and_then(Value::as_array)
+        .is_some_and(|s| !s.is_empty());
+    let for_admins = match required.get("roles").and_then(Value::as_array) {
+        Some(roles) if !roles.is_empty() => roles.iter().any(|r| r.as_str() == Some("admin")),
+        _ => true,
+    };
+    (!scoped && for_admins)
+        .then_some("the user profile requires an email for users that admins edit")
+}
+
 /// Groups the reset deletes that `keep_user` belongs to, or is inside of:
 /// the access they give the admin doing the reset would be lost.
 pub fn caller_groups_deleted(
@@ -550,8 +581,21 @@ pub async fn check_caller(
             lost.join(", ")
         ));
     }
-    let me = admin.get(&format!("users/{keep_user}"), &[]).await?;
-    email_conflicts(&[me], &baseline.users, keep_user)?;
+    // The emails the restore frees for their recorded owners: checked here,
+    // before anything is deleted, so that a realm that refuses it stops the
+    // reset now and not halfway.
+    let conflicts = email_conflicts(&admin.users().await?, &baseline.users, keep_user)?;
+    if !conflicts.is_empty() {
+        let settings = admin.get("", &[]).await?;
+        let profile = admin.get("users/profile", &[]).await?;
+        if let Some(reason) = why_emails_cannot_be_freed(&settings, &profile) {
+            let emails: Vec<&str> = conflicts.iter().map(|(_, e)| e.as_str()).collect();
+            return Err(anyhow!(
+                "Users hold emails that belonged to other users before the first import ({}), and the reset can't free them because {reason}: change those users' emails, then reset again",
+                emails.join(", ")
+            ));
+        }
+    }
     Ok(())
 }
 
@@ -754,10 +798,14 @@ pub async fn restore_realm(
     let ids = admin.groups().await?;
     for group in &baseline.groups {
         if let Some(id) = ids.get(&group.path) {
+            // The recorded roles plus what a release grants the template
+            // groups since, in one change that adds before it removes: a
+            // grant the group holds now, such as the reset's own role, is
+            // never taken away to be given back later.
             admin
                 .set_realm_roles(
                     &format!("groups/{id}/role-mappings/realm"),
-                    &group.realm_roles,
+                    &restored_group_roles(&group.path, Some(&group.realm_roles)),
                 )
                 .await?;
             if let Some(client_roles) = &group.client_roles {
@@ -767,7 +815,7 @@ pub async fn restore_realm(
             }
         }
     }
-    // Roles a release added to the template groups after the record.
+    // Template groups the record does not have.
     grant_template_roles(client, realm).await?;
 
     // Recorded users.
@@ -1060,6 +1108,33 @@ mod tests {
     }
 
     #[test]
+    fn freeing_emails_is_refused_where_the_realm_requires_them() {
+        let profile = |required: Value| json!({"attributes": [{"name": "username"}, {"name": "email", "required": required}]});
+        let plain = json!({"registrationEmailAsUsername": false});
+        // The tenant realm template: required only when users edit themselves.
+        assert_eq!(
+            why_emails_cannot_be_freed(&plain, &profile(json!({"roles": ["user"]}))),
+            None
+        );
+        assert_eq!(
+            why_emails_cannot_be_freed(&plain, &json!({"attributes": [{"name": "email"}]})),
+            None
+        );
+        assert_eq!(
+            why_emails_cannot_be_freed(&plain, &profile(json!({"scopes": ["profile"]}))),
+            None
+        );
+        for required in [json!({}), json!({"roles": ["admin", "user"]})] {
+            assert!(why_emails_cannot_be_freed(&plain, &profile(required)).is_some());
+        }
+        assert!(why_emails_cannot_be_freed(
+            &json!({"registrationEmailAsUsername": true}),
+            &profile(json!({"roles": ["user"]}))
+        )
+        .is_some());
+    }
+
+    #[test]
     fn the_callers_groups_must_survive() {
         let current = s(&["/admin", "/new", "/new/sub"]);
         let recorded = s(&["/admin"]);
@@ -1075,6 +1150,14 @@ mod tests {
         let reset = sequent_core::types::permissions::Permissions::TENANT_RESET.to_string();
         assert!(restored_group_roles("/admin", Some(&[])).contains(&reset));
         assert!(!restored_group_roles("/custom", Some(&[])).contains(&reset));
+        // Restoring a record from before the grant keeps it the whole time:
+        // it is not among the roles removed.
+        let (add, remove) = difference(
+            &s(&[reset.as_str(), "imported-role"]),
+            &restored_group_roles("/admin", Some(&[])),
+        );
+        assert!(!add.contains(&reset));
+        assert_eq!(remove, s(&["imported-role"]));
         assert_eq!(
             with_parents(&s(&["/a/b"])).into_iter().collect::<Vec<_>>(),
             s(&["/a", "/a/b"])

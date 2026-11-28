@@ -264,6 +264,19 @@ pub async fn lifecycle_state(tx: &Transaction<'_>, tenant_id: &str) -> Result<Li
     })
 }
 
+/// Whether the tenant is being reset. Until the transaction ends, it also
+/// holds the tenant against a reset's claim (`lock_tenant`), which waits for
+/// it: whatever the caller writes before ending the transaction, such as a
+/// ballot, is there before the reset looks.
+pub async fn hold_against_reset(tx: &Transaction<'_>, tenant_id: &str) -> Result<bool> {
+    let tenant = parse_uuid_v4(tenant_id)?;
+    let row = tx
+        .query_one("SELECT sequent_backend.tenant_resetting($1)", &[&tenant])
+        .await
+        .context("Error reading the tenant lifecycle state")?;
+    Ok(row.get(0))
+}
+
 /// Locks the tenant's row until the transaction ends and returns its state.
 /// Call before `refusals`, then `claim_reset`.
 pub async fn lock_tenant(tx: &Transaction<'_>, tenant_id: &str) -> Result<LifecycleState> {
@@ -333,6 +346,31 @@ pub async fn try_application_lock(tx: &Transaction<'_>, tenant_id: &str) -> Resu
         .await
         .context("Error taking the configuration package lock")?;
     Ok(row.get(0))
+}
+
+/// What a configuration package application finds when it claims the tenant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ApplicationClaim {
+    /// The Apply lock is held until the transaction ends.
+    Claimed,
+    /// Another application, or a reset's claim, holds the lock.
+    Busy,
+    /// The lock is held, but a reset has the tenant: the application must not
+    /// start, as the reset is deleting what it would read and change.
+    Resetting,
+}
+
+/// Takes the Apply lock for a configuration package application. A reset
+/// takes the same lock while it claims the tenant, so an application that
+/// was queued behind that claim sees the reset here.
+pub async fn claim_application(tx: &Transaction<'_>, tenant_id: &str) -> Result<ApplicationClaim> {
+    if !try_application_lock(tx, tenant_id).await? {
+        return Ok(ApplicationClaim::Busy);
+    }
+    Ok(match lifecycle_state(tx, tenant_id).await? {
+        LifecycleState::Resetting => ApplicationClaim::Resetting,
+        LifecycleState::Active => ApplicationClaim::Claimed,
+    })
 }
 
 pub async fn set_lifecycle_state(

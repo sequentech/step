@@ -15,11 +15,13 @@ use std::collections::BTreeMap;
 use uuid::Uuid;
 use windmill::postgres::tenant::allow_configuration_signing_change;
 use windmill::postgres::tenant_reset::{
-    allow_tenant_reset, capture_rows, capture_tenant_row, claim_reset, get_baseline, lock_tenant,
-    purge_tenant_rows, restore_rows, restore_tenant_row, save_baseline, set_lifecycle_state,
-    tenant_tables, Baseline, LifecycleState, TableRole, NOT_RESTORED_TABLES, PRESERVED_TABLES,
+    allow_tenant_reset, capture_rows, capture_tenant_row, claim_application, claim_reset,
+    get_baseline, hold_against_reset, lock_tenant, purge_tenant_rows, restore_rows,
+    restore_tenant_row, save_baseline, set_lifecycle_state, tenant_tables, try_application_lock,
+    ApplicationClaim, Baseline, LifecycleState, TableRole, NOT_RESTORED_TABLES, PRESERVED_TABLES,
     TENANT_LOG_TABLES,
 };
+use windmill::services::tenant_reset::record_baseline;
 
 const TRUST: &str =
     r#"{"policy": "required", "package_roots": "", "staff_roots": "", "required_approvals": 2}"#;
@@ -595,4 +597,143 @@ async fn the_baseline_lock_waits_for_an_event_being_written() {
     let capturing = capture.transaction().await.unwrap();
     lock_tenant(&capturing, &target.to_string()).await.unwrap();
     capturing.rollback().await.unwrap();
+}
+
+/// A tenant on its own committed transaction, for tests across connections.
+async fn committed_tenant(pool: &deadpool_postgres::Pool, slug: &str) -> Uuid {
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let id = tenant(&tx, slug).await;
+    tx.commit().await.unwrap();
+    id
+}
+
+async fn finish_reset(pool: &deadpool_postgres::Pool, tenant: Uuid) {
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    set_lifecycle_state(&tx, &tenant.to_string(), LifecycleState::Active)
+        .await
+        .unwrap();
+    tx.commit().await.unwrap();
+}
+
+#[tokio::test]
+async fn an_apply_queued_behind_a_reset_does_not_start() {
+    let pool = schema::pool().await;
+    let target = committed_tenant(&pool, "queued").await;
+    let id = target.to_string();
+
+    // The reset's claim holds the Apply lock: an Apply can't start.
+    let mut resetter = pool.get().await.unwrap();
+    let claiming = resetter.transaction().await.unwrap();
+    lock_tenant(&claiming, &id).await.unwrap();
+    assert!(try_application_lock(&claiming, &id).await.unwrap());
+    claim_reset(&claiming, &id, false).await.unwrap();
+    let mut applier = pool.get().await.unwrap();
+    let applying = applier.transaction().await.unwrap();
+    assert_eq!(
+        claim_application(&applying, &id).await.unwrap(),
+        ApplicationClaim::Busy
+    );
+    applying.rollback().await.unwrap();
+
+    // The claim committed and the reset goes on without the lock: the
+    // queued Apply gets the lock and finds the reset.
+    claiming.commit().await.unwrap();
+    let applying = applier.transaction().await.unwrap();
+    assert_eq!(
+        claim_application(&applying, &id).await.unwrap(),
+        ApplicationClaim::Resetting
+    );
+    applying.rollback().await.unwrap();
+
+    finish_reset(&pool, target).await;
+    let applying = applier.transaction().await.unwrap();
+    assert_eq!(
+        claim_application(&applying, &id).await.unwrap(),
+        ApplicationClaim::Claimed
+    );
+    applying.rollback().await.unwrap();
+}
+
+#[tokio::test]
+async fn a_reset_claim_waits_for_a_ballot_being_accepted() {
+    let pool = schema::pool().await;
+    let target = committed_tenant(&pool, "voting").await;
+    let id = target.to_string();
+
+    // A ballot passed its status check and is not stored yet.
+    let mut voter = pool.get().await.unwrap();
+    let accepting = voter.transaction().await.unwrap();
+    assert!(!hold_against_reset(&accepting, &id).await.unwrap());
+
+    // The reset can't claim the tenant until it is stored.
+    let mut resetter = pool.get().await.unwrap();
+    let claiming = resetter.transaction().await.unwrap();
+    claiming
+        .batch_execute("SET LOCAL lock_timeout = '300ms'")
+        .await
+        .unwrap();
+    assert!(
+        claim_reset(&claiming, &id, false).await.is_err(),
+        "the reset claimed the tenant while a ballot was being accepted"
+    );
+    claiming.rollback().await.unwrap();
+
+    // Stored: the reset claims it, and the next ballot is refused.
+    accepting.commit().await.unwrap();
+    let claiming = resetter.transaction().await.unwrap();
+    claim_reset(&claiming, &id, false).await.unwrap();
+    claiming.commit().await.unwrap();
+    let accepting = voter.transaction().await.unwrap();
+    assert!(hold_against_reset(&accepting, &id).await.unwrap());
+    accepting.rollback().await.unwrap();
+
+    finish_reset(&pool, target).await;
+}
+
+#[tokio::test]
+async fn an_event_committed_during_the_baseline_capture_stops_it() {
+    let pool = schema::pool().await;
+    let target = committed_tenant(&pool, "capturing").await;
+    let id = target.to_string();
+
+    // An event insert passed the guard and has not committed yet.
+    let mut writer = pool.get().await.unwrap();
+    let writing = writer.transaction().await.unwrap();
+    writing
+        .execute(
+            "INSERT INTO sequent_backend.election_event (id, tenant_id, encryption_protocol) \
+             VALUES ($1, $2, 'RSA')",
+            &[&Uuid::new_v4(), &target],
+        )
+        .await
+        .unwrap();
+
+    // The capture's final check waits for it.
+    let capture = {
+        let pool = pool.clone();
+        let id = id.clone();
+        tokio::spawn(async move {
+            let mut client = pool.get().await.unwrap();
+            let tx = client.transaction().await.unwrap();
+            let saved = record_baseline(&tx, &id, json!({}), None).await.unwrap();
+            tx.commit().await.unwrap();
+            saved
+        })
+    };
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    assert!(
+        !capture.is_finished(),
+        "the capture did not wait for the event"
+    );
+    writing.commit().await.unwrap();
+
+    assert!(
+        !capture.await.unwrap(),
+        "a baseline was saved with an event"
+    );
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    assert!(get_baseline(&tx, &id).await.unwrap().is_none());
 }
