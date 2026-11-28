@@ -160,12 +160,7 @@ export async function finishOperationalApproval(
                 (setup && !registration.setupClient)
             )
                 return resume("reconcile")
-        } else if (
-            !secureUrl(issuer) ||
-            !secureUrl(graph) ||
-            graph.origin !== location.origin ||
-            graph.pathname !== "/v1/graphql"
-        )
+        } else if (!secureUrl(issuer) || !secureUrl(graph) || graph.origin !== location.origin)
             return resume("reconcile")
 
         const token = await silentNormalSession(
@@ -208,7 +203,7 @@ export async function finishOperationalApproval(
                 },
             }),
         })
-        if (!response.ok || (local && response.url !== graph.href)) return resume("reconcile")
+        if (!response.ok || response.url !== graph.href) return resume("reconcile")
         const body = record(await response.json())
         const returned = record(
             record(body.data)[
