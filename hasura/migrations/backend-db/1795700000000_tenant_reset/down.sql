@@ -3,7 +3,7 @@
 
 DO $$
 BEGIN
-    IF EXISTS (SELECT 1 FROM sequent_backend.tenant WHERE lifecycle_state <> 'ACTIVE') THEN
+    IF EXISTS (SELECT 1 FROM sequent_backend.tenant_reset_state) THEN
         RAISE EXCEPTION 'cannot downgrade while a tenant reset is unfinished';
     END IF;
 END;
@@ -18,16 +18,6 @@ DROP TRIGGER guard_publication_style_material_delete ON sequent_backend.ballot_s
 DROP TRIGGER guard_publication_style_material ON sequent_backend.ballot_style;
 CREATE TRIGGER guard_publication_style_material BEFORE INSERT OR DELETE OR UPDATE ON sequent_backend.ballot_style
     FOR EACH ROW EXECUTE FUNCTION sequent_backend.guard_publication_style_material();
-
-DROP TRIGGER cast_vote_seal_key_guard_delete ON sequent_backend.cast_vote_seal_key;
-DROP TRIGGER cast_vote_seal_key_guard ON sequent_backend.cast_vote_seal_key;
-CREATE TRIGGER cast_vote_seal_key_guard BEFORE DELETE OR UPDATE ON sequent_backend.cast_vote_seal_key
-    FOR EACH ROW EXECUTE FUNCTION sequent_backend.cast_vote_seal_guard();
-
-DROP TRIGGER cast_vote_sealing_required_guard_delete ON sequent_backend.cast_vote_sealing_required;
-DROP TRIGGER cast_vote_sealing_required_guard ON sequent_backend.cast_vote_sealing_required;
-CREATE TRIGGER cast_vote_sealing_required_guard BEFORE DELETE OR UPDATE ON sequent_backend.cast_vote_sealing_required
-    FOR EACH ROW EXECUTE FUNCTION sequent_backend.cast_vote_seal_guard();
 
 DROP TRIGGER ballot_box_seal_record_document_guard_delete ON sequent_backend.document;
 DROP TRIGGER ballot_box_seal_record_document_guard ON sequent_backend.document;
@@ -103,5 +93,6 @@ $$;
 
 DROP FUNCTION sequent_backend.tenant_reset_refuse_insert();
 DROP FUNCTION sequent_backend.tenant_reset_allowed(uuid);
+DROP FUNCTION sequent_backend.tenant_resetting(uuid);
 DROP TABLE sequent_backend.tenant_reset_baseline;
-ALTER TABLE sequent_backend.tenant DROP COLUMN lifecycle_state;
+DROP TABLE sequent_backend.tenant_reset_state;

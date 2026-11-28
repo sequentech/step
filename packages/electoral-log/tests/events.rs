@@ -216,6 +216,18 @@ async fn a_reset_drops_its_tenants_retired_databases_only() -> Result<()> {
         ..retired.clone()
     };
     assert!(databases.drop_retired(&claimed).await.is_err());
+    for malformed in [
+        RetiredEventDatabase {
+            tenant_id: "not-a-tenant".into(),
+            ..retired.clone()
+        },
+        RetiredEventDatabase {
+            election_event_id: "not-an-event".into(),
+            ..retired.clone()
+        },
+    ] {
+        assert!(databases.drop_retired(&malformed).await.is_err());
+    }
 
     databases.drop_retired(&retired).await?;
     let exists: bool = databases

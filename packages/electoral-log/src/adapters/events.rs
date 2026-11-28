@@ -1004,7 +1004,7 @@ impl EventDatabases {
             Self::release(client).await;
             return Ok(());
         };
-        let (owner, listed_event): (String, String) = (listed.try_get(0)?, listed.try_get(1)?);
+        let (owner, listed_event): (String, String) = (listed.get(0), listed.get(1));
         if owner != tenant || listed_event != event {
             Self::release(client).await;
             bail!(
@@ -1013,13 +1013,14 @@ impl EventDatabases {
             );
         }
         self.act_as_owner(&client).await?;
+        let failure = format!("Error dropping database {}", retired.database_name);
         client
             .batch_execute(&format!(
                 "DROP DATABASE IF EXISTS {} WITH (FORCE)",
                 quote_identifier(&retired.database_name)
             ))
             .await
-            .with_context(|| format!("Error dropping database {}", retired.database_name))?;
+            .context(failure)?;
         client
             .execute(
                 "DELETE FROM electoral_log_retired_events WHERE database_name = $1",

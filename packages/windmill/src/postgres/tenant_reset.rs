@@ -44,7 +44,12 @@ pub const PRESERVED_TABLES: &[(&str, &str)] = &[
         "operator-provisioned demo installation; a reset refuses while it names an event",
     ),
     ("tenant_reset_baseline", "the state a reset returns to"),
+    ("tenant_reset_state", "marks the reset in progress"),
 ];
+
+/// Cast-vote sealing rows are removed with their election event (ON DELETE
+/// CASCADE), which is the only way their guard lets them go.
+const DELETED_WITH_THEIR_EVENT: &[&str] = &["cast_vote_sealing_required", "cast_vote_seal_key"];
 
 /// The tenant's own log is kept: only its election-event rows go, with the
 /// events. The reset adds its own entry to it.
@@ -240,42 +245,38 @@ pub enum LifecycleState {
     Resetting,
 }
 
+/// RESETTING while the tenant has a `tenant_reset_state` row.
 pub async fn lifecycle_state(tx: &Transaction<'_>, tenant_id: &str) -> Result<LifecycleState> {
     let tenant = parse_uuid_v4(tenant_id)?;
     let row = tx
         .query_opt(
-            "SELECT lifecycle_state FROM sequent_backend.tenant WHERE id = $1",
+            "SELECT EXISTS (SELECT 1 FROM sequent_backend.tenant_reset_state r \
+             WHERE r.tenant_id = t.id) FROM sequent_backend.tenant t WHERE t.id = $1",
             &[&tenant],
         )
         .await
         .context("Error reading the tenant lifecycle state")?
         .ok_or_else(|| anyhow!("tenant {tenant} not found"))?;
-    match row.get::<_, String>(0).as_str() {
-        "ACTIVE" => Ok(LifecycleState::Active),
-        "RESETTING" => Ok(LifecycleState::Resetting),
-        other => Err(anyhow!("unknown tenant lifecycle state {other}")),
-    }
+    Ok(if row.get::<_, bool>(0) {
+        LifecycleState::Resetting
+    } else {
+        LifecycleState::Active
+    })
 }
 
 /// Moves the tenant to RESETTING, from ACTIVE or (a retry) RESETTING, and
 /// locks its row until the transaction ends.
 pub async fn claim_reset(tx: &Transaction<'_>, tenant_id: &str) -> Result<LifecycleState> {
-    let before = {
-        let tenant = parse_uuid_v4(tenant_id)?;
-        tx.query_opt(
-            "SELECT lifecycle_state FROM sequent_backend.tenant WHERE id = $1 FOR UPDATE",
-            &[&tenant],
-        )
-        .await?
-        .ok_or_else(|| anyhow!("tenant {tenant} not found"))?
-        .get::<_, String>(0)
-    };
+    let tenant = parse_uuid_v4(tenant_id)?;
+    tx.query_opt(
+        "SELECT 1 FROM sequent_backend.tenant WHERE id = $1 FOR UPDATE",
+        &[&tenant],
+    )
+    .await?
+    .ok_or_else(|| anyhow!("tenant {tenant} not found"))?;
+    let before = lifecycle_state(tx, tenant_id).await?;
     set_lifecycle_state(tx, tenant_id, LifecycleState::Resetting).await?;
-    Ok(if before == "RESETTING" {
-        LifecycleState::Resetting
-    } else {
-        LifecycleState::Active
-    })
+    Ok(before)
 }
 
 pub async fn set_lifecycle_state(
@@ -284,16 +285,18 @@ pub async fn set_lifecycle_state(
     state: LifecycleState,
 ) -> Result<()> {
     let tenant = parse_uuid_v4(tenant_id)?;
-    let value = match state {
-        LifecycleState::Active => "ACTIVE",
-        LifecycleState::Resetting => "RESETTING",
+    let sql = match state {
+        LifecycleState::Active => {
+            "DELETE FROM sequent_backend.tenant_reset_state WHERE tenant_id = $1"
+        }
+        LifecycleState::Resetting => {
+            "INSERT INTO sequent_backend.tenant_reset_state (tenant_id) VALUES ($1) \
+             ON CONFLICT (tenant_id) DO NOTHING"
+        }
     };
-    tx.execute(
-        "UPDATE sequent_backend.tenant SET lifecycle_state = $2 WHERE id = $1",
-        &[&tenant, &value],
-    )
-    .await
-    .context("Error setting the tenant lifecycle state")?;
+    tx.execute(sql, &[&tenant])
+        .await
+        .context("Error setting the tenant lifecycle state")?;
     Ok(())
 }
 
@@ -492,6 +495,7 @@ pub async fn purge_tenant_rows(
         let name = quote_ident(&table.name);
         let deleted = match table.role {
             TableRole::Preserved => continue,
+            _ if DELETED_WITH_THEIR_EVENT.contains(&table.name.as_str()) => continue,
             TableRole::TenantLog if !table.has_event => continue,
             TableRole::TenantLog => {
                 let sql = format!(

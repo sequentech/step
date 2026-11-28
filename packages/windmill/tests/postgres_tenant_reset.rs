@@ -114,6 +114,13 @@ async fn import(tx: &Transaction<'_>, tenant: Uuid) -> Uuid {
     )
     .await
     .unwrap();
+    // Its guard lets a sealing row go only with its event.
+    tx.execute(
+        "INSERT INTO sequent_backend.cast_vote_sealing_required (tenant_id, election_event_id) VALUES ($1, $2)",
+        &[&tenant, &event],
+    )
+    .await
+    .unwrap();
     tx.execute(
         "INSERT INTO sequent_backend.configuration_package (tenant_id, election_event_id, external_id, \
          revision, manifest_sha256, manifest, signer_subject, signer_serial, signer_fingerprint, approvers) \
@@ -376,7 +383,8 @@ async fn a_reset_returns_to_the_baseline() {
 
     let row = tx
         .query_one(
-            "SELECT annotations, settings, lifecycle_state FROM sequent_backend.tenant WHERE id = $1",
+            "SELECT annotations, settings, EXISTS (SELECT 1 FROM sequent_backend.tenant_reset_state \
+             WHERE tenant_id = $1) FROM sequent_backend.tenant WHERE id = $1",
             &[&target],
         )
         .await
@@ -386,7 +394,16 @@ async fn a_reset_returns_to_the_baseline() {
     assert_eq!(settings["theme"], "dark");
     assert!(settings.get("imported").is_none());
     assert_eq!(settings["configuration_signing"]["required_approvals"], 3);
-    assert_eq!(row.get::<_, String>(2), "ACTIVE");
+    assert!(!row.get::<_, bool>(2), "the tenant is still resetting");
+    assert_eq!(
+        count(
+            &tx,
+            "SELECT count(*) FROM sequent_backend.cast_vote_sealing_required WHERE tenant_id = $1",
+            target
+        )
+        .await,
+        0
+    );
 
     assert_eq!(
         snapshot(&tx, other).await,

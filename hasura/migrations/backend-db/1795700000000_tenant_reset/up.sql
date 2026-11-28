@@ -8,7 +8,7 @@
 -- transaction only (set_config(..., true)), as the configuration_signing
 -- setter does with its own setting.
 --
--- 1. tenant.lifecycle_state: RESETTING from the moment a reset claims the
+-- 1. tenant_reset_state: RESETTING from the moment a reset claims the
 --    tenant until it has finished. A failed reset stays RESETTING and is
 --    retried; it is never rolled back.
 -- 2. While a tenant is RESETTING, no row of it can be inserted, by any
@@ -19,13 +19,21 @@
 --    append-only monitoring and plugin history, initialization report
 --    coverage) let the reset's own transaction delete that tenant's rows,
 --    and only that tenant's. Their INSERT and UPDATE checks are unchanged.
+--    Cast-vote sealing rows keep their guard as it is: it already lets
+--    them go with their election event, which the reset deletes. They and
+--    the demo installation tables also get no insert refusal (2.), since
+--    migration 1610 checks their exact trigger sets.
 --    The deployment's operational signing policy, its required tenants, the
 --    operator-provisioned setup installation, demo installation and local
 --    initialize profile get no exception: a reset keeps them (or refuses).
 
-ALTER TABLE sequent_backend.tenant
-    ADD COLUMN lifecycle_state text NOT NULL DEFAULT 'ACTIVE'
-    CONSTRAINT tenant_lifecycle_state_check CHECK (lifecycle_state IN ('ACTIVE', 'RESETTING'));
+-- A tenant is RESETTING while it has a row here. A table of its own, so the
+-- tenant table and its rows stay as they are.
+CREATE TABLE sequent_backend.tenant_reset_state (
+    tenant_id uuid PRIMARY KEY REFERENCES sequent_backend.tenant(id) ON DELETE CASCADE,
+    since timestamptz NOT NULL DEFAULT now()
+);
+REVOKE ALL ON sequent_backend.tenant_reset_state FROM PUBLIC;
 
 -- What the tenant was before its first configuration package was applied:
 -- its tenant-level rows and its tenant realm's users, groups and texts. A
@@ -49,6 +57,21 @@ AS $$
     SELECT coalesce(current_setting('sequent.tenant_reset', true), '') = tenant::text;
 $$;
 
+-- Whether the tenant is RESETTING. It runs as its owner, so the trigger
+-- below works for every writer, including the narrow roles that have no
+-- access to tenant_reset_state.
+CREATE FUNCTION sequent_backend.tenant_resetting(tenant uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog
+AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM sequent_backend.tenant_reset_state WHERE tenant_id = tenant
+    );
+$$;
+
 CREATE FUNCTION sequent_backend.tenant_reset_refuse_insert()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -59,10 +82,8 @@ BEGIN
     IF TG_TABLE_NAME = 'tasks_execution' AND to_jsonb(NEW) ->> 'type' = 'RESET_TENANT' THEN
         RETURN NEW;
     END IF;
-    IF EXISTS (
-        SELECT 1 FROM sequent_backend.tenant
-        WHERE id = NEW.tenant_id AND lifecycle_state = 'RESETTING'
-    ) AND NOT sequent_backend.tenant_reset_allowed(NEW.tenant_id) THEN
+    IF sequent_backend.tenant_resetting(NEW.tenant_id)
+        AND NOT sequent_backend.tenant_reset_allowed(NEW.tenant_id) THEN
         RAISE EXCEPTION 'tenant % is being reset', NEW.tenant_id
             USING ERRCODE = 'object_not_in_prerequisite_state';
     END IF;
@@ -81,7 +102,10 @@ BEGIN
         JOIN pg_attribute a ON a.attrelid = c.oid AND a.attname = 'tenant_id'
             AND NOT a.attisdropped
         WHERE n.nspname = 'sequent_backend' AND c.relkind IN ('r', 'p')
-            AND c.relname NOT IN ('tenant', 'tenant_reset_baseline')
+            AND c.relname NOT IN ('tenant', 'tenant_reset_baseline', 'tenant_reset_state',
+                -- Migration 1610 fixes their trigger sets; see 3. above.
+                'cast_vote_sealing_required', 'cast_vote_seal_key',
+                'operational_signing_demo_install', 'operational_signing_demo_scope')
         ORDER BY c.relname
     LOOP
         EXECUTE format(
@@ -108,20 +132,6 @@ CREATE TRIGGER guard_publication_style_material BEFORE INSERT OR UPDATE ON seque
 CREATE TRIGGER guard_publication_style_material_delete BEFORE DELETE ON sequent_backend.ballot_style
     FOR EACH ROW WHEN (NOT sequent_backend.tenant_reset_allowed(OLD.tenant_id))
     EXECUTE FUNCTION sequent_backend.guard_publication_style_material();
-
-DROP TRIGGER cast_vote_seal_key_guard ON sequent_backend.cast_vote_seal_key;
-CREATE TRIGGER cast_vote_seal_key_guard BEFORE UPDATE ON sequent_backend.cast_vote_seal_key
-    FOR EACH ROW EXECUTE FUNCTION sequent_backend.cast_vote_seal_guard();
-CREATE TRIGGER cast_vote_seal_key_guard_delete BEFORE DELETE ON sequent_backend.cast_vote_seal_key
-    FOR EACH ROW WHEN (NOT sequent_backend.tenant_reset_allowed(OLD.tenant_id))
-    EXECUTE FUNCTION sequent_backend.cast_vote_seal_guard();
-
-DROP TRIGGER cast_vote_sealing_required_guard ON sequent_backend.cast_vote_sealing_required;
-CREATE TRIGGER cast_vote_sealing_required_guard BEFORE UPDATE ON sequent_backend.cast_vote_sealing_required
-    FOR EACH ROW EXECUTE FUNCTION sequent_backend.cast_vote_seal_guard();
-CREATE TRIGGER cast_vote_sealing_required_guard_delete BEFORE DELETE ON sequent_backend.cast_vote_sealing_required
-    FOR EACH ROW WHEN (NOT sequent_backend.tenant_reset_allowed(OLD.tenant_id))
-    EXECUTE FUNCTION sequent_backend.cast_vote_seal_guard();
 
 DROP TRIGGER ballot_box_seal_record_document_guard ON sequent_backend.document;
 CREATE TRIGGER ballot_box_seal_record_document_guard BEFORE UPDATE ON sequent_backend.document
