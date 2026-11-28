@@ -214,6 +214,8 @@ fn build_application_with(
                 routes::insert_election_event::import_election_event_f,
                 routes::delete_election_event::delete_election_event_f,
                 routes::delete_tenant::delete_tenant_f,
+                routes::reset_tenant::tenant_reset_preview,
+                routes::reset_tenant::reset_tenant_f,
                 routes::import_tenant_config::import_tenant_config_route,
                 routes::apply_configuration_package::apply_configuration_package_route,
                 routes::export_tenant_config::export_tenant_config_route,

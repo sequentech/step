@@ -35,7 +35,7 @@ use tracing::{error, info, instrument};
 
 /// The permissions the migration adds, with the English label Users and
 /// Roles shows for each, which becomes the role's description.
-pub const MIGRATED_PERMISSIONS: [(Permissions, &str); 29] = [
+pub const MIGRATED_PERMISSIONS: [(Permissions, &str); 30] = [
     (
         Permissions::FORENSIC_READ,
         "Read isolated forensic network data",
@@ -134,6 +134,10 @@ pub const MIGRATED_PERMISSIONS: [(Permissions, &str); 29] = [
         Permissions::MESSAGING_CONFIG_READ,
         "Read election event messaging",
     ),
+    (
+        Permissions::TENANT_RESET,
+        "Reset the tenant to before its first configuration package",
+    ),
 ];
 
 /// Roles each template group receives when upgrading an existing realm;
@@ -147,6 +151,7 @@ pub const TEMPLATE_GROUP_GRANTS: [(&str, &[Permissions]); 2] = [
             Permissions::MESSAGING_CONFIG_WRITE,
             Permissions::MESSAGING_CONFIG_READ,
             Permissions::READINESS_CHECK,
+            Permissions::TENANT_RESET,
         ],
     ),
     (

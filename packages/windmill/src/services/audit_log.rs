@@ -81,6 +81,9 @@ pub enum AdminAction {
     ResetPassword,
     Grant,
     Revoke,
+    /// A tenant returned to what it was before its first configuration
+    /// package.
+    Reset,
 }
 
 impl AdminAction {
@@ -99,6 +102,7 @@ impl AdminAction {
             Self::ResetPassword => "Reset the password of",
             Self::Grant => "Granted",
             Self::Revoke => "Revoked",
+            Self::Reset => "Reset",
         }
     }
 }

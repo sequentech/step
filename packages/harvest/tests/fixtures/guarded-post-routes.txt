@@ -169,6 +169,7 @@
 /refresh-results-publication-index
 /reject-application-email-in-use
 /render-document-pdf
+/reset-tenant
 /resolve-results-publication
 /resolve-voter-pseudonym
 /authorize-tally-custody
@@ -199,6 +200,7 @@
 /task-queues/overview
 /task-queues/query
 /task-queues/throughput
+/tenant-reset-preview
 /update-election-voting-status
 /update-event-voting-status
 /update-realm-attributes

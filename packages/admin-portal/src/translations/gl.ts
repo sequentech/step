@@ -71,7 +71,55 @@ const galegoTranslation: TranslationType = {
                 "no-tenant": "O ficheiro debe indicar o seu tenant (tenant_id).",
             },
         },
-        configurationPackage: englishTranslation.translations.configurationPackage,
+        configurationPackage: {
+            ...englishTranslation.translations.configurationPackage,
+            reset: {
+                title: "Zona de perigo",
+                explain:
+                    "Restablecer devolve este inquilino a como estaba antes do seu primeiro paquete de configuración: elimínanse os seus eventos electorais, votantes, axustes importados, contas de persoal e os ficheiros que usan, para poder importar de novo o paquete e a súa lista de asinantes. Consérvanse o rexistro propio do inquilino e a constancia deste restablecemento.",
+                unfinished:
+                    "Un restablecemento deste inquilino non rematou. O inquilino non admite cambios ata que remate: execútao de novo para rematalo.",
+                noBaselineHint:
+                    "O restablecemento está dispoñible para inquilinos cuxo primeiro paquete de configuración se subiu despois de introducir esta función.",
+                open: "Restablecer inquilino…",
+                finish: "Rematar o restablecemento…",
+                dialogTitle: "Restablecer o inquilino",
+                loading: "Comprobando que eliminaría un restablecemento…",
+                running:
+                    "Restablecendo o inquilino. Pode tardar uns minutos; mantén esta xanela aberta para ver o resultado.",
+                succeeded:
+                    "O inquilino restableceuse. Podes importar de novo o paquete de configuración e a súa lista de asinantes.",
+                failed: "O restablecemento non rematou. O inquilino segue bloqueado ata que remate un: execútao de novo.",
+                willDelete:
+                    "Eliminaranse {{events}} evento(s) electoral(is) e {{rows}} rexistro(s), cos seus votantes, papeletas, rexistros, ficheiros e dominios de acceso. Non se pode desfacer.",
+                keeps: "Consérvase: o propio inquilino, o seu rexistro, a súa configuración de sinatura e as contas de persoal e axustes que tiña antes do seu primeiro paquete de configuración.",
+                freshLogin:
+                    "Inicia sesión de novo para confirmar a túa identidade antes de restablecer.",
+                signIn: "Iniciar sesión de novo",
+                erasePhrase:
+                    "Emitíronse ou seláronse papeletas. Para borralas tamén, escribe {{phrase}}",
+                confirmLabel: "Escribe {{slug}} para confirmar",
+                confirm: "Restablecer inquilino",
+                cancel: "Cancelar",
+                close: "Pechar",
+                noTask: "O servidor non devolveu a tarefa de restablecemento.",
+                refusal: {
+                    disabled: "Os restablecementos están desactivados neste despregamento.",
+                    super_admin_tenant:
+                        "O inquilino de administración non se pode restablecer mentres existan outros inquilinos.",
+                    no_baseline:
+                        "O primeiro paquete de configuración deste inquilino importouse antes de que existisen os restablecementos, así que se descoñece como estaba antes.",
+                    nothing_to_reset: "Aínda non se importou nada neste inquilino.",
+                    task_running: "Agarda a que remate a tarefa en curso: {{name}}.",
+                    voting_open: "A votación está aberta en {{event}}. Péchaa primeiro.",
+                    locked_down: "{{event}} está bloqueado.",
+                    ballots:
+                        "Emitíronse ({{cast}}) ou seláronse ({{sealed}}) papeletas. Este despregamento non permite borralas.",
+                    ballots_overridable:
+                        "Emitíronse ({{cast}}) ou seláronse ({{sealed}}) papeletas. Escribe a frase de abaixo para borralas tamén.",
+                },
+            },
+        },
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Pechar",
@@ -2479,6 +2527,8 @@ const galegoTranslation: TranslationType = {
                 "tenant-read": "Leer Inquilino",
                 "tenant-write": "Editar Inquilino",
                 "tenant-delete": "Eliminar Inquilino",
+                "tenant-reset":
+                    "Restablecer o inquilino a antes do seu primeiro paquete de configuración",
                 "election-event-create": "Crear Evento Electoral",
                 "election-event-read": "Leer Evento Electoral",
                 "election-event-write": "Editar Evento Electoral",

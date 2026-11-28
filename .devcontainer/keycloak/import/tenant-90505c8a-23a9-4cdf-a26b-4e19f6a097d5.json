@@ -2394,6 +2394,13 @@
         "composite": false,
         "clientRole": false,
         "attributes": {}
+      },
+      {
+        "name": "tenant-reset",
+        "description": "Reset the tenant to before its first configuration package",
+        "composite": false,
+        "clientRole": false,
+        "attributes": {}
       }
     ],
     "client": {
@@ -2859,6 +2866,7 @@
         "election-event-areas-tab",
         "tenant-create",
         "tenant-delete",
+        "tenant-reset",
         "communication-template-read",
         "tenant-write",
         "election-event-logs-tab",

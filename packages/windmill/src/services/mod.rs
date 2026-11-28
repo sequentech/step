@@ -99,6 +99,7 @@ pub mod tasks_execution;
 pub mod tasks_semaphore;
 pub mod temp_path;
 pub mod tenant_log;
+pub mod tenant_reset;
 pub mod time_zone_links;
 pub mod time_zones;
 pub mod to_result;

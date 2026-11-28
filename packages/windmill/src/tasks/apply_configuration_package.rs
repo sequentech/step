@@ -554,6 +554,14 @@ async fn execute(
             "another configuration package application on this tenant is running; wait for it to finish"
         )));
     }
+    // What a reset returns the tenant to, if its upload did not record it:
+    // without it, this import could never be undone.
+    if crate::services::tenant_reset::enabled() {
+        crate::services::tenant_reset::ensure_baseline(&body.tenant_id, Some(&task_execution.id))
+            .await
+            .context("recording the tenant's reset baseline")
+            .map_err(unclaimed)?;
+    }
     let task_execution =
         get_task_by_id_with_transaction(&claim, &body.tenant_id, &task_execution.id)
             .await

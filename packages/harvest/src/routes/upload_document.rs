@@ -68,6 +68,20 @@ pub async fn get_upload_url(
                 "Package staging is private and tenant-scoped".into(),
             ));
         }
+        // What a reset returns the tenant to, before its first package is
+        // staged. Applying records it too, so a failure here only warns.
+        if windmill::services::tenant_reset::enabled() {
+            if let Err(err) = windmill::services::tenant_reset::ensure_baseline(
+                &claims.hasura_claims.tenant_id,
+                None,
+            )
+            .await
+            {
+                tracing::warn!(
+                    "Could not record the tenant's reset baseline: {err:?}"
+                );
+            }
+        }
     }
 
     let mut hasura_db_client: DbClient =

@@ -54,6 +54,7 @@ import {
 import ElectionHeader from "@/components/ElectionHeader"
 import {ImportScreen} from "@/components/election-event/import-data/ImportScreen"
 import {ArchitectApprovalPolicy} from "./ArchitectApprovalPolicy"
+import {TenantResetCard} from "./TenantResetCard"
 import {
     ArchitectSignerRoster,
     RosterStatus,
@@ -1894,6 +1895,8 @@ const SettingsConfigurationPackageForScope: React.FC<{
                     </Button>
                 </DialogActions>
             </Dialog>
+
+            <TenantResetCard tenantId={tenantId} />
         </Box>
     )
 }

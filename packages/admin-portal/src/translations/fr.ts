@@ -75,7 +75,55 @@ const frenchTranslation: TranslationType = {
                 "no-tenant": "Le fichier doit indiquer son tenant (tenant_id).",
             },
         },
-        configurationPackage: englishTranslation.translations.configurationPackage,
+        configurationPackage: {
+            ...englishTranslation.translations.configurationPackage,
+            reset: {
+                title: "Zone de danger",
+                explain:
+                    "La réinitialisation ramène ce locataire à son état d’avant le premier paquet de configuration : ses événements électoraux, électeurs, paramètres importés, comptes du personnel et les fichiers qu’ils utilisent sont supprimés, afin de pouvoir importer à nouveau le paquet et sa liste de signataires. Le journal propre du locataire et la trace de cette réinitialisation sont conservés.",
+                unfinished:
+                    "Une réinitialisation de ce locataire ne s’est pas terminée. Le locataire n’accepte aucune modification tant qu’elle n’est pas terminée : relancez-la pour la terminer.",
+                noBaselineHint:
+                    "La réinitialisation est disponible pour les locataires dont le premier paquet de configuration a été téléversé après l’introduction de cette fonction.",
+                open: "Réinitialiser le locataire…",
+                finish: "Terminer la réinitialisation…",
+                dialogTitle: "Réinitialiser le locataire",
+                loading: "Vérification de ce qu’une réinitialisation supprimerait…",
+                running:
+                    "Réinitialisation du locataire. Cela peut prendre quelques minutes ; gardez cette fenêtre ouverte pour voir le résultat.",
+                succeeded:
+                    "Le locataire a été réinitialisé. Vous pouvez importer à nouveau le paquet de configuration et sa liste de signataires.",
+                failed: "La réinitialisation ne s’est pas terminée. Le locataire reste verrouillé jusqu’à ce qu’une réinitialisation se termine : relancez-la.",
+                willDelete:
+                    "Cela supprime {{events}} événement(s) électoral(aux) et {{rows}} enregistrement(s), avec leurs électeurs, bulletins, journaux, fichiers et domaines de connexion. C’est irréversible.",
+                keeps: "Conservés : le locataire lui-même, son journal, sa configuration de signature et les comptes du personnel et paramètres qu’il avait avant son premier paquet de configuration.",
+                freshLogin:
+                    "Reconnectez-vous pour confirmer votre identité avant de réinitialiser.",
+                signIn: "Se reconnecter",
+                erasePhrase:
+                    "Des bulletins ont été déposés ou scellés. Pour les effacer aussi, saisissez {{phrase}}",
+                confirmLabel: "Saisissez {{slug}} pour confirmer",
+                confirm: "Réinitialiser le locataire",
+                cancel: "Annuler",
+                close: "Fermer",
+                noTask: "Le serveur n’a pas renvoyé la tâche de réinitialisation.",
+                refusal: {
+                    disabled: "Les réinitialisations sont désactivées dans ce déploiement.",
+                    super_admin_tenant:
+                        "Le locataire d’administration ne peut pas être réinitialisé tant que d’autres locataires existent.",
+                    no_baseline:
+                        "Le premier paquet de configuration de ce locataire a été importé avant l’existence des réinitialisations ; son état antérieur est donc inconnu.",
+                    nothing_to_reset: "Rien n’a encore été importé dans ce locataire.",
+                    task_running: "Attendez la fin de la tâche en cours : {{name}}.",
+                    voting_open: "Le vote est ouvert dans {{event}}. Fermez-le d’abord.",
+                    locked_down: "{{event}} est verrouillé.",
+                    ballots:
+                        "Des bulletins ont été déposés ({{cast}}) ou scellés ({{sealed}}). Ce déploiement ne permet pas de les effacer.",
+                    ballots_overridable:
+                        "Des bulletins ont été déposés ({{cast}}) ou scellés ({{sealed}}). Saisissez la phrase ci-dessous pour les effacer aussi.",
+                },
+            },
+        },
         ballotPrivacy: englishTranslation.translations.ballotPrivacy,
         readiness: {
             close: "Fermer",
@@ -2499,6 +2547,8 @@ const frenchTranslation: TranslationType = {
                 "tenant-read": "Lire Locataire",
                 "tenant-write": "Éditer Locataire",
                 "tenant-delete": "Supprimer un locataire",
+                "tenant-reset":
+                    "Réinitialiser le locataire à son état d’avant le premier paquet de configuration",
                 "election-event-create": "Créer Événement Électoral",
                 "election-event-read": "Lire Événement Électoral",
                 "election-event-write": "Éditer Événement Électoral",

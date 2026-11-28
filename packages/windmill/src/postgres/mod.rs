@@ -56,6 +56,7 @@ pub mod tally_sheet_import;
 pub mod tasks_execution;
 pub mod template;
 pub mod tenant;
+pub mod tenant_reset;
 pub mod trusted_write;
 pub mod trustee;
 

@@ -332,6 +332,18 @@ type Mutation {
     delete_tenant(tenant_id: String!): DeleteTenant
 }
 
+type Query {
+    tenant_reset_preview(tenant_id: String!): jsonb!
+}
+
+type Mutation {
+    reset_tenant(
+        tenant_id: String!
+        confirmation: String!
+        erase_ballots_confirmation: String
+    ): jsonb!
+}
+
 type Mutation {
     delete_permission(
         tenant_id: String!

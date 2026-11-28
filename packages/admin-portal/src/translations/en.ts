@@ -80,6 +80,50 @@ const englishTranslation = {
             },
         },
         configurationPackage: {
+            reset: {
+                title: "Danger zone",
+                explain:
+                    "Reset returns this tenant to what it was before its first configuration package: its election events, voters, imported settings, staff accounts and the files they use are deleted, so the package and its roster can be imported again. The tenant's own log and the record of this reset are kept.",
+                unfinished:
+                    "A reset of this tenant did not finish. The tenant takes no changes until it does: run the reset again to finish it.",
+                noBaselineHint:
+                    "Reset is available for tenants whose first configuration package was uploaded after resets were introduced.",
+                open: "Reset tenant…",
+                finish: "Finish the reset…",
+                dialogTitle: "Reset the tenant",
+                loading: "Checking what a reset would delete…",
+                running:
+                    "Resetting the tenant. This can take a few minutes; keep this window open to see the result.",
+                succeeded:
+                    "The tenant was reset. You can import the configuration package and its roster again.",
+                failed: "The reset did not finish. The tenant stays locked until a reset finishes: run it again.",
+                willDelete:
+                    "This deletes {{events}} election event(s) and {{rows}} stored record(s), with their voters, ballots, logs, files and sign-in realms. It cannot be undone.",
+                keeps: "Kept: the tenant itself, its own log, its signing setup and the staff accounts and settings it had before its first configuration package.",
+                freshLogin: "Sign in again to confirm it is you before resetting.",
+                signIn: "Sign in again",
+                erasePhrase: "Ballots were cast or sealed. To erase them too, type {{phrase}}",
+                confirmLabel: "Type {{slug}} to confirm",
+                confirm: "Reset tenant",
+                cancel: "Cancel",
+                close: "Close",
+                noTask: "The server did not return the reset task.",
+                refusal: {
+                    disabled: "Resets are turned off in this deployment.",
+                    super_admin_tenant:
+                        "The administration tenant can't be reset while other tenants exist.",
+                    no_baseline:
+                        "This tenant's first configuration package was imported before resets existed, so what it was before is unknown.",
+                    nothing_to_reset: "Nothing was imported into this tenant yet.",
+                    task_running: "Wait for the running task to finish: {{name}}.",
+                    voting_open: "Voting is open in {{event}}. Close it first.",
+                    locked_down: "{{event}} is locked down.",
+                    ballots:
+                        "Ballots were cast ({{cast}}) or sealed ({{sealed}}). This deployment doesn't allow erasing them.",
+                    ballots_overridable:
+                        "Ballots were cast ({{cast}}) or sealed ({{sealed}}). Type the phrase below to erase them too.",
+                },
+            },
             sectionResults: "Section results",
             hub: {
                 recovery: {
@@ -2986,6 +3030,7 @@ const englishTranslation = {
                 "tenant-read": "Read Tenant",
                 "tenant-write": "Edit Tenant",
                 "tenant-delete": "Delete Tenant",
+                "tenant-reset": "Reset the tenant to before its first configuration package",
                 "election-event-create": "Create Election Event",
                 "election-event-read": "Read Election Event",
                 "election-event-write": "Edit Election Event",

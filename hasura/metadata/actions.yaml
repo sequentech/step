@@ -742,6 +742,35 @@ actions:
       permissions:
           - role: admin-user
       comment: delete_tenant
+    - name: tenant_reset_preview
+      definition:
+          kind: ""
+          type: query
+          handler: http://{{HARVEST_DOMAIN}}/tenant-reset-preview
+          forward_client_headers: true
+          timeout: 60
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tenant-reset
+    - name: reset_tenant
+      definition:
+          kind: synchronous
+          handler: http://{{HARVEST_DOMAIN}}/reset-tenant
+          forward_client_headers: true
+          timeout: 60
+          request_transform:
+              body:
+                  action: transform
+                  template: "{{$body.input}}"
+              template_engine: Kriti
+              version: 2
+      permissions:
+          - role: tenant-reset
     - name: delete_permission
       definition:
           kind: synchronous

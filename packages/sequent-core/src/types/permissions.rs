@@ -30,6 +30,10 @@ pub enum Permissions {
     TENANT_WRITE,
     #[strum(serialize = "tenant-delete")]
     TENANT_DELETE,
+    /// Return the tenant to what it was before its first configuration
+    /// package.
+    #[strum(serialize = "tenant-reset")]
+    TENANT_RESET,
     #[strum(serialize = "election-event-create")]
     ELECTION_EVENT_CREATE,
     #[strum(serialize = "election-event-read")]
