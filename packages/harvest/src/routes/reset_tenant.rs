@@ -165,12 +165,9 @@ pub async fn tenant_reset_preview(
     claims: JwtClaims,
 ) -> Result<Json<TenantResetPreviewOutput>, RouteError> {
     let tenant_id = own_tenant(&claims, &body.tenant_id)?;
-    let (slug, shared_super_admin) = tenant_facts(&tenant_id).await?;
-    let mut preview =
-        tenant_reset::preview(&tenant_id).await.map_err(internal)?;
-    if shared_super_admin {
-        preview.refusals.push(Refusal::SuperAdminTenant);
-    }
+    let (slug, _) = tenant_facts(&tenant_id).await?;
+    // Its refusals include the super-admin one.
+    let preview = tenant_reset::preview(&tenant_id).await.map_err(internal)?;
     Ok(Json(TenantResetPreviewOutput {
         preview,
         slug,

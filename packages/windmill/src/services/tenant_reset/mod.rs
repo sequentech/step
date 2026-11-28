@@ -25,8 +25,9 @@ pub mod realm;
 
 use crate::postgres::tenant_reset::{
     allow_tenant_reset, capture_rows, capture_tenant_row, claim_reset, count_tenant_rows,
-    get_baseline, has_baseline, has_imported, lifecycle_state, purge_tenant_rows, restore_rows,
-    restore_tenant_row, save_baseline, set_lifecycle_state, Baseline, LifecycleState, TableCounts,
+    get_baseline, has_baseline, has_imported, lifecycle_state, lock_tenant, other_tenants_exist,
+    purge_tenant_rows, restore_rows, restore_tenant_row, save_baseline, set_lifecycle_state,
+    try_application_lock, Baseline, LifecycleState, TableCounts,
 };
 use crate::services::audit_log::{stage, AdminAction, AuditActor, AuditObject};
 use crate::services::database::get_hasura_pool;
@@ -34,10 +35,13 @@ use crate::services::delete_election_event::{
     delete_election_event_related_documents, delete_keycloak_realm,
 };
 use crate::services::electoral_log_board::get_event_databases;
+use crate::services::serialize_tasks_logs::append_general_log;
 use crate::services::task_audit;
 use anyhow::{anyhow, Context, Result};
 use deadpool_postgres::Transaction;
-use realm::{capture_realm, event_realms, restore_realm, RealmBaseline, RealmRestoreSummary};
+use realm::{
+    capture_realm, check_caller, event_realms, restore_realm, RealmBaseline, RealmRestoreSummary,
+};
 use sequent_core::services::keycloak::{get_event_realm, get_tenant_realm, KeycloakAdminClient};
 use sequent_core::services::s3;
 use sequent_core::types::hasura::core::TasksExecution;
@@ -79,7 +83,8 @@ pub enum Refusal {
     /// the admins of every other tenant.
     SuperAdminTenant,
     /// The tenant has no baseline: its first package was imported before
-    /// resets existed, so what it was before is unknown.
+    /// resets existed, or while it had an election event, which a baseline
+    /// can't hold. What it was before is unknown.
     NoBaseline,
     /// Nothing was imported since the baseline.
     NothingToReset,
@@ -215,9 +220,45 @@ async fn cast_ballots(tenant_id: &str) -> Result<u64> {
     Ok(cast)
 }
 
+/// Whether the tenant is the deployment's super-admin tenant, whose realm
+/// holds the admins of every other tenant.
+pub fn is_super_admin_tenant(tenant_id: &str) -> bool {
+    let tenant = Uuid::parse_str(tenant_id).ok();
+    std::env::var("SUPER_ADMIN_TENANT_ID")
+        .ok()
+        .and_then(|id| Uuid::parse_str(&id).ok())
+        .is_some_and(|id| Some(id) == tenant)
+}
+
+/// Waits until no vote of the tenant can still be on its way into a
+/// ballot box. A vote is accepted under its event's activity mark, written
+/// at most `ACTIVITY_MARK_INTERVAL` before it, and the sequencer trusts a
+/// mark older than `ACTIVITY_CLEAR_MARGIN` to cover no vote in flight.
+async fn settle_ballot_activity(tenant_id: &str) -> Result<()> {
+    use electoral_log::adapters::events::{ACTIVITY_CLEAR_MARGIN, ACTIVITY_MARK_INTERVAL};
+    let tenant = Uuid::parse_str(tenant_id)?;
+    let settle = ACTIVITY_MARK_INTERVAL + ACTIVITY_CLEAR_MARGIN;
+    let wait = crate::services::ballot_box::events_with_ballot_activity()
+        .await?
+        .into_iter()
+        .filter(|a| Uuid::parse_str(&a.tenant_id).is_ok_and(|t| t == tenant))
+        .filter_map(|a| {
+            let age = a.listed_at.duration_since(a.marked_at).unwrap_or_default();
+            settle.checked_sub(age)
+        })
+        .max();
+    if let Some(wait) = wait {
+        info!("Waiting {wait:?} for votes on their way into a ballot box");
+        tokio::time::sleep(wait).await;
+    }
+    Ok(())
+}
+
 /// Why the tenant can't be reset, with `cast` ballots counted elsewhere.
 /// `retry` is a reset finishing an earlier one, which finds nothing
-/// imported: the earlier one deleted it.
+/// imported: the earlier one deleted it. `keep_task` is the reset's own
+/// task, set only when claiming: then the checks also take the locks that
+/// keep a new tenant and an Apply out until the claim commits.
 async fn refusals(
     tx: &Transaction<'_>,
     tenant_id: &str,
@@ -227,9 +268,15 @@ async fn refusals(
     retry: bool,
 ) -> Result<(Vec<Refusal>, u64)> {
     let tenant = Uuid::parse_str(tenant_id)?;
+    let claiming = keep_task.is_some();
     let mut refused = vec![];
     if !enabled() {
         refused.push(Refusal::Disabled);
+    }
+    // When claiming, the lock is held until the claim commits; the reset
+    // state row then refuses new tenants until the reset finishes.
+    if is_super_admin_tenant(tenant_id) && other_tenants_exist(tx, tenant_id, claiming).await? {
+        refused.push(Refusal::SuperAdminTenant);
     }
     if !has_baseline(tx, tenant_id).await? {
         refused.push(if has_imported(tx, tenant_id).await? {
@@ -258,6 +305,25 @@ async fn refusals(
         refused.push(Refusal::TaskRunning {
             task_id: row.get(0),
             name: row.get(1),
+        });
+    }
+    // An Apply holds its lock for its whole run, however old its task is.
+    if claiming && refused.is_empty() && !try_application_lock(tx, tenant_id).await? {
+        let running = tx
+            .query_opt(
+                "SELECT id::text, name FROM sequent_backend.tasks_execution \
+                 WHERE tenant_id = $1 AND execution_status = 'IN_PROGRESS' \
+                   AND type = 'APPLY_CONFIGURATION_PACKAGE' \
+                 ORDER BY created_at DESC LIMIT 1",
+                &[&tenant],
+            )
+            .await?;
+        refused.push(Refusal::TaskRunning {
+            task_id: running.as_ref().map(|r| r.get(0)).unwrap_or_default(),
+            name: running
+                .as_ref()
+                .map(|r| r.get(1))
+                .unwrap_or_else(|| "Apply configuration package".to_string()),
         });
     }
 
@@ -349,6 +415,17 @@ pub async fn preview(tenant_id: &str) -> Result<Preview> {
     Ok(preview)
 }
 
+/// Whether a baseline can be recorded now: none is, nothing was imported,
+/// and the tenant has no election event. The baseline holds no event data,
+/// so a reset would delete an event made before it without restoring it;
+/// such a tenant is refused as having no baseline instead.
+async fn baseline_possible(tx: &Transaction<'_>, tenant_id: &str) -> Result<bool> {
+    let tenant = Uuid::parse_str(tenant_id)?;
+    Ok(!has_baseline(tx, tenant_id).await?
+        && !has_imported(tx, tenant_id).await?
+        && tenant_events(tx, &tenant).await?.is_empty())
+}
+
 /// Records the baseline if the tenant has none and has imported nothing:
 /// called when a configuration package is uploaded and when one is applied.
 /// Returns whether it recorded one.
@@ -357,7 +434,7 @@ pub async fn ensure_baseline(tenant_id: &str, task_id: Option<&str>) -> Result<b
     {
         let mut client = hasura_client().await?;
         let tx = client.build_transaction().read_only(true).start().await?;
-        let needed = !has_baseline(&tx, tenant_id).await? && !has_imported(&tx, tenant_id).await?;
+        let needed = baseline_possible(&tx, tenant_id).await?;
         tx.commit().await?;
         if !needed {
             return Ok(false);
@@ -370,7 +447,7 @@ pub async fn ensure_baseline(tenant_id: &str, task_id: Option<&str>) -> Result<b
     let mut client = hasura_client().await?;
     let tx = client.transaction().await?;
     // Checked again: another upload may have recorded one, or applied.
-    if has_baseline(&tx, tenant_id).await? || has_imported(&tx, tenant_id).await? {
+    if !baseline_possible(&tx, tenant_id).await? {
         tx.rollback().await?;
         return Ok(false);
     }
@@ -451,18 +528,16 @@ async fn compute_manifest(
 
 /// The manifests of earlier resets of the tenant that did not finish: their
 /// rows are gone, so what they named is only there.
-async fn unfinished_manifests(
-    tx: &Transaction<'_>,
-    tenant: &Uuid,
-    task: &Uuid,
-) -> Result<Manifest> {
+async fn unfinished_manifests(tx: &Transaction<'_>, tenant: &Uuid) -> Result<Manifest> {
     let mut merged = Manifest::default();
+    // The reset's own task too: a redelivery runs after the purge, so what
+    // its first run recorded is no longer in the tables.
     for row in tx
         .query(
-            "SELECT annotations -> $3 FROM sequent_backend.tasks_execution \
-             WHERE tenant_id = $1 AND type = $4 AND id <> $2 \
-               AND execution_status <> 'SUCCESS' AND annotations ? $3",
-            &[tenant, task, &MANIFEST_ANNOTATION, &TASK_TYPE],
+            "SELECT annotations -> $2 FROM sequent_backend.tasks_execution \
+             WHERE tenant_id = $1 AND type = $3 \
+               AND execution_status <> 'SUCCESS' AND annotations ? $2",
+            &[tenant, &MANIFEST_ANNOTATION, &TASK_TYPE],
         )
         .await?
     {
@@ -579,14 +654,35 @@ pub async fn run_reset(
 ) -> Result<ResetSummary> {
     let tenant = Uuid::parse_str(tenant_id)?;
     let task_id = Uuid::parse_str(&task.id)?;
+    // A redelivery of a reset that finished: the tenant may already have
+    // been imported into again.
+    if let Some(summary) = finished_summary(&task_id).await? {
+        info!("Reset task {task_id} already finished");
+        return Ok(summary);
+    }
+    // The admin doing it keeps their account and access: checked before
+    // anything changes.
+    let realm_record = {
+        let mut client = hasura_client().await?;
+        let tx = client.build_transaction().read_only(true).start().await?;
+        let baseline = get_baseline(&tx, tenant_id).await?;
+        tx.commit().await?;
+        baseline.map(|b| b.realm).filter(|realm| !realm.is_null())
+    };
+    if let Some(realm) = realm_record {
+        let realm: RealmBaseline =
+            serde_json::from_value(realm).context("Unreadable realm baseline")?;
+        let keycloak = KeycloakAdminClient::pub_new().await?;
+        check_caller(&keycloak, &get_tenant_realm(tenant_id), &realm, keep_user).await?;
+    }
     let cast = cast_ballots(tenant_id).await?;
     let mut summary = ResetSummary::default();
 
     // 1. Claim.
-    let manifest = {
+    let (manifest, retry) = {
         let mut client = hasura_client().await?;
         let tx = client.transaction().await?;
-        let retry = claim_reset(&tx, tenant_id).await? == LifecycleState::Resetting;
+        let retry = lock_tenant(&tx, tenant_id).await? == LifecycleState::Resetting;
         let (refused, _) = refusals(&tx, tenant_id, cast, options, Some(&task_id), retry).await?;
         if !refused.is_empty() {
             tx.rollback().await?;
@@ -595,9 +691,10 @@ pub async fn run_reset(
                 serde_json::to_string(&refused)?
             ));
         }
+        claim_reset(&tx, tenant_id, is_super_admin_tenant(tenant_id)).await?;
         let baseline = get_baseline(&tx, tenant_id).await?;
         let mut manifest = compute_manifest(&tx, tenant_id, baseline.as_ref()).await?;
-        manifest.merge(unfinished_manifests(&tx, &tenant, &task_id).await?);
+        manifest.merge(unfinished_manifests(&tx, &tenant).await?);
         annotate_task(
             &tx,
             &task_id,
@@ -606,9 +703,33 @@ pub async fn run_reset(
         )
         .await?;
         tx.commit().await?;
-        manifest
+        (manifest, retry)
     };
     summary.election_events = manifest.election_event_ids.len();
+
+    // Voting was closed when the claim committed, but a vote seen open just
+    // before can still be on its way into a ballot box: count again once
+    // none can be.
+    if !(options.erase_ballots && ballots_override_allowed()) {
+        settle_ballot_activity(tenant_id).await?;
+        let late = cast_ballots(tenant_id).await?;
+        if late > 0 {
+            if !retry {
+                let mut client = hasura_client().await?;
+                let tx = client.transaction().await?;
+                set_lifecycle_state(&tx, tenant_id, LifecycleState::Active).await?;
+                tx.commit().await?;
+            }
+            return Err(anyhow!(
+                "The tenant can't be reset: {}",
+                serde_json::to_string(&[Refusal::Ballots {
+                    cast: late,
+                    sealed: 0,
+                    overridable: ballots_override_allowed(),
+                }])?
+            ));
+        }
+    }
 
     // 2. Purge and restore.
     let realm_baseline: Option<RealmBaseline> = {
@@ -692,9 +813,42 @@ pub async fn run_reset(
     )
     .await?;
     set_lifecycle_state(&tx, tenant_id, LifecycleState::Active).await?;
+    // Completed with the reset, so that a redelivery finds it done.
+    let logs = serde_json::to_value(append_general_log(
+        &task.logs,
+        "Task completed successfully",
+    ))?;
+    tx.execute(
+        "UPDATE sequent_backend.tasks_execution \
+         SET execution_status = 'SUCCESS', end_at = now(), logs = $2 WHERE id = $1",
+        &[&task_id, &logs],
+    )
+    .await
+    .context("Error completing the reset task")?;
     tx.commit().await?;
     crate::tasks::audit_log_outbox::kick_audit_log_outbox();
     Ok(summary)
+}
+
+/// The summary of a reset task that already finished.
+async fn finished_summary(task: &Uuid) -> Result<Option<ResetSummary>> {
+    let client = hasura_client().await?;
+    let row = client
+        .query_opt(
+            "SELECT execution_status, annotations -> 'reset_summary' \
+             FROM sequent_backend.tasks_execution WHERE id = $1",
+            &[task],
+        )
+        .await
+        .context("Error reading the reset task")?;
+    let Some(row) = row else { return Ok(None) };
+    let status: Option<String> = row.get(0);
+    let summary: Option<Value> = row.get(1);
+    Ok(match summary {
+        Some(summary) => Some(serde_json::from_value(summary).unwrap_or_default()),
+        None if status.as_deref() == Some("SUCCESS") => Some(ResetSummary::default()),
+        None => None,
+    })
 }
 
 #[cfg(test)]

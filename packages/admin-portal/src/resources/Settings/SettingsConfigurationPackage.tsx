@@ -560,6 +560,18 @@ const SettingsConfigurationPackageForScope: React.FC<{
         setPreviewed(null)
     }
 
+    // A reset deletes the staged package and the task it followed: preview
+    // again before applying.
+    const afterReset = () => {
+        stopFollowing()
+        setDocumentId(null)
+        setExpectedSha(null)
+        setTypedDocumentId("")
+        setConfirming(false)
+        setError(null)
+        refreshHistory()
+    }
+
     // Other requirements are not what was previewed.
     const changeRequirements = (next: PackageRequirements) => {
         setPreviewed(null)
@@ -1896,7 +1908,7 @@ const SettingsConfigurationPackageForScope: React.FC<{
                 </DialogActions>
             </Dialog>
 
-            <TenantResetCard tenantId={tenantId} />
+            <TenantResetCard tenantId={tenantId} onReset={afterReset} />
         </Box>
     )
 }

@@ -80,7 +80,7 @@ const catalanTranslation: TranslationType = {
                 unfinished:
                     "Un restabliment d'aquest llogater no va acabar. El llogater no admet canvis fins que acabi: torneu-lo a executar per acabar-lo.",
                 noBaselineHint:
-                    "El restabliment està disponible per als llogaters el primer paquet de configuració dels quals es va pujar després d'introduir aquesta funció.",
+                    "El restabliment està disponible per als llogaters que no tenien cap esdeveniment electoral quan es va pujar el seu primer paquet de configuració, després d'introduir aquesta funció.",
                 open: "Restablir llogater…",
                 finish: "Acabar el restabliment…",
                 dialogTitle: "Restablir el llogater",
@@ -90,6 +90,11 @@ const catalanTranslation: TranslationType = {
                 succeeded:
                     "El llogater s'ha restablert. Podeu tornar a importar el paquet de configuració i la seva llista de signants.",
                 failed: "El restabliment no va acabar. El llogater continua bloquejat fins que n'acabi un: torneu-lo a executar.",
+                previewFailed: "No s'ha pogut llegir què esborraria un restabliment.",
+                retry: "Torna-ho a provar",
+                unknown:
+                    "No es pot llegir el progrés del restabliment, així que no se sap si ha acabat. Torna-ho a comprovar, o tanca i torna a obrir aquesta pàgina.",
+                checkAgain: "Torna a comprovar",
                 willDelete:
                     "S'eliminaran {{events}} esdeveniment(s) electoral(s) i {{rows}} registre(s), amb els seus votants, paperetes, registres, fitxers i dominis d'accés. No es pot desfer.",
                 keeps: "Es conserva: el mateix llogater, el seu registre, la seva configuració de signatura i els comptes de personal i ajustos que tenia abans del primer paquet de configuració.",
@@ -108,7 +113,7 @@ const catalanTranslation: TranslationType = {
                     super_admin_tenant:
                         "El llogater d'administració no es pot restablir mentre hi hagi altres llogaters.",
                     no_baseline:
-                        "El primer paquet de configuració d'aquest llogater es va importar abans que existissin els restabliments, així que no se sap com era abans.",
+                        "No es va registrar l'estat previ a la importació d'aquest llogater: el seu primer paquet de configuració es va importar abans que existissin els restabliments, o ja tenia aleshores un esdeveniment electoral.",
                     nothing_to_reset: "Encara no s'ha importat res en aquest llogater.",
                     task_running: "Espereu que acabi la tasca en curs: {{name}}.",
                     voting_open: "La votació és oberta a {{event}}. Tanqueu-la primer.",

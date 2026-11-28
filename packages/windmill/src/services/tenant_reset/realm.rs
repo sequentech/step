@@ -41,6 +41,10 @@ const USER_FIELDS: [&str; 8] = [
 pub struct BaselineGroup {
     pub path: String,
     pub realm_roles: Vec<String>,
+    /// Client roles by clientId. None in a baseline recorded before they
+    /// were: the group's client roles are then left as they are.
+    #[serde(default)]
+    pub client_roles: Option<BTreeMap<String, Vec<String>>>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -148,21 +152,33 @@ impl Admin<'_> {
         }
     }
 
+    /// Every item of a paged listing.
+    async fn paged(&self, path: &str) -> Result<Vec<Value>> {
+        let mut items = vec![];
+        loop {
+            let page = self
+                .get(
+                    path,
+                    &[
+                        ("briefRepresentation", "true".into()),
+                        ("first", items.len().to_string()),
+                        ("max", PAGE.to_string()),
+                    ],
+                )
+                .await?;
+            let page = page.as_array().cloned().unwrap_or_default();
+            let done = page.len() < PAGE;
+            items.extend(page);
+            if done {
+                return Ok(items);
+            }
+        }
+    }
+
     /// Every group, subgroups included, by path, with its id.
     async fn groups(&self) -> Result<BTreeMap<String, String>> {
         let mut found = BTreeMap::new();
-        let mut pending: Vec<Value> = self
-            .get(
-                "groups",
-                &[
-                    ("briefRepresentation", "true".into()),
-                    ("max", "10000".into()),
-                ],
-            )
-            .await?
-            .as_array()
-            .cloned()
-            .unwrap_or_default();
+        let mut pending: Vec<Value> = self.paged("groups").await?;
         while let Some(group) = pending.pop() {
             let (Some(id), Some(path)) = (str_field(&group, "id"), str_field(&group, "path"))
             else {
@@ -179,19 +195,9 @@ impl Admin<'_> {
                 .and_then(Value::as_u64)
                 .map(|count| count > 0)
                 .unwrap_or(false);
-            if !inline.is_empty() {
-                pending.extend(inline);
-            } else if has_children {
-                let children = self
-                    .get(
-                        &format!("groups/{id}/children"),
-                        &[
-                            ("briefRepresentation", "true".into()),
-                            ("max", "10000".into()),
-                        ],
-                    )
-                    .await?;
-                pending.extend(children.as_array().cloned().unwrap_or_default());
+            // Inline subgroups may be a partial list: read them all.
+            if has_children || !inline.is_empty() {
+                pending.extend(self.paged(&format!("groups/{id}/children")).await?);
             }
         }
         Ok(found)
@@ -208,11 +214,10 @@ impl Admin<'_> {
         Ok(names)
     }
 
-    /// Client roles a user holds, by clientId.
-    async fn user_client_roles(&self, user: &str) -> Result<BTreeMap<String, Vec<String>>> {
-        let mappings = self
-            .get(&format!("users/{user}/role-mappings"), &[])
-            .await?;
+    /// Client roles mapped directly to `base` (`users/{id}` or
+    /// `groups/{id}`), by clientId.
+    async fn client_roles(&self, base: &str) -> Result<BTreeMap<String, Vec<String>>> {
+        let mappings = self.get(&format!("{base}/role-mappings"), &[]).await?;
         let mut roles = BTreeMap::new();
         if let Some(clients) = mappings.get("clientMappings").and_then(Value::as_object) {
             for (client_id, mapping) in clients {
@@ -289,12 +294,15 @@ impl Admin<'_> {
         Ok(())
     }
 
+    /// Makes the client roles mapped to `base` (`users/{id}` or
+    /// `groups/{id}`) exactly `wanted`, skipping clients and roles the
+    /// realm no longer has.
     async fn set_client_roles(
         &self,
-        user: &str,
+        base: &str,
         wanted: &BTreeMap<String, Vec<String>>,
     ) -> Result<()> {
-        let current = self.user_client_roles(user).await?;
+        let current = self.client_roles(base).await?;
         let client_ids: BTreeSet<&String> = current.keys().chain(wanted.keys()).collect();
         for client_id in client_ids {
             let empty = vec![];
@@ -309,7 +317,7 @@ impl Admin<'_> {
                 warn!(realm = self.realm, client = %client_id, "Recorded client no longer exists");
                 continue;
             };
-            let path = format!("users/{user}/role-mappings/clients/{client}");
+            let path = format!("{base}/role-mappings/clients/{client}");
             for (method, names) in [(Method::POST, add), (Method::DELETE, remove)] {
                 let mut roles = vec![];
                 for name in names {
@@ -416,6 +424,99 @@ pub fn users_to_delete(
         .collect()
 }
 
+fn email_of(fields: &Map<String, Value>) -> Option<String> {
+    fields
+        .get("email")
+        .and_then(Value::as_str)
+        .filter(|e| !e.is_empty())
+        .map(str::to_lowercase)
+}
+
+/// Users other than the recorded owner that hold a recorded user's email
+/// now, as (id, email). Fails when it is `keep_user`, whose account a reset
+/// doesn't change.
+pub fn email_conflicts(
+    current: &[Value],
+    recorded: &[BaselineUser],
+    keep_user: &str,
+) -> Result<Vec<(String, String)>> {
+    let owners: BTreeMap<String, &str> = recorded
+        .iter()
+        .filter(|u| u.id != keep_user)
+        .filter_map(|u| email_of(&u.fields).map(|e| (e, u.id.as_str())))
+        .collect();
+    let mut conflicts = vec![];
+    for user in current {
+        let (Some(id), Some(email)) = (str_field(user, "id"), user.as_object().and_then(email_of))
+        else {
+            continue;
+        };
+        match owners.get(&email) {
+            Some(owner) if *owner != id => {
+                if id == keep_user {
+                    return Err(anyhow!(
+                        "Your account uses the email {email}, which belonged to another user before the first import: change it, or have another admin reset the tenant"
+                    ));
+                }
+                conflicts.push((id, email));
+            }
+            _ => {}
+        }
+    }
+    Ok(conflicts)
+}
+
+/// Groups the reset deletes that `keep_user` belongs to, or is inside of:
+/// the access they give the admin doing the reset would be lost.
+pub fn caller_groups_deleted(
+    current: &[String],
+    recorded: &[String],
+    caller_groups: &[String],
+) -> Vec<String> {
+    let deleted = groups_to_delete(current, recorded);
+    let mut lost: Vec<String> = caller_groups
+        .iter()
+        .filter(|path| {
+            deleted
+                .iter()
+                .any(|gone| *path == gone || path.starts_with(&format!("{gone}/")))
+        })
+        .cloned()
+        .collect();
+    lost.sort();
+    lost
+}
+
+/// Checks, before anything is changed, that restoring `baseline` keeps the
+/// account and access of `keep_user`, the admin doing the reset.
+#[instrument(skip(client, baseline), err)]
+pub async fn check_caller(
+    client: &PubKeycloakAdmin,
+    realm: &str,
+    baseline: &RealmBaseline,
+    keep_user: &str,
+) -> Result<()> {
+    let admin = Admin { client, realm };
+    let current: Vec<String> = admin.groups().await?.into_keys().collect();
+    let recorded: Vec<String> = baseline.groups.iter().map(|g| g.path.clone()).collect();
+    let caller: Vec<String> = admin
+        .paged(&format!("users/{keep_user}/groups"))
+        .await?
+        .iter()
+        .filter_map(|g| str_field(g, "path"))
+        .collect();
+    let lost = caller_groups_deleted(&current, &recorded, &caller);
+    if !lost.is_empty() {
+        return Err(anyhow!(
+            "Your account gets access from groups the reset deletes ({}): have an admin whose access comes from groups that existed before the first import reset the tenant",
+            lost.join(", ")
+        ));
+    }
+    let me = admin.get(&format!("users/{keep_user}"), &[]).await?;
+    email_conflicts(&[me], &baseline.users, keep_user)?;
+    Ok(())
+}
+
 fn user_fields(user: &Value) -> Map<String, Value> {
     USER_FIELDS
         .iter()
@@ -452,6 +553,7 @@ pub async fn capture_realm(client: &PubKeycloakAdmin, realm: &str) -> Result<Rea
             realm_roles: admin
                 .role_names(&format!("groups/{id}/role-mappings/realm"))
                 .await?,
+            client_roles: Some(admin.client_roles(&format!("groups/{id}")).await?),
         });
     }
 
@@ -461,17 +563,11 @@ pub async fn capture_realm(client: &PubKeycloakAdmin, realm: &str) -> Result<Rea
             continue;
         };
         let mut user_groups: Vec<String> = admin
-            .get(
-                &format!("users/{id}/groups"),
-                &[
-                    ("briefRepresentation", "true".into()),
-                    ("max", "10000".into()),
-                ],
-            )
+            .paged(&format!("users/{id}/groups"))
             .await?
-            .as_array()
-            .map(|g| g.iter().filter_map(|g| str_field(g, "path")).collect())
-            .unwrap_or_default();
+            .iter()
+            .filter_map(|g| str_field(g, "path"))
+            .collect();
         user_groups.sort();
         users.push(BaselineUser {
             fields: user_fields(&user),
@@ -479,7 +575,7 @@ pub async fn capture_realm(client: &PubKeycloakAdmin, realm: &str) -> Result<Rea
             realm_roles: admin
                 .role_names(&format!("users/{id}/role-mappings/realm"))
                 .await?,
-            client_roles: admin.user_client_roles(&id).await?,
+            client_roles: admin.client_roles(&format!("users/{id}")).await?,
             id,
         });
     }
@@ -545,7 +641,17 @@ pub async fn restore_realm(
         let (parent, name) = path.rsplit_once('/').unwrap_or(("", &path));
         let body = json!({ "name": name });
         if parent.is_empty() {
-            admin.call(Method::POST, "groups", Some(&body)).await?;
+            match admin.call(Method::POST, "groups", Some(&body)).await {
+                Ok(()) => {}
+                // Created by someone else since the listing: it is there.
+                Err(error)
+                    if error.to_string().contains("HTTP 409")
+                        && admin.groups().await?.contains_key(&path) =>
+                {
+                    continue;
+                }
+                Err(error) => return Err(error),
+            }
         } else {
             let ids = admin.groups().await?;
             let parent_id = ids
@@ -570,6 +676,11 @@ pub async fn restore_realm(
                     &group.realm_roles,
                 )
                 .await?;
+            if let Some(client_roles) = &group.client_roles {
+                admin
+                    .set_client_roles(&format!("groups/{id}"), client_roles)
+                    .await?;
+            }
         }
     }
     // Roles a release added to the template groups after the record.
@@ -582,29 +693,71 @@ pub async fn restore_realm(
         .iter()
         .filter_map(|u| str_field(u, "id"))
         .collect();
-    let missing: Vec<Value> = baseline
+    // Emails are unique: free every recorded email another user holds now,
+    // so that recreating and restoring the recorded users can't collide,
+    // even when two of them swapped addresses. Each surviving recorded user
+    // gets its own back below.
+    for (id, email) in email_conflicts(&admin.users().await?, &baseline.users, keep_user)? {
+        admin
+            .call(
+                Method::PUT,
+                &format!("users/{id}"),
+                Some(&json!({"email": ""})),
+            )
+            .await
+            .with_context(|| format!("Error freeing the email {email}"))?;
+    }
+    let missing: Vec<&BaselineUser> = baseline
         .users
         .iter()
         .filter(|u| u.id != keep_user && !current_ids.contains(&u.id))
-        .map(|u| {
-            let mut user = u.fields.clone();
-            user.insert("id".into(), json!(u.id));
-            Value::Object(user)
-        })
         .collect();
     if !missing.is_empty() {
-        summary.users_recreated = missing
+        let users: Vec<Value> = missing
             .iter()
-            .filter_map(|u| str_field(u, "username"))
+            .map(|u| {
+                let mut user = u.fields.clone();
+                user.insert("id".into(), json!(u.id));
+                Value::Object(user)
+            })
             .collect();
         admin
             .call(
                 Method::POST,
                 "partialImport",
-                Some(&json!({"ifResourceExists": "SKIP", "users": missing})),
+                Some(&json!({"ifResourceExists": "SKIP", "users": users})),
             )
             .await
             .context("Error recreating recorded users")?;
+        // A skipped user is not reported as an error: check each one.
+        let now: BTreeSet<String> = admin
+            .users()
+            .await?
+            .iter()
+            .filter_map(|u| str_field(u, "id"))
+            .collect();
+        let skipped: Vec<String> = missing
+            .iter()
+            .filter(|u| !now.contains(&u.id))
+            .map(|u| {
+                format!(
+                    "{} ({})",
+                    str_field(&Value::Object(u.fields.clone()), "username").unwrap_or_default(),
+                    str_field(&Value::Object(u.fields.clone()), "email").unwrap_or_default()
+                )
+            })
+            .collect();
+        if !skipped.is_empty() {
+            return Err(anyhow!(
+                "Keycloak did not recreate the recorded users {}: another user holds their username or email",
+                skipped.join(", ")
+            ));
+        }
+        summary.users_recreated = missing
+            .iter()
+            .filter_map(|u| u.fields.get("username").and_then(Value::as_str))
+            .map(str::to_string)
+            .collect();
     }
     for user in baseline.users.iter().filter(|u| u.id != keep_user) {
         let id = &user.id;
@@ -617,17 +770,11 @@ pub async fn restore_realm(
             .await
             .with_context(|| format!("Error restoring user {id}"))?;
         let current: Vec<String> = admin
-            .get(
-                &format!("users/{id}/groups"),
-                &[
-                    ("briefRepresentation", "true".into()),
-                    ("max", "10000".into()),
-                ],
-            )
+            .paged(&format!("users/{id}/groups"))
             .await?
-            .as_array()
-            .map(|g| g.iter().filter_map(|g| str_field(g, "path")).collect())
-            .unwrap_or_default();
+            .iter()
+            .filter_map(|g| str_field(g, "path"))
+            .collect();
         let (join, leave) = difference(&current, &user.groups);
         for (method, paths) in [(Method::PUT, join), (Method::DELETE, leave)] {
             for path in paths {
@@ -644,7 +791,9 @@ pub async fn restore_realm(
                 &user.realm_roles,
             )
             .await?;
-        admin.set_client_roles(id, &user.client_roles).await?;
+        admin
+            .set_client_roles(&format!("users/{id}"), &user.client_roles)
+            .await?;
         summary.users_restored += 1;
     }
 
@@ -787,5 +936,60 @@ mod tests {
             vec![("new".to_string(), "imported".to_string())]
         );
         assert!(users_to_delete(&users, None, "caller", None).is_empty());
+    }
+
+    fn recorded(id: &str, email: &str) -> BaselineUser {
+        BaselineUser {
+            id: id.into(),
+            fields: json!({"username": id, "email": email})
+                .as_object()
+                .cloned()
+                .unwrap(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn swapped_and_taken_emails_are_freed_first() {
+        let recorded = [recorded("a", "a@x"), recorded("b", "b@x")];
+        // a and b swapped; c took a's address after it was deleted.
+        let current = [
+            json!({"id": "a", "email": "B@x"}),
+            json!({"id": "b", "email": "a@x"}),
+            json!({"id": "c", "email": "c@x"}),
+        ];
+        assert_eq!(
+            email_conflicts(&current, &recorded, "caller").unwrap(),
+            vec![
+                ("a".to_string(), "b@x".to_string()),
+                ("b".to_string(), "a@x".to_string())
+            ]
+        );
+        let taken = [json!({"id": "c", "email": "a@x"})];
+        assert_eq!(
+            email_conflicts(&taken, &recorded, "caller").unwrap(),
+            vec![("c".to_string(), "a@x".to_string())]
+        );
+        // The caller's account is never changed: refused instead.
+        let caller = [json!({"id": "caller", "email": "a@x"})];
+        assert!(email_conflicts(&caller, &recorded, "caller").is_err());
+    }
+
+    #[test]
+    fn the_callers_groups_must_survive() {
+        let current = s(&["/admin", "/new", "/new/sub"]);
+        let recorded = s(&["/admin"]);
+        assert_eq!(
+            caller_groups_deleted(&current, &recorded, &s(&["/admin", "/new/sub"])),
+            s(&["/new/sub"])
+        );
+        assert!(caller_groups_deleted(&current, &recorded, &s(&["/admin"])).is_empty());
+    }
+
+    #[test]
+    fn older_baselines_leave_group_client_roles_alone() {
+        let group: BaselineGroup =
+            serde_json::from_value(json!({"path": "/admin", "realmRoles": []})).unwrap();
+        assert_eq!(group.client_roles, None);
     }
 }

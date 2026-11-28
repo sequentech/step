@@ -91,6 +91,8 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER tenant_reset_refuse_new_tenant ON sequent_backend.tenant;
+DROP FUNCTION sequent_backend.tenant_reset_refuse_new_tenant();
 DROP FUNCTION sequent_backend.tenant_reset_refuse_insert();
 DROP FUNCTION sequent_backend.tenant_reset_allowed(uuid);
 DROP FUNCTION sequent_backend.tenant_resetting(uuid);

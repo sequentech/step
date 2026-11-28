@@ -80,7 +80,7 @@ const tagalogTranslation: TranslationType = {
                 unfinished:
                     "Hindi natapos ang isang reset ng tenant na ito. Hindi tumatanggap ng pagbabago ang tenant hangga't hindi ito natatapos: patakbuhin muli ang reset para tapusin ito.",
                 noBaselineHint:
-                    "Magagamit ang reset para sa mga tenant na in-upload ang unang configuration package pagkatapos maidagdag ang feature na ito.",
+                    "Magagamit ang reset para sa mga tenant na walang election event nang i-upload ang unang configuration package, pagkatapos maidagdag ang feature na ito.",
                 open: "I-reset ang tenant…",
                 finish: "Tapusin ang reset…",
                 dialogTitle: "I-reset ang tenant",
@@ -90,6 +90,11 @@ const tagalogTranslation: TranslationType = {
                 succeeded:
                     "Na-reset ang tenant. Maaari mo nang i-import muli ang configuration package at ang roster nito.",
                 failed: "Hindi natapos ang reset. Mananatiling naka-lock ang tenant hanggang may matapos na reset: patakbuhin itong muli.",
+                previewFailed: "Hindi mabasa kung ano ang buburahin ng reset.",
+                retry: "Subukan muli",
+                unknown:
+                    "Hindi mabasa ang progreso ng reset, kaya hindi alam kung natapos ito. Suriin muli, o isara at buksan muli ang pahinang ito.",
+                checkAgain: "Suriin muli",
                 willDelete:
                     "Buburahin nito ang {{events}} election event at {{rows}} naka-imbak na record, kasama ang kanilang mga botante, balota, log, file at sign-in realm. Hindi na ito maibabalik.",
                 keeps: "Pinapanatili: ang tenant mismo, ang sarili nitong log, ang signing setup nito at ang mga staff account at setting na mayroon ito bago ang unang configuration package.",
@@ -107,7 +112,7 @@ const tagalogTranslation: TranslationType = {
                     super_admin_tenant:
                         "Hindi mare-reset ang administration tenant habang may iba pang tenant.",
                     no_baseline:
-                        "Na-import ang unang configuration package ng tenant na ito bago pa nagkaroon ng reset, kaya hindi alam ang dati nitong kalagayan.",
+                        "Walang naitalang kalagayan bago ang import para sa tenant na ito: na-import ang unang configuration package bago pa nagkaroon ng reset, o mayroon na itong election event noon.",
                     nothing_to_reset: "Wala pang na-import sa tenant na ito.",
                     task_running: "Hintaying matapos ang tumatakbong task: {{name}}.",
                     voting_open: "Bukas ang botohan sa {{event}}. Isara muna ito.",

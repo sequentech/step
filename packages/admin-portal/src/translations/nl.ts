@@ -83,7 +83,7 @@ const dutchTranslation: TranslationType = {
                 unfinished:
                     "Een terugzetting van deze tenant is niet voltooid. De tenant accepteert geen wijzigingen totdat die voltooid is: voer de terugzetting opnieuw uit om haar te voltooien.",
                 noBaselineHint:
-                    "Terugzetten is beschikbaar voor tenants waarvan het eerste configuratiepakket is geüpload nadat deze functie is ingevoerd.",
+                    "Terugzetten is beschikbaar voor tenants die geen verkiezingsevenement hadden toen hun eerste configuratiepakket werd geüpload, nadat deze functie is ingevoerd.",
                 open: "Tenant terugzetten…",
                 finish: "Terugzetting voltooien…",
                 dialogTitle: "De tenant terugzetten",
@@ -93,6 +93,11 @@ const dutchTranslation: TranslationType = {
                 succeeded:
                     "De tenant is teruggezet. U kunt het configuratiepakket en de ondertekenaarslijst opnieuw importeren.",
                 failed: "De terugzetting is niet voltooid. De tenant blijft vergrendeld totdat een terugzetting voltooid is: voer haar opnieuw uit.",
+                previewFailed: "Kon niet lezen wat terugzetten zou verwijderen.",
+                retry: "Opnieuw proberen",
+                unknown:
+                    "De voortgang van het terugzetten is niet leesbaar, dus het is onbekend of het klaar is. Controleer opnieuw, of sluit deze pagina en open haar opnieuw.",
+                checkAgain: "Opnieuw controleren",
                 willDelete:
                     "Dit verwijdert {{events}} verkiezingsevenement(en) en {{rows}} opgeslagen record(s), met hun kiezers, stembiljetten, logboeken, bestanden en aanmeldrealms. Dit kan niet ongedaan worden gemaakt.",
                 keeps: "Bewaard: de tenant zelf, het eigen logboek, de ondertekeningsinstellingen en de medewerkersaccounts en instellingen van vóór het eerste configuratiepakket.",
@@ -111,7 +116,7 @@ const dutchTranslation: TranslationType = {
                     super_admin_tenant:
                         "De beheertenant kan niet worden teruggezet zolang er andere tenants zijn.",
                     no_baseline:
-                        "Het eerste configuratiepakket van deze tenant is geïmporteerd voordat terugzetten bestond, dus hoe hij daarvoor was is onbekend.",
+                        "Voor deze tenant is geen toestand van vóór de import vastgelegd: het eerste configuratiepakket is geïmporteerd voordat terugzetten bestond, of de tenant had toen al een verkiezingsevenement.",
                     nothing_to_reset: "Er is nog niets in deze tenant geïmporteerd.",
                     task_running: "Wacht tot de lopende taak klaar is: {{name}}.",
                     voting_open: "De stemming is open in {{event}}. Sluit die eerst.",

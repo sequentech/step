@@ -6,7 +6,7 @@
 //! See `services::tenant_reset`.
 
 use crate::services::audit_log::AuditActor;
-use crate::services::tasks_execution::{update_complete, update_fail};
+use crate::services::tasks_execution::update_fail;
 use crate::services::tenant_reset::{run_reset, ResetOptions};
 use crate::types::error::Result;
 use celery::error::TaskError;
@@ -34,9 +34,8 @@ pub async fn reset_tenant_t(
     )
     .await
     {
-        Ok(_) => {
-            update_complete(&task_execution, None).await?;
-        }
+        // The reset completed its task with its last change.
+        Ok(_) => {}
         Err(err) => {
             error!("Reset of tenant {tenant_id} failed: {err:?}");
             update_fail(

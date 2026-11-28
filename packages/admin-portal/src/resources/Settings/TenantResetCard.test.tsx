@@ -11,10 +11,14 @@ const TENANT = "11111111-1111-4111-8111-111111111111"
 const mockReset = jest.fn()
 const mockLoad = jest.fn()
 const mockRefetch = jest.fn()
+const mockRefetchTask = jest.fn()
 const mockReauthenticate = jest.fn()
 let mockAuthorized = true
 let mockPreview: TenantResetPreview
-let mockTask: {id: string; execution_status: string; annotations: unknown; logs: unknown} | null
+type Task = {id: string; execution_status: string; annotations: unknown; logs: unknown}
+// null: nothing read yet; []: the task can't be found.
+let mockTasks: Task[] | null
+let mockPreviewError: Error | undefined
 
 const preview = (over: Partial<TenantResetPreview> = {}): TenantResetPreview => ({
     enabled: true,
@@ -36,11 +40,18 @@ jest.mock("@apollo/client", () => ({
     gql: jest.fn(),
     useLazyQuery: () => [
         mockLoad,
-        {data: {tenant_reset_preview: mockPreview}, loading: false, refetch: mockRefetch},
+        {
+            data: mockPreviewError ? undefined : {tenant_reset_preview: mockPreview},
+            error: mockPreviewError,
+            loading: false,
+            refetch: mockRefetch,
+        },
     ],
     useMutation: () => [mockReset],
     useQuery: () => ({
-        data: mockTask ? {sequent_backend_tasks_execution: [mockTask]} : undefined,
+        data: mockTasks ? {sequent_backend_tasks_execution: mockTasks} : undefined,
+        loading: false,
+        refetch: mockRefetchTask,
     }),
 }))
 jest.mock("react-i18next", () => ({
@@ -57,7 +68,11 @@ beforeEach(() => {
     jest.clearAllMocks()
     mockAuthorized = true
     mockPreview = preview()
-    mockTask = null
+    mockTasks = null
+    mockPreviewError = undefined
+    mockLoad.mockResolvedValue({})
+    mockRefetch.mockResolvedValue({})
+    mockRefetchTask.mockResolvedValue({})
     mockReset.mockResolvedValue({data: {reset_tenant: {task_execution: {id: "task-1"}}}})
 })
 afterEach(cleanup)
@@ -152,4 +167,42 @@ test("a ballot refusal the deployment does not allow stays", () => {
     expect(blockingRefusals([fixed], true)).toEqual([fixed])
     expect(blockingRefusals([allowed], true)).toEqual([])
     expect(blockingRefusals([allowed], false)).toEqual([allowed])
+})
+
+const startReset = async (onReset?: () => void) => {
+    const view = render(<TenantResetCard tenantId={TENANT} onReset={onReset} />)
+    fireEvent.click(screen.getByRole("button", {name: "configurationPackage.reset.open"}))
+    type("tenant-reset-confirmation", "acme")
+    fireEvent.click(confirmButton())
+    expect(await screen.findByText("configurationPackage.reset.running")).toBeInTheDocument()
+    return view
+}
+
+test("tells the page once the reset succeeded", async () => {
+    const onReset = jest.fn()
+    const {rerender} = await startReset(onReset)
+    mockTasks = [{id: "task-1", execution_status: "SUCCESS", annotations: {}, logs: []}]
+    rerender(<TenantResetCard tenantId={TENANT} onReset={onReset} />)
+    expect(await screen.findByTestId("tenant-reset-succeeded")).toBeInTheDocument()
+    expect(onReset).toHaveBeenCalledTimes(1)
+})
+
+test("a task that can't be read leaves the outcome unknown and the dialog closable", async () => {
+    const {rerender} = await startReset()
+    mockTasks = []
+    rerender(<TenantResetCard tenantId={TENANT} />)
+    expect(await screen.findByTestId("tenant-reset-unknown")).toBeInTheDocument()
+    expect(screen.getByRole("button", {name: "configurationPackage.reset.close"})).toBeEnabled()
+    fireEvent.click(screen.getByRole("button", {name: "configurationPackage.reset.checkAgain"}))
+    expect(mockRefetchTask).toHaveBeenCalled()
+    expect(mockReset).toHaveBeenCalledTimes(1)
+})
+
+test("a preview that fails to load shows the error and can be retried", () => {
+    mockPreviewError = new Error("network down")
+    openDialog()
+    expect(screen.getByTestId("tenant-reset-preview-error")).toHaveTextContent("network down")
+    mockRefetch.mockClear()
+    fireEvent.click(screen.getByRole("button", {name: "configurationPackage.reset.retry"}))
+    expect(mockRefetch).toHaveBeenCalledWith({tenant_id: TENANT})
 })

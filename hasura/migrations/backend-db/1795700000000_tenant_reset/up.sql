@@ -29,9 +29,12 @@
 
 -- A tenant is RESETTING while it has a row here. A table of its own, so the
 -- tenant table and its rows stay as they are.
+-- blocks_new_tenants: the super-admin tenant is resetting, and its realm
+-- holds every tenant's admins; no tenant is created until it finishes.
 CREATE TABLE sequent_backend.tenant_reset_state (
     tenant_id uuid PRIMARY KEY REFERENCES sequent_backend.tenant(id) ON DELETE CASCADE,
-    since timestamptz NOT NULL DEFAULT now()
+    since timestamptz NOT NULL DEFAULT now(),
+    blocks_new_tenants boolean NOT NULL DEFAULT false
 );
 REVOKE ALL ON sequent_backend.tenant_reset_state FROM PUBLIC;
 
@@ -59,17 +62,23 @@ $$;
 
 -- Whether the tenant is RESETTING. It runs as its owner, so the trigger
 -- below works for every writer, including the narrow roles that have no
--- access to tenant_reset_state.
+-- access to tenant_reset_state. It first takes a key-share lock on the
+-- tenant row, held until the writer's transaction ends: it waits for a
+-- reset claim in progress (FOR UPDATE) and then reads its outcome, and a
+-- claim waits for the writers that are already in.
 CREATE FUNCTION sequent_backend.tenant_resetting(tenant uuid)
 RETURNS boolean
-LANGUAGE sql
-STABLE
+LANGUAGE plpgsql
+VOLATILE
 SECURITY DEFINER
 SET search_path = pg_catalog
 AS $$
-    SELECT EXISTS (
-        SELECT 1 FROM sequent_backend.tenant_reset_state WHERE tenant_id = tenant
+BEGIN
+    PERFORM 1 FROM sequent_backend.tenant WHERE id = tenant_resetting.tenant FOR KEY SHARE;
+    RETURN EXISTS (
+        SELECT 1 FROM sequent_backend.tenant_reset_state WHERE tenant_id = tenant_resetting.tenant
     );
+END;
 $$;
 
 CREATE FUNCTION sequent_backend.tenant_reset_refuse_insert()
@@ -90,6 +99,26 @@ BEGIN
     RETURN NEW;
 END;
 $$;
+
+CREATE FUNCTION sequent_backend.tenant_reset_refuse_new_tenant()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog
+AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM sequent_backend.tenant_reset_state WHERE blocks_new_tenants
+    ) THEN
+        RAISE EXCEPTION 'the administration tenant is being reset'
+            USING ERRCODE = 'object_not_in_prerequisite_state';
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER tenant_reset_refuse_new_tenant BEFORE INSERT ON sequent_backend.tenant
+    FOR EACH ROW EXECUTE FUNCTION sequent_backend.tenant_reset_refuse_new_tenant();
 
 DO $$
 DECLARE

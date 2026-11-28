@@ -79,7 +79,7 @@ const basqueTranslation: TranslationType = {
                 unfinished:
                     "Maizter honen berrezarpen batek ez zuen amaitu. Maizterrak ez du aldaketarik onartzen amaitu arte: exekutatu berriro amaitzeko.",
                 noBaselineHint:
-                    "Berrezarpena eskuragarri dago funtzio hau sartu ondoren lehen konfigurazio-paketea igo zuten maizterrentzat.",
+                    "Berrezarpena eskuragarri dago lehen konfigurazio-paketea igo zutenean hauteskunde-gertaerarik ez zuten maizterrentzat, funtzio hau sartu ondoren.",
                 open: "Berrezarri maizterra…",
                 finish: "Amaitu berrezarpena…",
                 dialogTitle: "Berrezarri maizterra",
@@ -89,6 +89,11 @@ const basqueTranslation: TranslationType = {
                 succeeded:
                     "Maizterra berrezarri da. Konfigurazio-paketea eta bere sinatzaile-zerrenda berriro inporta ditzakezu.",
                 failed: "Berrezarpenak ez du amaitu. Maizterra blokeatuta geratzen da berrezarpen batek amaitu arte: exekutatu berriro.",
+                previewFailed: "Ezin izan da irakurri berrezarpen batek zer ezabatuko lukeen.",
+                retry: "Saiatu berriro",
+                unknown:
+                    "Ezin da berrezarpenaren aurrerapena irakurri, beraz ez dakigu amaitu den. Egiaztatu berriro, edo itxi eta ireki berriro orri hau.",
+                checkAgain: "Egiaztatu berriro",
                 willDelete:
                     "Honek {{events}} hauteskunde-gertaera eta {{rows}} erregistro ezabatzen ditu, beren hautesle, boto-txartel, erregistro, fitxategi eta sarbide-domeinuekin. Ezin da desegin.",
                 keeps: "Gordetzen dira: maizterra bera, bere erregistroa, bere sinadura-konfigurazioa eta lehen konfigurazio-paketearen aurretik zituen langileen kontuak eta ezarpenak.",
@@ -106,7 +111,7 @@ const basqueTranslation: TranslationType = {
                     super_admin_tenant:
                         "Administrazio-maizterra ezin da berrezarri beste maizter batzuk dauden bitartean.",
                     no_baseline:
-                        "Maizter honen lehen konfigurazio-paketea berrezarpenak egon aurretik inportatu zen, beraz ez da ezagutzen aurretik nolakoa zen.",
+                        "Ez zen maizter honen inportazio aurreko egoera erregistratu: lehen konfigurazio-paketea berrezarpenak egon aurretik inportatu zen, edo ordurako hauteskunde-gertaera bat zuen.",
                     nothing_to_reset: "Oraindik ez da ezer inportatu maizter honetan.",
                     task_running: "Itxaron martxan dagoen zereginak amaitu arte: {{name}}.",
                     voting_open: "Bozketa irekita dago {{event}} gertaeran. Itxi lehenik.",

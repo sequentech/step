@@ -138,7 +138,7 @@ async fn import(tx: &Transaction<'_>, tenant: Uuid) -> Uuid {
     .unwrap();
     tx.execute(
         "INSERT INTO sequent_backend.tasks_execution (tenant_id, name, type, execution_status, executed_by_user) \
-         VALUES ($1, 'apply', 'IMPORT_CONFIGURATION_PACKAGE', 'SUCCESS', 'admin')",
+         VALUES ($1, 'apply', 'APPLY_CONFIGURATION_PACKAGE', 'SUCCESS', 'admin')",
         &[&tenant],
     )
     .await
@@ -221,7 +221,7 @@ async fn take_baseline(tx: &Transaction<'_>, tenant: Uuid) {
 
 async fn reset(tx: &Transaction<'_>, tenant: Uuid, keep_task: Option<Uuid>) {
     let id = tenant.to_string();
-    claim_reset(tx, &id).await.unwrap();
+    claim_reset(tx, &id, false).await.unwrap();
     allow_tenant_reset(tx, &id).await.unwrap();
     let baseline = get_baseline(tx, &id).await.unwrap().unwrap();
     purge_tenant_rows(tx, &id, keep_task).await.unwrap();
@@ -361,6 +361,17 @@ async fn a_reset_returns_to_the_baseline() {
         .await,
         1
     );
+    // The application history a re-import consults is gone.
+    assert_eq!(
+        count(
+            &tx,
+            "SELECT count(*) FROM sequent_backend.tasks_execution WHERE tenant_id = $1 \
+             AND type = 'APPLY_CONFIGURATION_PACKAGE'",
+            target
+        )
+        .await,
+        0
+    );
     // The tenant log keeps its tenant-level entry and loses the event's.
     assert_eq!(
         count(
@@ -466,6 +477,47 @@ async fn a_resetting_tenant_takes_no_new_rows_but_its_reset() {
 
     allow_tenant_reset(&tx, &target.to_string()).await.unwrap();
     tx.execute(insert, &[&target]).await.unwrap();
+}
+
+#[tokio::test]
+async fn a_super_admin_reset_refuses_new_tenants_until_it_finishes() {
+    let pool = schema::pool().await;
+    let mut client = pool.get().await.unwrap();
+    let tx = client.transaction().await.unwrap();
+    let admin = tenant(&tx, "admin").await;
+    let id = admin.to_string();
+
+    claim_reset(&tx, &id, true).await.unwrap();
+    tx.execute("SAVEPOINT s", &[]).await.unwrap();
+    let late = Uuid::new_v4();
+    allow_configuration_signing_change(&tx, &late.to_string())
+        .await
+        .unwrap();
+    let refused = tx
+        .execute(
+            "INSERT INTO sequent_backend.tenant (id, slug, settings) VALUES ($1, $2, $3)",
+            &[
+                &late,
+                &format!("late-{late}"),
+                &json!({"configuration_signing": serde_json::from_str::<Value>(TRUST).unwrap()}),
+            ],
+        )
+        .await;
+    tx.execute("ROLLBACK TO SAVEPOINT s", &[]).await.unwrap();
+    let message = refused
+        .expect_err("a tenant was created during the super-admin reset")
+        .as_db_error()
+        .map(|e| e.message().to_string())
+        .unwrap_or_default();
+    assert!(
+        message.contains("administration tenant is being reset"),
+        "{message}"
+    );
+
+    set_lifecycle_state(&tx, &id, LifecycleState::Active)
+        .await
+        .unwrap();
+    tenant(&tx, "after").await;
 }
 
 #[tokio::test]

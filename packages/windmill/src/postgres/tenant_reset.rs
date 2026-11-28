@@ -264,9 +264,9 @@ pub async fn lifecycle_state(tx: &Transaction<'_>, tenant_id: &str) -> Result<Li
     })
 }
 
-/// Moves the tenant to RESETTING, from ACTIVE or (a retry) RESETTING, and
-/// locks its row until the transaction ends.
-pub async fn claim_reset(tx: &Transaction<'_>, tenant_id: &str) -> Result<LifecycleState> {
+/// Locks the tenant's row until the transaction ends and returns its state.
+/// Call before `refusals`, then `claim_reset`.
+pub async fn lock_tenant(tx: &Transaction<'_>, tenant_id: &str) -> Result<LifecycleState> {
     let tenant = parse_uuid_v4(tenant_id)?;
     tx.query_opt(
         "SELECT 1 FROM sequent_backend.tenant WHERE id = $1 FOR UPDATE",
@@ -274,9 +274,65 @@ pub async fn claim_reset(tx: &Transaction<'_>, tenant_id: &str) -> Result<Lifecy
     )
     .await?
     .ok_or_else(|| anyhow!("tenant {tenant} not found"))?;
-    let before = lifecycle_state(tx, tenant_id).await?;
-    set_lifecycle_state(tx, tenant_id, LifecycleState::Resetting).await?;
+    lifecycle_state(tx, tenant_id).await
+}
+
+/// Moves the tenant to RESETTING, from ACTIVE or (a retry) RESETTING, and
+/// locks its row until the transaction ends. `blocks_new_tenants` refuses
+/// new tenants until the reset finishes (the super-admin tenant's reset).
+pub async fn claim_reset(
+    tx: &Transaction<'_>,
+    tenant_id: &str,
+    blocks_new_tenants: bool,
+) -> Result<LifecycleState> {
+    let before = lock_tenant(tx, tenant_id).await?;
+    let tenant = parse_uuid_v4(tenant_id)?;
+    tx.execute(
+        "INSERT INTO sequent_backend.tenant_reset_state (tenant_id, blocks_new_tenants) \
+         VALUES ($1, $2) ON CONFLICT (tenant_id) DO UPDATE \
+         SET blocks_new_tenants = EXCLUDED.blocks_new_tenants",
+        &[&tenant, &blocks_new_tenants],
+    )
+    .await
+    .context("Error setting the tenant lifecycle state")?;
     Ok(before)
+}
+
+/// Whether other tenants exist. With `lock`, it also takes the lock that
+/// keeps new tenants out until the transaction ends.
+pub async fn other_tenants_exist(
+    tx: &Transaction<'_>,
+    tenant_id: &str,
+    lock: bool,
+) -> Result<bool> {
+    let tenant = parse_uuid_v4(tenant_id)?;
+    if lock {
+        tx.batch_execute("LOCK TABLE sequent_backend.tenant IN SHARE ROW EXCLUSIVE MODE")
+            .await
+            .context("Error locking the tenant table")?;
+    }
+    let row = tx
+        .query_one(
+            "SELECT EXISTS (SELECT 1 FROM sequent_backend.tenant WHERE id <> $1)",
+            &[&tenant],
+        )
+        .await
+        .context("Error counting tenants")?;
+    Ok(row.get(0))
+}
+
+/// Takes the configuration package Apply lock of the tenant until the
+/// transaction ends; false when an Apply holds it.
+pub async fn try_application_lock(tx: &Transaction<'_>, tenant_id: &str) -> Result<bool> {
+    let key = crate::postgres::configuration_packages::application_lock_key(tenant_id);
+    let row = tx
+        .query_one(
+            "SELECT pg_try_advisory_xact_lock(hashtextextended($1, 0))",
+            &[&key],
+        )
+        .await
+        .context("Error taking the configuration package lock")?;
+    Ok(row.get(0))
 }
 
 pub async fn set_lifecycle_state(

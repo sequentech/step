@@ -64,15 +64,24 @@ export const blockingRefusals = (refusals: Refusal[], eraseBallots: boolean): Re
 const totalRows = (rows: Record<string, number>): number =>
     Object.values(rows).reduce((sum, n) => sum + n, 0)
 
-type Phase = "idle" | "submitting" | "running" | "succeeded" | "failed"
+type Phase = "idle" | "submitting" | "running" | "succeeded" | "failed" | "unknown"
 
-export const TenantResetCard: React.FC<{tenantId: string | null}> = ({tenantId}) => {
-    const auth = useContext(AuthContext)
-    const allowed = !!tenantId && auth.isAuthorized(true, tenantId, IPermissions.TENANT_RESET)
-    return allowed && tenantId ? <TenantResetCardFor tenantId={tenantId} /> : null
+interface TenantResetCardProps {
+    tenantId: string | null
+    /** Called once a reset has run, so the page drops what it deleted. */
+    onReset?: () => void
 }
 
-const TenantResetCardFor: React.FC<{tenantId: string}> = ({tenantId}) => {
+export const TenantResetCard: React.FC<TenantResetCardProps> = ({tenantId, onReset}) => {
+    const auth = useContext(AuthContext)
+    const allowed = !!tenantId && auth.isAuthorized(true, tenantId, IPermissions.TENANT_RESET)
+    return allowed && tenantId ? <TenantResetCardFor tenantId={tenantId} onReset={onReset} /> : null
+}
+
+const TenantResetCardFor: React.FC<{tenantId: string; onReset?: () => void}> = ({
+    tenantId,
+    onReset,
+}) => {
     const {t} = useTranslation()
     const auth = useContext(AuthContext)
     const titleId = useId()
@@ -83,13 +92,18 @@ const TenantResetCardFor: React.FC<{tenantId: string}> = ({tenantId}) => {
     const [taskId, setTaskId] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
 
-    const [loadPreview, {data, loading, refetch}] = useLazyQuery<{
+    const [loadPreview, {data, loading, error: previewError, refetch}] = useLazyQuery<{
         tenant_reset_preview: TenantResetPreview
     }>(TENANT_RESET_PREVIEW, {fetchPolicy: "network-only", context: ROLE})
     const [reset] = useMutation<{reset_tenant: {task_execution: {id: string}}}>(RESET_TENANT, {
         context: ROLE,
     })
-    const {data: taskData} = useQuery<{
+    const {
+        data: taskData,
+        error: taskError,
+        loading: taskLoading,
+        refetch: refetchTask,
+    } = useQuery<{
         sequent_backend_tasks_execution: {
             id: string
             execution_status: string
@@ -104,20 +118,38 @@ const TenantResetCardFor: React.FC<{tenantId: string}> = ({tenantId}) => {
     })
 
     useEffect(() => {
-        void loadPreview({variables: {tenant_id: tenantId}})
+        loadPreview({variables: {tenant_id: tenantId}}).catch(() => undefined)
     }, [tenantId, loadPreview])
 
-    const task = taskData?.sequent_backend_tasks_execution?.[0]
+    // Errors show through `previewError`.
+    const reloadPreview = () => {
+        refetch?.({tenant_id: tenantId})?.catch(() => undefined)
+    }
+
+    const rows = taskData?.sequent_backend_tasks_execution
+    const task = rows?.[0]
     useEffect(() => {
-        if (phase !== "running" || !task) return
-        if (task.execution_status === "SUCCESS") {
+        if (phase !== "running") return
+        if (task?.execution_status === "SUCCESS") {
             setPhase("succeeded")
-            void refetch?.()
-        } else if (task.execution_status === "FAILED") {
+            reloadPreview()
+            onReset?.()
+        } else if (task?.execution_status === "FAILED") {
             setPhase("failed")
-            void refetch?.()
+            reloadPreview()
+            // A failed reset may have deleted part of it already.
+            onReset?.()
+        } else if (!taskLoading && (taskError || (Array.isArray(rows) && rows.length === 0))) {
+            // The task can't be read: what happened is unknown.
+            setPhase("unknown")
         }
-    }, [phase, task, refetch])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [phase, task, rows, taskError, taskLoading])
+
+    const watchAgain = () => {
+        setPhase("running")
+        refetchTask?.()?.catch(() => undefined)
+    }
 
     const preview = data?.tenant_reset_preview
     const ballotRefusal = preview?.refusals.find(
@@ -139,7 +171,7 @@ const TenantResetCardFor: React.FC<{tenantId: string}> = ({tenantId}) => {
         setPhase("idle")
         setTaskId(null)
         setOpen(true)
-        void refetch?.({tenant_id: tenantId})
+        reloadPreview()
     }
 
     const submit = async () => {
@@ -161,7 +193,7 @@ const TenantResetCardFor: React.FC<{tenantId: string}> = ({tenantId}) => {
         } catch (e) {
             setError(e instanceof Error ? e.message : String(e))
             setPhase("idle")
-            void refetch?.()
+            reloadPreview()
         }
     }
 
@@ -229,7 +261,7 @@ const TenantResetCardFor: React.FC<{tenantId: string}> = ({tenantId}) => {
                     variant="outlined"
                     color="error"
                     onClick={openDialog}
-                    disabled={loading && !preview}
+                    disabled={loading && !preview && !previewError}
                 >
                     {preview?.resetting
                         ? t("configurationPackage.reset.finish")
@@ -248,7 +280,34 @@ const TenantResetCardFor: React.FC<{tenantId: string}> = ({tenantId}) => {
                     {t("configurationPackage.reset.dialogTitle")}
                 </DialogTitle>
                 <DialogContent>
-                    {!preview || (loading && phase === "idle") ? (
+                    {!preview && previewError && !loading ? (
+                        <Alert
+                            severity="error"
+                            data-testid="tenant-reset-preview-error"
+                            action={
+                                <Button color="inherit" size="small" onClick={reloadPreview}>
+                                    {t("configurationPackage.reset.retry")}
+                                </Button>
+                            }
+                        >
+                            {t("configurationPackage.reset.previewFailed")}
+                            <Box component="span" sx={{display: "block", mt: 1}}>
+                                {previewError.message}
+                            </Box>
+                        </Alert>
+                    ) : phase === "unknown" ? (
+                        <Alert
+                            severity="warning"
+                            data-testid="tenant-reset-unknown"
+                            action={
+                                <Button color="inherit" size="small" onClick={watchAgain}>
+                                    {t("configurationPackage.reset.checkAgain")}
+                                </Button>
+                            }
+                        >
+                            {t("configurationPackage.reset.unknown")}
+                        </Alert>
+                    ) : !preview || (loading && phase === "idle") ? (
                         <Stack direction="row" spacing={1} alignItems="center" role="status">
                             <CircularProgress size={20} />
                             <Typography>{t("configurationPackage.reset.loading")}</Typography>
@@ -357,7 +416,7 @@ const TenantResetCardFor: React.FC<{tenantId: string}> = ({tenantId}) => {
                         onClick={() => setOpen(false)}
                         disabled={phase === "submitting" || phase === "running"}
                     >
-                        {phase === "succeeded" || phase === "failed"
+                        {phase === "succeeded" || phase === "failed" || phase === "unknown"
                             ? t("configurationPackage.reset.close")
                             : t("configurationPackage.reset.cancel")}
                     </Button>

@@ -87,7 +87,7 @@ const englishTranslation = {
                 unfinished:
                     "A reset of this tenant did not finish. The tenant takes no changes until it does: run the reset again to finish it.",
                 noBaselineHint:
-                    "Reset is available for tenants whose first configuration package was uploaded after resets were introduced.",
+                    "Reset is available for tenants that had no election event when their first configuration package was uploaded, after resets were introduced.",
                 open: "Reset tenant…",
                 finish: "Finish the reset…",
                 dialogTitle: "Reset the tenant",
@@ -97,6 +97,11 @@ const englishTranslation = {
                 succeeded:
                     "The tenant was reset. You can import the configuration package and its roster again.",
                 failed: "The reset did not finish. The tenant stays locked until a reset finishes: run it again.",
+                previewFailed: "Could not read what a reset would delete.",
+                retry: "Try again",
+                unknown:
+                    "The reset's progress can't be read, so whether it finished is unknown. Check again, or close and reopen this page.",
+                checkAgain: "Check again",
                 willDelete:
                     "This deletes {{events}} election event(s) and {{rows}} stored record(s), with their voters, ballots, logs, files and sign-in realms. It cannot be undone.",
                 keeps: "Kept: the tenant itself, its own log, its signing setup and the staff accounts and settings it had before its first configuration package.",
@@ -113,7 +118,7 @@ const englishTranslation = {
                     super_admin_tenant:
                         "The administration tenant can't be reset while other tenants exist.",
                     no_baseline:
-                        "This tenant's first configuration package was imported before resets existed, so what it was before is unknown.",
+                        "No pre-import state was recorded for this tenant: its first configuration package was imported before resets existed, or it already had an election event then.",
                     nothing_to_reset: "Nothing was imported into this tenant yet.",
                     task_running: "Wait for the running task to finish: {{name}}.",
                     voting_open: "Voting is open in {{event}}. Close it first.",

@@ -80,7 +80,7 @@ const galegoTranslation: TranslationType = {
                 unfinished:
                     "Un restablecemento deste inquilino non rematou. O inquilino non admite cambios ata que remate: execútao de novo para rematalo.",
                 noBaselineHint:
-                    "O restablecemento está dispoñible para inquilinos cuxo primeiro paquete de configuración se subiu despois de introducir esta función.",
+                    "O restablecemento está dispoñible para inquilinos que non tiñan ningún evento electoral cando se subiu o seu primeiro paquete de configuración, despois de introducir esta función.",
                 open: "Restablecer inquilino…",
                 finish: "Rematar o restablecemento…",
                 dialogTitle: "Restablecer o inquilino",
@@ -90,6 +90,11 @@ const galegoTranslation: TranslationType = {
                 succeeded:
                     "O inquilino restableceuse. Podes importar de novo o paquete de configuración e a súa lista de asinantes.",
                 failed: "O restablecemento non rematou. O inquilino segue bloqueado ata que remate un: execútao de novo.",
+                previewFailed: "Non se puido ler que borraría un restablecemento.",
+                retry: "Tentar de novo",
+                unknown:
+                    "Non se pode ler o progreso do restablecemento, así que non se sabe se rematou. Compróbao de novo, ou pecha e volve abrir esta páxina.",
+                checkAgain: "Comprobar de novo",
                 willDelete:
                     "Eliminaranse {{events}} evento(s) electoral(is) e {{rows}} rexistro(s), cos seus votantes, papeletas, rexistros, ficheiros e dominios de acceso. Non se pode desfacer.",
                 keeps: "Consérvase: o propio inquilino, o seu rexistro, a súa configuración de sinatura e as contas de persoal e axustes que tiña antes do seu primeiro paquete de configuración.",
@@ -108,7 +113,7 @@ const galegoTranslation: TranslationType = {
                     super_admin_tenant:
                         "O inquilino de administración non se pode restablecer mentres existan outros inquilinos.",
                     no_baseline:
-                        "O primeiro paquete de configuración deste inquilino importouse antes de que existisen os restablecementos, así que se descoñece como estaba antes.",
+                        "Non se rexistrou o estado previo á importación deste inquilino: o seu primeiro paquete de configuración importouse antes de que existisen os restablecementos, ou xa tiña entón un evento electoral.",
                     nothing_to_reset: "Aínda non se importou nada neste inquilino.",
                     task_running: "Agarda a que remate a tarefa en curso: {{name}}.",
                     voting_open: "A votación está aberta en {{event}}. Péchaa primeiro.",
